@@ -31,48 +31,45 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-
+  
     const { data: { user: trainer } } = await supabase.auth.getUser()
     if (!trainer) return
-
-    // 1. Kreiraj auth usera za klijenta
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: form.email,
-      password: form.password,
-      user_metadata: {
-        full_name: form.full_name,
-        role: 'client'
+  
+    const { data: { session } } = await supabase.auth.getSession()
+  
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const response = await fetch(
+        'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          trainer_id: trainer.id,
+          email: form.email,
+          full_name: form.full_name,
+          goal: form.goal,
+          date_of_birth: form.date_of_birth || null,
+          weight: form.weight ? parseFloat(form.weight) : null,
+          height: form.height ? parseFloat(form.height) : null,
+        }),
       }
-    })
-
-    if (authError) {
-      setError(authError.message)
+    )
+  
+    const result = await response.json()
+  
+    if (result.error) {
+      setError(result.error)
       setLoading(false)
       return
     }
-
-    // 2. Kreiraj clients red
-    const { error: clientError } = await supabase
-      .from('clients')
-      .insert({
-        trainer_id: trainer.id,
-        user_id: authData.user.id,
-        goal: form.goal,
-        date_of_birth: form.date_of_birth || null,
-        weight: form.weight ? parseFloat(form.weight) : null,
-        height: form.height ? parseFloat(form.height) : null,
-      })
-
-    if (clientError) {
-      setError(clientError.message)
-      setLoading(false)
-      return
-    }
-
+  
     setLoading(false)
     onSuccess()
     onClose()
@@ -146,9 +143,11 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           <div className="space-y-2">
             <Label>Datum rođenja</Label>
             <Input
-              type="date"
-              value={form.date_of_birth}
-              onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+                type="date"
+                value={form.date_of_birth}
+                onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+                min="1900-01-01"
+                max={new Date().toISOString().split("T")[0]}
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
