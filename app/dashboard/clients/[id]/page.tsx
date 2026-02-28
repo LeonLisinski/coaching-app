@@ -4,28 +4,30 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ArrowLeft, Mail, Target, Weight, Ruler } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ArrowLeft } from 'lucide-react'
+import CheckinOverview from '@/app/dashboard/checkins/[id]/components/checkin-overview'
+import CheckinHistory from '@/app/dashboard/checkins/[id]/components/checkin-history'
+import CheckinGraphs from '@/app/dashboard/checkins/[id]/components/checkin-graphs'
+import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-config'
 
-type ClientDetail = {
+type Client = {
   id: string
   full_name: string
   email: string
-  goal: string
-  active: boolean
+  goal: string | null
   weight: number | null
   height: number | null
   date_of_birth: string | null
-  created_at: string
+  start_date: string | null
+  active: boolean
 }
 
 export default function ClientDetailPage() {
   const { id } = useParams()
   const router = useRouter()
-  const [client, setClient] = useState<ClientDetail | null>(null)
+  const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,17 +38,8 @@ export default function ClientDetailPage() {
     const { data } = await supabase
       .from('clients')
       .select(`
-        id,
-        goal,
-        active,
-        weight,
-        height,
-        date_of_birth,
-        created_at,
-        profiles!clients_user_id_fkey (
-          full_name,
-          email
-        )
+        id, goal, weight, height, date_of_birth, start_date, active,
+        profiles!clients_user_id_fkey (full_name, email)
       `)
       .eq('id', id)
       .single()
@@ -56,123 +49,104 @@ export default function ClientDetailPage() {
         id: data.id,
         full_name: (data.profiles as any)?.full_name || 'Bez imena',
         email: (data.profiles as any)?.email || '',
-        goal: data.goal || '',
-        active: data.active,
+        goal: data.goal,
         weight: data.weight,
         height: data.height,
         date_of_birth: data.date_of_birth,
-        created_at: data.created_at,
+        start_date: data.start_date,
+        active: data.active,
       })
     }
     setLoading(false)
   }
 
-  if (loading) return <p className="text-gray-500">Učitavanje...</p>
-  if (!client) return <p className="text-gray-500">Klijent nije pronađen</p>
+  if (loading) return <p className="text-gray-500 text-sm p-8">Učitavanje...</p>
+  if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft size={16} />
         </Button>
-        <h1 className="text-2xl font-bold">{client.full_name}</h1>
-        <Badge variant={client.active ? 'default' : 'secondary'}>
-          {client.active ? 'Aktivan' : 'Neaktivan'}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        {/* Profil kartica */}
-        <Card className="col-span-1">
-          <CardContent className="pt-6 flex flex-col items-center text-center space-y-4">
-            <Avatar className="w-20 h-20">
-              <AvatarFallback className="text-2xl bg-blue-100 text-blue-700">
-                {client.full_name.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-semibold text-lg">{client.full_name}</p>
-              <p className="text-sm text-gray-500 flex items-center gap-1 justify-center">
-                <Mail size={12} /> {client.email}
-              </p>
-            </div>
-            {client.goal && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Target size={14} />
-                <span>{client.goal}</span>
-              </div>
-            )}
-            <div className="w-full border-t pt-4 space-y-2 text-sm">
-              {client.weight && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500 flex items-center gap-1"><Weight size={12} /> Težina</span>
-                  <span className="font-medium">{client.weight} kg</span>
-                </div>
-              )}
-              {client.height && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500 flex items-center gap-1"><Ruler size={12} /> Visina</span>
-                  <span className="font-medium">{client.height} cm</span>
-                </div>
-              )}
-              {client.date_of_birth && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Rođen</span>
-                  <span className="font-medium">{new Date(client.date_of_birth).toLocaleDateString('hr-HR')}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-gray-500">Klijent od</span>
-                <span className="font-medium">{new Date(client.created_at).toLocaleDateString('hr-HR')}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tabovi */}
-        <div className="col-span-2">
-          <Tabs defaultValue="training">
-            <TabsList className="w-full">
-              <TabsTrigger value="training" className="flex-1">Treninzi</TabsTrigger>
-              <TabsTrigger value="nutrition" className="flex-1">Prehrana</TabsTrigger>
-              <TabsTrigger value="checkins" className="flex-1">Checkini</TabsTrigger>
-            </TabsList>
-            <TabsContent value="training">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Plan treninga</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500 text-sm">Još nema plana treninga.</p>
-                  <Button className="mt-4" size="sm">Kreiraj plan</Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="nutrition">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Plan prehrane</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500 text-sm">Još nema plana prehrane.</p>
-                  <Button className="mt-4" size="sm">Kreiraj plan</Button>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            <TabsContent value="checkins">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Checkin historija</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-500 text-sm">Još nema checkin podataka.</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+        <div>
+          <h1 className="text-2xl font-bold">{client.full_name}</h1>
+          <p className="text-gray-500 text-sm">{client.email}</p>
         </div>
       </div>
+
+      {/* Info kartica */}
+      <Card>
+        <CardContent className="py-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {client.goal && (
+              <div>
+                <p className="text-xs text-gray-400">Cilj</p>
+                <p className="text-sm font-medium">{client.goal}</p>
+              </div>
+            )}
+            {client.weight && (
+              <div>
+                <p className="text-xs text-gray-400">Težina</p>
+                <p className="text-sm font-medium">{client.weight} kg</p>
+              </div>
+            )}
+            {client.height && (
+              <div>
+                <p className="text-xs text-gray-400">Visina</p>
+                <p className="text-sm font-medium">{client.height} cm</p>
+              </div>
+            )}
+            {client.date_of_birth && (
+              <div>
+                <p className="text-xs text-gray-400">Datum rođenja</p>
+                <p className="text-sm font-medium">{new Date(client.date_of_birth).toLocaleDateString('hr-HR')}</p>
+              </div>
+            )}
+            {client.start_date && (
+              <div>
+                <p className="text-xs text-gray-400">Početak suradnje</p>
+                <p className="text-sm font-medium">{new Date(client.start_date).toLocaleDateString('hr-HR')}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-400">Status</p>
+              <p className={`text-sm font-medium ${client.active ? 'text-green-600' : 'text-red-500'}`}>
+                {client.active ? 'Aktivan' : 'Neaktivan'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="checkin">
+        <TabsList>
+          <TabsTrigger value="checkin">Tjedni checkin</TabsTrigger>
+          <TabsTrigger value="history">Povijest</TabsTrigger>
+          <TabsTrigger value="graphs">Grafovi</TabsTrigger>
+          <TabsTrigger value="checkin-config">Checkin postavke</TabsTrigger>
+          <TabsTrigger value="treninzi">Treninzi</TabsTrigger>
+          <TabsTrigger value="prehrana">Prehrana</TabsTrigger>
+        </TabsList>
+        <TabsContent value="checkin" className="mt-6">
+          <CheckinOverview clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="history" className="mt-6">
+          <CheckinHistory clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="graphs" className="mt-6">
+          <CheckinGraphs clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="checkin-config" className="mt-6">
+          <CheckinConfig clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="treninzi" className="mt-6">
+          <p className="text-gray-500 text-sm">Uskoro — dodjela planova treninga klijentu</p>
+        </TabsContent>
+        <TabsContent value="prehrana" className="mt-6">
+          <p className="text-gray-500 text-sm">Uskoro — dodjela planova prehrane klijentu</p>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
