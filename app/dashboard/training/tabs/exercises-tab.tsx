@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import AddExerciseDialog from '../dialogs/add-exercise-dialog'
+import EditExerciseDialog from '../dialogs/edit-exercise-dialog'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type Exercise = {
   id: string
@@ -26,6 +28,8 @@ export default function ExercisesTab() {
   const [activeCategory, setActiveCategory] = useState('Sve')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [editExercise, setEditExercise] = useState<Exercise | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchExercises()
@@ -39,10 +43,16 @@ export default function ExercisesTab() {
       .from('exercises')
       .select('*')
       .eq('trainer_id', user.id)
-      .order('name', { ascending: true })
+      .order('name')
 
     if (data) setExercises(data)
     setLoading(false)
+  }
+
+  const deleteExercise = async (id: string) => {
+    await supabase.from('exercises').delete().eq('id', id)
+    setExercises(exercises.filter(e => e.id !== id))
+    setConfirmDelete(null)
   }
 
   const filtered = exercises.filter(e => {
@@ -96,15 +106,17 @@ export default function ExercisesTab() {
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((exercise) => (
-            <Card key={exercise.id} className="hover:shadow-sm transition-shadow">
+            <Card
+              key={exercise.id}
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onDoubleClick={() => setEditExercise(exercise)}
+            >
               <CardContent className="py-3 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="font-medium text-sm">{exercise.name}</p>
-                    {exercise.muscle_group && (
-                      <p className="text-xs text-gray-500">💪 {exercise.muscle_group}</p>
-                    )}
-                  </div>
+                <div>
+                  <p className="font-medium text-sm">{exercise.name}</p>
+                  {exercise.muscle_group && (
+                    <p className="text-xs text-gray-500">💪 {exercise.muscle_group}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">{exercise.category}</Badge>
@@ -113,6 +125,12 @@ export default function ExercisesTab() {
                       Video
                     </a>
                   )}
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditExercise(exercise) }}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(exercise.id) }}>
+                    <Trash2 size={14} className="text-red-400" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -124,6 +142,28 @@ export default function ExercisesTab() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSuccess={fetchExercises}
+      />
+
+      {editExercise && (
+        <EditExerciseDialog
+          exercise={editExercise}
+          open={!!editExercise}
+          onClose={() => setEditExercise(null)}
+          onSuccess={() => {
+            setEditExercise(null)
+            fetchExercises()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Obriši vježbu"
+        description="Sigurno želiš obrisati ovu vježbu? Ova radnja se ne može poništiti."
+        onConfirm={() => confirmDelete && deleteExercise(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Obriši"
+        destructive
       />
     </div>
   )

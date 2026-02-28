@@ -9,12 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { X } from 'lucide-react'
 
-type Props = {
-  open: boolean
-  onClose: () => void
-  onSuccess: () => void
-}
-
 type Exercise = {
   id: string
   name: string
@@ -30,11 +24,25 @@ type TemplateExercise = {
   notes: string
 }
 
-export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+type Template = {
+  id: string
+  name: string
+  description: string
+  exercises: TemplateExercise[]
+}
+
+type Props = {
+  template: Template
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+}
+
+export default function EditTemplateDialog({ template, open, onClose, onSuccess }: Props) {
+  const [name, setName] = useState(template.name)
+  const [description, setDescription] = useState(template.description || '')
   const [exercises, setExercises] = useState<Exercise[]>([])
-  const [selected, setSelected] = useState<TemplateExercise[]>([])
+  const [selected, setSelected] = useState<TemplateExercise[]>(template.exercises || [])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -82,17 +90,14 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
     setLoading(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
     const { error } = await supabase
       .from('workout_templates')
-      .insert({
-        trainer_id: user.id,
+      .update({
         name,
         description: description || null,
         exercises: selected,
       })
+      .eq('id', template.id)
 
     if (error) {
       setError(error.message)
@@ -102,10 +107,6 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
 
     setLoading(false)
     onSuccess()
-    onClose()
-    setName('')
-    setDescription('')
-    setSelected([])
   }
 
   const filteredExercises = exercises.filter(e =>
@@ -117,7 +118,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novi predložak treninga</DialogTitle>
+          <DialogTitle>Uredi predložak</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -126,7 +127,6 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Push Day A"
                 required
               />
             </div>
@@ -135,7 +135,6 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Prsa, ramena, triceps..."
               />
             </div>
           </div>
@@ -220,8 +219,8 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
-            <Button type="submit" disabled={loading || selected.length === 0} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi predložak'}
+            <Button type="submit" disabled={loading} className="flex-1">
+              {loading ? 'Spremanje...' : 'Spremi promjene'}
             </Button>
           </div>
         </form>

@@ -1,8 +1,8 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import ExercisesTab from './tabs/exercises-tab'
-import TemplatesTab from './tabs/templates-tab'
+import ExercisesTab from '@/app/dashboard/training/tabs/exercises-tab'
+import TemplatesTab from '@/app/dashboard/training/tabs/templates-tab'
 import PlansTab from './tabs/plans-tab'
 
 export default function TrainingPage() {

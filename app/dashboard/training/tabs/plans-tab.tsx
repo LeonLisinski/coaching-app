@@ -5,23 +5,26 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import AddPlanDialog from '../dialogs/add-plan-dialog'
+import EditPlanDialog from '../dialogs/edit-plan-dialog'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type WorkoutPlan = {
   id: string
   name: string
-  active: boolean
-  start_date: string | null
-  client_name: string
+  description: string
+  days: any[]
+  created_at: string
 }
 
 export default function PlansTab() {
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [showAdd, setShowAdd] = useState(false)
+  const [editPlan, setEditPlan] = useState<WorkoutPlan | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPlans()
@@ -33,37 +36,29 @@ export default function PlansTab() {
 
     const { data } = await supabase
       .from('workout_plans')
-      .select(`
-        id, name, active, start_date,
-        clients (
-          profiles!clients_user_id_fkey (full_name)
-        )
-      `)
+      .select('*')
       .eq('trainer_id', user.id)
       .order('created_at', { ascending: false })
 
-    if (data) {
-      setPlans(data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        active: p.active,
-        start_date: p.start_date,
-        client_name: p.clients?.profiles?.full_name || 'Bez klijenta',
-      })))
-    }
+    if (data) setPlans(data)
     setLoading(false)
   }
 
+  const deletePlan = async (id: string) => {
+    await supabase.from('workout_plans').delete().eq('id', id)
+    setPlans(plans.filter(p => p.id !== id))
+    setConfirmDelete(null)
+  }
+
   const filtered = plans.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.client_name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-gray-500 text-sm">{plans.length} planova</p>
-        <Button size="sm" className="flex items-center gap-2">
+        <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
           Novi plan
         </Button>
@@ -84,24 +79,31 @@ export default function PlansTab() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search ? 'Nema rezultata' : 'Još nemaš planova treninga.'}
+            {search ? 'Nema rezultata' : 'Još nemaš planova treninga. Kreiraj prvi!'}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((plan) => (
-            <Card key={plan.id} className="hover:shadow-sm transition-shadow">
+            <Card
+              key={plan.id}
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onDoubleClick={() => setEditPlan(plan)}
+            >
               <CardContent className="py-3 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{plan.name}</p>
-                  <p className="text-xs text-gray-500">👤 {plan.client_name}</p>
+                  {plan.description && (
+                    <p className="text-xs text-gray-500">{plan.description}</p>
+                  )}
+                  <p className="text-xs text-gray-400">{plan.days?.length || 0} dana</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={plan.active ? 'default' : 'secondary'}>
-                    {plan.active ? 'Aktivan' : 'Neaktivan'}
-                  </Badge>
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/training/plans/${plan.id}`)}>
-                    Otvori
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditPlan(plan) }}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(plan.id) }}>
+                    <Trash2 size={14} className="text-red-400" />
                   </Button>
                 </div>
               </CardContent>
@@ -109,6 +111,34 @@ export default function PlansTab() {
           ))}
         </div>
       )}
+
+      <AddPlanDialog
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        onSuccess={fetchPlans}
+      />
+
+      {editPlan && (
+        <EditPlanDialog
+          plan={editPlan}
+          open={!!editPlan}
+          onClose={() => setEditPlan(null)}
+          onSuccess={() => {
+            setEditPlan(null)
+            fetchPlans()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Obriši plan"
+        description="Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti."
+        onConfirm={() => confirmDelete && deletePlan(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Obriši"
+        destructive
+      />
     </div>
   )
 }

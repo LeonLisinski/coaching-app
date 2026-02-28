@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Dumbbell, ArrowUpDown } from 'lucide-react'
+import { Plus, Dumbbell, ArrowUpDown, Pencil, Trash2 } from 'lucide-react'
 import AddTemplateDialog from '../dialogs/add-template-dialog'
+import EditTemplateDialog from '../dialogs/edit-template-dialog'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type Template = {
   id: string
@@ -21,6 +23,8 @@ export default function TemplatesTab() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [editTemplate, setEditTemplate] = useState<Template | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [sort, setSort] = useState<SortOption>('date_desc')
 
   useEffect(() => {
@@ -38,6 +42,12 @@ export default function TemplatesTab() {
 
     if (data) setTemplates(data)
     setLoading(false)
+  }
+
+  const deleteTemplate = async (id: string) => {
+    await supabase.from('workout_templates').delete().eq('id', id)
+    setTemplates(templates.filter(t => t.id !== id))
+    setConfirmDelete(null)
   }
 
   const sorted = [...templates].sort((a, b) => {
@@ -89,7 +99,11 @@ export default function TemplatesTab() {
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {sorted.map((template) => (
-            <Card key={template.id} className="hover:shadow-sm transition-shadow">
+            <Card
+              key={template.id}
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onDoubleClick={() => setEditTemplate(template)}
+            >
               <CardContent className="py-3 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <Dumbbell size={16} className="text-blue-600 shrink-0" />
@@ -100,9 +114,14 @@ export default function TemplatesTab() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400">{template.exercises?.length || 0} vježbi</span>
-                  <Button variant="outline" size="sm">Uredi</Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditTemplate(template) }}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(template.id) }}>
+                    <Trash2 size={14} className="text-red-400" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -114,6 +133,28 @@ export default function TemplatesTab() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSuccess={fetchTemplates}
+      />
+
+      {editTemplate && (
+        <EditTemplateDialog
+          template={editTemplate}
+          open={!!editTemplate}
+          onClose={() => setEditTemplate(null)}
+          onSuccess={() => {
+            setEditTemplate(null)
+            fetchTemplates()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Obriši predložak"
+        description="Sigurno želiš obrisati ovaj predložak? Ova radnja se ne može poništiti."
+        onConfirm={() => confirmDelete && deleteTemplate(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Obriši"
+        destructive
       />
     </div>
   )
