@@ -11,6 +11,8 @@ import CheckinOverview from '@/app/dashboard/checkins/[id]/components/checkin-ov
 import CheckinHistory from '@/app/dashboard/checkins/[id]/components/checkin-history'
 import CheckinGraphs from '@/app/dashboard/checkins/[id]/components/checkin-graphs'
 import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-config'
+import ClientWorkoutPlans from '@/app/dashboard/clients/[id]/components/client-workout-plans'
+import ClientMealPlans from '@/app/dashboard/clients/[id]/components/client-meal-plans'
 
 type Client = {
   id: string
@@ -141,10 +143,10 @@ export default function ClientDetailPage() {
           <CheckinConfig clientId={id as string} />
         </TabsContent>
         <TabsContent value="treninzi" className="mt-6">
-          <p className="text-gray-500 text-sm">Uskoro — dodjela planova treninga klijentu</p>
+          <ClientWorkoutPlans clientId={id as string} />
         </TabsContent>
         <TabsContent value="prehrana" className="mt-6">
-          <p className="text-gray-500 text-sm">Uskoro — dodjela planova prehrane klijentu</p>
+          <ClientMealPlans clientId={id as string} />
         </TabsContent>
       </Tabs>
     </div>
