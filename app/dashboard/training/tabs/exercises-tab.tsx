@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Search } from 'lucide-react'
-import AddExerciseDialog from '@/app/dashboard/exercises/add-exercise-dialog'
+import AddExerciseDialog from '../dialogs/add-exercise-dialog'
 
 type Exercise = {
   id: string
@@ -20,7 +20,7 @@ type Exercise = {
 
 const CATEGORIES = ['Sve', 'Snaga', 'Kardio', 'Mobilnost', 'HIIT', 'Ostalo']
 
-export default function ExercisesPage() {
+export default function ExercisesTab() {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Sve')
@@ -53,14 +53,11 @@ export default function ExercisesPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Vježbe</h1>
-          <p className="text-gray-500">{exercises.length} ukupno vježbi</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
-          <Plus size={16} />
+        <p className="text-gray-500 text-sm">{exercises.length} vježbi</p>
+        <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
+          <Plus size={14} />
           Dodaj vježbu
         </Button>
       </div>
@@ -89,38 +86,38 @@ export default function ExercisesPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">Učitavanje...</p>
       ) : filtered.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">
+          <CardContent className="py-8 text-center text-gray-500 text-sm">
             {search ? 'Nema rezultata pretrage' : 'Još nemaš vježbi. Dodaj prvu!'}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
-        {filtered.map((exercise) => (
-          <Card key={exercise.id} className="hover:shadow-sm transition-shadow">
-            <CardContent className="py-3 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <p className="font-medium">{exercise.name}</p>
-                  {exercise.muscle_group && (
-                    <p className="text-xs text-gray-500">💪 {exercise.muscle_group}</p>
+          {filtered.map((exercise) => (
+            <Card key={exercise.id} className="hover:shadow-sm transition-shadow">
+              <CardContent className="py-3 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="font-medium text-sm">{exercise.name}</p>
+                    {exercise.muscle_group && (
+                      <p className="text-xs text-gray-500">💪 {exercise.muscle_group}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">{exercise.category}</Badge>
+                  {exercise.video_url && (
+                    <a href={exercise.video_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">
+                      Video
+                    </a>
                   )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">{exercise.category}</Badge>
-                {exercise.video_url && (
-                  <a href={exercise.video_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">
-                    Video
-                  </a>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       <AddExerciseDialog

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Plus, Dumbbell, ArrowUpDown } from 'lucide-react'
-import AddTemplateDialog from './add-template-dialog'
+import AddTemplateDialog from '../dialogs/add-template-dialog'
 
 type Template = {
   id: string
@@ -17,7 +17,7 @@ type Template = {
 
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
 
-export default function TemplatesPage() {
+export default function TemplatesTab() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -49,14 +49,11 @@ export default function TemplatesPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Predlošci treninga</h1>
-          <p className="text-gray-500">{templates.length} ukupno predložaka</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)} className="flex items-center gap-2">
-          <Plus size={16} />
+        <p className="text-gray-500 text-sm">{templates.length} predložaka</p>
+        <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
+          <Plus size={14} />
           Novi predložak
         </Button>
       </div>
@@ -82,10 +79,10 @@ export default function TemplatesPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">Učitavanje...</p>
       ) : sorted.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">
+          <CardContent className="py-8 text-center text-gray-500 text-sm">
             Još nemaš predložaka. Kreiraj prvi!
           </CardContent>
         </Card>
@@ -97,7 +94,7 @@ export default function TemplatesPage() {
                 <div className="flex items-center gap-4">
                   <Dumbbell size={16} className="text-blue-600 shrink-0" />
                   <div>
-                    <p className="font-medium">{template.name}</p>
+                    <p className="font-medium text-sm">{template.name}</p>
                     {template.description && (
                       <p className="text-xs text-gray-500">{template.description}</p>
                     )}

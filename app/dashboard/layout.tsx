@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { 
-  Users, 
-  Dumbbell, 
-  UtensilsCrossed, 
-  MessageSquare, 
-  ClipboardList,
+import {
+  Users,
+  Dumbbell,
+  UtensilsCrossed,
+  MessageSquare,
   ListChecks,
   LayoutDashboard,
   LogOut
@@ -18,8 +17,7 @@ import { useRouter } from 'next/navigation'
 const navItems = [
   { href: '/dashboard', label: 'Pregled', icon: LayoutDashboard },
   { href: '/dashboard/clients', label: 'Klijenti', icon: Users },
-  { href: '/dashboard/exercises', label: 'Vježbe', icon: Dumbbell },
-  { href: '/dashboard/exercises/templates', label: 'Predlošci', icon: ClipboardList },
+  { href: '/dashboard/training', label: 'Treninzi', icon: Dumbbell },
   { href: '/dashboard/nutrition', label: 'Prehrana', icon: UtensilsCrossed },
   { href: '/dashboard/checkins', label: 'Checkini', icon: ListChecks },
   { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
@@ -43,14 +41,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href
+            const isActive = pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  isActive 
-                    ? 'bg-blue-600 text-white' 
+                  isActive
+                    ? 'bg-blue-600 text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
               >
