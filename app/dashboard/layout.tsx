@@ -8,6 +8,7 @@ import {
   UtensilsCrossed, 
   MessageSquare, 
   ClipboardList,
+  ListChecks,
   LayoutDashboard,
   LogOut
 } from 'lucide-react'
@@ -18,8 +19,9 @@ const navItems = [
   { href: '/dashboard', label: 'Pregled', icon: LayoutDashboard },
   { href: '/dashboard/clients', label: 'Klijenti', icon: Users },
   { href: '/dashboard/exercises', label: 'Vježbe', icon: Dumbbell },
+  { href: '/dashboard/exercises/templates', label: 'Predlošci', icon: ClipboardList },
   { href: '/dashboard/nutrition', label: 'Prehrana', icon: UtensilsCrossed },
-  { href: '/dashboard/checkins', label: 'Checkini', icon: ClipboardList },
+  { href: '/dashboard/checkins', label: 'Checkini', icon: ListChecks },
   { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
 ]
 
@@ -34,7 +36,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-6 border-b border-gray-700">
           <h1 className="text-xl font-bold">Coaching App</h1>
@@ -70,7 +71,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-auto p-8">
         {children}
       </main>
