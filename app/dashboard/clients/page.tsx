@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Plus, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import AddClientDialog from './add-client-dialog'
+import { useRouter } from 'next/navigation'
 
 type Client = {
   id: string
@@ -24,6 +25,7 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     fetchClients()
@@ -40,6 +42,7 @@ export default function ClientsPage() {
         goal,
         active,
         created_at,
+        user_id,
         profiles!clients_user_id_fkey (
           full_name,
           email
@@ -119,7 +122,13 @@ export default function ClientsPage() {
                   <Badge variant={client.active ? 'default' : 'secondary'}>
                     {client.active ? 'Aktivan' : 'Neaktivan'}
                   </Badge>
-                  <Button variant="outline" size="sm">Otvori</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                  >
+                    Otvori
+                  </Button>
                 </div>
               </CardContent>
             </Card>
