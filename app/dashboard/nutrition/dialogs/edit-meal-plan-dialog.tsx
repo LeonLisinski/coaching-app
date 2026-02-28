@@ -9,12 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus } from 'lucide-react'
 import MealSlotEditor from '../components/meal-slot-editor'
 
-type Props = {
-  open: boolean
-  onClose: () => void
-  onSuccess: () => void
-}
-
 type Recipe = {
   id: string
   name: string
@@ -45,10 +39,32 @@ type MealSlot = {
   save_as_recipe?: boolean
 }
 
-export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
-  const [name, setName] = useState('')
-  const [targets, setTargets] = useState({ calories: '', protein: '', carbs: '', fat: '' })
-  const [meals, setMeals] = useState<MealSlot[]>([])
+type MealPlan = {
+  id: string
+  name: string
+  calories_target: number | null
+  protein_target: number | null
+  carbs_target: number | null
+  fat_target: number | null
+  meals: MealSlot[]
+}
+
+type Props = {
+  plan: MealPlan
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+}
+
+export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: Props) {
+  const [name, setName] = useState(plan.name)
+  const [targets, setTargets] = useState({
+    calories: plan.calories_target?.toString() || '',
+    protein: plan.protein_target?.toString() || '',
+    carbs: plan.carbs_target?.toString() || '',
+    fat: plan.fat_target?.toString() || '',
+  })
+  const [meals, setMeals] = useState<MealSlot[]>(plan.meals || [])
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [foods, setFoods] = useState<Food[]>([])
   const [loading, setLoading] = useState(false)
@@ -110,7 +126,6 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Spremi custom obroke kao recepte ako je označeno
     const processedMeals = await Promise.all(meals.map(async (meal) => {
       if (meal.save_as_recipe && meal.custom_ingredients && meal.custom_ingredients.length > 0 && meal.recipe_name) {
         const { data } = await supabase.from('recipes').insert({
@@ -127,15 +142,14 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
       return meal
     }))
 
-    const { error } = await supabase.from('meal_plans').insert({
-      trainer_id: user.id,
+    const { error } = await supabase.from('meal_plans').update({
       name,
       calories_target: targets.calories ? parseInt(targets.calories) : null,
       protein_target: targets.protein ? parseInt(targets.protein) : null,
       carbs_target: targets.carbs ? parseInt(targets.carbs) : null,
       fat_target: targets.fat ? parseInt(targets.fat) : null,
       meals: processedMeals,
-    })
+    }).eq('id', plan.id)
 
     if (error) {
       setError(error.message)
@@ -145,22 +159,18 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
 
     setLoading(false)
     onSuccess()
-    onClose()
-    setName('')
-    setTargets({ calories: '', protein: '', carbs: '', fat: '' })
-    setMeals([])
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novi plan prehrane</DialogTitle>
+          <DialogTitle>Uredi plan prehrane</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Naziv plana</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Cutting plan, Bulk plan..." required />
+            <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
 
           <div className="grid grid-cols-4 gap-3">
@@ -216,7 +226,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Kreiraj plan'}
+              {loading ? 'Spremanje...' : 'Spremi promjene'}
             </Button>
           </div>
         </form>

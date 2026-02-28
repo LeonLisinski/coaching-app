@@ -5,17 +5,19 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search } from 'lucide-react'
-import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
-import { useRouter } from 'next/navigation'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import AddMealPlanDialog from '../dialogs/add-meal-plan-dialog'
+import EditMealPlanDialog from '../dialogs/edit-meal-plan-dialog'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type MealPlan = {
   id: string
   name: string
   calories_target: number | null
-  active: boolean
-  client_name: string
+  protein_target: number | null
+  carbs_target: number | null
+  fat_target: number | null
+  meals: any[]
 }
 
 export default function PlansTab() {
@@ -23,7 +25,8 @@ export default function PlansTab() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const router = useRouter()
+  const [editPlan, setEditPlan] = useState<MealPlan | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchPlans()
@@ -35,30 +38,22 @@ export default function PlansTab() {
 
     const { data } = await supabase
       .from('meal_plans')
-      .select(`
-        id, name, calories_target, active,
-        clients (
-          profiles!clients_user_id_fkey (full_name)
-        )
-      `)
+      .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals')
       .eq('trainer_id', user.id)
       .order('created_at', { ascending: false })
 
-    if (data) {
-      setPlans(data.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        calories_target: p.calories_target,
-        active: p.active,
-        client_name: p.clients?.profiles?.full_name || 'Bez klijenta',
-      })))
-    }
+    if (data) setPlans(data)
     setLoading(false)
   }
 
+  const deletePlan = async (id: string) => {
+    await supabase.from('meal_plans').delete().eq('id', id)
+    setPlans(plans.filter(p => p.id !== id))
+    setConfirmDelete(null)
+  }
+
   const filtered = plans.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.client_name.toLowerCase().includes(search.toLowerCase())
+    p.name.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -86,27 +81,31 @@ export default function PlansTab() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search ? 'Nema rezultata' : 'Još nemaš planova. Dodaj prvi!'}
+            {search ? 'Nema rezultata' : 'Još nemaš planova prehrane. Kreiraj prvi!'}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((plan) => (
-            <Card key={plan.id} className="hover:shadow-sm transition-shadow">
+            <Card
+              key={plan.id}
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onDoubleClick={() => setEditPlan(plan)}
+            >
               <CardContent className="py-3 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{plan.name}</p>
-                  <p className="text-xs text-gray-500">👤 {plan.client_name}</p>
+                  <p className="text-xs text-gray-400">{plan.meals?.length || 0} obroka</p>
                 </div>
                 <div className="flex items-center gap-3">
                   {plan.calories_target && (
-                    <span className="text-xs text-gray-400">{plan.calories_target} kcal</span>
+                    <span className="text-xs text-gray-500">🎯 {plan.calories_target} kcal</span>
                   )}
-                  <Badge variant={plan.active ? 'default' : 'secondary'}>
-                    {plan.active ? 'Aktivan' : 'Neaktivan'}
-                  </Badge>
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/nutrition/plans/${plan.id}`)}>
-                    Otvori
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditPlan(plan) }}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(plan.id) }}>
+                    <Trash2 size={14} className="text-red-400" />
                   </Button>
                 </div>
               </CardContent>
@@ -119,6 +118,28 @@ export default function PlansTab() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSuccess={fetchPlans}
+      />
+
+      {editPlan && (
+        <EditMealPlanDialog
+          plan={editPlan}
+          open={!!editPlan}
+          onClose={() => setEditPlan(null)}
+          onSuccess={() => {
+            setEditPlan(null)
+            fetchPlans()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Obriši plan"
+        description="Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti."
+        onConfirm={() => confirmDelete && deletePlan(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Obriši"
+        destructive
       />
     </div>
   )

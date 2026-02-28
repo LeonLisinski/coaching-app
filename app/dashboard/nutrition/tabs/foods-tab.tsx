@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search } from 'lucide-react'
-import AddFoodDialog from '@/app/dashboard/nutrition/dialogs/add-food-dialog'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import AddFoodDialog from '../dialogs/add-food-dialog'
+import EditFoodDialog from '../dialogs/edit-food-dialog'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type Food = {
   id: string
@@ -27,6 +29,8 @@ export default function FoodsTab() {
   const [activeCategory, setActiveCategory] = useState('Sve')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [editFood, setEditFood] = useState<Food | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFoods()
@@ -44,6 +48,12 @@ export default function FoodsTab() {
 
     if (data) setFoods(data)
     setLoading(false)
+  }
+
+  const deleteFood = async (id: string) => {
+    await supabase.from('foods').delete().eq('id', id)
+    setFoods(foods.filter(f => f.id !== id))
+    setConfirmDelete(null)
   }
 
   const filtered = foods.filter(f => {
@@ -96,13 +106,17 @@ export default function FoodsTab() {
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((food) => (
-            <Card key={food.id} className="hover:shadow-sm transition-shadow">
+            <Card
+              key={food.id}
+              className="hover:shadow-sm transition-shadow cursor-pointer"
+              onDoubleClick={() => setEditFood(food)}
+            >
               <CardContent className="py-3 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{food.name}</p>
                   <p className="text-xs text-gray-400">na 100g</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className="flex gap-3 text-xs text-gray-500">
                     <span>🔥 {food.calories_per_100g} kcal</span>
                     <span>🥩 {food.protein_per_100g}g</span>
@@ -110,6 +124,12 @@ export default function FoodsTab() {
                     <span>🫒 {food.fat_per_100g}g</span>
                   </div>
                   <Badge variant="outline" className="text-xs">{food.category}</Badge>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditFood(food) }}>
+                    <Pencil size={14} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(food.id) }}>
+                    <Trash2 size={14} className="text-red-400" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -121,6 +141,28 @@ export default function FoodsTab() {
         open={showAdd}
         onClose={() => setShowAdd(false)}
         onSuccess={fetchFoods}
+      />
+
+      {editFood && (
+        <EditFoodDialog
+          food={editFood}
+          open={!!editFood}
+          onClose={() => setEditFood(null)}
+          onSuccess={() => {
+            setEditFood(null)
+            fetchFoods()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Obriši namirnicu"
+        description="Sigurno želiš obrisati ovu namirnicu? Ova radnja se ne može poništiti."
+        onConfirm={() => confirmDelete && deleteFood(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Obriši"
+        destructive
       />
     </div>
   )
