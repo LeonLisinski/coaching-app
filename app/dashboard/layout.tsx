@@ -32,6 +32,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login')
   }
 
+  const isChat = pathname.startsWith('/dashboard/chat')
+
   return (
     <div className="flex h-screen bg-gray-100">
       <aside className="w-64 bg-gray-900 text-white flex flex-col">
@@ -69,8 +71,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto p-8">
-        {children}
+      <main className={`flex-1 overflow-hidden flex flex-col ${isChat ? '' : 'overflow-auto'}`}>
+        <div className={`flex-1 ${isChat ? 'flex flex-col overflow-hidden' : 'overflow-auto p-8'}`}>
+          {children}
+        </div>
       </main>
     </div>
   )
