@@ -9,7 +9,8 @@ import {
   MessageSquare,
   ListChecks,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  User
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/dashboard/nutrition', label: 'Prehrana', icon: UtensilsCrossed },
   { href: '/dashboard/checkins', label: 'Checkini', icon: ListChecks },
   { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/dashboard/profile', label: 'Profil', icon: User },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
