@@ -148,14 +148,22 @@ export default function MealSlotEditor({ meal, index, recipes, foods, onChange, 
         <button
           type="button"
           onClick={() => setMode('existing')}
-          className={`text-xs px-3 py-1 rounded-full border transition-colors ${mode === 'existing' ? 'bg-black text-white border-black' : 'text-gray-500 border-gray-300'}`}
+          className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+            mode === 'existing'
+              ? 'bg-black text-white border-black font-semibold'
+              : 'text-gray-500 border-gray-300 hover:border-gray-400'
+          }`}
         >
           Odaberi jelo
         </button>
         <button
           type="button"
           onClick={() => setMode('custom')}
-          className={`text-xs px-3 py-1 rounded-full border transition-colors ${mode === 'custom' ? 'bg-black text-white border-black' : 'text-gray-500 border-gray-300'}`}
+          className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+            mode === 'custom'
+              ? 'bg-black text-white border-black font-semibold'
+              : 'text-gray-500 border-gray-300 hover:border-gray-400'
+          }`}
         >
           Kreiraj obrok
         </button>
