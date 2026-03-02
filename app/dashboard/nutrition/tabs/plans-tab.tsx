@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, ArrowUpDown } from 'lucide-react'
 import AddMealPlanDialog from '../dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '../dialogs/edit-meal-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -18,30 +18,29 @@ type MealPlan = {
   carbs_target: number | null
   fat_target: number | null
   meals: any[]
+  created_at: string
 }
+
+type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
 
 export default function PlansTab() {
   const [plans, setPlans] = useState<MealPlan[]>([])
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<SortOption>('date_desc')
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [editPlan, setEditPlan] = useState<MealPlan | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchPlans()
-  }, [])
+  useEffect(() => { fetchPlans() }, [])
 
   const fetchPlans = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { data } = await supabase
       .from('meal_plans')
-      .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals')
+      .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals, created_at')
       .eq('trainer_id', user.id)
-      .order('created_at', { ascending: false })
-
     if (data) setPlans(data)
     setLoading(false)
   }
@@ -52,9 +51,15 @@ export default function PlansTab() {
     setConfirmDelete(null)
   }
 
-  const filtered = plans.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = plans
+    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      if (sort === 'name_asc') return a.name.localeCompare(b.name)
+      if (sort === 'name_desc') return b.name.localeCompare(a.name)
+      return 0
+    })
 
   return (
     <div className="space-y-4">
@@ -76,6 +81,26 @@ export default function PlansTab() {
         />
       </div>
 
+      <div className="flex items-center gap-2">
+        <ArrowUpDown size={14} className="text-gray-400" />
+        <span className="text-sm text-gray-500">Sortiraj:</span>
+        {([
+          { value: 'date_desc', label: 'Najnoviji' },
+          { value: 'date_asc', label: 'Najstariji' },
+          { value: 'name_asc', label: 'A → Z' },
+          { value: 'name_desc', label: 'Z → A' },
+        ] as { value: SortOption; label: string }[]).map(option => (
+          <Button
+            key={option.value}
+            variant={sort === option.value ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setSort(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
       {loading ? (
         <p className="text-gray-500 text-sm">Učitavanje...</p>
       ) : filtered.length === 0 ? (
@@ -87,11 +112,7 @@ export default function PlansTab() {
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((plan) => (
-            <Card
-              key={plan.id}
-              className="hover:shadow-sm transition-shadow cursor-pointer"
-              onDoubleClick={() => setEditPlan(plan)}
-            >
+            <Card key={plan.id} className="hover:shadow-sm transition-shadow cursor-pointer" onDoubleClick={() => setEditPlan(plan)}>
               <CardContent className="py-3 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{plan.name}</p>
@@ -114,28 +135,15 @@ export default function PlansTab() {
         </div>
       )}
 
-      <AddMealPlanDialog
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSuccess={fetchPlans}
-      />
-
+      <AddMealPlanDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchPlans} />
       {editPlan && (
-        <EditMealPlanDialog
-          plan={editPlan}
-          open={!!editPlan}
-          onClose={() => setEditPlan(null)}
-          onSuccess={() => {
-            setEditPlan(null)
-            fetchPlans()
-          }}
-        />
+        <EditMealPlanDialog plan={editPlan} open={!!editPlan} onClose={() => setEditPlan(null)}
+          onSuccess={() => { setEditPlan(null); fetchPlans() }} />
       )}
-
       <ConfirmDialog
         open={confirmDelete !== null}
         title="Obriši plan"
-        description="Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti."
+        description="Sigurno želiš obrisati ovaj plan?"
         onConfirm={() => confirmDelete && deletePlan(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
         confirmLabel="Obriši"

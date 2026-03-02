@@ -75,16 +75,27 @@ export default function ClientsCheckinTab() {
       .from('clients')
       .select(`
         id,
-        profiles!clients_user_id_fkey (full_name),
-        checkin_config (checkin_day, photo_frequency)
+        profiles!clients_user_id_fkey (full_name)
       `)
       .eq('trainer_id', user.id)
       .eq('active', true)
 
     if (!clientsData) return
 
-    // Dohvati zadnji checkin za svakog klijenta
     const clientIds = clientsData.map(c => c.id)
+
+    // Dohvati config odvojeno — izbjegavamo problematični join
+    const { data: configs } = await supabase
+      .from('checkin_config')
+      .select('client_id, checkin_day, photo_frequency')
+      .in('client_id', clientIds)
+
+    const configMap: Record<string, { checkin_day: number | null, photo_frequency: string | null }> = {}
+    configs?.forEach(c => {
+      configMap[c.client_id] = { checkin_day: c.checkin_day, photo_frequency: c.photo_frequency }
+    })
+
+    // Dohvati zadnji checkin
     const { data: lastCheckins } = await supabase
       .from('checkins')
       .select('client_id, date')
@@ -99,13 +110,14 @@ export default function ClientsCheckinTab() {
     })
 
     const mapped: ClientCheckin[] = clientsData.map((c: any) => {
-      const checkinDay = c.checkin_config?.[0]?.checkin_day ?? null
+      const cfg = configMap[c.id] || null
+      const checkinDay = cfg?.checkin_day ?? null
       const lastCheckin = lastCheckinMap[c.id] || null
       return {
         id: c.id,
         full_name: c.profiles?.full_name || 'Bez imena',
         checkin_day: checkinDay,
-        photo_frequency: c.checkin_config?.[0]?.photo_frequency || null,
+        photo_frequency: cfg?.photo_frequency || null,
         last_checkin: lastCheckin,
         status: getStatus(checkinDay, lastCheckin),
       }
