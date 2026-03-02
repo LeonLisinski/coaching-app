@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,9 @@ type Package = {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations('profile')
+  const tPkg = useTranslations('profile.packages')
+  const tCommon = useTranslations('common')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [packages, setPackages] = useState<Package[]>([])
   const [loading, setLoading] = useState(true)
@@ -177,19 +181,19 @@ export default function ProfilePage() {
     setPackages(packages.map(p => p.id === pkg.id ? { ...p, active: !p.active } : p))
   }
 
-  if (loading) return <p className="text-gray-500 text-sm">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Moj profil</h1>
-        <p className="text-gray-500 text-sm">Upravljanje profilom i paketima</p>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <p className="text-gray-500 text-sm">{t('subtitle')}</p>
       </div>
 
       <Tabs defaultValue="profil">
         <TabsList>
-          <TabsTrigger value="profil">Profil</TabsTrigger>
-          <TabsTrigger value="paketi">Paketi</TabsTrigger>
+          <TabsTrigger value="profil">{t('tabs.profile')}</TabsTrigger>
+          <TabsTrigger value="paketi">{t('tabs.packages')}</TabsTrigger>
         </TabsList>
 
         {/* PROFIL TAB */}
@@ -226,7 +230,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2">
               <label className="cursor-pointer">
                 <span className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
-                  Promijeni sliku
+                  {t('avatar.change')}
                 </span>
                 <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
               </label>
@@ -238,7 +242,7 @@ export default function ProfilePage() {
                   }}
                   className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
                 >
-                  Ukloni
+                  {t('avatar.remove')}
                 </button>
               )}
             </div>
@@ -258,50 +262,50 @@ export default function ProfilePage() {
             <CardContent className="py-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Ime i prezime</Label>
+                  <Label>{t('form.fullName')}</Label>
                   <Input
                     value={form.full_name}
                     onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Telefon</Label>
+                  <Label>{t('form.phone')}</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="+385 91 234 5678"
+                    placeholder={t('form.phonePlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Website</Label>
+                  <Label>{t('form.website')}</Label>
                   <Input
                     value={form.website}
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
-                    placeholder="https://moja-stranica.com"
+                    placeholder={t('form.websitePlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Instagram</Label>
+                  <Label>{t('form.instagram')}</Label>
                   <Input
                     value={form.instagram}
                     onChange={(e) => setForm({ ...form, instagram: e.target.value })}
-                    placeholder="@korisnickoime"
+                    placeholder={t('form.instagramPlaceholder')}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Bio / Opis</Label>
+                <Label>{t('form.bio')}</Label>
                 <textarea
                   value={form.bio}
                   onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                  placeholder="Kratki opis tebe kao trenera..."
+                  placeholder={t('form.bioPlaceholder')}
                   className="w-full border rounded-md px-3 py-2 text-sm min-h-24 resize-none"
                 />
               </div>
 
               <Button onClick={saveProfile} disabled={saving}>
-                {saving ? 'Spremanje...' : 'Spremi profil'}
+                {saving ? tCommon('saving') : t('saveProfile')}
               </Button>
             </CardContent>
           </Card>
@@ -310,29 +314,29 @@ export default function ProfilePage() {
         {/* PAKETI TAB */}
         <TabsContent value="paketi" className="mt-6 space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-gray-500 text-sm">{packages.length} paketa</p>
+            <p className="text-gray-500 text-sm">{tPkg('count', { count: packages.length })}</p>
             <Button onClick={openNewPackage} size="sm" className="flex items-center gap-2">
               <Plus size={14} />
-              Novi paket
+              {tPkg('addNew').replace('+ ', '')}
             </Button>
           </div>
 
           {showPackageForm && (
             <Card className="border-blue-200 bg-blue-50/30">
               <CardContent className="py-4 space-y-3">
-                <p className="font-medium text-sm">{editPackage ? 'Uredi paket' : 'Novi paket'}</p>
+                <p className="font-medium text-sm">{editPackage ? tPkg('editTitle') : tPkg('newTitle')}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label className="text-xs">Naziv paketa</Label>
+                    <Label className="text-xs">{tPkg('name')}</Label>
                     <Input
                       value={packageForm.name}
                       onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
-                      placeholder="Mjesečni program, Premium..."
+                      placeholder={tPkg('namePlaceholder')}
                       className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Cijena (€)</Label>
+                    <Label className="text-xs">{tPkg('price')}</Label>
                     <Input
                       type="number"
                       value={packageForm.price}
@@ -342,7 +346,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Trajanje (dana)</Label>
+                    <Label className="text-xs">{tPkg('duration')}</Label>
                     <Input
                       type="number"
                       value={packageForm.duration_days}
@@ -351,7 +355,7 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Boja oznake</Label>
+                    <Label className="text-xs">{tPkg('color')}</Label>
                     <input
                       type="color"
                       value={packageForm.color}
@@ -361,20 +365,20 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Opis paketa</Label>
+                  <Label className="text-xs">{tPkg('description')}</Label>
                   <textarea
                     value={packageForm.description}
                     onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
-                    placeholder="Što je uključeno u paket..."
+                    placeholder={tPkg('descriptionPlaceholder')}
                     className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
                   />
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={savePackage} disabled={!packageForm.name || !packageForm.price}>
-                    {editPackage ? 'Spremi promjene' : 'Dodaj paket'}
+                    {editPackage ? tPkg('save') : tPkg('add')}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setShowPackageForm(false)}>
-                    Odustani
+                    {tCommon('cancel')}
                   </Button>
                 </div>
               </CardContent>
@@ -384,7 +388,7 @@ export default function ProfilePage() {
           {packages.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-gray-500 text-sm">
-                Još nemaš paketa. Dodaj prvi paket!
+                {tPkg('empty')}
               </CardContent>
             </Card>
           ) : (
@@ -401,18 +405,18 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-sm">{pkg.name}</p>
                           <Badge variant={pkg.active ? 'default' : 'secondary'} className="text-xs">
-                            {pkg.active ? 'Aktivan' : 'Neaktivan'}
+                            {pkg.active ? tPkg('active') : tPkg('inactive')}
                           </Badge>
                         </div>
                         <p className="text-xs text-gray-400">
-                          {pkg.price}€ • {pkg.duration_days} dana
+                          {pkg.price}€ • {pkg.duration_days} {tPkg('days')}
                           {pkg.description && ` • ${pkg.description}`}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => togglePackageActive(pkg)}>
-                        {pkg.active ? 'Deaktiviraj' : 'Aktiviraj'}
+                        {pkg.active ? tPkg('deactivate') : tPkg('activate')}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => openEditPackage(pkg)}>
                         <Pencil size={14} />
@@ -431,11 +435,11 @@ export default function ProfilePage() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši paket"
-        description="Sigurno želiš obrisati ovaj paket?"
+        title={tPkg('deleteTitle')}
+        description={tPkg('deleteConfirm')}
         onConfirm={() => confirmDelete && deletePackage(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tPkg('delete')}
         destructive
       />
     </div>

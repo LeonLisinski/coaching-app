@@ -9,6 +9,7 @@ import { Plus, CreditCard } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { useTranslations } from 'next-intl'
 
 type Package = {
   id: string
@@ -43,6 +44,9 @@ type Props = {
 }
 
 export default function ClientPackages({ clientId }: Props) {
+  const t = useTranslations('clients.packages')
+  const tCommon = useTranslations('common')
+
   const [clientPackages, setClientPackages] = useState<ClientPackage[]>([])
   const [availablePackages, setAvailablePackages] = useState<Package[]>([])
   const [loading, setLoading] = useState(true)
@@ -105,7 +109,7 @@ export default function ClientPackages({ clientId }: Props) {
   }
 
   const statusLabel = {
-    paid: { label: 'Plaćeno', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    paid: { label: t('paid'), color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
     upcoming: { label: 'Dospijeva uskoro', color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
     pending: { label: 'Čeka plaćanje', color: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' },
     late: { label: 'Kasni', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
@@ -135,7 +139,6 @@ export default function ClientPackages({ clientId }: Props) {
       .single()
 
     if (cpData) {
-      // Automatski kreiraj payment record
       await supabase.from('payments').insert({
         trainer_id: trainerId,
         client_id: clientId,
@@ -176,20 +179,20 @@ export default function ClientPackages({ clientId }: Props) {
     setShowPaymentDialog(true)
   }
 
-  if (loading) return <p className="text-sm text-gray-500">Učitavanje...</p>
+  if (loading) return <p className="text-sm text-gray-500">{tCommon('loading')}</p>
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Paketi i plaćanja</h3>
+        <h3 className="font-semibold text-sm">{t('title')}</h3>
         <Button size="sm" onClick={() => setShowAssignDialog(true)} className="flex items-center gap-1">
           <Plus size={13} />
-          Dodijeli paket
+          {t('assignPackage')}
         </Button>
       </div>
 
       {clientPackages.length === 0 ? (
-        <p className="text-sm text-gray-400">Nema dodijeljenih paketa</p>
+        <p className="text-sm text-gray-400">{t('noPackages')}</p>
       ) : (
         clientPackages.map(cp => {
           const status = getPaymentStatus(cp)
@@ -226,7 +229,7 @@ export default function ClientPackages({ clientId }: Props) {
                     {status !== 'paid' && (
                       <Button size="sm" variant="outline" onClick={() => openPaymentDialog(cp)} className="h-6 text-xs px-2">
                         <CreditCard size={11} className="mr-1" />
-                        Označi plaćeno
+                        {t('markPaid')}
                       </Button>
                     )}
                   </div>
@@ -237,11 +240,10 @@ export default function ClientPackages({ clientId }: Props) {
         })
       )}
 
-      {/* Dialog - dodjela paketa */}
       <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Dodijeli paket klijentu</DialogTitle>
+            <DialogTitle>{t('assignPackage')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
@@ -294,21 +296,20 @@ export default function ClientPackages({ clientId }: Props) {
             </div>
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={assignPackage} disabled={!assignForm.package_id}>
-                Dodijeli
+                {tCommon('assign')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowAssignDialog(false)}>
-                Odustani
+                {tCommon('cancel')}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog - označi plaćeno */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Označi kao plaćeno</DialogTitle>
+            <DialogTitle>{t('markPaid')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-gray-500">
@@ -345,10 +346,10 @@ export default function ClientPackages({ clientId }: Props) {
             </div>
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={markAsPaid}>
-                Potvrdi plaćanje
+                {tCommon('confirm')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowPaymentDialog(false)}>
-                Odustani
+                {tCommon('cancel')}
               </Button>
             </div>
           </div>

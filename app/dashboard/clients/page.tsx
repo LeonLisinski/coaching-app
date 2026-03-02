@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useTranslations, useLocale } from 'next-intl'
 
 type Client = {
   id: string
@@ -25,6 +26,11 @@ type Client = {
 }
 
 export default function ClientsPage() {
+  const t = useTranslations('clients.page')
+  const tCommon = useTranslations('common')
+  const tDetail = useTranslations('clients.detail')
+  const locale = useLocale()
+
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -33,6 +39,8 @@ export default function ClientsPage() {
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const router = useRouter()
+
+  const noName = tDetail('noName')
 
   useEffect(() => {
     fetchClients()
@@ -54,7 +62,7 @@ export default function ClientsPage() {
     if (data) {
       setClients(data.map((c: any) => ({
         id: c.id,
-        full_name: c.profiles?.full_name || 'Bez imena',
+        full_name: c.profiles?.full_name || noName,
         email: c.profiles?.email || '',
         goal: c.goal,
         weight: c.weight,
@@ -86,15 +94,15 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Klijenti</h1>
-        <p className="text-gray-500">Upravljanje klijentima</p>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
+        <p className="text-gray-500">{t('subtitle')}</p>
       </div>
 
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <Input
-            placeholder="Pretraži klijente..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -102,15 +110,15 @@ export default function ClientsPage() {
         </div>
         <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
-          Dodaj klijenta
+          {t('addClient')}
         </Button>
       </div>
 
       <div className="flex gap-2">
         {[
-          { value: 'active', label: 'Aktivni' },
-          { value: 'inactive', label: 'Neaktivni' },
-          { value: 'all', label: 'Svi' },
+          { value: 'active', label: t('filterActive') },
+          { value: 'inactive', label: t('filterInactive') },
+          { value: 'all', label: t('filterAll') },
         ].map(opt => (
           <Button
             key={opt.value}
@@ -123,14 +131,14 @@ export default function ClientsPage() {
         ))}
       </div>
 
-      <p className="text-sm text-gray-500">{filtered.length} klijenata</p>
+      <p className="text-sm text-gray-500">{t('clientCount', { count: filtered.length })}</p>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search ? 'Nema rezultata pretrage' : 'Još nemaš klijenata. Dodaj prvog!'}
+            {t('noClients')}
           </CardContent>
         </Card>
       ) : (
@@ -146,13 +154,13 @@ export default function ClientsPage() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm">{client.full_name}</p>
-                      {!client.active && <Badge variant="secondary" className="text-xs">Neaktivan</Badge>}
+                      {!client.active && <Badge variant="secondary" className="text-xs">{tCommon('inactive')}</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-400">
                       <span>{client.email}</span>
                       {client.goal && <span>🎯 {client.goal}</span>}
                       {client.start_date && (
-                        <span>📅 Od {new Date(client.start_date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                        <span>📅 {t('since')} {new Date(client.start_date).toLocaleDateString(locale)}</span>
                       )}
                     </div>
                   </div>
@@ -203,14 +211,11 @@ export default function ClientsPage() {
 
       <ConfirmDialog
         open={confirmToggle !== null}
-        title={confirmToggle?.active ? 'Deaktiviraj klijenta' : 'Aktiviraj klijenta'}
-        description={confirmToggle?.active
-          ? `Sigurno želiš deaktivirati ${confirmToggle?.full_name}?`
-          : `Sigurno želiš aktivirati ${confirmToggle?.full_name}?`
-        }
+        title={tCommon(confirmToggle?.active ? 'inactive' : 'active')}
+        description={t(confirmToggle?.active ? 'deactivateConfirm' : 'activateConfirm')}
         onConfirm={() => confirmToggle && toggleStatus(confirmToggle)}
         onCancel={() => setConfirmToggle(null)}
-        confirmLabel={confirmToggle?.active ? 'Deaktiviraj' : 'Aktiviraj'}
+        confirmLabel={tCommon(confirmToggle?.active ? 'inactive' : 'active')}
         destructive={confirmToggle?.active}
       />
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -58,6 +59,9 @@ type Props = {
 const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Snack 1', 'Snack 2']
 
 export default function MealSlotEditor({ meal, index, recipes, foods, onChange, onRemove }: Props) {
+  const t = useTranslations('nutrition.dialogs.mealPlan')
+  const tRecipe = useTranslations('nutrition.dialogs.recipe')
+
   const [mode, setMode] = useState<'existing' | 'custom'>(meal.custom_ingredients ? 'custom' : 'existing')
   const [customName, setCustomName] = useState(meal.recipe_name || '')
   const [saveAsRecipe, setSaveAsRecipe] = useState(meal.save_as_recipe || false)
@@ -137,7 +141,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, onChange, 
           onChange={(e) => onChange(index, 'meal_type', e.target.value)}
           className="border rounded px-2 py-1 text-sm"
         >
-          {MEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          {MEAL_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
         </select>
         <button type="button" onClick={() => onRemove(index)}>
           <X size={14} className="text-gray-400 hover:text-red-500" />
@@ -154,7 +158,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, onChange, 
               : 'text-gray-500 border-gray-300 hover:border-gray-400'
           }`}
         >
-          Odaberi jelo
+          {t('useRecipe')}
         </button>
         <button
           type="button"
@@ -165,7 +169,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, onChange, 
               : 'text-gray-500 border-gray-300 hover:border-gray-400'
           }`}
         >
-          Kreiraj obrok
+          {t('customMeal')}
         </button>
       </div>
 
@@ -188,13 +192,13 @@ export default function MealSlotEditor({ meal, index, recipes, foods, onChange, 
               setCustomName(e.target.value)
               updateCustomTotals(ingredients, e.target.value, saveAsRecipe)
             }}
-            placeholder="Naziv obroka..."
+            placeholder={`${t('mealName')}...`}
             className="h-8 text-sm"
           />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Dodaj namirnice..."
+            placeholder={tRecipe('addIngredients')}
             className="h-8 text-sm"
           />
           {search && filteredFoods.length > 0 && (

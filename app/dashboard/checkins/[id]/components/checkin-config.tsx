@@ -1,28 +1,35 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 
 type Props = { clientId: string }
 
-const DAYS = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
-const PHOTO_FREQUENCIES = [
-  { value: 'daily', label: 'Svaki dan' },
-  { value: 'weekly', label: 'Tjedno' },
-  { value: 'biweekly', label: '2x tjedno' },
-  { value: 'none', label: 'Bez slika' },
-]
-const PHOTO_POSITIONS = ['Prednja', 'Bočna', 'Stražnja']
+const PHOTO_POSITIONS = ['front', 'side', 'back'] as const
 
 export default function CheckinConfig({ clientId }: Props) {
+  const t = useTranslations('checkins')
+  const tDays = useTranslations('days')
+  const tCommon = useTranslations('common')
+
+  const tConfig = (key: string) => t(`detail.config.${key}` as any)
+  const tForm = (key: string) => t(`detail.form.${key}` as any)
+
+  const PHOTO_FREQUENCIES = [
+    { value: 'none', label: tConfig('frequencies.none') },
+    { value: 'every', label: tConfig('frequencies.every') },
+    { value: 'biweekly', label: tConfig('frequencies.biweekly') },
+    { value: 'monthly', label: tConfig('frequencies.monthly') },
+  ]
+
   const [config, setConfig] = useState({
     checkin_day: 1,
-    photo_frequency: 'weekly',
-    photo_positions: ['Prednja', 'Bočna', 'Stražnja'],
+    photo_frequency: 'every',
+    photo_positions: ['front', 'side', 'back'],
     notes: '',
   })
   const [configId, setConfigId] = useState<string | null>(null)
@@ -45,8 +52,8 @@ export default function CheckinConfig({ clientId }: Props) {
       setConfigId(data.id)
       setConfig({
         checkin_day: data.checkin_day ?? 1,
-        photo_frequency: data.photo_frequency || 'weekly',
-        photo_positions: data.photo_positions || ['Prednja', 'Bočna', 'Stražnja'],
+        photo_frequency: data.photo_frequency || 'every',
+        photo_positions: data.photo_positions || ['front', 'side', 'back'],
         notes: data.notes || '',
       })
     }
@@ -88,30 +95,30 @@ export default function CheckinConfig({ clientId }: Props) {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  if (loading) return <p className="text-gray-500 text-sm">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
 
   return (
     <div className="space-y-4 max-w-lg">
       <Card>
         <CardContent className="py-4 space-y-4">
           <div className="space-y-2">
-            <Label>Dan checkina</Label>
+            <Label>{tConfig('checkinDay')}</Label>
             <div className="flex gap-2 flex-wrap">
-              {DAYS.map((day, i) => (
+              {[0, 1, 2, 3, 4, 5, 6].map(i => (
                 <Button
-                  key={day}
+                  key={i}
                   variant={config.checkin_day === i ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setConfig({ ...config, checkin_day: i })}
                 >
-                  {day.slice(0, 3)}
+                  {tDays(String(i)).slice(0, 3)}
                 </Button>
               ))}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Frekvencija slika</Label>
+            <Label>{tConfig('photoFrequency')}</Label>
             <div className="flex gap-2 flex-wrap">
               {PHOTO_FREQUENCIES.map(f => (
                 <Button
@@ -128,7 +135,7 @@ export default function CheckinConfig({ clientId }: Props) {
 
           {config.photo_frequency !== 'none' && (
             <div className="space-y-2">
-              <Label>Pozicije slika</Label>
+              <Label>{tConfig('photoPositionsLabel')}</Label>
               <div className="flex gap-2">
                 {PHOTO_POSITIONS.map(pos => (
                   <Button
@@ -137,7 +144,7 @@ export default function CheckinConfig({ clientId }: Props) {
                     size="sm"
                     onClick={() => togglePosition(pos)}
                   >
-                    {pos}
+                    {tForm(`photoPositions.${pos}` as any)}
                   </Button>
                 ))}
               </div>
@@ -145,17 +152,17 @@ export default function CheckinConfig({ clientId }: Props) {
           )}
 
           <div className="space-y-2">
-            <Label>Upute za klijenta</Label>
+            <Label>{tConfig('clientInstructions')}</Label>
             <textarea
               value={config.notes}
               onChange={(e) => setConfig({ ...config, notes: e.target.value })}
-              placeholder="Npr. Svaki ponedjeljak do 8h očekujem checkin i slike..."
+              placeholder={tConfig('clientInstructionsPlaceholder')}
               className="w-full border rounded-md px-3 py-2 text-sm min-h-24 resize-none"
             />
           </div>
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? 'Spremanje...' : saved ? '✓ Spremljeno!' : 'Spremi postavke'}
+            {saving ? tCommon('saving') : saved ? tConfig('savedSuccess') : tConfig('save')}
           </Button>
         </CardContent>
       </Card>

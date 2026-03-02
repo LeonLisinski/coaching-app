@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,9 @@ type Client = {
 export default function ClientCheckinPage() {
   const { id } = useParams()
   const router = useRouter()
+  const t = useTranslations('checkins')
+  const tCommon = useTranslations('common')
+
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -47,7 +51,7 @@ export default function ClientCheckinPage() {
     setLoading(false)
   }
 
-  if (loading) return <p className="text-gray-500 text-sm p-8">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
   if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
 
   return (
@@ -64,10 +68,10 @@ export default function ClientCheckinPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Tjedni pregled</TabsTrigger>
-          <TabsTrigger value="history">Povijest</TabsTrigger>
-          <TabsTrigger value="graphs">Grafovi</TabsTrigger>
-          <TabsTrigger value="config">Postavke</TabsTrigger>
+          <TabsTrigger value="overview">{t('detail.tabs.checkin')}</TabsTrigger>
+          <TabsTrigger value="history">{t('detail.tabs.history')}</TabsTrigger>
+          <TabsTrigger value="graphs">{t('detail.tabs.graphs')}</TabsTrigger>
+          <TabsTrigger value="config">{t('detail.tabs.config')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6">
           <CheckinOverview clientId={id as string} />

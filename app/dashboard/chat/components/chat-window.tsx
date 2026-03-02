@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +24,9 @@ type Message = {
 }
 
 export default function ChatWindow({ clientId, clientName, onMessageSent }: Props) {
+  const t = useTranslations('chat')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -131,11 +135,11 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
   }
 
   const formatTime = (time: string) => {
-    return new Date(time).toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit' })
+    return new Date(time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
   }
 
   const formatDate = (time: string) => {
-    return new Date(time).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    return new Date(time).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
   const groupedMessages = messages.reduce((acc, msg) => {
@@ -160,9 +164,9 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
       {/* Poruke */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {loading ? (
-          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Učitavanje...</p>
+          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>{tCommon('loading')}</p>
         ) : messages.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginTop: 32 }}>Početak razgovora s {clientName}</p>
+          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginTop: 32 }}>{t('window.startOfConversation')}</p>
         ) : (
           Object.entries(groupedMessages).map(([date, dayMessages]) => (
             <div key={date} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -218,7 +222,7 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Napiši poruku..."
+          placeholder={t('window.messagePlaceholder')}
           style={{ flex: 1 }}
           disabled={sending}
           autoFocus
@@ -227,6 +231,7 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
           onClick={sendMessage}
           disabled={!input.trim() || sending}
           size="sm"
+          aria-label={t('window.send')}
         >
           <Send size={14} />
         </Button>

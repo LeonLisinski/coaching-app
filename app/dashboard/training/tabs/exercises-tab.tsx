@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,6 +24,9 @@ type Exercise = {
 const CATEGORIES = ['Sve', 'Snaga', 'Kardio', 'Mobilnost', 'HIIT', 'Ostalo']
 
 export default function ExercisesTab() {
+  const t = useTranslations('training.exercisesTab')
+  const tCommon = useTranslations('common')
+
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Sve')
@@ -49,7 +53,6 @@ export default function ExercisesTab() {
     setConfirmDelete(null)
   }
 
-  // Sve unikatne grupe mišića iz podataka
   const muscleGroups = ['Sve', ...Array.from(new Set(
     exercises
       .flatMap(e => e.muscle_group?.split(',').map(m => m.trim()) || [])
@@ -80,7 +83,7 @@ export default function ExercisesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{filtered.length} / {exercises.length} vježbi</p>
+        <p className="text-gray-500 text-sm">{t('count', { count: filtered.length })} / {t('count', { count: exercises.length })}</p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -89,7 +92,7 @@ export default function ExercisesTab() {
             className="flex items-center gap-2"
           >
             <SlidersHorizontal size={14} />
-            Filtri
+            {t('filterLabel')}
             {activeFilterCount > 0 && (
               <span className="bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 {activeFilterCount}
@@ -98,16 +101,15 @@ export default function ExercisesTab() {
           </Button>
           <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
             <Plus size={14} />
-            Dodaj vježbu
+            {t('add')}
           </Button>
         </div>
       </div>
 
-      {/* Search uvijek vidljiv */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <Input
-          placeholder="Pretraži vježbe..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -122,12 +124,10 @@ export default function ExercisesTab() {
         )}
       </div>
 
-      {/* Filter panel */}
       {showFilters && (
         <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
-          {/* Kategorija */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kategorija</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('categoryHeader')}</p>
             <div className="flex gap-2 flex-wrap">
               {CATEGORIES.map(cat => (
                 <button
@@ -144,15 +144,14 @@ export default function ExercisesTab() {
                     cursor: 'pointer',
                   }}
                 >
-                  {cat}
+                  {cat === 'Sve' ? t('filterAll') : t(`categories.${cat}` as any)}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Grupa mišića */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Grupa mišića</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('muscleGroupHeader')}</p>
             <div className="flex gap-2 flex-wrap">
               {muscleGroups.map(muscle => (
                 <button
@@ -175,29 +174,27 @@ export default function ExercisesTab() {
             </div>
           </div>
 
-          {/* Clear filtri */}
           {activeFilterCount > 0 && (
             <button
               onClick={clearFilters}
               style={{ fontSize: 12, color: '#ef4444', cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <X size={12} />
-              Očisti sve filtere
+              {t('clearAllFilters')}
             </button>
           )}
         </div>
       )}
 
-      {/* Aktivni filteri badges */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
           {activeCategory !== 'Sve' && (
             <button
               onClick={() => setActiveCategory('Sve')}
               style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}
             >
-              {activeCategory} <X size={10} />
+              {t(`categories.${activeCategory}` as any)} <X size={10} />
             </button>
           )}
           {activeMuscle !== 'Sve' && (
@@ -212,19 +209,17 @@ export default function ExercisesTab() {
             onClick={clearFilters}
             style={{ fontSize: 11, color: '#9ca3af', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
           >
-            Očisti sve
+            {t('clearAll')}
           </button>
         </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search || activeCategory !== 'Sve' || activeMuscle !== 'Sve'
-              ? 'Nema rezultata za odabrane filtere'
-              : 'Još nemaš vježbi. Dodaj prvu!'}
+            {t('noExercises')}
           </CardContent>
         </Card>
       ) : (
@@ -243,7 +238,7 @@ export default function ExercisesTab() {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">{exercise.category}</Badge>
+                  <Badge variant="outline" className="text-xs">{t(`categories.${exercise.category}` as any)}</Badge>
                   {exercise.video_url && (
                     <a href={exercise.video_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline" onClick={e => e.stopPropagation()}>
                       Video
@@ -273,11 +268,11 @@ export default function ExercisesTab() {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši vježbu"
-        description="Sigurno želiš obrisati ovu vježbu? Ova radnja se ne može poništiti."
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteExercise(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
     </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,6 +21,9 @@ type Template = {
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
 
 export default function TemplatesTab() {
+  const t = useTranslations('training.templatesTab')
+  const tCommon = useTranslations('common')
+
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -61,21 +65,21 @@ export default function TemplatesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{templates.length} predložaka</p>
+        <p className="text-gray-500 text-sm">{t('count', { count: templates.length })}</p>
         <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
-          Novi predložak
+          {t('add')}
         </Button>
       </div>
 
       <div className="flex items-center gap-2">
         <ArrowUpDown size={14} className="text-gray-400" />
-        <span className="text-sm text-gray-500">Sortiraj:</span>
+        <span className="text-sm text-gray-500">{t('sortLabel')}</span>
         {[
-          { value: 'date_desc', label: 'Najnoviji' },
-          { value: 'date_asc', label: 'Najstariji' },
-          { value: 'name_asc', label: 'A → Z' },
-          { value: 'name_desc', label: 'Z → A' },
+          { value: 'date_desc', labelKey: 'sortNewest' },
+          { value: 'date_asc', labelKey: 'sortOldest' },
+          { value: 'name_asc', labelKey: 'sortAZ' },
+          { value: 'name_desc', labelKey: 'sortZA' },
         ].map(option => (
           <Button
             key={option.value}
@@ -83,17 +87,17 @@ export default function TemplatesTab() {
             size="sm"
             onClick={() => setSort(option.value as SortOption)}
           >
-            {option.label}
+            {t(option.labelKey as any)}
           </Button>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : sorted.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            Još nemaš predložaka. Kreiraj prvi!
+            {t('noTemplates')}
           </CardContent>
         </Card>
       ) : (
@@ -115,7 +119,7 @@ export default function TemplatesTab() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">{template.exercises?.length || 0} vježbi</span>
+                  <span className="text-xs text-gray-400">{t('exercises', { count: template.exercises?.length || 0 })}</span>
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditTemplate(template) }}>
                     <Pencil size={14} />
                   </Button>
@@ -149,11 +153,11 @@ export default function TemplatesTab() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši predložak"
-        description="Sigurno želiš obrisati ovaj predložak? Ova radnja se ne može poništiti."
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteTemplate(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
     </div>

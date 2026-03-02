@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -24,6 +25,9 @@ type Food = {
 const CATEGORIES = ['Sve', 'Meso & Riba', 'Mliječni', 'Žitarice', 'Voće', 'Povrće', 'Orašasti', 'Ostalo']
 
 export default function FoodsTab() {
+  const t = useTranslations('nutrition.foodsTab')
+  const tCommon = useTranslations('common')
+
   const [foods, setFoods] = useState<Food[]>([])
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Sve')
@@ -65,17 +69,17 @@ export default function FoodsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{foods.length} namirnica</p>
+        <p className="text-gray-500 text-sm">{t('count', { count: foods.length })}</p>
         <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
-          Dodaj namirnicu
+          {t('add')}
         </Button>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <Input
-          placeholder="Pretraži namirnice..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -90,17 +94,17 @@ export default function FoodsTab() {
             size="sm"
             onClick={() => setActiveCategory(cat)}
           >
-            {cat}
+            {cat === 'Sve' ? t('all') : t(`categories.${cat}` as any)}
           </Button>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search ? 'Nema rezultata' : 'Još nemaš namirnica. Dodaj prvu!'}
+            {t('noFoods')}
           </CardContent>
         </Card>
       ) : (
@@ -114,7 +118,7 @@ export default function FoodsTab() {
               <CardContent className="py-3 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-sm">{food.name}</p>
-                  <p className="text-xs text-gray-400">na 100g</p>
+                  <p className="text-xs text-gray-400">{t('per100g')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex gap-3 text-xs text-gray-500">
@@ -123,7 +127,7 @@ export default function FoodsTab() {
                     <span>🍞 {food.carbs_per_100g}g</span>
                     <span>🫒 {food.fat_per_100g}g</span>
                   </div>
-                  <Badge variant="outline" className="text-xs">{food.category}</Badge>
+                  <Badge variant="outline" className="text-xs">{t(`categories.${food.category}` as any)}</Badge>
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditFood(food) }}>
                     <Pencil size={14} />
                   </Button>
@@ -157,11 +161,11 @@ export default function FoodsTab() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši namirnicu"
-        description="Sigurno želiš obrisati ovu namirnicu? Ova radnja se ne može poništiti."
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteFood(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
     </div>

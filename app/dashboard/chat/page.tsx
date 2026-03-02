@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Search } from 'lucide-react'
@@ -15,6 +16,9 @@ type Client = {
 }
 
 export default function ChatPage() {
+  const t = useTranslations('chat')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -85,10 +89,10 @@ export default function ChatPage() {
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    if (days === 0) return date.toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit' })
+    if (days === 0) return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     if (days === 1) return 'Jučer'
-    if (days < 7) return date.toLocaleDateString('hr-HR', { weekday: 'short' })
-    return date.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' })
+    if (days < 7) return date.toLocaleDateString(locale, { weekday: 'short' })
+    return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
   }
 
   return (
@@ -96,11 +100,11 @@ export default function ChatPage() {
       {/* Lista klijenata */}
       <div className="w-72 border-r flex flex-col bg-white">
         <div className="p-4 border-b">
-          <h2 className="font-semibold mb-3">Chat</h2>
+          <h2 className="font-semibold mb-3">{t('page.title')}</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
             <Input
-              placeholder="Pretraži..."
+              placeholder={t('page.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-8 text-sm"
@@ -110,9 +114,9 @@ export default function ChatPage() {
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <p className="text-gray-500 text-sm p-4">Učitavanje...</p>
+            <p className="text-gray-500 text-sm p-4">{tCommon('loading')}</p>
           ) : filtered.length === 0 ? (
-            <p className="text-gray-500 text-sm p-4">Nema klijenata</p>
+            <p className="text-gray-500 text-sm p-4">{t('page.noClients')}</p>
           ) : (
             filtered.map(client => (
               <div
@@ -138,7 +142,7 @@ export default function ChatPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-gray-400 truncate">
-                      {client.last_message || 'Nema poruka'}
+                      {client.last_message || t('page.noMessages')}
                     </p>
                     {client.unread > 0 && (
                       <span className="ml-1 flex-shrink-0 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">

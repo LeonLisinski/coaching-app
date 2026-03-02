@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -25,6 +26,9 @@ type Recipe = {
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
 
 export default function RecipesTab() {
+  const t = useTranslations('nutrition.recipesTab')
+  const tCommon = useTranslations('common')
+
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>('name_asc')
@@ -62,17 +66,17 @@ export default function RecipesTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{recipes.length} jela</p>
+        <p className="text-gray-500 text-sm">{t('count', { count: recipes.length })}</p>
         <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
-          Dodaj jelo
+          {t('add')}
         </Button>
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <Input
-          placeholder="Pretraži jela..."
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -81,30 +85,30 @@ export default function RecipesTab() {
 
       <div className="flex items-center gap-2">
         <ArrowUpDown size={14} className="text-gray-400" />
-        <span className="text-sm text-gray-500">Sortiraj:</span>
+        <span className="text-sm text-gray-500">{t('sortLabel')}</span>
         {([
-          { value: 'date_desc', label: 'Najnoviji' },
-          { value: 'date_asc', label: 'Najstariji' },
-          { value: 'name_asc', label: 'A → Z' },
-          { value: 'name_desc', label: 'Z → A' },
-        ] as { value: SortOption; label: string }[]).map(option => (
+          { value: 'date_desc', labelKey: 'sortNewest' },
+          { value: 'date_asc', labelKey: 'sortOldest' },
+          { value: 'name_asc', labelKey: 'sortAZ' },
+          { value: 'name_desc', labelKey: 'sortZA' },
+        ] as { value: SortOption; labelKey: string }[]).map(option => (
           <Button
             key={option.value}
             variant={sort === option.value ? 'default' : 'outline'}
             size="sm"
             onClick={() => setSort(option.value)}
           >
-            {option.label}
+            {t(option.labelKey as any)}
           </Button>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {search ? 'Nema rezultata' : 'Još nemaš jela. Dodaj prvo!'}
+            {t('noRecipes')}
           </CardContent>
         </Card>
       ) : (
@@ -115,7 +119,7 @@ export default function RecipesTab() {
                 <div>
                   <p className="font-medium text-sm">{recipe.name}</p>
                   {recipe.description && <p className="text-xs text-gray-500">{recipe.description}</p>}
-                  <p className="text-xs text-gray-400">{recipe.ingredients?.length || 0} namirnica</p>
+                  <p className="text-xs text-gray-400">{t('ingredients', { count: recipe.ingredients?.length || 0 })}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex gap-3 text-xs text-gray-500">
@@ -144,11 +148,11 @@ export default function RecipesTab() {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši jelo"
-        description="Sigurno želiš obrisati ovo jelo?"
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteRecipe(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
     </div>

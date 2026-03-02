@@ -1,0 +1,608 @@
+{
+  "app": {
+    "name": "Coaching App"
+  },
+  "common": {
+    "loading": "Učitavanje...",
+    "logout": "Odjava",
+    "cancel": "Odustani",
+    "save": "Spremi",
+    "saving": "Spremanje...",
+    "edit": "Uredi",
+    "delete": "Obriši",
+    "add": "Dodaj",
+    "close": "Zatvori",
+    "confirm": "Potvrdi",
+    "yes": "Da",
+    "no": "Ne",
+    "search": "Pretraži",
+    "noData": "Nema podataka",
+    "active": "Aktivan",
+    "inactive": "Neaktivan",
+    "status": "Status",
+    "name": "Naziv",
+    "description": "Opis",
+    "date": "Datum",
+    "actions": "Akcije",
+    "back": "Natrag",
+    "assign": "Dodijeli",
+    "create": "Kreiraj",
+    "remove": "Ukloni",
+    "saveChanges": "Spremi promjene"
+  },
+  "nav": {
+    "overview": "Pregled",
+    "clients": "Klijenti",
+    "training": "Treninzi",
+    "nutrition": "Prehrana",
+    "checkins": "Check-ini",
+    "chat": "Chat",
+    "profile": "Profil"
+  },
+  "locale": {
+    "hr": "Hrvatski",
+    "en": "English"
+  },
+  "days": {
+    "0": "Nedjelja",
+    "1": "Ponedjeljak",
+    "2": "Utorak",
+    "3": "Srijeda",
+    "4": "Četvrtak",
+    "5": "Petak",
+    "6": "Subota"
+  },
+  "dashboard": {
+    "title": "Pregled",
+    "subtitle": "Dobrodošli natrag",
+    "stats": {
+      "activeClients": "Aktivnih klijenata",
+      "pendingCheckins": "Checkini na čekanju",
+      "todayCheckins": "Checkini danas",
+      "totalCheckins": "Ukupno checkina"
+    },
+    "checkinStatus": {
+      "title": "Status check-ina klijenata",
+      "onTime": "Na vrijeme",
+      "late": "Kasni",
+      "noConfig": "Bez konfiguracije",
+      "noCheckin": "Nema checkina"
+    },
+    "upcomingCheckins": "Nadolazeći check-ini",
+    "noUpcomingCheckins": "Nema nadolazećih check-ina",
+    "recentActivity": "Nedavna aktivnost",
+    "noRecentActivity": "Nema nedavne aktivnosti",
+    "monday": "Ponedjeljak",
+    "checkinDay": "Dan check-ina",
+    "revenue": {
+      "title": "Prihod zadnjih 6 mjeseci",
+      "thisMonth": "Naplata ovaj mjesec",
+      "paid": "naplaćeno",
+      "expectedMonth": "Očekivano ovaj mjesec",
+      "collectedMonth": "Naplaćeno ovaj mjesec",
+      "latePayments": "Kasne s plaćanjem",
+      "avgRegularity": "Prosj. redovitost",
+      "expected": "Očekivano",
+      "collected": "Naplaćeno"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "subtitle": "Upravljanje profilom i paketima",
+    "tabs": {
+      "profile": "Profil",
+      "packages": "Paketi",
+      "security": "Sigurnost"
+    },
+    "packages": {
+      "newTitle": "Novi paket",
+      "editTitle": "Uredi paket",
+      "addNew": "Novi paket",
+      "count": "{count, plural, one {# paket} other {# paketa}}",
+      "name": "Naziv paketa",
+      "namePlaceholder": "Mjesečni program, Premium...",
+      "price": "Cijena (€)",
+      "duration": "Trajanje (dana)",
+      "color": "Boja oznake",
+      "description": "Opis paketa",
+      "descriptionPlaceholder": "Što je uključeno u paket...",
+      "add": "Dodaj paket",
+      "save": "Spremi promjene",
+      "empty": "Još nemaš paketa. Dodaj prvi paket!",
+      "deleteTitle": "Obriši paket",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj paket?",
+      "delete": "Obriši",
+      "activate": "Aktiviraj",
+      "deactivate": "Deaktiviraj",
+      "active": "Aktivan",
+      "inactive": "Neaktivan",
+      "days": "dana"
+    },
+    "form": {
+      "fullName": "Ime i prezime",
+      "phone": "Telefon",
+      "phonePlaceholder": "+385 91 234 5678",
+      "website": "Website",
+      "websitePlaceholder": "https://moja-stranica.com",
+      "instagram": "Instagram",
+      "instagramPlaceholder": "@korisnickoime",
+      "bio": "Bio / Opis",
+      "bioPlaceholder": "Kratki opis tebe kao trenera..."
+    },
+    "avatar": {
+      "change": "Promijeni sliku",
+      "remove": "Ukloni"
+    },
+    "saveProfile": "Spremi profil",
+    "security": {
+      "changePassword": "Promijeni lozinku",
+      "currentPassword": "Trenutna lozinka",
+      "newPassword": "Nova lozinka",
+      "confirmPassword": "Potvrdi lozinku"
+    }
+  },
+  "clients": {
+    "page": {
+      "title": "Klijenti",
+      "subtitle": "Upravljanje klijentima",
+      "searchPlaceholder": "Pretraži klijente...",
+      "addClient": "Dodaj klijenta",
+      "filterAll": "Svi",
+      "filterActive": "Aktivni",
+      "filterInactive": "Neaktivni",
+      "clientCount": "{count, plural, one {# klijent} other {# klijenata}}",
+      "since": "Od",
+      "goal": "Cilj",
+      "noClients": "Nema klijenata",
+      "deactivateConfirm": "Jesi li siguran da želiš deaktivirati ovog klijenta?",
+      "activateConfirm": "Jesi li siguran da želiš aktivirati ovog klijenta?"
+    },
+    "dialogs": {
+      "add": {
+        "title": "Dodaj klijenta",
+        "fullName": "Ime i prezime",
+        "email": "Email",
+        "phone": "Telefon",
+        "goal": "Cilj",
+        "goalPlaceholder": "npr. Mršavljenje, Mišićna masa...",
+        "weight": "Težina (kg)",
+        "height": "Visina (cm)",
+        "dateOfBirth": "Datum rođenja",
+        "startDate": "Datum početka",
+        "notes": "Bilješke",
+        "submit": "Dodaj klijenta"
+      },
+      "edit": {
+        "title": "Uredi klijenta",
+        "submit": "Spremi promjene"
+      }
+    },
+    "detail": {
+      "tabs": {
+        "weeklyCheckin": "Weekly check-in",
+        "history": "Povijest",
+        "graphs": "Grafovi",
+        "checkinSettings": "Check-in postavke",
+        "training": "Treninzi",
+        "nutrition": "Prehrana",
+        "packages": "Paketi i plaćanja"
+      },
+      "stats": {
+        "goal": "Cilj",
+        "weight": "Težina",
+        "height": "Visina",
+        "dateOfBirth": "Datum rođenja",
+        "startDate": "Datum početka",
+        "status": "Status"
+      },
+      "noName": "Bez imena"
+    },
+    "workoutPlans": {
+      "title": "Planovi treninga",
+      "assigned": "{count, plural, one {# dodijeljen plan} other {# dodijeljenih planova}}",
+      "createNew": "Kreiraj novi",
+      "assignExisting": "Dodijeli postojeći",
+      "noPlans": "Klijentu nije dodijeljen nijedan plan treninga.",
+      "assignPlan": "Dodijeli plan treninga",
+      "selectPlan": "Odaberi plan...",
+      "note": "Napomena (opcionalno)...",
+      "assign": "Dodijeli",
+      "days": "{count, plural, one {# dan} other {# dana}}",
+      "assignedOn": "Dodijeljeno",
+      "removeConfirm": "Ukloniti ovaj plan treninga?"
+    },
+    "mealPlans": {
+      "title": "Planovi prehrane",
+      "assigned": "{count, plural, one {# dodijeljen plan} other {# dodijeljenih planova}}",
+      "createNew": "Kreiraj novi",
+      "assignExisting": "Dodijeli postojeći",
+      "noPlans": "Klijentu nije dodijeljen nijedan plan prehrane.",
+      "assignPlan": "Dodijeli plan prehrane",
+      "selectPlan": "Odaberi plan...",
+      "note": "Napomena (opcionalno)...",
+      "assign": "Dodijeli",
+      "assignedOn": "Dodijeljeno",
+      "removeConfirm": "Ukloniti ovaj plan prehrane?"
+    },
+    "packages": {
+      "title": "Paketi i plaćanja",
+      "assignPackage": "Dodijeli paket",
+      "noPackages": "Nema dodijeljenih paketa.",
+      "paid": "Plaćeno",
+      "unpaid": "Nije plaćeno",
+      "markPaid": "Označi kao plaćeno",
+      "markUnpaid": "Označi kao neplaćeno",
+      "sessions": "{count, plural, one {# sat} other {# sati}}",
+      "removeConfirm": "Ukloniti ovaj paket?"
+    }
+  },
+  "training": {
+    "page": {
+      "title": "Treninzi",
+      "subtitle": "Planovi, predlošci i vježbe",
+      "tabs": {
+        "plans": "Planovi",
+        "templates": "Predlošci",
+        "exercises": "Vježbe"
+      }
+    },
+    "plansTab": {
+      "count": "{count, plural, one {# plan} other {# planova}}",
+      "add": "Dodaj plan",
+      "searchPlaceholder": "Pretraži planove...",
+      "days": "{count, plural, one {# dan} other {# dana}}",
+      "noPlans": "Nema planova treninga.",
+      "active": "Aktivan",
+      "inactive": "Neaktivan",
+      "sortLabel": "Sortiraj:",
+      "sortNewest": "Najnoviji",
+      "sortOldest": "Najstariji",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Obriši plan",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti."
+    },
+    "templatesTab": {
+      "count": "{count, plural, one {# predložak} other {# predložaka}}",
+      "add": "Dodaj predložak",
+      "searchPlaceholder": "Pretraži predloške...",
+      "exercises": "{count, plural, one {# vježba} other {# vježbi}}",
+      "noTemplates": "Nema predložaka.",
+      "sortLabel": "Sortiraj:",
+      "sortNewest": "Najnoviji",
+      "sortOldest": "Najstariji",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Obriši predložak",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj predložak? Ova radnja se ne može poništiti."
+    },
+    "exercisesTab": {
+      "count": "{count, plural, one {# vježba} other {# vježbi}}",
+      "add": "Dodaj vježbu",
+      "searchPlaceholder": "Pretraži vježbe...",
+      "filterAll": "Sve",
+      "filterLabel": "Filtri",
+      "categoryHeader": "Kategorija",
+      "muscleGroupHeader": "Grupa mišića",
+      "clearAll": "Očisti sve",
+      "clearAllFilters": "Očisti sve filtere",
+      "activeFilters": "Aktivni filteri:",
+      "sortLabel": "Sortiraj:",
+      "sortNewest": "Najnoviji",
+      "sortOldest": "Najstariji",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "noExercises": "Nema vježbi.",
+      "deleteTitle": "Obriši vježbu",
+      "deleteConfirm": "Sigurno želiš obrisati ovu vježbu? Ova radnja se ne može poništiti.",
+      "categories": {
+        "Snaga": "Snaga",
+        "Kardio": "Kardio",
+        "Mobilnost": "Mobilnost",
+        "HIIT": "HIIT",
+        "Ostalo": "Ostalo"
+      }
+    },
+    "dialogs": {
+      "exercise": {
+        "addTitle": "Dodaj vježbu",
+        "editTitle": "Uredi vježbu",
+        "name": "Naziv",
+        "namePlaceholder": "npr. Bench press",
+        "category": "Kategorija",
+        "muscleGroup": "Mišićna skupina",
+        "muscleGroupPlaceholder": "npr. Prsa, triceps",
+        "description": "Opis",
+        "descriptionPlaceholder": "Opis vježbe...",
+        "save": "Spremi vježbu"
+      },
+      "template": {
+        "addTitle": "Novi predložak",
+        "editTitle": "Uredi predložak",
+        "name": "Naziv predloška",
+        "namePlaceholder": "npr. Push dan",
+        "description": "Opis (opcionalno)",
+        "descriptionPlaceholder": "Kratki opis...",
+        "exercises": "Vježbe",
+        "addExercise": "Dodaj vježbu",
+        "searchExercises": "Pretraži vježbe...",
+        "sets": "Seri",
+        "reps": "Ponav.",
+        "rest": "Odmor (s)",
+        "notes": "Bilješka",
+        "save": "Spremi predložak",
+        "noExercises": "Dodaj vježbe iz liste desno."
+      },
+      "plan": {
+        "addTitle": "Novi plan",
+        "editTitle": "Uredi plan",
+        "name": "Naziv plana",
+        "namePlaceholder": "npr. PPL program",
+        "description": "Opis",
+        "descriptionPlaceholder": "Kratki opis...",
+        "trainingDays": "Dani treninga",
+        "addDay": "+ Dodaj dan",
+        "dayLabel": "Dan",
+        "emptyDays": "Dodaj dane treninga.",
+        "form": {
+          "name": "Naziv plana",
+          "description": "Opis",
+          "namePlaceholder": "npr. PPL program",
+          "descriptionPlaceholder": "Kratki opis...",
+          "trainingDays": "Dani treninga",
+          "addDay": "+ Dodaj dan",
+          "dayLabel": "Dan",
+          "dayName": "Naziv dana",
+          "template": "Predložak",
+          "createWorkout": "Kreiraj trening",
+          "fromTemplateCount": "vježbi iz predloška",
+          "exerciseCountSuffix": "vježbi",
+          "emptyDays": "Dodaj dane treninga.",
+          "save": "Spremi plan",
+          "noTemplate": "Bez predloška",
+          "addDayLabel": "Dodaj dan"
+        }
+      }
+    }
+  },
+  "nutrition": {
+    "page": {
+      "title": "Prehrana",
+      "subtitle": "Namirnice, recepti i planovi prehrane",
+      "tabs": {
+        "foods": "Namirnice",
+        "recipes": "Recepti",
+        "plans": "Planovi"
+      }
+    },
+    "foodsTab": {
+      "count": "{count, plural, one {# namirnica} other {# namirnica}}",
+      "add": "Dodaj namirnicu",
+      "searchPlaceholder": "Pretraži namirnice...",
+      "per100g": "na 100g",
+      "all": "Sve",
+      "noFoods": "Nema namirnica.",
+      "deleteTitle": "Obriši namirnicu",
+      "deleteConfirm": "Sigurno želiš obrisati ovu namirnicu? Ova radnja se ne može poništiti.",
+      "categories": {
+        "Meso & Riba": "Meso & Riba",
+        "Mliječni": "Mliječni",
+        "Žitarice": "Žitarice",
+        "Voće": "Voće",
+        "Povrće": "Povrće",
+        "Orašasti": "Orašasti",
+        "Ostalo": "Ostalo"
+      }
+    },
+    "recipesTab": {
+      "count": "{count, plural, one {# recept} other {# recepata}}",
+      "add": "Dodaj recept",
+      "searchPlaceholder": "Pretraži recepte...",
+      "ingredients": "{count, plural, one {# sastojak} other {# sastojaka}}",
+      "noRecipes": "Nema recepata.",
+      "sortLabel": "Sortiraj:",
+      "sortNewest": "Najnoviji",
+      "sortOldest": "Najstariji",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Obriši recept",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj recept? Ova radnja se ne može poništiti."
+    },
+    "plansTab": {
+      "count": "{count, plural, one {# plan} other {# planova}}",
+      "add": "Dodaj plan",
+      "searchPlaceholder": "Pretraži planove...",
+      "noPlans": "Nema planova prehrane.",
+      "sortLabel": "Sortiraj:",
+      "sortNewest": "Najnoviji",
+      "sortOldest": "Najstariji",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Obriši plan prehrane",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti.",
+      "meals": "{count, plural, one {# obrok} other {# obroka}}",
+      "targetCalories": "kcal cilj",
+      "targetProtein": "g proteina",
+      "targetCarbs": "g ugljikohidrata",
+      "targetFat": "g masti"
+    },
+    "dialogs": {
+      "food": {
+        "addTitle": "Dodaj namirnicu",
+        "editTitle": "Uredi namirnicu",
+        "name": "Naziv",
+        "namePlaceholder": "npr. Piletina, prsa",
+        "category": "Kategorija",
+        "calories": "Kalorije (kcal/100g)",
+        "protein": "Proteini (g/100g)",
+        "carbs": "Ugljikohidrati (g/100g)",
+        "fat": "Masti (g/100g)",
+        "save": "Spremi namirnicu"
+      },
+      "recipe": {
+        "addTitle": "Novi recept",
+        "editTitle": "Uredi recept",
+        "name": "Naziv jela",
+        "namePlaceholder": "npr. Piletina s rižom",
+        "description": "Opis",
+        "descriptionPlaceholder": "Kratki opis...",
+        "addIngredients": "Dodaj namirnice",
+        "searchIngredients": "Pretraži namirnice...",
+        "ingredients": "Sastojci",
+        "total": "Ukupno",
+        "save": "Spremi recept"
+      },
+      "mealPlan": {
+        "addTitle": "Novi plan prehrane",
+        "editTitle": "Uredi plan prehrane",
+        "name": "Naziv plana",
+        "namePlaceholder": "npr. Plan za mršavljenje",
+        "description": "Opis (opcionalno)",
+        "targetCalories": "Ciljane kalorije",
+        "targetProtein": "Ciljani proteini (g)",
+        "targetCarbs": "Ciljani ugljikohidrati (g)",
+        "targetFat": "Ciljane masti (g)",
+        "meals": "Obroci",
+        "addMeal": "+ Dodaj obrok",
+        "save": "Spremi plan",
+        "mealType": "Tip obroka",
+        "mealName": "Naziv obroka",
+        "useRecipe": "Koristi recept",
+        "customMeal": "Vlastiti obrok"
+      }
+    }
+  },
+  "checkins": {
+    "page": {
+      "title": "Check-ini",
+      "subtitle": "Pregled check-ina klijenata",
+      "tabs": {
+        "clients": "Klijenti",
+        "parameters": "Parametri"
+      }
+    },
+    "clientsTab": {
+      "searchPlaceholder": "Pretraži klijente...",
+      "checkinDay": "Dan check-ina",
+      "lastCheckin": "Zadnji check-in",
+      "photoFrequency": "Frekvencija slika",
+      "status": "Status",
+      "noClients": "Nema aktivnih klijenata.",
+      "noDay": "Nije postavljeno",
+      "noLastCheckin": "Nikad",
+      "sortLabel": "Sortiraj:",
+      "dayLabel": "Dan:",
+      "allDays": "Svi",
+      "viewClient": "Pregled",
+      "statuses": {
+        "onTime": "Na vrijeme",
+        "late": "Kasni",
+        "noConfig": "Bez konfiguracije",
+        "noCheckin": "Nema check-ina"
+      }
+    },
+    "parametersTab": {
+      "title": "Parametri mjerenja",
+      "add": "Dodaj parametar",
+      "noParameters": "Nema parametara.",
+      "name": "Naziv",
+      "unit": "Jedinica",
+      "active": "Aktivan",
+      "deleteTitle": "Obriši parametar",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj parametar? Postojeći checkini neće biti pogođeni.",
+      "dialog": {
+        "addTitle": "Dodaj parametar",
+        "editTitle": "Uredi parametar",
+        "namePlaceholder": "npr. Težina",
+        "unitPlaceholder": "npr. kg"
+      }
+    },
+    "detail": {
+      "weeklyCheckin": "Weekly Check-in",
+      "back": "Natrag na check-ine",
+      "tabs": {
+        "checkin": "Check-in",
+        "history": "Povijest",
+        "graphs": "Grafovi",
+        "config": "Postavke"
+      },
+      "overview": {
+        "weeklyAverages": "Tjedni prosjeci",
+        "thisWeek": "ovaj tjedan",
+        "today": "danas",
+        "notEntered": "Nije uneseno",
+        "privateNoteLabel": "Bilješka (privatna)",
+        "privateNotePlaceholder": "Bilješka samo za tebe...",
+        "clientCommentLabel": "Komentar klijentu",
+        "clientCommentPlaceholder": "Komentar koji će klijent vidjeti...",
+        "saveNotes": "Spremi bilješke",
+        "savedSuccess": "✓ Spremljeno!"
+      },
+      "form": {
+        "date": "Datum",
+        "weight": "Težina (kg)",
+        "notes": "Bilješke",
+        "notesPlaceholder": "Kako se osjećaš ovaj tjedan?",
+        "photos": "Fotografije",
+        "measurements": "Mjerenja",
+        "submit": "Spremi check-in",
+        "photoPositions": {
+          "front": "Sprijeda",
+          "back": "Straga",
+          "side": "Sa strane",
+          "front_relaxed": "Sprijeda opušteno",
+          "back_relaxed": "Straga opušteno",
+          "side_left": "Lijeva strana",
+          "side_right": "Desna strana"
+        }
+      },
+      "history": {
+        "searchPlaceholder": "Pretraži povijest...",
+        "totalCount": "{count, plural, one {# checkin ukupno} other {# checkina ukupno}}",
+        "clientComment": "Komentar klijentu",
+        "noHistory": "Nema povijesti check-ina.",
+        "weight": "Težina",
+        "notes": "Bilješke",
+        "photos": "Fotografije",
+        "measurements": "Mjerenja"
+      },
+      "config": {
+        "checkinDay": "Dan check-ina",
+        "photoFrequency": "Frekvencija slika",
+        "photoPositionsLabel": "Pozicije slika",
+        "clientInstructions": "Upute za klijenta",
+        "clientInstructionsPlaceholder": "Npr. Svaki ponedjeljak do 8h očekujem checkin i slike...",
+        "savedSuccess": "✓ Spremljeno!",
+        "selectDay": "Odaberi dan",
+        "frequencies": {
+          "none": "Nikad",
+          "every": "Svaki check-in",
+          "biweekly": "Svaki drugi check-in",
+          "monthly": "Jednom mjesečno"
+        },
+        "save": "Spremi postavke"
+      },
+      "graphs": {
+        "parameterLabel": "Parametar:",
+        "noNumericParams": "Nema numeričkih parametara za prikaz grafa.",
+        "notEnoughData": "Nedovoljno podataka za prikaz grafa. Potrebno najmanje 2 unosa.",
+        "minimum": "Minimum",
+        "average": "Prosjek",
+        "maximum": "Maximum"
+      }
+    }
+  },
+  "chat": {
+    "page": {
+      "title": "Chat",
+      "searchPlaceholder": "Pretraži razgovore...",
+      "noMessages": "Nema poruka",
+      "noClients": "Nema klijenata za chat."
+    },
+    "window": {
+      "startOfConversation": "Početak razgovora",
+      "messagePlaceholder": "Napiši poruku...",
+      "send": "Pošalji"
+    }
+  }
+}

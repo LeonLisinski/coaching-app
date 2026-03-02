@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -53,6 +54,11 @@ type Props = {
 }
 
 export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('training.dialogs.plan')
+  const tCommon = useTranslations('common')
+  const tExercises = useTranslations('training.exercisesTab')
+  const tTemplate = useTranslations('training.dialogs.template')
+
   const [name, setName] = useState(plan.name)
   const [description, setDescription] = useState(plan.description || '')
   const [days, setDays] = useState<PlanDay[]>(
@@ -82,7 +88,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
   const addDay = () => {
     setDays([...days, {
       day_number: days.length + 1,
-      name: `Dan ${days.length + 1}`,
+      name: `${t('form.dayLabel')} ${days.length + 1}`,
       template_id: null,
       exercises: [],
       mode: 'template'
@@ -169,40 +175,40 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Uredi plan treninga</DialogTitle>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Naziv plana</Label>
+              <Label>{t('form.name')}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Opis</Label>
+              <Label>{t('form.description')}</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Dani treninga ({days.length})</Label>
+              <Label>{t('form.trainingDays')} ({days.length})</Label>
               <Button type="button" variant="outline" size="sm" onClick={addDay} className="flex items-center gap-1">
                 <Plus size={12} />
-                Dodaj dan
+                {t('form.addDayLabel')}
               </Button>
             </div>
 
             {days.map((day, index) => (
               <div key={index} className="border rounded-md p-3 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-sm">Dan {day.day_number}</span>
+                  <span className="font-medium text-sm">{t('form.dayLabel')} {day.day_number}</span>
                   <button type="button" onClick={() => removeDay(index)}>
                     <X size={14} className="text-gray-400 hover:text-red-500" />
                   </button>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Naziv dana</Label>
+                  <Label className="text-xs">{t('form.dayName')}</Label>
                   <Input
                     value={day.name}
                     onChange={(e) => updateDayField(index, 'name', e.target.value)}
@@ -210,7 +216,6 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                   />
                 </div>
 
-                {/* Mode switcher */}
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -221,7 +226,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                         : 'text-gray-500 border-gray-300 hover:border-gray-400'
                     }`}
                   >
-                    Iz predloška
+                    {t('form.template')}
                   </button>
                   <button
                     type="button"
@@ -232,25 +237,25 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                         : 'text-gray-500 border-gray-300 hover:border-gray-400'
                     }`}
                   >
-                    Kreiraj trening
+                    {t('form.createWorkout')}
                   </button>
                 </div>
 
                 {day.mode === 'template' ? (
                   <div className="space-y-1">
-                    <Label className="text-xs">Predložak</Label>
+                    <Label className="text-xs">{t('form.template')}</Label>
                     <select
                       value={day.template_id || ''}
                       onChange={(e) => updateDayField(index, 'template_id', e.target.value || null)}
                       className="w-full border rounded-md px-3 py-1.5 text-sm h-8"
                     >
-                      <option value="">Bez predloška</option>
-                      {templates.map(t => (
-                        <option key={t.id} value={t.id}>{t.name} ({t.exercises?.length || 0} vježbi)</option>
+                      <option value="">{t('form.noTemplate')}</option>
+                      {templates.map(tmpl => (
+                        <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
                       ))}
                     </select>
                     {day.exercises.length > 0 && (
-                      <p className="text-xs text-gray-400">✓ {day.exercises.length} vježbi iz predloška</p>
+                      <p className="text-xs text-gray-400">✓ {day.exercises.length} {t('form.fromTemplateCount')}</p>
                     )}
                   </div>
                 ) : (
@@ -258,7 +263,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                     <Input
                       value={exerciseSearch[index] || ''}
                       onChange={(e) => setExerciseSearch({ ...exerciseSearch, [index]: e.target.value })}
-                      placeholder="Pretraži vježbe..."
+                      placeholder={tTemplate('searchExercises')}
                       className="h-8 text-sm"
                     />
                     {exerciseSearch[index] && (
@@ -276,7 +281,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                               className="w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between text-sm"
                             >
                               <span>{e.name}</span>
-                              <Badge variant="outline" className="text-xs">{e.category}</Badge>
+                              <Badge variant="outline" className="text-xs">{tExercises(`categories.${e.category}` as any)}</Badge>
                             </button>
                           ))
                         }
@@ -293,7 +298,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           <div>
-                            <Label className="text-xs">Serije</Label>
+                            <Label className="text-xs">{tTemplate('sets')}</Label>
                             <Input
                               type="number"
                               value={ex.sets}
@@ -302,7 +307,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                             />
                           </div>
                           <div>
-                            <Label className="text-xs">Ponavljanja</Label>
+                            <Label className="text-xs">{tTemplate('reps')}</Label>
                             <Input
                               value={ex.reps}
                               onChange={(e) => updateExercise(index, ex.exercise_id, 'reps', e.target.value)}
@@ -311,7 +316,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                             />
                           </div>
                           <div>
-                            <Label className="text-xs">Odmor (sek)</Label>
+                            <Label className="text-xs">{tTemplate('rest')}</Label>
                             <Input
                               type="number"
                               value={ex.rest_seconds}
@@ -323,14 +328,14 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
                         <Input
                           value={ex.notes}
                           onChange={(e) => updateExercise(index, ex.exercise_id, 'notes', e.target.value)}
-                          placeholder="Napomena..."
+                          placeholder={tTemplate('notes')}
                           className="h-7 text-xs"
                         />
                       </div>
                     ))}
 
                     {day.exercises.length === 0 && (
-                      <p className="text-xs text-gray-400 text-center py-1">Pretraži i dodaj vježbe iznad</p>
+                      <p className="text-xs text-gray-400 text-center py-1">{t('form.emptyDays')}</p>
                     )}
                   </div>
                 )}
@@ -338,15 +343,15 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess }: Props
             ))}
 
             {days.length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-2">Dodaj dane treninga klikom na gumb iznad</p>
+              <p className="text-xs text-gray-400 text-center py-2">{t('form.emptyDays')}</p>
             )}
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>
         </form>

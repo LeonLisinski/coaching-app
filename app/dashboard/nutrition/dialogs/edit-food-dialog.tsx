@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +28,10 @@ type Props = {
 const CATEGORIES = ['Meso & Riba', 'Mliječni', 'Žitarice', 'Voće', 'Povrće', 'Orašasti', 'Ostalo']
 
 export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('nutrition.dialogs.food')
+  const tCat = useTranslations('nutrition.foodsTab')
+  const tCommon = useTranslations('common')
+
   const [form, setForm] = useState({
     name: food.name,
     category: food.category,
@@ -69,11 +74,11 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Uredi namirnicu</DialogTitle>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Naziv</Label>
+            <Label>{t('name')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -81,41 +86,41 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
             />
           </div>
           <div className="space-y-2">
-            <Label>Kategorija</Label>
+            <Label>{t('category')}</Label>
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="w-full border rounded-md px-3 py-2 text-sm"
             >
               {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{tCat(`categories.${cat}` as any)}</option>
               ))}
             </select>
           </div>
-          <p className="text-xs text-gray-500">Vrijednosti na 100g</p>
+          <p className="text-xs text-gray-500">{tCat('per100g')}</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Kalorije (kcal)</Label>
+              <Label>{t('calories')}</Label>
               <Input type="number" value={form.calories_per_100g} onChange={(e) => setForm({ ...form, calories_per_100g: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label>Proteini (g)</Label>
+              <Label>{t('protein')}</Label>
               <Input type="number" value={form.protein_per_100g} onChange={(e) => setForm({ ...form, protein_per_100g: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label>Ugljikohidrati (g)</Label>
+              <Label>{t('carbs')}</Label>
               <Input type="number" value={form.carbs_per_100g} onChange={(e) => setForm({ ...form, carbs_per_100g: e.target.value })} required />
             </div>
             <div className="space-y-2">
-              <Label>Masti (g)</Label>
+              <Label>{t('fat')}</Label>
               <Input type="number" value={form.fat_per_100g} onChange={(e) => setForm({ ...form, fat_per_100g: e.target.value })} required />
             </div>
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>
         </form>

@@ -14,6 +14,7 @@ import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-conf
 import ClientWorkoutPlans from '@/app/dashboard/clients/[id]/components/client-workout-plans'
 import ClientMealPlans from '@/app/dashboard/clients/[id]/components/client-meal-plans'
 import ClientPackages from '@/app/dashboard/clients/[id]/components/client-packages'
+import { useTranslations, useLocale } from 'next-intl'
 
 type Client = {
   id: string
@@ -28,10 +29,16 @@ type Client = {
 }
 
 export default function ClientDetailPage() {
+  const t = useTranslations('clients.detail')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+
   const { id } = useParams()
   const router = useRouter()
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const noName = t('noName')
 
   useEffect(() => {
     fetchClient()
@@ -50,7 +57,7 @@ export default function ClientDetailPage() {
     if (data) {
       setClient({
         id: data.id,
-        full_name: (data.profiles as any)?.full_name || 'Bez imena',
+        full_name: (data.profiles as any)?.full_name || noName,
         email: (data.profiles as any)?.email || '',
         goal: data.goal,
         weight: data.weight,
@@ -63,7 +70,7 @@ export default function ClientDetailPage() {
     setLoading(false)
   }
 
-  if (loading) return <p className="text-gray-500 text-sm p-8">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
   if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
 
   return (
@@ -83,38 +90,38 @@ export default function ClientDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {client.goal && (
               <div>
-                <p className="text-xs text-gray-400">Cilj</p>
+                <p className="text-xs text-gray-400">{t('stats.goal')}</p>
                 <p className="text-sm font-medium">{client.goal}</p>
               </div>
             )}
             {client.weight && (
               <div>
-                <p className="text-xs text-gray-400">Težina</p>
+                <p className="text-xs text-gray-400">{t('stats.weight')}</p>
                 <p className="text-sm font-medium">{client.weight} kg</p>
               </div>
             )}
             {client.height && (
               <div>
-                <p className="text-xs text-gray-400">Visina</p>
+                <p className="text-xs text-gray-400">{t('stats.height')}</p>
                 <p className="text-sm font-medium">{client.height} cm</p>
               </div>
             )}
             {client.date_of_birth && (
               <div>
-                <p className="text-xs text-gray-400">Datum rođenja</p>
-                <p className="text-sm font-medium">{new Date(client.date_of_birth).toLocaleDateString('hr-HR')}</p>
+                <p className="text-xs text-gray-400">{t('stats.dateOfBirth')}</p>
+                <p className="text-sm font-medium">{new Date(client.date_of_birth).toLocaleDateString(locale)}</p>
               </div>
             )}
             {client.start_date && (
               <div>
-                <p className="text-xs text-gray-400">Početak suradnje</p>
-                <p className="text-sm font-medium">{new Date(client.start_date).toLocaleDateString('hr-HR')}</p>
+                <p className="text-xs text-gray-400">{t('stats.startDate')}</p>
+                <p className="text-sm font-medium">{new Date(client.start_date).toLocaleDateString(locale)}</p>
               </div>
             )}
             <div>
-              <p className="text-xs text-gray-400">Status</p>
+              <p className="text-xs text-gray-400">{t('stats.status')}</p>
               <p className={`text-sm font-medium ${client.active ? 'text-green-600' : 'text-red-500'}`}>
-                {client.active ? 'Aktivan' : 'Neaktivan'}
+                {client.active ? tCommon('active') : tCommon('inactive')}
               </p>
             </div>
           </div>
@@ -123,13 +130,13 @@ export default function ClientDetailPage() {
 
       <Tabs defaultValue="checkin">
         <TabsList>
-          <TabsTrigger value="checkin">Tjedni checkin</TabsTrigger>
-          <TabsTrigger value="history">Povijest</TabsTrigger>
-          <TabsTrigger value="graphs">Grafovi</TabsTrigger>
-          <TabsTrigger value="checkin-config">Checkin postavke</TabsTrigger>
-          <TabsTrigger value="treninzi">Treninzi</TabsTrigger>
-          <TabsTrigger value="prehrana">Prehrana</TabsTrigger>
-          <TabsTrigger value="paketi">Paketi & Plaćanja</TabsTrigger>
+          <TabsTrigger value="checkin">{t('tabs.weeklyCheckin')}</TabsTrigger>
+          <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
+          <TabsTrigger value="graphs">{t('tabs.graphs')}</TabsTrigger>
+          <TabsTrigger value="checkin-config">{t('tabs.checkinSettings')}</TabsTrigger>
+          <TabsTrigger value="treninzi">{t('tabs.training')}</TabsTrigger>
+          <TabsTrigger value="prehrana">{t('tabs.nutrition')}</TabsTrigger>
+          <TabsTrigger value="paketi">{t('tabs.packages')}</TabsTrigger>
         </TabsList>
         <TabsContent value="checkin" className="mt-6">
           <CheckinOverview clientId={id as string} />

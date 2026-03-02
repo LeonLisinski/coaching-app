@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useTranslations } from 'next-intl'
 
 type Client = {
   id: string
@@ -26,6 +27,10 @@ type Props = {
 }
 
 export default function EditClientDialog({ client, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('clients.dialogs.edit')
+  const tAdd = useTranslations('clients.dialogs.add')
+  const tCommon = useTranslations('common')
+
   const [form, setForm] = useState({
     full_name: client.full_name,
     goal: client.goal || '',
@@ -42,7 +47,6 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     setLoading(true)
     setError('')
 
-    // Update profile (full_name)
     const { data: clientData } = await supabase
       .from('clients')
       .select('user_id')
@@ -56,7 +60,6 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
         .eq('id', clientData.user_id)
     }
 
-    // Update client record
     const { error } = await supabase
       .from('clients')
       .update({
@@ -83,11 +86,11 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Uredi klijenta</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Ime i prezime</Label>
+            <Label>{tAdd('fullName')}</Label>
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
@@ -95,16 +98,16 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
             />
           </div>
           <div className="space-y-2">
-            <Label>Cilj</Label>
+            <Label>{tAdd('goal')}</Label>
             <Input
               value={form.goal}
               onChange={(e) => setForm({ ...form, goal: e.target.value })}
-              placeholder="Mršavljenje, nabava mišića..."
+              placeholder={tAdd('goalPlaceholder')}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Težina (kg)</Label>
+              <Label>{tAdd('weight')}</Label>
               <Input
                 type="number"
                 value={form.weight}
@@ -112,7 +115,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
               />
             </div>
             <div className="space-y-2">
-              <Label>Visina (cm)</Label>
+              <Label>{tAdd('height')}</Label>
               <Input
                 type="number"
                 value={form.height}
@@ -122,7 +125,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Datum rođenja</Label>
+              <Label>{tAdd('dateOfBirth')}</Label>
               <Input
                 type="date"
                 value={form.date_of_birth}
@@ -130,7 +133,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
               />
             </div>
             <div className="space-y-2">
-              <Label>Početak suradnje</Label>
+              <Label>{tAdd('startDate')}</Label>
               <Input
                 type="date"
                 value={form.start_date}
@@ -140,9 +143,9 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : t('submit')}
             </Button>
           </div>
         </form>

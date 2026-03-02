@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,9 @@ type Props = {
 }
 
 export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('nutrition.dialogs.recipe')
+  const tCommon = useTranslations('common')
+
   const [name, setName] = useState(recipe.name)
   const [description, setDescription] = useState(recipe.description || '')
   const [foods, setFoods] = useState<Food[]>([])
@@ -147,26 +151,26 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Uredi jelo</DialogTitle>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Naziv jela</Label>
+              <Label>{t('name')}</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Opis</Label>
+              <Label>{t('description')}</Label>
               <Input value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Dodaj namirnice</Label>
+            <Label>{t('addIngredients')}</Label>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pretraži namirnice..."
+              placeholder={t('searchIngredients')}
             />
             {search && filteredFoods.length > 0 && (
               <div className="border rounded-md max-h-40 overflow-y-auto">
@@ -187,7 +191,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
 
           {ingredients.length > 0 && (
             <div className="space-y-2">
-              <Label>Sastojci ({ingredients.length})</Label>
+              <Label>{t('ingredients')} ({ingredients.length})</Label>
               {ingredients.map((ing) => (
                 <div key={ing.food_id} className="flex items-center gap-3 border rounded-md p-2">
                   <span className="text-sm flex-1">{ing.name}</span>
@@ -210,7 +214,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
               ))}
 
               <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm">
-                <span className="font-medium">Ukupno:</span>
+                <span className="font-medium">{t('total')}:</span>
                 <span>🔥 {Math.round(totals.calories)} kcal</span>
                 <span>🥩 {Math.round(totals.protein)}g</span>
                 <span>🍞 {Math.round(totals.carbs)}g</span>
@@ -221,9 +225,9 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading || ingredients.length === 0} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>
         </form>

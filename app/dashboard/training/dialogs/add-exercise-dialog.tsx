@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,10 @@ type Props = {
 const CATEGORIES = ['Snaga', 'Kardio', 'Mobilnost', 'HIIT', 'Ostalo']
 
 export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
+  const t = useTranslations('training.dialogs.exercise')
+  const tCat = useTranslations('training.exercisesTab.categories')
+  const tCommon = useTranslations('common')
+
   const [form, setForm] = useState({
     name: '',
     category: 'Snaga',
@@ -61,44 +66,44 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Dodaj vježbu</DialogTitle>
+          <DialogTitle>{t('addTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Naziv vježbe</Label>
+            <Label>{t('name')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Bench press"
+              placeholder={t('namePlaceholder')}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label>Kategorija</Label>
+            <Label>{t('category')}</Label>
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               className="w-full border rounded-md px-3 py-2 text-sm"
             >
               {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{tCat(cat as any)}</option>
               ))}
             </select>
           </div>
           <div className="space-y-2">
-            <Label>Mišićna grupa</Label>
+            <Label>{t('muscleGroup')}</Label>
             <Input
               value={form.muscle_group}
               onChange={(e) => setForm({ ...form, muscle_group: e.target.value })}
-              placeholder="Prsa, triceps..."
+              placeholder={t('muscleGroupPlaceholder')}
             />
           </div>
           <div className="space-y-2">
-            <Label>Opis</Label>
+            <Label>{t('description')}</Label>
             <Input
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Kratki opis tehnike..."
+              placeholder={t('descriptionPlaceholder')}
             />
           </div>
           <div className="space-y-2">
@@ -112,10 +117,10 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Odustani
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Dodavanje...' : 'Dodaj vježbu'}
+              {loading ? tCommon('saving') : t('save')}
             </Button>
           </div>
         </form>

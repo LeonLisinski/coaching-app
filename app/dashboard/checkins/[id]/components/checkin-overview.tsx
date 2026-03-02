@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,15 +39,15 @@ function getWeekRange(offset: number = 0) {
   return { monday, sunday }
 }
 
-function formatDate(d: Date) {
-  return d.toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' })
-}
-
 function isoDate(d: Date) {
   return d.toISOString().split('T')[0]
 }
 
 export default function CheckinOverview({ clientId }: Props) {
+  const tCommon = useTranslations('common')
+  const tOv = useTranslations('checkins.detail.overview')
+  const locale = useLocale()
+
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [weekOffset, setWeekOffset] = useState(0)
@@ -58,6 +59,9 @@ export default function CheckinOverview({ clientId }: Props) {
   const [saved, setSaved] = useState(false)
 
   const { monday, sunday } = getWeekRange(weekOffset)
+
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
 
   useEffect(() => {
     fetchData()
@@ -100,7 +104,6 @@ export default function CheckinOverview({ clientId }: Props) {
     fetchData()
   }
 
-  // Tjedni prosjek za numeričke parametre
   const weeklyAverage = (paramId: string) => {
     const values = checkins
       .map(c => parseFloat(c.values[paramId]))
@@ -117,14 +120,13 @@ export default function CheckinOverview({ clientId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Navigacija tjednom */}
       <div className="flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w - 1)}>
           <ChevronLeft size={14} />
         </Button>
         <p className="text-sm font-medium">
           {formatDate(monday)} — {formatDate(sunday)}
-          {weekOffset === 0 && <span className="ml-2 text-xs text-blue-600">(ovaj tjedan)</span>}
+          {weekOffset === 0 && <span className="ml-2 text-xs text-blue-600">({tOv('thisWeek')})</span>}
         </p>
         <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
           <ChevronRight size={14} />
@@ -132,14 +134,13 @@ export default function CheckinOverview({ clientId }: Props) {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : (
         <>
-          {/* Tjedni prosjeci */}
           {parameters.filter(p => p.type === 'number').length > 0 && (
             <Card>
               <CardContent className="py-3">
-                <p className="text-xs text-gray-500 mb-3">Tjedni prosjeci</p>
+                <p className="text-xs text-gray-500 mb-3">{tOv('weeklyAverages')}</p>
                 <div className="grid grid-cols-3 gap-3">
                   {parameters.filter(p => p.type === 'number').map(param => {
                     const avg = weeklyAverage(param.id)
@@ -157,7 +158,6 @@ export default function CheckinOverview({ clientId }: Props) {
             </Card>
           )}
 
-          {/* Dnevni checkini */}
           <div className="grid grid-cols-1 gap-2">
             {days.map(day => {
               const checkin = checkins.find(c => c.date === isoDate(day))
@@ -173,8 +173,8 @@ export default function CheckinOverview({ clientId }: Props) {
                       <div className={`w-2 h-2 rounded-full ${checkin ? 'bg-green-500' : 'bg-gray-200'}`} />
                       <div>
                         <p className="text-sm font-medium">
-                          {day.toLocaleDateString('hr-HR', { weekday: 'long' })}
-                          {isToday && <span className="ml-2 text-xs text-blue-600">danas</span>}
+                          {day.toLocaleDateString(locale, { weekday: 'long' })}
+                          {isToday && <span className="ml-2 text-xs text-blue-600">{tOv('today')}</span>}
                         </p>
                         <p className="text-xs text-gray-400">{formatDate(day)}</p>
                       </div>
@@ -193,7 +193,7 @@ export default function CheckinOverview({ clientId }: Props) {
                         {checkin.trainer_note && <span className="text-xs text-gray-400">📝</span>}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-400">Nije uneseno</p>
+                      <p className="text-xs text-gray-400">{tOv('notEntered')}</p>
                     )}
                   </CardContent>
                 </Card>
@@ -201,18 +201,16 @@ export default function CheckinOverview({ clientId }: Props) {
             })}
           </div>
 
-          {/* Detalji odabranog checkina */}
           {selectedCheckin && (
             <Card className="border-blue-200">
               <CardContent className="py-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm">
-                    {new Date(selectedCheckin.date).toLocaleDateString('hr-HR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {new Date(selectedCheckin.date).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </p>
                   <Button variant="ghost" size="sm" onClick={() => setSelectedCheckin(null)}>✕</Button>
                 </div>
 
-                {/* Vrijednosti */}
                 <div className="grid grid-cols-2 gap-3">
                   {parameters.map(param => {
                     const val = selectedCheckin.values[param.id]
@@ -221,36 +219,35 @@ export default function CheckinOverview({ clientId }: Props) {
                       <div key={param.id} className="bg-gray-50 rounded-md p-2">
                         <p className="text-xs text-gray-500">{param.name}</p>
                         <p className="font-medium text-sm">
-                          {param.type === 'boolean' ? (val ? 'Da' : 'Ne') : `${val}${param.unit ? ` ${param.unit}` : ''}`}
+                          {param.type === 'boolean' ? (val ? tCommon('yes') : tCommon('no')) : `${val}${param.unit ? ` ${param.unit}` : ''}`}
                         </p>
                       </div>
                     )
                   })}
                 </div>
 
-                {/* Bilješka trenera */}
                 <div className="space-y-2">
-                  <Label className="text-xs">Bilješka (privatna)</Label>
+                  <Label className="text-xs">{tOv('privateNoteLabel')}</Label>
                   <textarea
                     value={trainerNote}
                     onChange={(e) => setTrainerNote(e.target.value)}
-                    placeholder="Bilješka samo za tebe..."
+                    placeholder={tOv('privateNotePlaceholder')}
                     className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs">Komentar klijentu</Label>
+                  <Label className="text-xs">{tOv('clientCommentLabel')}</Label>
                   <textarea
                     value={trainerComment}
                     onChange={(e) => setTrainerComment(e.target.value)}
-                    placeholder="Komentar koji će klijent vidjeti..."
+                    placeholder={tOv('clientCommentPlaceholder')}
                     className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
                   />
                 </div>
 
                 <Button onClick={saveNotes} disabled={saving} size="sm" className="w-full">
-                  {saving ? 'Spremanje...' : saved ? '✓ Spremljeno!' : 'Spremi bilješke'}
+                  {saving ? tCommon('saving') : saved ? tOv('savedSuccess') : tOv('saveNotes')}
                 </Button>
               </CardContent>
             </Card>

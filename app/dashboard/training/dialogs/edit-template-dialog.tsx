@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +40,10 @@ type Props = {
 }
 
 export default function EditTemplateDialog({ template, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('training.dialogs.template')
+  const tCommon = useTranslations('common')
+  const tExercises = useTranslations('training.exercisesTab')
+
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || '')
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -118,12 +123,12 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Uredi predložak</DialogTitle>
+          <DialogTitle>{t('editTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Naziv predloška</Label>
+              <Label>{t('name')}</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -131,7 +136,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
               />
             </div>
             <div className="space-y-2">
-              <Label>Opis</Label>
+              <Label>{t('description')}</Label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -140,11 +145,11 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
           </div>
 
           <div className="space-y-2">
-            <Label>Dodaj vježbe</Label>
+            <Label>{t('addExercise')}</Label>
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Pretraži vježbe..."
+              placeholder={t('searchExercises')}
             />
             {search && filteredExercises.length > 0 && (
               <div className="border rounded-md max-h-40 overflow-y-auto">
@@ -156,7 +161,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm"
                   >
                     <span>{e.name}</span>
-                    <Badge variant="outline" className="text-xs">{e.category}</Badge>
+                    <Badge variant="outline" className="text-xs">{tExercises(`categories.${e.category}` as any)}</Badge>
                   </button>
                 ))}
               </div>
@@ -165,7 +170,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
 
           {selected.length > 0 && (
             <div className="space-y-3">
-              <Label>Vježbe u predlošku ({selected.length})</Label>
+              <Label>{t('exercises', { count: selected.length })}</Label>
               {selected.map((ex, index) => (
                 <div key={ex.exercise_id} className="border rounded-md p-3 space-y-2">
                   <div className="flex items-center justify-between">
@@ -176,7 +181,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <Label className="text-xs">Serije</Label>
+                      <Label className="text-xs">{t('sets')}</Label>
                       <Input
                         type="number"
                         value={ex.sets}
@@ -185,7 +190,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Ponavljanja</Label>
+                      <Label className="text-xs">{t('reps')}</Label>
                       <Input
                         value={ex.reps}
                         onChange={(e) => updateExercise(ex.exercise_id, 'reps', e.target.value)}
@@ -194,7 +199,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                       />
                     </div>
                     <div>
-                      <Label className="text-xs">Odmor (sek)</Label>
+                      <Label className="text-xs">{t('rest')}</Label>
                       <Input
                         type="number"
                         value={ex.rest_seconds}
@@ -204,7 +209,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs">Napomena</Label>
+                    <Label className="text-xs">{t('notes')}</Label>
                     <Input
                       value={ex.notes}
                       onChange={(e) => updateExercise(ex.exercise_id, 'notes', e.target.value)}
@@ -218,9 +223,9 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>
         </form>

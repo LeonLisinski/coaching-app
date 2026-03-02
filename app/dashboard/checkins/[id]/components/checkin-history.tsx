@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +26,11 @@ type Checkin = {
 }
 
 export default function CheckinHistory({ clientId }: Props) {
+  const t = useTranslations('checkins')
+  const tHist = useTranslations('checkins.detail.history')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +60,6 @@ export default function CheckinHistory({ clientId }: Props) {
     Object.values(c.values).some(v => String(v).toLowerCase().includes(search.toLowerCase()))
   )
 
-  // Grupiraj po mjesecu
   const grouped = filtered.reduce((acc, checkin) => {
     const month = checkin.date.slice(0, 7)
     if (!acc[month]) acc[month] = []
@@ -67,28 +72,28 @@ export default function CheckinHistory({ clientId }: Props) {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <Input
-          placeholder="Pretraži povijest..."
+          placeholder={tHist('searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
         />
       </div>
 
-      <p className="text-sm text-gray-500">{checkins.length} checkina ukupno</p>
+      <p className="text-sm text-gray-500">{tHist('totalCount', { count: checkins.length })}</p>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            Nema checkina
+            {t('detail.history.noHistory')}
           </CardContent>
         </Card>
       ) : (
         Object.entries(grouped).map(([month, monthCheckins]) => (
           <div key={month} className="space-y-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              {new Date(month + '-01').toLocaleDateString('hr-HR', { month: 'long', year: 'numeric' })}
+              {new Date(month + '-01').toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
             </p>
             {monthCheckins.map(checkin => (
               <Card
@@ -101,7 +106,7 @@ export default function CheckinHistory({ clientId }: Props) {
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-green-500" />
                       <p className="text-sm font-medium">
-                        {new Date(checkin.date).toLocaleDateString('hr-HR', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                        {new Date(checkin.date).toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -128,7 +133,7 @@ export default function CheckinHistory({ clientId }: Props) {
                             <div key={param.id} className="bg-gray-50 rounded p-2">
                               <p className="text-xs text-gray-500">{param.name}</p>
                               <p className="text-sm font-medium">
-                                {param.type === 'boolean' ? (val ? 'Da' : 'Ne') : `${val}${param.unit ? ` ${param.unit}` : ''}`}
+                                {param.type === 'boolean' ? (val ? tCommon('yes') : tCommon('no')) : `${val}${param.unit ? ` ${param.unit}` : ''}`}
                               </p>
                             </div>
                           )
@@ -136,13 +141,13 @@ export default function CheckinHistory({ clientId }: Props) {
                       </div>
                       {checkin.trainer_note && (
                         <div className="bg-yellow-50 rounded p-2">
-                          <p className="text-xs text-gray-500">📝 Bilješka</p>
+                          <p className="text-xs text-gray-500">📝 {t('detail.history.notes')}</p>
                           <p className="text-sm">{checkin.trainer_note}</p>
                         </div>
                       )}
                       {checkin.trainer_comment && (
                         <div className="bg-blue-50 rounded p-2">
-                          <p className="text-xs text-gray-500">💬 Komentar klijentu</p>
+                          <p className="text-xs text-gray-500">💬 {tHist('clientComment')}</p>
                           <p className="text-sm">{checkin.trainer_comment}</p>
                         </div>
                       )}

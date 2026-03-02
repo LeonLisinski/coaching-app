@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -28,6 +29,9 @@ const TYPES = [
 ]
 
 export default function ParametersTab() {
+  const t = useTranslations('checkins')
+  const tCommon = useTranslations('common')
+
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -116,21 +120,23 @@ export default function ParametersTab() {
         </div>
         <Button onClick={openAdd} size="sm" className="flex items-center gap-2">
           <Plus size={14} />
-          Dodaj parametar
+          {t('parametersTab.add')}
         </Button>
       </div>
 
       {showForm && (
         <Card className="border-blue-200 bg-blue-50/30">
           <CardContent className="py-4 space-y-3">
-            <p className="font-medium text-sm">{editParam ? 'Uredi parametar' : 'Novi parametar'}</p>
+            <p className="font-medium text-sm">
+              {editParam ? t('parametersTab.dialog.editTitle') : t('parametersTab.dialog.addTitle')}
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Naziv</Label>
+                <Label className="text-xs">{t('parametersTab.name')}</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Kilaza, Unos vode, Krvni tlak..."
+                  placeholder={t('parametersTab.dialog.namePlaceholder')}
                   className="h-8 text-sm"
                 />
               </div>
@@ -146,11 +152,11 @@ export default function ParametersTab() {
               </div>
               {form.type === 'number' && (
                 <div className="space-y-1">
-                  <Label className="text-xs">Jedinica (opcionalno)</Label>
+                  <Label className="text-xs">{t('parametersTab.unit')} (opcionalno)</Label>
                   <Input
                     value={form.unit}
                     onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                    placeholder="kg, L, mmHg, koraci..."
+                    placeholder={t('parametersTab.dialog.unitPlaceholder')}
                     className="h-8 text-sm"
                   />
                 </div>
@@ -177,10 +183,10 @@ export default function ParametersTab() {
             </label>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleSave} disabled={!form.name}>
-                {editParam ? 'Spremi promjene' : 'Dodaj parametar'}
+                {editParam ? tCommon('saveChanges') : t('parametersTab.add')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>
-                Odustani
+                {tCommon('cancel')}
               </Button>
             </div>
           </CardContent>
@@ -188,11 +194,11 @@ export default function ParametersTab() {
       )}
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitavanje...</p>
+        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : parameters.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            Još nemaš parametara. Dodaj prvi!
+            {t('parametersTab.noParameters')}
           </CardContent>
         </Card>
       ) : (
@@ -230,11 +236,11 @@ export default function ParametersTab() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši parametar"
-        description="Sigurno želiš obrisati ovaj parametar? Postojeći checkini neće biti pogođeni."
+        title={t('parametersTab.deleteTitle')}
+        description={t('parametersTab.deleteConfirm')}
         onConfirm={() => confirmDelete && deleteParameter(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
     </div>

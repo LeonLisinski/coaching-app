@@ -1,0 +1,608 @@
+{
+  "app": {
+    "name": "Coaching App"
+  },
+  "common": {
+    "loading": "Loading...",
+    "logout": "Log out",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "close": "Close",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "noData": "No data",
+    "active": "Active",
+    "inactive": "Inactive",
+    "status": "Status",
+    "name": "Name",
+    "description": "Description",
+    "date": "Date",
+    "actions": "Actions",
+    "back": "Back",
+    "assign": "Assign",
+    "create": "Create",
+    "remove": "Remove",
+    "saveChanges": "Save changes"
+  },
+  "nav": {
+    "overview": "Overview",
+    "clients": "Clients",
+    "training": "Training",
+    "nutrition": "Nutrition",
+    "checkins": "Check-ins",
+    "chat": "Chat",
+    "profile": "Profile"
+  },
+  "locale": {
+    "hr": "Hrvatski",
+    "en": "English"
+  },
+  "days": {
+    "0": "Sunday",
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+    "6": "Saturday"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "subtitle": "Welcome back",
+    "stats": {
+      "activeClients": "Active clients",
+      "pendingCheckins": "Pending check-ins",
+      "todayCheckins": "Today's check-ins",
+      "totalCheckins": "Total check-ins"
+    },
+    "checkinStatus": {
+      "title": "Client check-in status",
+      "onTime": "On time",
+      "late": "Late",
+      "noConfig": "No config",
+      "noCheckin": "No check-in"
+    },
+    "upcomingCheckins": "Upcoming check-ins",
+    "noUpcomingCheckins": "No upcoming check-ins",
+    "recentActivity": "Recent activity",
+    "noRecentActivity": "No recent activity",
+    "monday": "Monday",
+    "checkinDay": "Check-in day",
+    "revenue": {
+      "title": "Revenue last 6 months",
+      "thisMonth": "This month's billing",
+      "paid": "collected",
+      "expectedMonth": "Expected this month",
+      "collectedMonth": "Collected this month",
+      "latePayments": "Late payments",
+      "avgRegularity": "Avg. regularity",
+      "expected": "Expected",
+      "collected": "Collected"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your profile and packages",
+    "tabs": {
+      "profile": "Profile",
+      "packages": "Packages",
+      "security": "Security"
+    },
+    "packages": {
+      "newTitle": "New package",
+      "editTitle": "Edit package",
+      "addNew": "New package",
+      "count": "{count, plural, one {# package} other {# packages}}",
+      "name": "Package name",
+      "namePlaceholder": "Monthly program, Premium...",
+      "price": "Price (€)",
+      "duration": "Duration (days)",
+      "color": "Label color",
+      "description": "Package description",
+      "descriptionPlaceholder": "What's included in the package...",
+      "add": "Add package",
+      "save": "Save changes",
+      "empty": "No packages yet. Add your first package!",
+      "deleteTitle": "Delete package",
+      "deleteConfirm": "Are you sure you want to delete this package?",
+      "delete": "Delete",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "active": "Active",
+      "inactive": "Inactive",
+      "days": "days"
+    },
+    "form": {
+      "fullName": "Full name",
+      "phone": "Phone",
+      "phonePlaceholder": "+385 91 234 5678",
+      "website": "Website",
+      "websitePlaceholder": "https://my-website.com",
+      "instagram": "Instagram",
+      "instagramPlaceholder": "@username",
+      "bio": "Bio / Description",
+      "bioPlaceholder": "Short description of you as a trainer..."
+    },
+    "avatar": {
+      "change": "Change photo",
+      "remove": "Remove"
+    },
+    "saveProfile": "Save profile",
+    "security": {
+      "changePassword": "Change password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password"
+    }
+  },
+  "clients": {
+    "page": {
+      "title": "Clients",
+      "subtitle": "Manage your clients",
+      "searchPlaceholder": "Search clients...",
+      "addClient": "Add client",
+      "filterAll": "All",
+      "filterActive": "Active",
+      "filterInactive": "Inactive",
+      "clientCount": "{count, plural, one {# client} other {# clients}}",
+      "since": "Since",
+      "goal": "Goal",
+      "noClients": "No clients found",
+      "deactivateConfirm": "Are you sure you want to deactivate this client?",
+      "activateConfirm": "Are you sure you want to activate this client?"
+    },
+    "dialogs": {
+      "add": {
+        "title": "Add client",
+        "fullName": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "goal": "Goal",
+        "goalPlaceholder": "e.g. Weight loss, Muscle gain...",
+        "weight": "Weight (kg)",
+        "height": "Height (cm)",
+        "dateOfBirth": "Date of birth",
+        "startDate": "Start date",
+        "notes": "Notes",
+        "submit": "Add client"
+      },
+      "edit": {
+        "title": "Edit client",
+        "submit": "Save changes"
+      }
+    },
+    "detail": {
+      "tabs": {
+        "weeklyCheckin": "Weekly check-in",
+        "history": "History",
+        "graphs": "Graphs",
+        "checkinSettings": "Check-in settings",
+        "training": "Training",
+        "nutrition": "Nutrition",
+        "packages": "Packages & Payments"
+      },
+      "stats": {
+        "goal": "Goal",
+        "weight": "Weight",
+        "height": "Height",
+        "dateOfBirth": "Date of birth",
+        "startDate": "Start date",
+        "status": "Status"
+      },
+      "noName": "No name"
+    },
+    "workoutPlans": {
+      "title": "Training plans",
+      "assigned": "{count, plural, one {# assigned plan} other {# assigned plans}}",
+      "createNew": "Create new",
+      "assignExisting": "Assign existing",
+      "noPlans": "No training plans assigned to this client.",
+      "assignPlan": "Assign training plan",
+      "selectPlan": "Select plan...",
+      "note": "Note (optional)...",
+      "assign": "Assign",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "assignedOn": "Assigned on",
+      "removeConfirm": "Remove this training plan?"
+    },
+    "mealPlans": {
+      "title": "Meal plans",
+      "assigned": "{count, plural, one {# assigned plan} other {# assigned plans}}",
+      "createNew": "Create new",
+      "assignExisting": "Assign existing",
+      "noPlans": "No meal plans assigned to this client.",
+      "assignPlan": "Assign meal plan",
+      "selectPlan": "Select plan...",
+      "note": "Note (optional)...",
+      "assign": "Assign",
+      "assignedOn": "Assigned on",
+      "removeConfirm": "Remove this meal plan?"
+    },
+    "packages": {
+      "title": "Packages & Payments",
+      "assignPackage": "Assign package",
+      "noPackages": "No packages assigned.",
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "markPaid": "Mark as paid",
+      "markUnpaid": "Mark as unpaid",
+      "sessions": "{count, plural, one {# session} other {# sessions}}",
+      "removeConfirm": "Remove this package?"
+    }
+  },
+  "training": {
+    "page": {
+      "title": "Training",
+      "subtitle": "Plans, templates and exercises",
+      "tabs": {
+        "plans": "Plans",
+        "templates": "Templates",
+        "exercises": "Exercises"
+      }
+    },
+    "plansTab": {
+      "count": "{count, plural, one {# plan} other {# plans}}",
+      "add": "Add plan",
+      "searchPlaceholder": "Search plans...",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "noPlans": "No training plans.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "sortLabel": "Sort:",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Delete plan",
+      "deleteConfirm": "Are you sure you want to delete this plan? This action cannot be undone."
+    },
+    "templatesTab": {
+      "count": "{count, plural, one {# template} other {# templates}}",
+      "add": "Add template",
+      "searchPlaceholder": "Search templates...",
+      "exercises": "{count, plural, one {# exercise} other {# exercises}}",
+      "noTemplates": "No templates.",
+      "sortLabel": "Sort:",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Delete template",
+      "deleteConfirm": "Are you sure you want to delete this template? This action cannot be undone."
+    },
+    "exercisesTab": {
+      "count": "{count, plural, one {# exercise} other {# exercises}}",
+      "add": "Add exercise",
+      "searchPlaceholder": "Search exercises...",
+      "filterAll": "All",
+      "filterLabel": "Filters",
+      "categoryHeader": "Category",
+      "muscleGroupHeader": "Muscle group",
+      "clearAll": "Clear all",
+      "clearAllFilters": "Clear all filters",
+      "activeFilters": "Active filters:",
+      "sortLabel": "Sort:",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "noExercises": "No exercises.",
+      "deleteTitle": "Delete exercise",
+      "deleteConfirm": "Are you sure you want to delete this exercise? This action cannot be undone.",
+      "categories": {
+        "Snaga": "Strength",
+        "Kardio": "Cardio",
+        "Mobilnost": "Mobility",
+        "HIIT": "HIIT",
+        "Ostalo": "Other"
+      }
+    },
+    "dialogs": {
+      "exercise": {
+        "addTitle": "Add exercise",
+        "editTitle": "Edit exercise",
+        "name": "Name",
+        "namePlaceholder": "e.g. Bench press",
+        "category": "Category",
+        "muscleGroup": "Muscle group",
+        "muscleGroupPlaceholder": "e.g. Chest, triceps",
+        "description": "Description",
+        "descriptionPlaceholder": "Exercise description...",
+        "save": "Save exercise"
+      },
+      "template": {
+        "addTitle": "New template",
+        "editTitle": "Edit template",
+        "name": "Template name",
+        "namePlaceholder": "e.g. Push day",
+        "description": "Description (optional)",
+        "descriptionPlaceholder": "Short description...",
+        "exercises": "Exercises",
+        "addExercise": "Add exercise",
+        "searchExercises": "Search exercises...",
+        "sets": "Sets",
+        "reps": "Reps",
+        "rest": "Rest (s)",
+        "notes": "Notes",
+        "save": "Save template",
+        "noExercises": "Add exercises from the list on the right."
+      },
+      "plan": {
+        "addTitle": "New plan",
+        "editTitle": "Edit plan",
+        "name": "Plan name",
+        "namePlaceholder": "e.g. PPL program",
+        "description": "Description",
+        "descriptionPlaceholder": "Short description...",
+        "trainingDays": "Training days",
+        "addDay": "+ Add day",
+        "dayLabel": "Day",
+        "emptyDays": "Add training days.",
+        "form": {
+          "name": "Plan name",
+          "description": "Description",
+          "namePlaceholder": "e.g. PPL program",
+          "descriptionPlaceholder": "Short description...",
+          "trainingDays": "Training days",
+          "addDay": "+ Add day",
+          "dayLabel": "Day",
+          "dayName": "Day name",
+          "template": "Template",
+          "createWorkout": "Create workout",
+          "fromTemplateCount": "exercises from template",
+          "exerciseCountSuffix": "exercises",
+          "emptyDays": "Add training days.",
+          "save": "Save plan",
+          "noTemplate": "No template",
+          "addDayLabel": "Add day"
+        }
+      }
+    }
+  },
+  "nutrition": {
+    "page": {
+      "title": "Nutrition",
+      "subtitle": "Foods, recipes and meal plans",
+      "tabs": {
+        "foods": "Foods",
+        "recipes": "Recipes",
+        "plans": "Plans"
+      }
+    },
+    "foodsTab": {
+      "count": "{count, plural, one {# food} other {# foods}}",
+      "add": "Add food",
+      "searchPlaceholder": "Search foods...",
+      "per100g": "per 100g",
+      "all": "All",
+      "noFoods": "No foods.",
+      "deleteTitle": "Delete food",
+      "deleteConfirm": "Are you sure you want to delete this food? This action cannot be undone.",
+      "categories": {
+        "Meso & Riba": "Meat & fish",
+        "Mliječni": "Dairy",
+        "Žitarice": "Grains",
+        "Voće": "Fruit",
+        "Povrće": "Vegetables",
+        "Orašasti": "Nuts",
+        "Ostalo": "Other"
+      }
+    },
+    "recipesTab": {
+      "count": "{count, plural, one {# recipe} other {# recipes}}",
+      "add": "Add recipe",
+      "searchPlaceholder": "Search recipes...",
+      "ingredients": "{count, plural, one {# ingredient} other {# ingredients}}",
+      "noRecipes": "No recipes.",
+      "sortLabel": "Sort:",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Delete recipe",
+      "deleteConfirm": "Are you sure you want to delete this recipe? This action cannot be undone."
+    },
+    "plansTab": {
+      "count": "{count, plural, one {# plan} other {# plans}}",
+      "add": "Add plan",
+      "searchPlaceholder": "Search plans...",
+      "noPlans": "No meal plans.",
+      "sortLabel": "Sort:",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortAZ": "A → Z",
+      "sortZA": "Z → A",
+      "deleteTitle": "Delete meal plan",
+      "deleteConfirm": "Are you sure you want to delete this plan? This action cannot be undone.",
+      "meals": "{count, plural, one {# meal} other {# meals}}",
+      "targetCalories": "kcal target",
+      "targetProtein": "g protein",
+      "targetCarbs": "g carbs",
+      "targetFat": "g fat"
+    },
+    "dialogs": {
+      "food": {
+        "addTitle": "Add food",
+        "editTitle": "Edit food",
+        "name": "Name",
+        "namePlaceholder": "e.g. Chicken breast",
+        "category": "Category",
+        "calories": "Calories (kcal/100g)",
+        "protein": "Protein (g/100g)",
+        "carbs": "Carbs (g/100g)",
+        "fat": "Fat (g/100g)",
+        "save": "Save food"
+      },
+      "recipe": {
+        "addTitle": "New recipe",
+        "editTitle": "Edit recipe",
+        "name": "Dish name",
+        "namePlaceholder": "e.g. Chicken with rice",
+        "description": "Description",
+        "descriptionPlaceholder": "Short description...",
+        "addIngredients": "Add ingredients",
+        "searchIngredients": "Search ingredients...",
+        "ingredients": "Ingredients",
+        "total": "Total",
+        "save": "Save recipe"
+      },
+      "mealPlan": {
+        "addTitle": "New meal plan",
+        "editTitle": "Edit meal plan",
+        "name": "Plan name",
+        "namePlaceholder": "e.g. Weight loss plan",
+        "description": "Description (optional)",
+        "targetCalories": "Target calories",
+        "targetProtein": "Target protein (g)",
+        "targetCarbs": "Target carbs (g)",
+        "targetFat": "Target fat (g)",
+        "meals": "Meals",
+        "addMeal": "Add meal",
+        "save": "Save plan",
+        "mealType": "Meal type",
+        "mealName": "Meal name",
+        "useRecipe": "Use recipe",
+        "customMeal": "Custom meal"
+      }
+    }
+  },
+  "checkins": {
+    "page": {
+      "title": "Check-ins",
+      "subtitle": "Client check-in overview",
+      "tabs": {
+        "clients": "Clients",
+        "parameters": "Parameters"
+      }
+    },
+    "clientsTab": {
+      "searchPlaceholder": "Search clients...",
+      "checkinDay": "Check-in day",
+      "lastCheckin": "Last check-in",
+      "photoFrequency": "Photo frequency",
+      "status": "Status",
+      "noClients": "No active clients.",
+      "noDay": "Not set",
+      "noLastCheckin": "Never",
+      "sortLabel": "Sort:",
+      "dayLabel": "Day:",
+      "allDays": "All",
+      "viewClient": "View",
+      "statuses": {
+        "onTime": "On time",
+        "late": "Late",
+        "noConfig": "No config",
+        "noCheckin": "No check-in"
+      }
+    },
+    "parametersTab": {
+      "title": "Measurement parameters",
+      "add": "Add parameter",
+      "noParameters": "No parameters.",
+      "name": "Name",
+      "unit": "Unit",
+      "active": "Active",
+      "deleteTitle": "Delete parameter",
+      "deleteConfirm": "Are you sure you want to delete this parameter? Existing check-ins won't be affected.",
+      "dialog": {
+        "addTitle": "Add parameter",
+        "editTitle": "Edit parameter",
+        "namePlaceholder": "e.g. Weight",
+        "unitPlaceholder": "e.g. kg"
+      }
+    },
+    "detail": {
+      "weeklyCheckin": "Weekly Check-in",
+      "back": "Back to check-ins",
+      "tabs": {
+        "checkin": "Check-in",
+        "history": "History",
+        "graphs": "Graphs",
+        "config": "Settings"
+      },
+      "overview": {
+        "weeklyAverages": "Weekly averages",
+        "thisWeek": "this week",
+        "today": "today",
+        "notEntered": "Not entered",
+        "privateNoteLabel": "Note (private)",
+        "privateNotePlaceholder": "Note for yourself only...",
+        "clientCommentLabel": "Comment for client",
+        "clientCommentPlaceholder": "Comment the client will see...",
+        "saveNotes": "Save notes",
+        "savedSuccess": "✓ Saved!"
+      },
+      "form": {
+        "date": "Date",
+        "weight": "Weight (kg)",
+        "notes": "Notes",
+        "notesPlaceholder": "How are you feeling this week?",
+        "photos": "Photos",
+        "measurements": "Measurements",
+        "submit": "Save check-in",
+        "photoPositions": {
+          "front": "Front",
+          "back": "Back",
+          "side": "Side",
+          "front_relaxed": "Front relaxed",
+          "back_relaxed": "Back relaxed",
+          "side_left": "Left side",
+          "side_right": "Right side"
+        }
+      },
+      "history": {
+        "searchPlaceholder": "Search history...",
+        "totalCount": "{count, plural, one {# check-in total} other {# check-ins total}}",
+        "clientComment": "Comment for client",
+        "noHistory": "No check-in history.",
+        "weight": "Weight",
+        "notes": "Notes",
+        "photos": "Photos",
+        "measurements": "Measurements"
+      },
+      "config": {
+        "checkinDay": "Check-in day",
+        "photoFrequency": "Photo frequency",
+        "photoPositionsLabel": "Photo positions",
+        "clientInstructions": "Client instructions",
+        "clientInstructionsPlaceholder": "e.g. Every Monday by 8am I expect a check-in and photos...",
+        "savedSuccess": "✓ Saved!",
+        "selectDay": "Select day",
+        "frequencies": {
+          "none": "Never",
+          "every": "Every check-in",
+          "biweekly": "Every other check-in",
+          "monthly": "Once a month"
+        },
+        "save": "Save settings"
+      },
+      "graphs": {
+        "parameterLabel": "Parameter:",
+        "noNumericParams": "No numeric parameters available for graphing.",
+        "notEnoughData": "Not enough data to display graph. At least 2 entries needed.",
+        "minimum": "Minimum",
+        "average": "Average",
+        "maximum": "Maximum"
+      }
+    }
+  },
+  "chat": {
+    "page": {
+      "title": "Chat",
+      "searchPlaceholder": "Search conversations...",
+      "noMessages": "No messages",
+      "noClients": "No clients to chat with."
+    },
+    "window": {
+      "startOfConversation": "Start of conversation",
+      "messagePlaceholder": "Write a message...",
+      "send": "Send"
+    }
+  }
+}

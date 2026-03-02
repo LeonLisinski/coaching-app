@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +47,10 @@ type MealSlot = {
 }
 
 export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
+  const t = useTranslations('nutrition.dialogs.mealPlan')
+  const tRecipe = useTranslations('nutrition.dialogs.recipe')
+  const tCommon = useTranslations('common')
+
   const [name, setName] = useState('')
   const [targets, setTargets] = useState({ calories: '', protein: '', carbs: '', fat: '' })
   const [meals, setMeals] = useState<MealSlot[]>([])
@@ -110,7 +115,6 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // Spremi custom obroke kao recepte ako je označeno
     const processedMeals = await Promise.all(meals.map(async (meal) => {
       if (meal.save_as_recipe && meal.custom_ingredients && meal.custom_ingredients.length > 0 && meal.recipe_name) {
         const { data } = await supabase.from('recipes').insert({
@@ -155,39 +159,39 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novi plan prehrane</DialogTitle>
+          <DialogTitle>{t('addTitle')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Naziv plana</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Cutting plan, Bulk plan..." required />
+            <Label>{t('name')}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('namePlaceholder')} required />
           </div>
 
           <div className="grid grid-cols-4 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Cilj kcal</Label>
+              <Label className="text-xs">{t('targetCalories')}</Label>
               <Input type="number" value={targets.calories} onChange={(e) => setTargets({ ...targets, calories: e.target.value })} className="h-8 text-sm" placeholder="2000" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Proteini (g)</Label>
+              <Label className="text-xs">{t('targetProtein')}</Label>
               <Input type="number" value={targets.protein} onChange={(e) => setTargets({ ...targets, protein: e.target.value })} className="h-8 text-sm" placeholder="150" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Ugljikohidrati (g)</Label>
+              <Label className="text-xs">{t('targetCarbs')}</Label>
               <Input type="number" value={targets.carbs} onChange={(e) => setTargets({ ...targets, carbs: e.target.value })} className="h-8 text-sm" placeholder="200" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Masti (g)</Label>
+              <Label className="text-xs">{t('targetFat')}</Label>
               <Input type="number" value={targets.fat} onChange={(e) => setTargets({ ...targets, fat: e.target.value })} className="h-8 text-sm" placeholder="70" />
             </div>
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Obroci ({meals.length})</Label>
+              <Label>{t('meals', { count: meals.length })}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addMeal} className="flex items-center gap-1">
                 <Plus size={12} />
-                Dodaj obrok
+                {t('addMeal')}
               </Button>
             </div>
             {meals.map((meal, index) => (
@@ -203,7 +207,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
             ))}
             {meals.length > 0 && (
               <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm">
-                <span className="font-medium">Ukupno:</span>
+                <span className="font-medium">{tRecipe('total')}:</span>
                 <span>🔥 {Math.round(totals.calories)} kcal</span>
                 <span>🥩 {Math.round(totals.protein)}g</span>
                 <span>🍞 {Math.round(totals.carbs)}g</span>
@@ -214,9 +218,9 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Spremanje...' : 'Kreiraj plan'}
+              {loading ? tCommon('saving') : t('save')}
             </Button>
           </div>
         </form>

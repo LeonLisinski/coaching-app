@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import {
@@ -8,7 +9,6 @@ import {
   PieChart, Pie
 } from 'recharts'
 
-const MONTH_NAMES = ['Sij', 'Velj', 'Ožu', 'Tra', 'Svi', 'Lip', 'Srp', 'Kol', 'Ruj', 'Lis', 'Stu', 'Pro']
 
 type ClientSummary = {
   id: string
@@ -34,6 +34,13 @@ function getStatus(checkinDay: number | null, lastCheckin: string | null): 'subm
 }
 
 export default function DashboardPage() {
+  const t = useTranslations('dashboard')
+  const tDays = useTranslations('days')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+
+  const getMonthLabel = (date: Date) =>
+    date.toLocaleDateString(locale, { month: 'short' })
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -113,7 +120,7 @@ export default function DashboardPage() {
     const monthly: Record<string, { ocekivano: number; naplaceno: number }> = {}
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      monthly[MONTH_NAMES[d.getMonth()]] = { ocekivano: 0, naplaceno: 0 }
+      monthly[getMonthLabel(d)] = { ocekivano: 0, naplaceno: 0 }
     }
 
     packagesData?.forEach(cp => {
@@ -126,7 +133,7 @@ export default function DashboardPage() {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
         const mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
         const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
-        const key = MONTH_NAMES[d.getMonth()]
+        const key = getMonthLabel(d)
         if (cp.end_date >= mStart && cp.end_date <= mEnd) monthly[key].ocekivano += cp.price || 0
         ;(cp.payments as any[])?.forEach((p: any) => {
           if (p.status === 'paid' && p.paid_at >= mStart && p.paid_at <= mEnd) {
@@ -148,14 +155,14 @@ export default function DashboardPage() {
   const pieData = [{ value: progressPercent }, { value: 100 - progressPercent }]
 
   const statCards = [
-    { label: 'Aktivnih klijenata', value: stats.activeClients, color: '#6366f1', bg: '#eef2ff', onClick: () => router.push('/dashboard/clients') },
-    { label: 'Checkin poslan', value: stats.checkinSent, color: '#22c55e', bg: '#f0fdf4', onClick: () => router.push('/dashboard/checkins') },
-    { label: 'Kasni s checkinom', value: stats.checkinLate, color: '#ef4444', bg: '#fef2f2', onClick: () => router.push('/dashboard/checkins') },
-    { label: 'Checkin danas', value: stats.checkinToday, color: '#f59e0b', bg: '#fffbeb', onClick: () => router.push('/dashboard/checkins') },
-    { label: 'Očekivano ovaj mjesec', value: `${stats.expectedMonth}€`, color: '#8b5cf6', bg: '#f5f3ff' },
-    { label: 'Naplaćeno ovaj mjesec', value: `${stats.collectedMonth}€`, color: '#10b981', bg: '#ecfdf5' },
-    { label: 'Kasne s plaćanjem', value: stats.latePayments, color: '#f43f5e', bg: '#fff1f2' },
-    { label: 'Prosj. redovitost', value: `${stats.avgCheckinRate}%`, color: '#0ea5e9', bg: '#f0f9ff' },
+    { label: t('stats.activeClients'), value: stats.activeClients, color: '#6366f1', bg: '#eef2ff', onClick: () => router.push('/dashboard/clients') },
+    { label: t('stats.pendingCheckins'), value: stats.checkinSent, color: '#22c55e', bg: '#f0fdf4', onClick: () => router.push('/dashboard/checkins') },
+    { label: t('checkinStatus.late'), value: stats.checkinLate, color: '#ef4444', bg: '#fef2f2', onClick: () => router.push('/dashboard/checkins') },
+    { label: t('stats.todayCheckins'), value: stats.checkinToday, color: '#f59e0b', bg: '#fffbeb', onClick: () => router.push('/dashboard/checkins') },
+    { label: t('revenue.expectedMonth'), value: `${stats.expectedMonth}€`, color: '#8b5cf6', bg: '#f5f3ff' },
+    { label: t('revenue.collectedMonth'), value: `${stats.collectedMonth}€`, color: '#10b981', bg: '#ecfdf5' },
+    { label: t('revenue.latePayments'), value: stats.latePayments, color: '#f43f5e', bg: '#fff1f2' },
+    { label: t('revenue.avgRegularity'), value: `${stats.avgCheckinRate}%`, color: '#0ea5e9', bg: '#f0f9ff' },
   ]
 
   return (
@@ -163,9 +170,9 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: '#111827' }}>Dashboard</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: '#111827' }}>{t('title')}</h1>
         <p style={{ color: '#9ca3af', fontSize: 13, margin: '4px 0 0' }}>
-          {new Date().toLocaleDateString('hr-HR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+          {new Date().toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         </p>
       </div>
 
@@ -199,13 +206,13 @@ export default function DashboardPage() {
 
         {/* Bar chart */}
         <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>Prihod zadnjih 6 mjeseci</p>
+          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>{t('revenue.title')}</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={monthlyRevenue} barGap={6} barCategoryGap="35%">
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <Tooltip
-                formatter={(v: number | undefined, name: string | undefined) => [`${v || 0}€`, name === 'ocekivano' ? 'Očekivano' : 'Naplaćeno']}
+                formatter={(v: number | undefined, name: string | undefined) => [`${v || 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
               />
               <Bar dataKey="ocekivano" fill="#e0e7ff" radius={[6, 6, 0, 0]} />
@@ -215,18 +222,18 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#e0e7ff' }} />
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>Očekivano</span>
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t('revenue.expected')}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#6366f1' }} />
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>Naplaćeno</span>
+              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t('revenue.collected')}</span>
             </div>
           </div>
         </div>
 
         {/* Progress ring */}
         <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 16px', color: '#111827' }}>Naplata ovaj mjesec</p>
+          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 16px', color: '#111827' }}>{t('revenue.thisMonth')}</p>
           <div style={{ position: 'relative' }}>
             <PieChart width={160} height={160}>
               <Pie data={pieData} cx={75} cy={75} innerRadius={52} outerRadius={70} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
@@ -236,7 +243,7 @@ export default function DashboardPage() {
             </PieChart>
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
               <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#6366f1', lineHeight: 1 }}>{progressPercent}%</p>
-              <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>naplaćeno</p>
+              <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{t('revenue.paid')}</p>
             </div>
           </div>
           <p style={{ fontSize: 13, color: '#6b7280', marginTop: 12, fontWeight: 500 }}>
@@ -247,9 +254,9 @@ export default function DashboardPage() {
 
       {/* Top klijenti */}
       <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-        <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>Top klijenti po redovitosti checkina</p>
+          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>{t('checkinStatus.title')}</p>
         {topClients.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#9ca3af' }}>Nema podataka — checkini će se ovdje prikazati kad klijenti počnu slati</p>
+          <p style={{ fontSize: 13, color: '#9ca3af' }}>{t('noUpcomingCheckins')}</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
             {topClients.map((client) => {

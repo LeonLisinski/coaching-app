@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -20,6 +21,10 @@ type Checkin = {
 }
 
 export default function CheckinGraphs({ clientId }: Props) {
+  const tCommon = useTranslations('common')
+  const tGr = useTranslations('checkins.detail.graphs')
+  const locale = useLocale()
+
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [selectedParam, setSelectedParam] = useState<string>('')
@@ -50,17 +55,17 @@ export default function CheckinGraphs({ clientId }: Props) {
   const chartData = checkins
     .filter(c => c.values[selectedParam] !== undefined && c.values[selectedParam] !== null && c.values[selectedParam] !== '')
     .map(c => ({
-      date: new Date(c.date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' }),
+      date: new Date(c.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
       value: parseFloat(c.values[selectedParam]),
     }))
 
-  if (loading) return <p className="text-gray-500 text-sm">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
 
   if (parameters.length === 0) {
     return (
       <Card>
         <CardContent className="py-8 text-center text-gray-500 text-sm">
-          Nema numeričkih parametara za prikaz grafa.
+          {tGr('noNumericParams')}
         </CardContent>
       </Card>
     )
@@ -69,7 +74,7 @@ export default function CheckinGraphs({ clientId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <p className="text-sm text-gray-500">Parametar:</p>
+        <p className="text-sm text-gray-500">{tGr('parameterLabel')}</p>
         <select
           value={selectedParam}
           onChange={(e) => setSelectedParam(e.target.value)}
@@ -84,7 +89,7 @@ export default function CheckinGraphs({ clientId }: Props) {
       {chartData.length < 2 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            Nedovoljno podataka za prikaz grafa. Potrebno najmanje 2 unosa.
+            {tGr('notEnoughData')}
           </CardContent>
         </Card>
       ) : (
@@ -116,17 +121,16 @@ export default function CheckinGraphs({ clientId }: Props) {
         </Card>
       )}
 
-      {/* Mini statistike */}
       {chartData.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Minimum', value: Math.min(...chartData.map(d => d.value)) },
-            { label: 'Prosjek', value: (chartData.reduce((a, b) => a + b.value, 0) / chartData.length) },
-            { label: 'Maximum', value: Math.max(...chartData.map(d => d.value)) },
+            { labelKey: 'minimum', value: Math.min(...chartData.map(d => d.value)) },
+            { labelKey: 'average', value: (chartData.reduce((a, b) => a + b.value, 0) / chartData.length) },
+            { labelKey: 'maximum', value: Math.max(...chartData.map(d => d.value)) },
           ].map(stat => (
-            <Card key={stat.label}>
+            <Card key={stat.labelKey}>
               <CardContent className="py-3 text-center">
-                <p className="text-xs text-gray-500">{stat.label}</p>
+                <p className="text-xs text-gray-500">{tGr(stat.labelKey as any)}</p>
                 <p className="font-semibold text-sm">
                   {stat.value.toFixed(1)}{selectedParamData?.unit ? ` ${selectedParamData.unit}` : ''}
                 </p>

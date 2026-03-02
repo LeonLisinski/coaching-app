@@ -9,6 +9,7 @@ import { Plus, Pencil, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddPlanDialog from '@/app/dashboard/training/dialogs/add-plan-dialog'
 import EditPlanDialog from '@/app/dashboard/training/dialogs/edit-plan-dialog'
+import { useTranslations, useLocale } from 'next-intl'
 
 type Props = { clientId: string }
 
@@ -28,6 +29,10 @@ type AssignedPlan = {
 }
 
 export default function ClientWorkoutPlans({ clientId }: Props) {
+  const t = useTranslations('clients.workoutPlans')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+
   const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([])
   const [availablePlans, setAvailablePlans] = useState<WorkoutPlan[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,12 +106,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     setConfirmDelete(null)
   }
 
-  if (loading) return <p className="text-gray-500 text-sm">Učitavanje...</p>
+  if (loading) return <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{assignedPlans.length} dodijeljenih planova</p>
+        <p className="text-gray-500 text-sm">{t('assigned', { count: assignedPlans.length })}</p>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -115,7 +120,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
             className="flex items-center gap-2"
           >
             <Plus size={14} />
-            Kreiraj novi
+            {t('createNew')}
           </Button>
           <Button
             size="sm"
@@ -123,7 +128,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
             className="flex items-center gap-2"
           >
             <Plus size={14} />
-            Dodijeli postojeći
+            {t('assignExisting')}
           </Button>
         </div>
       </div>
@@ -131,31 +136,31 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       {showAdd && (
         <Card className="border-blue-200 bg-blue-50/30">
           <CardContent className="py-4 space-y-3">
-            <p className="font-medium text-sm">Dodijeli plan treninga</p>
+            <p className="font-medium text-sm">{t('assignPlan')}</p>
             <select
               value={selectedPlanId}
               onChange={(e) => setSelectedPlanId(e.target.value)}
               className="w-full border rounded-md px-3 py-2 text-sm"
             >
-              <option value="">Odaberi plan...</option>
+              <option value="">{t('selectPlan')}</option>
               {availablePlans.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.days?.length || 0} dana)
+                  {p.name} ({t('days', { count: p.days?.length || 0 })})
                 </option>
               ))}
             </select>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Napomena (opcionalno)..."
+              placeholder={t('note')}
               className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
             />
             <div className="flex gap-2">
               <Button size="sm" onClick={assignPlan} disabled={!selectedPlanId || saving}>
-                {saving ? 'Dodjela...' : 'Dodijeli'}
+                {saving ? tCommon('saving') : t('assign')}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>
-                Odustani
+                {tCommon('cancel')}
               </Button>
             </div>
           </CardContent>
@@ -165,7 +170,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       {assignedPlans.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-gray-500 text-sm">
-            Klijentu nije dodijeljen nijedan plan treninga.
+            {t('noPlans')}
           </CardContent>
         </Card>
       ) : (
@@ -181,12 +186,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-sm">{assigned.workout_plan.name}</p>
                     <Badge variant={assigned.active ? 'default' : 'secondary'} className="text-xs">
-                      {assigned.active ? 'Aktivan' : 'Neaktivan'}
+                      {assigned.active ? tCommon('active') : tCommon('inactive')}
                     </Badge>
                   </div>
                   <p className="text-xs text-gray-400">
-                    {assigned.workout_plan.days?.length || 0} dana •
-                    Dodijeljeno {new Date(assigned.assigned_at).toLocaleDateString('hr-HR')}
+                    {t('days', { count: assigned.workout_plan.days?.length || 0 })} •
+                    {t('assignedOn')} {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                   </p>
                   {assigned.notes && (
                     <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>
@@ -198,7 +203,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                     size="sm"
                     onClick={(e) => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
                   >
-                    {assigned.active ? 'Deaktiviraj' : 'Aktiviraj'}
+                    {assigned.active ? tCommon('inactive') : tCommon('active')}
                   </Button>
                   <Button
                     variant="ghost"
@@ -221,12 +226,10 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         </div>
       )}
 
-      {/* Kreiraj novi plan i automatski dodijeli */}
       <AddPlanDialog
         open={showCreateNew}
         onClose={() => setShowCreateNew(false)}
         onSuccess={async () => {
-          // Dohvati zadnji kreirani plan i dodijeli ga klijentu
           const { data: { user } } = await supabase.auth.getUser()
           if (!user) return
           const { data: latestPlan } = await supabase
@@ -267,11 +270,11 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Ukloni plan"
-        description="Sigurno želiš ukloniti ovaj plan od klijenta?"
+        title={tCommon('remove')}
+        description={t('removeConfirm')}
         onConfirm={() => confirmDelete && removePlan(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Ukloni"
+        confirmLabel={tCommon('remove')}
         destructive
       />
     </div>

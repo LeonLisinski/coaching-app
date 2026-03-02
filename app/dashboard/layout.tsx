@@ -17,18 +17,23 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import LocaleSwitcher from '@/components/locale-switcher'
 
 const navItems = [
-  { href: '/dashboard', label: 'Pregled', icon: LayoutDashboard },
-  { href: '/dashboard/clients', label: 'Klijenti', icon: Users },
-  { href: '/dashboard/training', label: 'Treninzi', icon: Dumbbell },
-  { href: '/dashboard/nutrition', label: 'Prehrana', icon: UtensilsCrossed },
-  { href: '/dashboard/checkins', label: 'Checkini', icon: ListChecks },
-  { href: '/dashboard/chat', label: 'Chat', icon: MessageSquare },
-  { href: '/dashboard/profile', label: 'Profil', icon: User },
+  { href: '/dashboard', labelKey: 'overview', icon: LayoutDashboard },
+  { href: '/dashboard/clients', labelKey: 'clients', icon: Users },
+  { href: '/dashboard/training', labelKey: 'training', icon: Dumbbell },
+  { href: '/dashboard/nutrition', labelKey: 'nutrition', icon: UtensilsCrossed },
+  { href: '/dashboard/checkins', labelKey: 'checkins', icon: ListChecks },
+  { href: '/dashboard/chat', labelKey: 'chat', icon: MessageSquare },
+  { href: '/dashboard/profile', labelKey: 'profile', icon: User },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const tNav = useTranslations('nav')
+  const tApp = useTranslations('app')
+  const tCommon = useTranslations('common')
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -44,7 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex h-screen bg-gray-100">
       <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-gray-900 text-white flex flex-col transition-all duration-200`}>
         <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-          {!collapsed && <h1 className="text-xl font-bold">Coaching App</h1>}
+          {!collapsed && <h1 className="text-xl font-bold">{tApp('name')}</h1>}
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="text-gray-400 hover:text-white transition-colors ml-auto"
@@ -56,11 +61,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')
+            const label = tNav(item.labelKey as any)
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? label : undefined}
                 className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
                   collapsed ? 'justify-center' : ''
                 } ${
@@ -70,7 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 }`}
               >
                 <Icon size={20} />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>{label}</span>}
               </Link>
             )
           })}
@@ -78,20 +84,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="p-2 border-t border-gray-700">
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Odjava' : undefined}
+            title={collapsed ? tCommon('logout') : undefined}
             className={`flex items-center gap-3 px-3 py-3 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors w-full ${collapsed ? 'justify-center' : ''}`}
           >
             <LogOut size={20} />
-            {!collapsed && <span>Odjava</span>}
+            {!collapsed && <span>{tCommon('logout')}</span>}
           </button>
         </div>
       </aside>
 
-      <main className={`flex-1 overflow-hidden flex flex-col ${isChat ? '' : 'overflow-auto'}`}>
-        <div className={`flex-1 ${isChat ? 'flex flex-col overflow-hidden' : 'overflow-auto p-8'}`}>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="shrink-0 bg-white border-b border-gray-200 shadow-sm z-40 flex items-center h-12 px-6">
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            <LocaleSwitcher />
+          </div>
+        </header>
+
+        <main className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'overflow-auto p-8'}`}>
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
