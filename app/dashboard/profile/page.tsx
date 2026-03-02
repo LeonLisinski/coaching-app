@@ -193,47 +193,69 @@ export default function ProfilePage() {
         </TabsList>
 
         {/* PROFIL TAB */}
-        <TabsContent value="profil" className="mt-6">
-          <Card>
-            <CardContent className="py-8 space-y-6">
-              {/* Avatar centriran */}
-              <div className="flex flex-col items-center gap-3 pb-6 border-b">
-                <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                    {profile?.avatar_url ? (
-                      <img
-                        src={profile.avatar_url}
-                        alt="Avatar"
-                        className="w-24 h-24 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-3xl font-bold text-gray-500">
-                        {form.full_name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  {/* Hover overlay za upload */}
-                  <label className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <span className="text-white text-xs font-medium">Promijeni</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={uploadAvatar}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-                <div className="text-center">
-                  <p className="font-semibold text-lg">{form.full_name}</p>
-                  <p className="text-sm text-gray-400">{profile?.email}</p>
-                  {form.bio && <p className="text-sm text-gray-500 mt-1 max-w-md">{form.bio}</p>}
-                </div>
-                {form.instagram && (
-                  <p className="text-sm text-blue-500">@{form.instagram.replace('@', '')}</p>
-                )}
-              </div>
+        <TabsContent value="profil" className="mt-6 space-y-6">
+          {/* Profil header - izvan boxa */}
+          <div className="flex flex-col items-center gap-3">
+            <div
+              style={{
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                backgroundColor: '#f3f4f6',
+                border: '3px solid #e5e7eb',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  style={{ width: 120, height: 120, objectFit: 'cover', display: 'block' }}
+                />
+              ) : (
+                <span style={{ fontSize: 40, fontWeight: 700, color: '#9ca3af' }}>
+                  {form.full_name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
 
-              {/* Forma */}
+            <div className="flex items-center gap-2">
+              <label className="cursor-pointer">
+                <span className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+                  Promijeni sliku
+                </span>
+                <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
+              </label>
+              {profile?.avatar_url && (
+                <button
+                  onClick={async () => {
+                    await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile.id)
+                    fetchData()
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-full border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  Ukloni
+                </button>
+              )}
+            </div>
+
+            <div className="text-center">
+              <p className="font-semibold text-xl">{form.full_name}</p>
+              <p className="text-sm text-gray-400">{profile?.email}</p>
+              {form.instagram && (
+                <p className="text-sm text-blue-500 mt-0.5">@{form.instagram.replace('@', '')}</p>
+              )}
+              {form.bio && <p className="text-sm text-gray-500 mt-1 max-w-md">{form.bio}</p>}
+            </div>
+          </div>
+
+          {/* Forma u boxu */}
+          <Card>
+            <CardContent className="py-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Ime i prezime</Label>

@@ -13,6 +13,7 @@ import CheckinGraphs from '@/app/dashboard/checkins/[id]/components/checkin-grap
 import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-config'
 import ClientWorkoutPlans from '@/app/dashboard/clients/[id]/components/client-workout-plans'
 import ClientMealPlans from '@/app/dashboard/clients/[id]/components/client-meal-plans'
+import ClientPackages from '@/app/dashboard/clients/[id]/components/client-packages'
 
 type Client = {
   id: string
@@ -77,7 +78,6 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Info kartica */}
       <Card>
         <CardContent className="py-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -129,6 +129,7 @@ export default function ClientDetailPage() {
           <TabsTrigger value="checkin-config">Checkin postavke</TabsTrigger>
           <TabsTrigger value="treninzi">Treninzi</TabsTrigger>
           <TabsTrigger value="prehrana">Prehrana</TabsTrigger>
+          <TabsTrigger value="paketi">Paketi & Plaćanja</TabsTrigger>
         </TabsList>
         <TabsContent value="checkin" className="mt-6">
           <CheckinOverview clientId={id as string} />
@@ -147,6 +148,9 @@ export default function ClientDetailPage() {
         </TabsContent>
         <TabsContent value="prehrana" className="mt-6">
           <ClientMealPlans clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="paketi" className="mt-6">
+          <ClientPackages clientId={id as string} />
         </TabsContent>
       </Tabs>
     </div>
