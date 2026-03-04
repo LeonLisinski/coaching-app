@@ -1,144 +1,158 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent } from '@/components/ui/card'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Card } from '@/components/ui/card'
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, BarChart, Bar,
+} from 'recharts'
 
 type Props = { clientId: string }
+type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
+type DataPoint = { date: string; values: Record<string, any> }
 
-type Parameter = {
-  id: string
-  name: string
-  type: string
-  unit: string | null
+function parseVal(v: any): number {
+  if (v === undefined || v === null || v === '') return NaN
+  return parseFloat(String(v).replace(',', '.'))
 }
+function fmt(v: number) { return v % 1 === 0 ? String(v) : v.toFixed(1) }
 
-type Checkin = {
-  date: string
-  values: Record<string, any>
-}
+const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
 export default function CheckinGraphs({ clientId }: Props) {
-  const tCommon = useTranslations('common')
-  const tGr = useTranslations('checkins.detail.graphs')
   const locale = useLocale()
-
-  const [parameters, setParameters] = useState<Parameter[]>([])
-  const [checkins, setCheckins] = useState<Checkin[]>([])
-  const [selectedParam, setSelectedParam] = useState<string>('')
+  const [params, setParams] = useState<Parameter[]>([])
+  const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchData()
-  }, [clientId])
+  useEffect(() => { fetchData() }, [clientId])
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
-    const [{ data: params }, { data: checkinsData }] = await Promise.all([
+    const [{ data: paramsData }, { data: checkinsData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('checkins').select('date, values').eq('client_id', clientId).order('date')
+      supabase.from('checkins').select('date, values').eq('client_id', clientId).order('date'),
+      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date'),
     ])
-
-    const numericParams = (params || []).filter(p => p.type === 'number')
-    setParameters(numericParams)
-    if (numericParams.length > 0) setSelectedParam(numericParams[0].id)
-    if (checkinsData) setCheckins(checkinsData)
+    if (paramsData) setParams(paramsData)
+    const merged: Record<string, Record<string, any>> = {}
+    dailyData?.forEach(d => { merged[d.date] = { ...merged[d.date], ...d.values } })
+    checkinsData?.forEach(c => { merged[c.date] = { ...merged[c.date], ...c.values } })
+    setDataPoints(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b)).map(([date, values]) => ({ date, values })))
     setLoading(false)
   }
 
-  const selectedParamData = parameters.find(p => p.id === selectedParam)
+  const numericParams = params.filter(p => p.type === 'number')
 
-  const chartData = checkins
-    .filter(c => c.values[selectedParam] !== undefined && c.values[selectedParam] !== null && c.values[selectedParam] !== '')
-    .map(c => ({
-      date: new Date(c.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
-      value: parseFloat(c.values[selectedParam]),
-    }))
+  const getChartData = (paramId: string) =>
+    dataPoints
+      .map(dp => ({ date: dp.date, raw: parseVal(dp.values[paramId]) }))
+      .filter(d => !isNaN(d.raw))
+      .map((d, i, arr) => ({
+        date: new Date(d.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }),
+        value: d.raw,
+        prev: i > 0 ? arr[i - 1].raw : d.raw,
+      }))
 
-  if (loading) return <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
-
-  if (parameters.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-gray-500 text-sm">
-          {tGr('noNumericParams')}
-        </CardContent>
-      </Card>
-    )
+  const getStats = (data: { value: number }[]) => {
+    if (!data.length) return null
+    const vals = data.map(d => d.value)
+    return {
+      min: Math.min(...vals),
+      max: Math.max(...vals),
+      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+      last: vals[vals.length - 1],
+      trend: vals[vals.length - 1] - vals[0],
+      count: vals.length,
+    }
   }
 
+  if (loading) return <p className="text-gray-400 text-sm text-center py-8">Učitava...</p>
+  if (!numericParams.length) return (
+    <div className="text-center py-12 text-gray-400"><p className="text-sm">Nema numeričkih parametara</p></div>
+  )
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <p className="text-sm text-gray-500">{tGr('parameterLabel')}</p>
-        <select
-          value={selectedParam}
-          onChange={(e) => setSelectedParam(e.target.value)}
-          className="border rounded-md px-3 py-1.5 text-sm"
-        >
-          {parameters.map(p => (
-            <option key={p.id} value={p.id}>{p.name}{p.unit ? ` (${p.unit})` : ''}</option>
-          ))}
-        </select>
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {numericParams.map((param, idx) => {
+        const data = getChartData(param.id)
+        const stats = getStats(data)
+        const color = COLORS[idx % COLORS.length]
+        const hasChart = data.length >= 2
 
-      {chartData.length < 2 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {tGr('notEnoughData')}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-sm font-medium mb-4">
-              {selectedParamData?.name}
-              {selectedParamData?.unit && ` (${selectedParamData.unit})`}
-            </p>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-                <Tooltip
-                  formatter={(value: number | undefined) => [`${value}${selectedParamData?.unit ? ` ${selectedParamData.unit}` : ''}`, selectedParamData?.name]}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
+        return (
+          <Card key={param.id} className="overflow-hidden">
+            <div className="p-3">
+              {/* Top: name left, value+trend right */}
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <p className="font-semibold text-sm leading-tight">{param.name}</p>
+                  {param.unit && <p className="text-xs text-gray-400">{param.unit}</p>}
+                </div>
+                {stats && (
+                  <div className="text-right">
+                    <p className="font-bold text-xl leading-tight" style={{ color }}>
+                      {fmt(stats.last)}{param.unit ? ` ${param.unit}` : ''}
+                    </p>
+                    <p className={`text-xs ${stats.trend > 0 ? 'text-green-500' : stats.trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                      {stats.trend > 0 ? '↑' : stats.trend < 0 ? '↓' : '→'} {fmt(Math.abs(stats.trend))} ukupno
+                    </p>
+                  </div>
+                )}
+              </div>
 
-      {chartData.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { labelKey: 'minimum', value: Math.min(...chartData.map(d => d.value)) },
-            { labelKey: 'average', value: (chartData.reduce((a, b) => a + b.value, 0) / chartData.length) },
-            { labelKey: 'maximum', value: Math.max(...chartData.map(d => d.value)) },
-          ].map(stat => (
-            <Card key={stat.labelKey}>
-              <CardContent className="py-3 text-center">
-                <p className="text-xs text-gray-500">{tGr(stat.labelKey as any)}</p>
-                <p className="font-semibold text-sm">
-                  {stat.value.toFixed(1)}{selectedParamData?.unit ? ` ${selectedParamData.unit}` : ''}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              {/* Chart */}
+              {hasChart ? (
+                <ResponsiveContainer width="100%" height={110}>
+                  <AreaChart data={data} margin={{ top: 4, right: 0, left: -30, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id={`g-${param.id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+                        <stop offset="100%" stopColor={color} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+                    {stats && <ReferenceLine y={stats.avg} stroke={color} strokeDasharray="3 3" strokeOpacity={0.4} />}
+                    <Tooltip
+                      contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid #e5e7eb', padding: '3px 8px' }}
+                      formatter={(v: any) => [`${v}${param.unit ? ` ${param.unit}` : ''}`, param.name]}
+                    />
+                    <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2}
+                      fill={`url(#g-${param.id})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, strokeWidth: 0 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : data.length === 1 ? (
+                /* Single value — show as big centered stat */
+                <div className="h-16 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold" style={{ color }}>{fmt(data[0].value)}{param.unit ? ` ${param.unit}` : ''}</p>
+                    <p className="text-xs text-gray-400 mt-1">1 unos · treba još za trend</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-10 flex items-center">
+                  <p className="text-xs text-gray-300">Nema podataka</p>
+                </div>
+              )}
+
+              {/* Bottom stats strip */}
+              {stats && stats.count >= 2 && (
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500">
+                  <span>min <strong className="text-gray-700">{fmt(stats.min)}</strong></span>
+                  <span>avg <strong className="text-gray-700">{fmt(stats.avg)}</strong></span>
+                  <span>max <strong className="text-gray-700">{fmt(stats.max)}</strong></span>
+                  <span className="text-gray-400">{stats.count} unosa</span>
+                </div>
+              )}
+            </div>
+          </Card>
+        )
+      })}
     </div>
   )
 }

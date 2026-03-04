@@ -1,256 +1,276 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations, useLocale } from 'next-intl'
+import { useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send } from 'lucide-react'
 
 type Props = { clientId: string }
+type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
+type DailyLog = { id: string; date: string; values: Record<string, any> }
+type Checkin = { id: string; date: string; values: Record<string, any>; trainer_note: string | null; trainer_comment: string | null }
 
-type Parameter = {
-  id: string
-  name: string
-  type: string
-  unit: string | null
-  options: string[] | null
+function isoDate(d: Date) { return d.toISOString().split('T')[0] }
+function parseVal(v: any): number {
+  if (v === undefined || v === null || v === '') return NaN
+  return parseFloat(String(v).replace(',', '.'))
 }
 
-type Checkin = {
-  id: string
-  date: string
-  values: Record<string, any>
-  trainer_note: string | null
-  trainer_comment: string | null
-}
-
-function getWeekRange(offset: number = 0) {
+function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
   const today = new Date()
-  const day = today.getDay()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - ((day + 6) % 7) + offset * 7)
-  monday.setHours(0, 0, 0, 0)
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  sunday.setHours(23, 59, 59, 999)
-  return { monday, sunday }
+  const daysUntil = (checkinDay - today.getDay() + 7) % 7
+  const baseEnd = new Date(today)
+  baseEnd.setDate(today.getDate() + daysUntil + weekOffset * 7)
+  baseEnd.setHours(23, 59, 59, 999)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(baseEnd)
+    d.setDate(baseEnd.getDate() - 6 + i)
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
 }
 
-function isoDate(d: Date) {
-  return d.toISOString().split('T')[0]
-}
+const HR_DAYS = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
+const HR_DAYS_FULL = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
 
 export default function CheckinOverview({ clientId }: Props) {
-  const tCommon = useTranslations('common')
-  const tOv = useTranslations('checkins.detail.overview')
   const locale = useLocale()
-
-  const [parameters, setParameters] = useState<Parameter[]>([])
-  const [checkins, setCheckins] = useState<Checkin[]>([])
+  const [dailyParams, setDailyParams] = useState<Parameter[]>([])
+  const [weeklyParams, setWeeklyParams] = useState<Parameter[]>([])
+  const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
+  const [checkin, setCheckin] = useState<Checkin | null>(null)
+  const [checkinDay, setCheckinDay] = useState<number>(1)
   const [weekOffset, setWeekOffset] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [trainerNote, setTrainerNote] = useState('')
-  const [trainerComment, setTrainerComment] = useState('')
-  const [selectedCheckin, setSelectedCheckin] = useState<Checkin | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [comment, setComment] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  // trainer_id for sending messages
+  const [trainerId, setTrainerId] = useState<string | null>(null)
 
-  const { monday, sunday } = getWeekRange(weekOffset)
+  useEffect(() => { fetchConfig() }, [clientId])
+  useEffect(() => { fetchData() }, [clientId, weekOffset, checkinDay])
 
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
-
-  useEffect(() => {
-    fetchData()
-  }, [clientId, weekOffset])
+  const fetchConfig = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) setTrainerId(user.id)
+    const { data } = await supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).single()
+    if (data?.checkin_day != null) setCheckinDay(data.checkin_day)
+  }
 
   const fetchData = async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    const days = getWeekDays(checkinDay, weekOffset)
+    const startDate = isoDate(days[0])
+    const endDate = isoDate(days[6])
 
-    const [{ data: params }, { data: checkinsData }] = await Promise.all([
+    const [{ data: params }, { data: logsData }, { data: checkinData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('checkins').select('*').eq('client_id', clientId)
-        .gte('date', isoDate(monday))
-        .lte('date', isoDate(sunday))
-        .order('date')
+      supabase.from('daily_logs').select('*').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date'),
+      supabase.from('checkins').select('*').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(1),
     ])
 
-    if (params) setParameters(params)
-    if (checkinsData) setCheckins(checkinsData)
+    if (params) {
+      setDailyParams(params.filter((p: Parameter) => p.frequency === 'daily'))
+      setWeeklyParams(params.filter((p: Parameter) => p.frequency === 'weekly'))
+    }
+    if (logsData) setDailyLogs(logsData)
+    const c = checkinData?.[0] || null
+    setCheckin(c)
+    setComment('')
+    setSent(false)
     setLoading(false)
   }
 
-  const openCheckin = (checkin: Checkin) => {
-    setSelectedCheckin(checkin)
-    setTrainerNote(checkin.trainer_note || '')
-    setTrainerComment(checkin.trainer_comment || '')
+  const sendComment = async () => {
+    if (!comment.trim() || !checkin || !trainerId) return
+    setSending(true)
+
+    // Get client's user_id for receiver
+    const { data: clientData } = await supabase
+      .from('clients').select('user_id').eq('id', clientId).single()
+
+    const checkinDate = new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const messageContent = `📋 Komentar trenera na check-in (${checkinDate}):\n\n${comment}`
+
+    await supabase.from('messages').insert({
+      sender_id: trainerId,
+      receiver_id: clientData?.user_id,
+      trainer_id: trainerId,
+      client_id: clientId,
+      content: messageContent,
+      read: false,
+      private: false,
+    })
+
+    // Also save to checkin record
+    await supabase.from('checkins').update({ trainer_comment: comment }).eq('id', checkin.id)
+
+    setSending(false)
+    setSent(true)
+    setComment('')
   }
 
-  const saveNotes = async () => {
-    if (!selectedCheckin) return
-    setSaving(true)
-    await supabase.from('checkins').update({
-      trainer_note: trainerNote || null,
-      trainer_comment: trainerComment || null,
-    }).eq('id', selectedCheckin.id)
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-    fetchData()
+  const avg = (paramId: string) => {
+    const vals = dailyLogs.map(l => parseVal(l.values[paramId])).filter(v => !isNaN(v))
+    if (!vals.length) return null
+    const a = vals.reduce((a, b) => a + b, 0) / vals.length
+    return a % 1 === 0 ? String(a) : a.toFixed(1)
   }
 
-  const weeklyAverage = (paramId: string) => {
-    const values = checkins
-      .map(c => parseFloat(c.values[paramId]))
-      .filter(v => !isNaN(v))
-    if (values.length === 0) return null
-    return (values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)
-  }
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    return d
-  })
+  const days = getWeekDays(checkinDay, weekOffset)
+  const fmt = (d: Date) => d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
 
   return (
     <div className="space-y-4">
+      {/* Week navigator */}
       <div className="flex items-center justify-between">
         <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w - 1)}>
           <ChevronLeft size={14} />
         </Button>
-        <p className="text-sm font-medium">
-          {formatDate(monday)} — {formatDate(sunday)}
-          {weekOffset === 0 && <span className="ml-2 text-xs text-blue-600">({tOv('thisWeek')})</span>}
-        </p>
+        <div className="text-center">
+          <p className="text-sm font-semibold">{fmt(days[0])} — {fmt(days[6])}</p>
+          {weekOffset === 0 && <p className="text-xs text-blue-500">ovaj tjedan</p>}
+        </div>
         <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
           <ChevronRight size={14} />
         </Button>
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
+        <p className="text-gray-400 text-sm text-center py-8">Učitava...</p>
       ) : (
         <>
-          {parameters.filter(p => p.type === 'number').length > 0 && (
-            <Card>
-              <CardContent className="py-3">
-                <p className="text-xs text-gray-500 mb-3">{tOv('weeklyAverages')}</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {parameters.filter(p => p.type === 'number').map(param => {
-                    const avg = weeklyAverage(param.id)
+          {/* Tjedni check-in — compact */}
+          <Card className={checkin ? 'border-green-200' : ''}>
+            <div className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-sm">Tjedni check-in</p>
+                  <span className="text-xs text-gray-400">· {HR_DAYS_FULL[checkinDay]}</span>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${checkin ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {checkin ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}` : 'Nije poslan'}
+                </span>
+              </div>
+
+              {/* Weekly values inline */}
+              {weeklyParams.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {weeklyParams.map(p => {
+                    const raw = checkin?.values?.[p.id]
+                    const val = parseVal(raw)
+                    const hasVal = !isNaN(val)
                     return (
-                      <div key={param.id} className="text-center">
-                        <p className="text-xs text-gray-400">{param.name}</p>
-                        <p className="font-semibold text-sm">
-                          {avg !== null ? `${avg}${param.unit ? ` ${param.unit}` : ''}` : '—'}
-                        </p>
+                      <div key={p.id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5">
+                        <span className="text-xs text-gray-400">{p.name}</span>
+                        <span className={`text-sm font-semibold ${hasVal ? 'text-gray-800' : 'text-gray-300'}`}>
+                          {hasVal ? `${val % 1 === 0 ? val : val.toFixed(1)}${p.unit ? ` ${p.unit}` : ''}` : '—'}
+                        </span>
                       </div>
                     )
                   })}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
 
-          <div className="grid grid-cols-1 gap-2">
-            {days.map(day => {
-              const checkin = checkins.find(c => c.date === isoDate(day))
-              const isToday = isoDate(day) === isoDate(new Date())
-              return (
-                <Card
-                  key={isoDate(day)}
-                  className={`transition-shadow ${checkin ? 'cursor-pointer hover:shadow-sm' : 'opacity-60'} ${isToday ? 'border-blue-200' : ''}`}
-                  onClick={() => checkin && openCheckin(checkin)}
-                >
-                  <CardContent className="py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${checkin ? 'bg-green-500' : 'bg-gray-200'}`} />
-                      <div>
-                        <p className="text-sm font-medium">
-                          {day.toLocaleDateString(locale, { weekday: 'long' })}
-                          {isToday && <span className="ml-2 text-xs text-blue-600">{tOv('today')}</span>}
-                        </p>
-                        <p className="text-xs text-gray-400">{formatDate(day)}</p>
-                      </div>
+              {/* Send comment as chat message */}
+              {checkin && (
+                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Komentar klijentu</p>
+                    <p className="text-xs text-gray-400">Šalje se kao chat poruka</p>
+                  </div>
+                  {checkin.trainer_comment && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 border border-gray-100">
+                      Zadnje: "{checkin.trainer_comment}"
                     </div>
-                    {checkin ? (
-                      <div className="flex items-center gap-2">
-                        {parameters.slice(0, 3).map(param => {
-                          const val = checkin.values[param.id]
-                          if (val === undefined || val === null || val === '') return null
-                          return (
-                            <Badge key={param.id} variant="outline" className="text-xs">
-                              {param.name}: {val}{param.unit ? ` ${param.unit}` : ''}
-                            </Badge>
-                          )
-                        })}
-                        {checkin.trainer_note && <span className="text-xs text-gray-400">📝</span>}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-400">{tOv('notEntered')}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          {selectedCheckin && (
-            <Card className="border-blue-200">
-              <CardContent className="py-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">
-                    {new Date(selectedCheckin.date).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </p>
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedCheckin(null)}>✕</Button>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
+                      placeholder="Napiši komentar na check-in..."
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    />
+                    <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent} className="flex-shrink-0 gap-1.5">
+                      <Send size={13} />
+                      {sending ? 'Šalje...' : sent ? '✓ Poslano' : 'Pošalji'}
+                    </Button>
+                  </div>
                 </div>
+              )}
+            </div>
+          </Card>
 
-                <div className="grid grid-cols-2 gap-3">
-                  {parameters.map(param => {
-                    const val = selectedCheckin.values[param.id]
-                    if (val === undefined || val === null || val === '') return null
-                    return (
-                      <div key={param.id} className="bg-gray-50 rounded-md p-2">
-                        <p className="text-xs text-gray-500">{param.name}</p>
-                        <p className="font-medium text-sm">
-                          {param.type === 'boolean' ? (val ? tCommon('yes') : tCommon('no')) : `${val}${param.unit ? ` ${param.unit}` : ''}`}
-                        </p>
-                      </div>
-                    )
-                  })}
+          {/* Daily table */}
+          {dailyParams.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Dnevni unosi</p>
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-28">Dan</th>
+                        {dailyParams.map(p => (
+                          <th key={p.id} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
+                            {p.name}{p.unit && <span className="font-normal text-gray-400"> ({p.unit})</span>}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {days.map((day, i) => {
+                        const iso = isoDate(day)
+                        const log = dailyLogs.find(l => l.date === iso)
+                        const isToday = iso === isoDate(new Date())
+                        const isCheckinDayRow = day.getDay() === checkinDay
+                        return (
+                          <tr key={iso} className={['border-b border-gray-50 last:border-0', isToday ? 'bg-blue-50' : i % 2 !== 0 ? 'bg-gray-50/40' : ''].join(' ')}>
+                            <td className="px-4 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-green-400' : 'bg-gray-200'}`} />
+                                <div>
+                                  <div className="flex items-center gap-1">
+                                    <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{HR_DAYS[day.getDay()]}</span>
+                                    {isCheckinDayRow && <span className="text-purple-400 text-xs">●</span>}
+                                  </div>
+                                  <div className="text-xs text-gray-400">{fmt(day)}</div>
+                                </div>
+                              </div>
+                            </td>
+                            {dailyParams.map(p => {
+                              const raw = log?.values?.[p.id]
+                              const val = parseVal(raw)
+                              const display = !isNaN(val) ? (val % 1 === 0 ? val : val.toFixed(1)) : (raw !== undefined && raw !== null && raw !== '' ? raw : null)
+                              return (
+                                <td key={p.id} className="text-center px-4 py-2">
+                                  {display !== null ? <span className="font-medium text-gray-800">{display}</span> : <span className="text-gray-200">—</span>}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })}
+                      <tr className="border-t-2 border-gray-100 bg-gray-50">
+                        <td className="px-4 py-2 text-xs font-semibold text-gray-500">Prosjek</td>
+                        {dailyParams.map(p => (
+                          <td key={p.id} className="text-center px-4 py-2 text-xs font-semibold text-gray-600">
+                            {p.type === 'number' ? (avg(p.id) ?? '—') : '—'}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">{tOv('privateNoteLabel')}</Label>
-                  <textarea
-                    value={trainerNote}
-                    onChange={(e) => setTrainerNote(e.target.value)}
-                    placeholder={tOv('privateNotePlaceholder')}
-                    className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs">{tOv('clientCommentLabel')}</Label>
-                  <textarea
-                    value={trainerComment}
-                    onChange={(e) => setTrainerComment(e.target.value)}
-                    placeholder={tOv('clientCommentPlaceholder')}
-                    className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
-                  />
-                </div>
-
-                <Button onClick={saveNotes} disabled={saving} size="sm" className="w-full">
-                  {saving ? tCommon('saving') : saved ? tOv('savedSuccess') : tOv('saveNotes')}
-                </Button>
-              </CardContent>
-            </Card>
+              </Card>
+              <p className="text-xs text-gray-400 mt-1 ml-0.5">● = dan check-ina</p>
+            </div>
           )}
         </>
       )}

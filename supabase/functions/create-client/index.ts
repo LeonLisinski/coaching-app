@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
           autoRefreshToken: false,
@@ -27,11 +27,11 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { trainer_id, email, full_name, goal, date_of_birth, weight, height } = await req.json()
+    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password } = await req.json()
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: Math.random().toString(36).slice(-8) + 'Aa1!',
+      password: password || Math.random().toString(36).slice(-8) + 'Aa1!',
       email_confirm: true,
       user_metadata: {
         full_name,
