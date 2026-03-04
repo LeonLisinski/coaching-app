@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,14 +21,15 @@ type Parameter = {
   frequency: 'daily' | 'weekly'
 }
 
-const TYPES = [
-  { value: 'number', label: 'Broj' },
-  { value: 'text', label: 'Tekst' },
-  { value: 'boolean', label: 'Da/Ne' },
-  { value: 'select', label: 'Odabir' },
-]
-
 export default function ParametersTab() {
+  const t = useTranslations('checkins.parametersTab')
+  const tCommon = useTranslations('common')
+  const TYPES = [
+    { value: 'number', label: t('typeNumber') },
+    { value: 'text', label: t('typeText') },
+    { value: 'boolean', label: t('typeBoolean') },
+    { value: 'select', label: t('typeSelect') },
+  ]
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -79,28 +81,27 @@ export default function ParametersTab() {
     setConfirmDelete(null)
   }
 
-  const typeLabel = (type: string) => TYPES.find(t => t.value === type)?.label || type
+  const typeLabel = (type: string) => TYPES.find(x => x.value === type)?.label || type
   const daily = parameters.filter(p => p.frequency === 'daily')
   const weekly = parameters.filter(p => p.frequency === 'weekly')
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{parameters.length} parametara</p>
+        <p className="text-gray-500 text-sm">{t('paramCount', { count: parameters.length })}</p>
         <Button onClick={openAdd} size="sm" className="flex items-center gap-2">
-          <Plus size={14} /> Dodaj parametar
+          <Plus size={14} /> {t('add')}
         </Button>
       </div>
 
       {showForm && (
         <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
-          <p className="font-medium text-sm">{editParam ? 'Uredi parametar' : 'Novi parametar'}</p>
+          <p className="font-medium text-sm">{editParam ? t('editParam') : t('newParam')}</p>
 
-          {/* Frequency — pill toggle matching filter style */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Učestalost</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('frequency')}</p>
             <div className="flex gap-2">
-              {[{ value: 'daily', label: 'Dnevno' }, { value: 'weekly', label: 'Tjedno' }].map(f => (
+              {[{ value: 'daily', label: t('daily') }, { value: 'weekly', label: t('weekly') }].map(f => (
                 <button key={f.value} onClick={() => setForm({ ...form, frequency: f.value as any })} style={{
                   padding: '4px 14px', borderRadius: 99, fontSize: 13,
                   fontWeight: form.frequency === f.value ? 600 : 400,
@@ -114,51 +115,51 @@ export default function ParametersTab() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Naziv</p>
-              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="npr. Težina, Koraci..." className="h-9" />
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('name')}</p>
+              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('namePlaceholder')} className="h-9" />
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tip</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('typeLabel')}</p>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
                 className="w-full border border-input rounded-md px-3 py-2 text-sm h-9 bg-white">
-                {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                {TYPES.map(ty => <option key={ty.value} value={ty.value}>{ty.label}</option>)}
               </select>
             </div>
             {form.type === 'number' && (
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Jedinica</p>
-                <Input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="kg, L, koraka..." className="h-9" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('unit')}</p>
+                <Input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder={t('unitPlaceholder')} className="h-9" />
               </div>
             )}
             {form.type === 'select' && (
               <div className="space-y-1.5 col-span-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Opcije (odvojene zarezom)</p>
-                <Input value={form.options} onChange={e => setForm({ ...form, options: e.target.value })} placeholder="Odlično, Dobro, Loše" className="h-9" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('optionsLabel')}</p>
+                <Input value={form.options} onChange={e => setForm({ ...form, options: e.target.value })} placeholder={t('optionsPlaceholder')} className="h-9" />
               </div>
             )}
           </div>
 
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={form.required} onChange={e => setForm({ ...form, required: e.target.checked })} />
-            Obavezno polje
+            {t('requiredLabel')}
           </label>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} disabled={!form.name}>{editParam ? 'Spremi' : 'Dodaj'}</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>Odustani</Button>
+            <Button size="sm" onClick={handleSave} disabled={!form.name}>{editParam ? t('save') : t('addButton')}</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>{t('cancel')}</Button>
           </div>
         </div>
       )}
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitava...</p>
+        <p className="text-gray-500 text-sm">{t('loading')}</p>
       ) : parameters.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">Nema parametara</CardContent></Card>
+        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">{t('noParameters')}</CardContent></Card>
       ) : (
         <div className="space-y-4">
           {daily.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dnevni ({daily.length})</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('dailyCount', { count: daily.length })}</p>
               <div className="grid grid-cols-1 gap-2">
                 {daily.map(param => (
                   <Card key={param.id} className="hover:shadow-sm transition-shadow">
@@ -185,7 +186,7 @@ export default function ParametersTab() {
           )}
           {weekly.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Tjedni ({weekly.length})</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('weeklyCount', { count: weekly.length })}</p>
               <div className="grid grid-cols-1 gap-2">
                 {weekly.map(param => (
                   <Card key={param.id} className="hover:shadow-sm transition-shadow">
@@ -213,9 +214,9 @@ export default function ParametersTab() {
         </div>
       )}
 
-      <ConfirmDialog open={confirmDelete !== null} title="Obriši parametar" description="Jesi li siguran?"
+      <ConfirmDialog open={confirmDelete !== null} title={t('deleteTitle')} description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteParameter(confirmDelete)}
-        onCancel={() => setConfirmDelete(null)} confirmLabel="Obriši" destructive />
+        onCancel={() => setConfirmDelete(null)} confirmLabel={tCommon('delete')} destructive />
     </div>
   )
 }

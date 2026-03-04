@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -31,20 +31,20 @@ function getStatus(checkinDay: number | null, lastCheckin: string | null): 'subm
 }
 
 const STATUS_DOT = { submitted: 'bg-green-500', late: 'bg-red-500', neutral: 'bg-gray-300' }
-const STATUS_LABEL = { submitted: 'Na vrijeme', late: 'Kasni', neutral: 'Bez konfiguracije' }
 const STATUS_TEXT = { submitted: 'text-green-600', late: 'text-red-500', neutral: 'text-gray-400' }
-const HR_DAYS = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
-const HR_DAYS_SHORT = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
-
-const SORT_OPTIONS = [
-  { value: 'name_asc', label: 'A → Z' },
-  { value: 'name_desc', label: 'Z → A' },
-  { value: 'day_asc', label: 'Dan check-ina' },
-  { value: 'status', label: 'Status' },
-]
 
 export default function ClientsCheckinTab() {
   const locale = useLocale()
+  const t = useTranslations('checkins.clientsTab')
+  const tDays = useTranslations('days')
+  const tDaysShort = useTranslations('daysShort')
+  const SORT_OPTIONS = [
+    { value: 'name_asc', label: t('sortAZ') },
+    { value: 'name_desc', label: t('sortZA') },
+    { value: 'day_asc', label: t('sortDay') },
+    { value: 'status', label: t('sortStatus') },
+  ]
+  const STATUS_LABEL = { submitted: t('statuses.onTime'), late: t('statuses.late'), neutral: t('statuses.noConfig') }
   const [clients, setClients] = useState<ClientCheckin[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -97,10 +97,10 @@ export default function ClientsCheckinTab() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{filtered.length} / {clients.length} klijenata</p>
+        <p className="text-gray-500 text-sm">{t('clientCount', { filtered: filtered.length, total: clients.length })}</p>
         <Button variant="outline" size="sm" onClick={() => setShowFilters(f => !f)} className="flex items-center gap-2">
           <SlidersHorizontal size={14} />
-          Filteri
+          {t('filters')}
           {activeFilterCount > 0 && (
             <span className="bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{activeFilterCount}</span>
           )}
@@ -110,7 +110,7 @@ export default function ClientsCheckinTab() {
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <Input placeholder="Pretraži klijente..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Input placeholder={t('searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         {search && (
           <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
             <X size={14} />
@@ -122,7 +122,7 @@ export default function ClientsCheckinTab() {
       {showFilters && (
         <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortLabel')}</p>
             <div className="flex gap-2 flex-wrap">
               {SORT_OPTIONS.map(opt => (
                 <button key={opt.value} onClick={() => setSort(opt.value)} style={{
@@ -136,7 +136,7 @@ export default function ClientsCheckinTab() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dan check-ina</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('dayLabel')}</p>
             <div className="flex gap-2 flex-wrap">
               {['all', 0,1,2,3,4,5,6].map(d => (
                 <button key={String(d)} onClick={() => setDayFilter(d as any)} style={{
@@ -145,13 +145,13 @@ export default function ClientsCheckinTab() {
                   backgroundColor: dayFilter === d ? '#111827' : 'white',
                   color: dayFilter === d ? 'white' : '#374151',
                   border: `1px solid ${dayFilter === d ? '#111827' : '#e5e7eb'}`, cursor: 'pointer',
-                }}>{d === 'all' ? 'Svi' : HR_DAYS_SHORT[d as number]}</button>
+                }}>{d === 'all' ? t('allDays') : tDaysShort(String(d))}</button>
               ))}
             </div>
           </div>
           {activeFilterCount > 0 && (
             <button onClick={clearFilters} style={{ fontSize: 12, color: '#ef4444', cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <X size={12} /> Resetiraj filtere
+              <X size={12} /> {t('resetFilters')}
             </button>
           )}
         </div>
@@ -160,7 +160,7 @@ export default function ClientsCheckinTab() {
       {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
           {sort !== 'name_asc' && (
             <button onClick={() => setSort('name_asc')} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}>
               {SORT_OPTIONS.find(o => o.value === sort)?.label} <X size={10} />
@@ -168,7 +168,7 @@ export default function ClientsCheckinTab() {
           )}
           {dayFilter !== 'all' && (
             <button onClick={() => setDayFilter('all')} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}>
-              {HR_DAYS[dayFilter as number]} <X size={10} />
+              {tDays(String(dayFilter))} <X size={10} />
             </button>
           )}
         </div>
@@ -176,9 +176,9 @@ export default function ClientsCheckinTab() {
 
       {/* List */}
       {loading ? (
-        <p className="text-gray-500 text-sm">Učitava...</p>
+        <p className="text-gray-500 text-sm">{t('loading')}</p>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">Nema klijenata</CardContent></Card>
+        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">{t('noClients')}</CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map(client => (
@@ -189,14 +189,14 @@ export default function ClientsCheckinTab() {
                   <div>
                     <p className="font-medium text-sm">{client.full_name}</p>
                     <p className="text-xs text-gray-500">
-                      {client.checkin_day !== null ? `Check-in: ${HR_DAYS[client.checkin_day]}` : 'Nije postavljeno'}
-                      {client.last_checkin && ` · Zadnji: ${new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}`}
+                      {client.checkin_day !== null ? `${t('checkinPrefix')} ${tDays(String(client.checkin_day))}` : t('noDay')}
+                      {client.last_checkin && ` · ${t('lastPrefix')} ${new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}`}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs ${STATUS_TEXT[client.status]}`}>{STATUS_LABEL[client.status]}</span>
-                  <Button variant="outline" size="sm">Pregled</Button>
+                  <Button variant="outline" size="sm">{t('viewClient')}</Button>
                 </div>
               </CardContent>
             </Card>

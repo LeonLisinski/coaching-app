@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import {
@@ -23,6 +23,7 @@ const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export default function CheckinGraphs({ clientId }: Props) {
   const locale = useLocale()
+  const t = useTranslations('checkins.detail.graphs')
   const [params, setParams] = useState<Parameter[]>([])
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,9 +71,9 @@ export default function CheckinGraphs({ clientId }: Props) {
     }
   }
 
-  if (loading) return <p className="text-gray-400 text-sm text-center py-8">Učitava...</p>
+  if (loading) return <p className="text-gray-400 text-sm text-center py-8">{t('loading')}</p>
   if (!numericParams.length) return (
-    <div className="text-center py-12 text-gray-400"><p className="text-sm">Nema numeričkih parametara</p></div>
+    <div className="text-center py-12 text-gray-400"><p className="text-sm">{t('noNumericParams')}</p></div>
   )
 
   return (

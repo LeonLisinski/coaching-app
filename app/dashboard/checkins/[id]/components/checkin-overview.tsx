@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,11 +32,11 @@ function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
   })
 }
 
-const HR_DAYS = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
-const HR_DAYS_FULL = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
-
 export default function CheckinOverview({ clientId }: Props) {
   const locale = useLocale()
+  const t = useTranslations('checkins.detail.overview')
+  const tDays = useTranslations('days')
+  const tDaysShort = useTranslations('daysShort')
   const [dailyParams, setDailyParams] = useState<Parameter[]>([])
   const [weeklyParams, setWeeklyParams] = useState<Parameter[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
@@ -95,7 +95,7 @@ export default function CheckinOverview({ clientId }: Props) {
       .from('clients').select('user_id').eq('id', clientId).single()
 
     const checkinDate = new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
-    const messageContent = `📋 Komentar trenera na check-in (${checkinDate}):\n\n${comment}`
+    const messageContent = `📋 ${t('clientCommentLabel')} (${checkinDate}):\n\n${comment}`
 
     await supabase.from('messages').insert({
       sender_id: trainerId,
@@ -134,7 +134,7 @@ export default function CheckinOverview({ clientId }: Props) {
         </Button>
         <div className="text-center">
           <p className="text-sm font-semibold">{fmt(days[0])} — {fmt(days[6])}</p>
-          {weekOffset === 0 && <p className="text-xs text-blue-500">ovaj tjedan</p>}
+          {weekOffset === 0 && <p className="text-xs text-blue-500">{t('thisWeek')}</p>}
         </div>
         <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
           <ChevronRight size={14} />
@@ -142,7 +142,7 @@ export default function CheckinOverview({ clientId }: Props) {
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm text-center py-8">Učitava...</p>
+        <p className="text-gray-400 text-sm text-center py-8">{t('loading')}</p>
       ) : (
         <>
           {/* Tjedni check-in — compact */}
@@ -150,11 +150,11 @@ export default function CheckinOverview({ clientId }: Props) {
             <div className="p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-sm">Tjedni check-in</p>
-                  <span className="text-xs text-gray-400">· {HR_DAYS_FULL[checkinDay]}</span>
+                  <p className="font-semibold text-sm">{t('weeklyCheckin')}</p>
+                  <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${checkin ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {checkin ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}` : 'Nije poslan'}
+                  {checkin ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}` : t('notSent')}
                 </span>
               </div>
 
@@ -181,12 +181,12 @@ export default function CheckinOverview({ clientId }: Props) {
               {checkin && (
                 <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Komentar klijentu</p>
-                    <p className="text-xs text-gray-400">Šalje se kao chat poruka</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('commentToClient')}</p>
+                    <p className="text-xs text-gray-400">{t('sendAsChat')}</p>
                   </div>
                   {checkin.trainer_comment && (
                     <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 border border-gray-100">
-                      Zadnje: "{checkin.trainer_comment}"
+                      {t('lastLabel')}: "{checkin.trainer_comment}"
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -194,12 +194,12 @@ export default function CheckinOverview({ clientId }: Props) {
                       value={comment}
                       onChange={e => setComment(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
-                      placeholder="Napiši komentar na check-in..."
+                      placeholder={t('commentPlaceholder')}
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
                     />
                     <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent} className="flex-shrink-0 gap-1.5">
                       <Send size={13} />
-                      {sending ? 'Šalje...' : sent ? '✓ Poslano' : 'Pošalji'}
+                      {sending ? t('sending') : sent ? t('sent') : t('send')}
                     </Button>
                   </div>
                 </div>
@@ -210,13 +210,13 @@ export default function CheckinOverview({ clientId }: Props) {
           {/* Daily table */}
           {dailyParams.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Dnevni unosi</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('dailyEntries')}</p>
               <Card>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-100">
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-28">Dan</th>
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-28">{t('day')}</th>
                         {dailyParams.map(p => (
                           <th key={p.id} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
                             {p.name}{p.unit && <span className="font-normal text-gray-400"> ({p.unit})</span>}
@@ -237,7 +237,7 @@ export default function CheckinOverview({ clientId }: Props) {
                                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-green-400' : 'bg-gray-200'}`} />
                                 <div>
                                   <div className="flex items-center gap-1">
-                                    <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{HR_DAYS[day.getDay()]}</span>
+                                    <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{tDaysShort(String(day.getDay()))}</span>
                                     {isCheckinDayRow && <span className="text-purple-400 text-xs">●</span>}
                                   </div>
                                   <div className="text-xs text-gray-400">{fmt(day)}</div>
@@ -258,7 +258,7 @@ export default function CheckinOverview({ clientId }: Props) {
                         )
                       })}
                       <tr className="border-t-2 border-gray-100 bg-gray-50">
-                        <td className="px-4 py-2 text-xs font-semibold text-gray-500">Prosjek</td>
+                        <td className="px-4 py-2 text-xs font-semibold text-gray-500">{t('average')}</td>
                         {dailyParams.map(p => (
                           <td key={p.id} className="text-center px-4 py-2 text-xs font-semibold text-gray-600">
                             {p.type === 'number' ? (avg(p.id) ?? '—') : '—'}
@@ -269,7 +269,7 @@ export default function CheckinOverview({ clientId }: Props) {
                   </table>
                 </div>
               </Card>
-              <p className="text-xs text-gray-400 mt-1 ml-0.5">● = dan check-ina</p>
+              <p className="text-xs text-gray-400 mt-1 ml-0.5">{t('checkinDayLegend')}</p>
             </div>
           )}
         </>

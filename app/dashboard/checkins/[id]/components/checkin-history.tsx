@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { ChevronDown, ChevronUp } from 'lucide-react'
@@ -50,6 +50,7 @@ function getWeekBounds(date: string, checkinDay: number): { start: string; end: 
 
 export default function CheckinHistory({ clientId }: Props) {
   const locale = useLocale()
+  const t = useTranslations('checkins.detail.history')
   const [params, setParams] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
@@ -95,11 +96,11 @@ export default function CheckinHistory({ clientId }: Props) {
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
   const fmtDateYear = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-  if (loading) return <p className="text-gray-400 text-sm text-center py-8">Učitava...</p>
+  if (loading) return <p className="text-gray-400 text-sm text-center py-8">{t('loading')}</p>
   if (!checkins.length) return (
     <div className="text-center py-12 text-gray-400">
       <p className="text-4xl mb-3">📋</p>
-      <p className="text-sm">Nema još tjednih check-ina</p>
+      <p className="text-sm">{t('noCheckinsYet')}</p>
     </div>
   )
 
@@ -111,7 +112,7 @@ export default function CheckinHistory({ clientId }: Props) {
         </div>
       )}
 
-      <p className="text-sm text-gray-500">{checkins.length} check-in{checkins.length === 1 ? '' : 'a'} ukupno</p>
+      <p className="text-sm text-gray-500">{t('totalCount', { count: checkins.length })}</p>
 
       {checkins.map(c => {
         const { start: weekStart, end: weekEnd } = getWeekBounds(c.date, checkinDay)
@@ -131,7 +132,7 @@ export default function CheckinHistory({ clientId }: Props) {
                   <p className="text-sm font-semibold">{fmtDate(weekStart)} — {fmtDateYear(weekEnd)}</p>
                   <p className="text-xs text-gray-400">
                     {new Date(c.date).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })}
-                    {photos.length > 0 && ` · ${photos.length} foto`}
+                    {photos.length > 0 && ` · ${photos.length} ${t('foto')}`}
                   </p>
                 </div>
               </div>
@@ -154,7 +155,7 @@ export default function CheckinHistory({ clientId }: Props) {
 
                 {/* Tjedni parametri + dnevni prosjeci u jednoj tablici */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Tjedan u brojkama</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('weekInNumbers')}</p>
                   <div className="flex gap-2 flex-wrap">
                     {weeklyParams.map(p => {
                       const val = parseVal(c.values?.[p.id])
@@ -185,7 +186,7 @@ export default function CheckinHistory({ clientId }: Props) {
                 {/* Fotografije */}
                 {photos.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Fotografije</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('photosLabel')}</p>
                     <div className="flex gap-2">
                       {photos.map((photo: any, i: number) => (
                         <div key={i} className="flex-1 min-w-0">
@@ -205,7 +206,7 @@ export default function CheckinHistory({ clientId }: Props) {
                 {/* Komentar trenera */}
                 {c.trainer_comment && (
                   <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <p className="text-xs text-blue-500 font-medium mb-1">💬 Komentar trenera</p>
+                    <p className="text-xs text-blue-500 font-medium mb-1">💬 {t('trainerComment')}</p>
                     <p className="text-sm text-blue-800">{c.trainer_comment}</p>
                   </div>
                 )}

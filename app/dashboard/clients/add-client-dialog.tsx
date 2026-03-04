@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +15,8 @@ type Props = {
 }
 
 export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
+  const t = useTranslations('clients.dialogs.add')
+  const tCommon = useTranslations('common')
   const [form, setForm] = useState({
     full_name: '',
     email: '',
@@ -75,11 +78,11 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Dodaj klijenta</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Ime i prezime</Label>
+            <Label>{t('fullName')}</Label>
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
@@ -88,7 +91,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Email</Label>
+            <Label>{t('email')}</Label>
             <Input
               type="email"
               value={form.email}
@@ -98,26 +101,26 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Lozinka</Label>
+            <Label>{t('password')}</Label>
             <Input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Minimalno 6 znakova"
+              placeholder={t('passwordPlaceholder')}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label>Cilj</Label>
+            <Label>{t('goal')}</Label>
             <Input
               value={form.goal}
               onChange={(e) => setForm({ ...form, goal: e.target.value })}
-              placeholder="Mršavljenje, izgradnja mišića..."
+              placeholder={t('goalPlaceholder')}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Težina (kg)</Label>
+              <Label>{t('weight')}</Label>
               <Input
                 type="number"
                 value={form.weight}
@@ -126,7 +129,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Visina (cm)</Label>
+              <Label>{t('height')}</Label>
               <Input
                 type="number"
                 value={form.height}
@@ -136,7 +139,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Datum rođenja</Label>
+            <Label>{t('dateOfBirth')}</Label>
             <Input
               type="date"
               value={form.date_of_birth}
@@ -147,10 +150,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Odustani
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Dodavanje...' : 'Dodaj klijenta'}
+              {loading ? t('adding') : t('submit')}
             </Button>
           </div>
         </form>
