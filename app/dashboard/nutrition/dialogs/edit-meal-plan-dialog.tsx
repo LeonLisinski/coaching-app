@@ -11,51 +11,31 @@ import { Plus } from 'lucide-react'
 import MealSlotEditor from '../components/meal-slot-editor'
 
 type Recipe = {
-  id: string
-  name: string
-  total_calories: number
-  total_protein: number
-  total_carbs: number
-  total_fat: number
+  id: string; name: string
+  total_calories: number; total_protein: number; total_carbs: number; total_fat: number
 }
-
 type Food = {
-  id: string
-  name: string
-  calories_per_100g: number
-  protein_per_100g: number
-  carbs_per_100g: number
-  fat_per_100g: number
+  id: string; name: string
+  calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number
 }
-
 type MealSlot = {
-  meal_type: string
-  recipe_id: string | null
-  recipe_name: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  custom_ingredients?: any[]
-  save_as_recipe?: boolean
+  meal_type: string; recipe_id: string | null; recipe_name: string
+  calories: number; protein: number; carbs: number; fat: number
+  custom_ingredients?: any[]; save_as_recipe?: boolean
 }
-
+type PlanType = 'default' | 'training_day' | 'rest_day'
 type MealPlan = {
-  id: string
-  name: string
-  calories_target: number | null
-  protein_target: number | null
-  carbs_target: number | null
-  fat_target: number | null
-  meals: MealSlot[]
+  id: string; name: string; plan_type?: PlanType
+  calories_target: number | null; protein_target: number | null
+  carbs_target: number | null; fat_target: number | null; meals: MealSlot[]
 }
+type Props = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void }
 
-type Props = {
-  plan: MealPlan
-  open: boolean
-  onClose: () => void
-  onSuccess: () => void
-}
+const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
+  { value: 'default',      label: 'Standardni',  desc: 'Svaki dan isti plan',      color: 'border-gray-300 bg-gray-50 text-gray-700' },
+  { value: 'training_day', label: 'Dan treninga', desc: 'Više kalorija i proteina', color: 'border-blue-300 bg-blue-50 text-blue-700' },
+  { value: 'rest_day',     label: 'Dan odmora',   desc: 'Manji unos kalorija',      color: 'border-purple-300 bg-purple-50 text-purple-700' },
+]
 
 export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
@@ -63,6 +43,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
   const tCommon = useTranslations('common')
 
   const [name, setName] = useState(plan.name)
+  const [planType, setPlanType] = useState<PlanType>((plan.plan_type as PlanType) || 'default')
   const [targets, setTargets] = useState({
     calories: plan.calories_target?.toString() || '',
     protein: plan.protein_target?.toString() || '',
@@ -76,16 +57,15 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (open) {
-      fetchRecipes()
-      fetchFoods()
-    }
+    if (open) { fetchRecipes(); fetchFoods() }
   }, [open])
 
   const fetchRecipes = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('recipes').select('id, name, total_calories, total_protein, total_carbs, total_fat').eq('trainer_id', user.id).order('name')
+    const { data } = await supabase.from('recipes')
+      .select('id, name, total_calories, total_protein, total_carbs, total_fat')
+      .eq('trainer_id', user.id).order('name')
     if (data) setRecipes(data)
   }
 
@@ -96,9 +76,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
     if (data) setFoods(data)
   }
 
-  const addMeal = () => {
-    setMeals([...meals, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
-  }
+  const addMeal = () => setMeals([...meals, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
 
   const updateMeal = (index: number, field: string, value: any) => {
     setMeals(meals.map((m, i) => {
@@ -112,35 +90,24 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
     }))
   }
 
-  const removeMeal = (index: number) => {
-    setMeals(meals.filter((_, i) => i !== index))
-  }
+  const removeMeal = (index: number) => setMeals(meals.filter((_, i) => i !== index))
 
   const totals = meals.reduce((acc, m) => ({
-    calories: acc.calories + (m.calories || 0),
-    protein: acc.protein + (m.protein || 0),
-    carbs: acc.carbs + (m.carbs || 0),
-    fat: acc.fat + (m.fat || 0),
+    calories: acc.calories + (m.calories || 0), protein: acc.protein + (m.protein || 0),
+    carbs: acc.carbs + (m.carbs || 0), fat: acc.fat + (m.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
-
+    setLoading(true); setError('')
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const processedMeals = await Promise.all(meals.map(async (meal) => {
-      if (meal.save_as_recipe && meal.custom_ingredients && meal.custom_ingredients.length > 0 && meal.recipe_name) {
+      if (meal.save_as_recipe && meal.custom_ingredients?.length && meal.recipe_name) {
         const { data } = await supabase.from('recipes').insert({
-          trainer_id: user.id,
-          name: meal.recipe_name,
-          ingredients: meal.custom_ingredients,
-          total_calories: meal.calories,
-          total_protein: meal.protein,
-          total_carbs: meal.carbs,
-          total_fat: meal.fat,
+          trainer_id: user.id, name: meal.recipe_name, ingredients: meal.custom_ingredients,
+          total_calories: meal.calories, total_protein: meal.protein, total_carbs: meal.carbs, total_fat: meal.fat,
         }).select('id').single()
         return { ...meal, recipe_id: data?.id || null }
       }
@@ -148,7 +115,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
     }))
 
     const { error } = await supabase.from('meal_plans').update({
-      name,
+      name, plan_type: planType,
       calories_target: targets.calories ? parseInt(targets.calories) : null,
       protein_target: targets.protein ? parseInt(targets.protein) : null,
       carbs_target: targets.carbs ? parseInt(targets.carbs) : null,
@@ -156,14 +123,8 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
       meals: processedMeals,
     }).eq('id', plan.id)
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    setLoading(false)
-    onSuccess()
+    if (error) { setError(error.message); setLoading(false); return }
+    setLoading(false); onSuccess()
   }
 
   return (
@@ -178,43 +139,53 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
             <Input value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
 
+          {/* Plan type */}
+          <div className="space-y-2">
+            <Label>Tip plana</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {PLAN_TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPlanType(opt.value)}
+                  className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
+                    planType === opt.value
+                      ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-semibold text-xs">{opt.label}</p>
+                  <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">{t('targetCalories')}</Label>
-              <Input type="number" value={targets.calories} onChange={(e) => setTargets({ ...targets, calories: e.target.value })} className="h-8 text-sm" placeholder="2000" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">{t('targetProtein')}</Label>
-              <Input type="number" value={targets.protein} onChange={(e) => setTargets({ ...targets, protein: e.target.value })} className="h-8 text-sm" placeholder="150" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">{t('targetCarbs')}</Label>
-              <Input type="number" value={targets.carbs} onChange={(e) => setTargets({ ...targets, carbs: e.target.value })} className="h-8 text-sm" placeholder="200" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">{t('targetFat')}</Label>
-              <Input type="number" value={targets.fat} onChange={(e) => setTargets({ ...targets, fat: e.target.value })} className="h-8 text-sm" placeholder="70" />
-            </div>
+            {[
+              { key: 'calories', label: t('targetCalories'), placeholder: '2000' },
+              { key: 'protein',  label: t('targetProtein'),  placeholder: '150' },
+              { key: 'carbs',    label: t('targetCarbs'),    placeholder: '200' },
+              { key: 'fat',      label: t('targetFat'),      placeholder: '70' },
+            ].map(f => (
+              <div key={f.key} className="space-y-1">
+                <Label className="text-xs">{f.label}</Label>
+                <Input type="number" value={targets[f.key as keyof typeof targets]}
+                  onChange={(e) => setTargets({ ...targets, [f.key]: e.target.value })}
+                  className="h-8 text-sm" placeholder={f.placeholder} />
+              </div>
+            ))}
           </div>
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>{t('meals', { count: meals.length })}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addMeal} className="flex items-center gap-1">
-                <Plus size={12} />
-                {t('addMeal')}
+                <Plus size={12} />{t('addMeal')}
               </Button>
             </div>
             {meals.map((meal, index) => (
-              <MealSlotEditor
-                key={index}
-                meal={meal}
-                index={index}
-                recipes={recipes}
-                foods={foods}
-                onChange={updateMeal}
-                onRemove={removeMeal}
-              />
+              <MealSlotEditor key={index} meal={meal} index={index} recipes={recipes} foods={foods} onChange={updateMeal} onRemove={removeMeal} />
             ))}
             {meals.length > 0 && (
               <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm">

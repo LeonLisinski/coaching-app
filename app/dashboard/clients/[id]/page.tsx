@@ -14,18 +14,13 @@ import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-conf
 import ClientWorkoutPlans from '@/app/dashboard/clients/[id]/components/client-workout-plans'
 import ClientMealPlans from '@/app/dashboard/clients/[id]/components/client-meal-plans'
 import ClientPackages from '@/app/dashboard/clients/[id]/components/client-packages'
+import ClientHistory from '@/app/dashboard/clients/[id]/components/client-history'
 import { useTranslations, useLocale } from 'next-intl'
 
 type Client = {
-  id: string
-  full_name: string
-  email: string
-  goal: string | null
-  weight: number | null
-  height: number | null
-  date_of_birth: string | null
-  start_date: string | null
-  active: boolean
+  id: string; full_name: string; email: string
+  goal: string | null; weight: number | null; height: number | null
+  date_of_birth: string | null; start_date: string | null; active: boolean
 }
 
 export default function ClientDetailPage() {
@@ -40,31 +35,22 @@ export default function ClientDetailPage() {
 
   const noName = t('noName')
 
-  useEffect(() => {
-    fetchClient()
-  }, [id])
+  useEffect(() => { fetchClient() }, [id])
 
   const fetchClient = async () => {
     const { data } = await supabase
       .from('clients')
-      .select(`
-        id, goal, weight, height, date_of_birth, start_date, active,
-        profiles!clients_user_id_fkey (full_name, email)
-      `)
-      .eq('id', id)
-      .single()
+      .select(`id, goal, weight, height, date_of_birth, start_date, active,
+        profiles!clients_user_id_fkey (full_name, email)`)
+      .eq('id', id).single()
 
     if (data) {
       setClient({
         id: data.id,
         full_name: (data.profiles as any)?.full_name || noName,
         email: (data.profiles as any)?.email || '',
-        goal: data.goal,
-        weight: data.weight,
-        height: data.height,
-        date_of_birth: data.date_of_birth,
-        start_date: data.start_date,
-        active: data.active,
+        goal: data.goal, weight: data.weight, height: data.height,
+        date_of_birth: data.date_of_birth, start_date: data.start_date, active: data.active,
       })
     }
     setLoading(false)
@@ -128,20 +114,25 @@ export default function ClientDetailPage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="checkin">
-        <TabsList>
+      <Tabs defaultValue="pracenje">
+        <TabsList className="flex-wrap h-auto gap-1">
+          <TabsTrigger value="pracenje">Praćenje</TabsTrigger>
           <TabsTrigger value="checkin">{t('tabs.weeklyCheckin')}</TabsTrigger>
-          <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
+          <TabsTrigger value="slike">Slike</TabsTrigger>
           <TabsTrigger value="graphs">{t('tabs.graphs')}</TabsTrigger>
-          <TabsTrigger value="checkin-config">{t('tabs.checkinSettings')}</TabsTrigger>
           <TabsTrigger value="treninzi">{t('tabs.training')}</TabsTrigger>
           <TabsTrigger value="prehrana">{t('tabs.nutrition')}</TabsTrigger>
+          <TabsTrigger value="checkin-config">{t('tabs.checkinSettings')}</TabsTrigger>
           <TabsTrigger value="paketi">{t('tabs.packages')}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pracenje" className="mt-6">
+          <ClientHistory clientId={id as string} />
+        </TabsContent>
         <TabsContent value="checkin" className="mt-6">
           <CheckinOverview clientId={id as string} />
         </TabsContent>
-        <TabsContent value="history" className="mt-6">
+        <TabsContent value="slike" className="mt-6">
           <CheckinHistory clientId={id as string} />
         </TabsContent>
         <TabsContent value="graphs" className="mt-6">
