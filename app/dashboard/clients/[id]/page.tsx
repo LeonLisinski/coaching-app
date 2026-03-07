@@ -116,9 +116,9 @@ export default function ClientDetailPage() {
 
       <Tabs defaultValue="pracenje">
         <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="pracenje">Praćenje</TabsTrigger>
+          <TabsTrigger value="pracenje">{t('tabs.pracenje')}</TabsTrigger>
           <TabsTrigger value="checkin">{t('tabs.weeklyCheckin')}</TabsTrigger>
-          <TabsTrigger value="slike">Slike</TabsTrigger>
+          <TabsTrigger value="slike">{t('tabs.slike')}</TabsTrigger>
           <TabsTrigger value="graphs">{t('tabs.graphs')}</TabsTrigger>
           <TabsTrigger value="treninzi">{t('tabs.training')}</TabsTrigger>
           <TabsTrigger value="prehrana">{t('tabs.nutrition')}</TabsTrigger>

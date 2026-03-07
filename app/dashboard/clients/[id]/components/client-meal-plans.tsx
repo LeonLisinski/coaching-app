@@ -32,16 +32,22 @@ type AssignedPlan = {
   meal_plan: MealPlan
 }
 
-const PLAN_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  default:      { label: 'Standardni',     color: '#6b7280', bg: '#f3f4f6' },
-  training_day: { label: 'Dan treninga',   color: '#2563eb', bg: '#dbeafe' },
-  rest_day:     { label: 'Dan odmora',     color: '#7c3aed', bg: '#ede9fe' },
+const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
+  default:      { color: '#6b7280', bg: '#f3f4f6' },
+  training_day: { color: '#2563eb', bg: '#dbeafe' },
+  rest_day:     { color: '#7c3aed', bg: '#ede9fe' },
 }
 
 export default function ClientMealPlans({ clientId }: Props) {
   const t = useTranslations('clients.mealPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+
+  const PLAN_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
+    default:      { label: t('planTypeDefault'),     ...PLAN_TYPE_COLORS.default },
+    training_day: { label: t('planTypeTrainingDay'), ...PLAN_TYPE_COLORS.training_day },
+    rest_day:     { label: t('planTypeRestDay'),     ...PLAN_TYPE_COLORS.rest_day },
+  }
 
   const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([])
   const [availablePlans, setAvailablePlans] = useState<MealPlan[]>([])
@@ -149,12 +155,12 @@ export default function ClientMealPlans({ clientId }: Props) {
       {/* Info banner if both training/rest plans set */}
       {hasTrainingDay && hasRestDay && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
-          ✓ Klijent ima postavljene planove za dane treninga i odmora — app će automatski prikazati pravi plan.
+          {t('infoBannerBoth')}
         </div>
       )}
       {hasDefault && !hasTrainingDay && !hasRestDay && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
-          💡 Možeš postaviti zasebne planove za <strong>dan treninga</strong> i <strong>dan odmora</strong> — klijent će automatski vidjeti pravi plan ovisno o danu.
+          {t.rich('infoBannerTip', { strong: (chunks) => <strong>{chunks}</strong> })}
         </div>
       )}
 
@@ -188,7 +194,7 @@ export default function ClientMealPlans({ clientId }: Props) {
 
             {/* Plan type selector */}
             <div className="space-y-1.5">
-              <p className="text-xs text-gray-500 font-medium">Tip plana</p>
+              <p className="text-xs text-gray-500 font-medium">{t('planTypeLabel')}</p>
               <div className="flex gap-2">
                 {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
                   <button
@@ -205,10 +211,10 @@ export default function ClientMealPlans({ clientId }: Props) {
                 ))}
               </div>
               {selectedPlanType === 'training_day' && (
-                <p className="text-xs text-blue-600">App će prikazati ovaj plan na danima kada klijent ima zabilježen trening.</p>
+                <p className="text-xs text-blue-600">{t('trainingDayHint')}</p>
               )}
               {selectedPlanType === 'rest_day' && (
-                <p className="text-xs text-purple-600">App će prikazati ovaj plan na danima bez treninga.</p>
+                <p className="text-xs text-purple-600">{t('restDayHint')}</p>
               )}
             </div>
 
@@ -253,7 +259,7 @@ export default function ClientMealPlans({ clientId }: Props) {
           {/* Active plans grouped by type */}
           {activePlans.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Aktivni planovi</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('activePlans')}</p>
               {activePlans.map((assigned) => {
                 const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
                 return (
@@ -271,7 +277,7 @@ export default function ClientMealPlans({ clientId }: Props) {
                         </div>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {assigned.meal_plan.calories_target ? `${assigned.meal_plan.calories_target} kcal · ` : ''}
-                          {assigned.meal_plan.meals?.length || 0} obroka ·
+                          {t('mealsCount', { count: assigned.meal_plan.meals?.length || 0 })} ·
                           {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                         </p>
                         {assigned.notes && (
@@ -299,14 +305,14 @@ export default function ClientMealPlans({ clientId }: Props) {
                         ) : (
                           <>
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}
-                              title="Promijeni tip plana">
-                              <span className="text-xs text-gray-400">Tip</span>
+                              title={t('changeTypeTitle')}>
+                              <span className="text-xs text-gray-400">{t('typeLabel')}</span>
                             </Button>
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditPlan(assigned.meal_plan) }}>
                               <Pencil size={14} />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                              <span className="text-xs text-gray-400">Deaktiviraj</span>
+                              <span className="text-xs text-gray-400">{t('deactivate')}</span>
                             </Button>
                             <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
                               <Trash2 size={14} className="text-red-400" />
@@ -324,7 +330,7 @@ export default function ClientMealPlans({ clientId }: Props) {
           {/* Inactive plans */}
           {inactivePlans.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Neaktivni</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('inactivePlans')}</p>
               {inactivePlans.map((assigned) => {
                 const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
                 return (
@@ -338,7 +344,7 @@ export default function ClientMealPlans({ clientId }: Props) {
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                          Aktiviraj
+                          {t('activate')}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
                           <Trash2 size={14} className="text-red-400" />

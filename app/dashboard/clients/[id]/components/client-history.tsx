@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Dumbbell, UtensilsCrossed, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
-import { useLocale } from 'next-intl'
 
 type Props = { clientId: string }
 type WorkoutLog = {
@@ -19,6 +19,7 @@ type NutritionLog = {
 }
 
 const TABS = ['Prehrana', 'Trening'] as const
+const KEY_OTHER = '__other__'
 type Tab = typeof TABS[number]
 
 function isoDate(d: Date) { return d.toISOString().split('T')[0] }
@@ -37,10 +38,10 @@ function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
   })
 }
 
-const DAY_SHORT = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
-
 export default function ClientHistory({ clientId }: Props) {
   const locale = useLocale()
+  const t = useTranslations('clients.history')
+  const tDaysShort = useTranslations('daysShort')
   const [tab, setTab] = useState<Tab>('Prehrana')
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([])
   const [nutritionByDate, setNutritionByDate] = useState<Record<string, NutritionLog>>({})
@@ -85,7 +86,7 @@ export default function ClientHistory({ clientId }: Props) {
   const trainingByDay = () => {
     const dayMap = new Map<string, WorkoutLog[]>()
     workouts.forEach(w => {
-      const key = w.day_name || 'Ostalo'
+      const key = w.day_name || KEY_OTHER
       if (!dayMap.has(key)) dayMap.set(key, [])
       dayMap.get(key)!.push(w)
     })
@@ -123,7 +124,7 @@ export default function ClientHistory({ clientId }: Props) {
     return [...exerciseMap.entries()].map(([name, history]) => ({ name, history: history.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10) }))
   }
 
-  if (loading) return <p className="text-sm text-gray-400">Učitavanje...</p>
+  if (loading) return <p className="text-sm text-gray-400">{t('loading')}</p>
 
   const days = getWeekDays(checkinDay, weekOffset)
   const todayIso = isoDate(new Date())
@@ -143,13 +144,13 @@ export default function ClientHistory({ clientId }: Props) {
     <>
       {/* Tab bar */}
       <div className="flex border-b border-gray-200 mb-5">
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
+        {TABS.map(tabKey => (
+          <button key={tabKey} onClick={() => setTab(tabKey)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px flex items-center gap-2 transition-colors ${
-              tab === t ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
+              tab === tabKey ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
             }`}>
-            {t === 'Prehrana' ? <UtensilsCrossed size={14} /> : <Dumbbell size={14} />}
-            {t}
+            {tabKey === 'Prehrana' ? <UtensilsCrossed size={14} /> : <Dumbbell size={14} />}
+            {tabKey === 'Prehrana' ? t('tabNutrition') : t('tabTraining')}
           </button>
         ))}
       </div>
@@ -164,7 +165,7 @@ export default function ClientHistory({ clientId }: Props) {
             </Button>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-800">{fmt(days[0])} — {fmt(days[6])}</p>
-              {weekOffset === 0 && <p className="text-xs text-blue-500">ovaj tjedan</p>}
+              {weekOffset === 0 && <p className="text-xs text-blue-500">{t('thisWeek')}</p>}
             </div>
             <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
               <ChevronRight size={14} />
@@ -175,11 +176,11 @@ export default function ClientHistory({ clientId }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-[140px]">Dan</th>
-                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[130px]">Kalorije</th>
-                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[110px]">Proteini</th>
-                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[110px]">Ugljiko.</th>
-                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[100px]">Masti</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-[140px]">{t('day')}</th>
+                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[130px]">{t('calories')}</th>
+                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[110px]">{t('protein')}</th>
+                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[110px]">{t('carbs')}</th>
+                  <th className="text-right px-6 py-2.5 text-xs font-semibold text-gray-500 w-[100px]">{t('fat')}</th>
                   <th className="w-6" />
                 </tr>
               </thead>
@@ -196,7 +197,7 @@ export default function ClientHistory({ clientId }: Props) {
                           <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${log ? 'bg-green-400' : 'bg-gray-200'}`} />
                           <div>
                             <div className="flex items-center gap-1">
-                              <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{DAY_SHORT[day.getDay()]}</span>
+                              <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{tDaysShort(String(day.getDay()))}</span>
                               {isCheckinDay && <span className="text-purple-400 text-xs">●</span>}
                             </div>
                             <div className="text-xs text-gray-400">{fmt(day)}</div>
@@ -225,7 +226,7 @@ export default function ClientHistory({ clientId }: Props) {
               {nutritionDays.length > 1 && (
                 <tfoot>
                   <tr className="border-t-2 border-gray-100 bg-gray-50">
-                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-500">Ø Prosjek</td>
+                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-500">{t('average')}</td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('calories') != null ? <>{avg('calories')} <span className="text-gray-400 font-normal">kcal</span></> : '—'}</td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('protein') != null ? <>{avg('protein')} <span className="text-gray-400 font-normal">g</span></> : '—'}</td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('carbs') != null ? <>{avg('carbs')} <span className="text-gray-400 font-normal">g</span></> : '—'}</td>
@@ -236,7 +237,7 @@ export default function ClientHistory({ clientId }: Props) {
               )}
             </table>
           </Card>
-          <p className="text-xs text-gray-400 ml-0.5">● = check-in dan</p>
+          <p className="text-xs text-gray-400 ml-0.5">{t('checkinDayLegend')}</p>
         </div>
       )}
 
@@ -244,12 +245,12 @@ export default function ClientHistory({ clientId }: Props) {
       {tab === 'Trening' && (
         <div className="space-y-3">
           {days2.length === 0 && (
-            <Card><div className="py-8 text-center text-sm text-gray-400">Nema zabilježenih treninga</div></Card>
+            <Card><div className="py-8 text-center text-sm text-gray-400">{t('noWorkouts')}</div></Card>
           )}
           {days2.map(day => {
             if (day.exercises.length === 0) return null
             const lastSession = workouts
-              .filter(w => (w.day_name || 'Ostalo') === day.dayName)
+              .filter(w => (w.day_name || KEY_OTHER) === day.dayName)
               .sort((a, b) => b.date.localeCompare(a.date))[0]
 
             return (
@@ -258,12 +259,12 @@ export default function ClientHistory({ clientId }: Props) {
                 <div className="px-5 py-3.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Dumbbell size={13} className="text-blue-400" />
-                    <p className="text-sm font-semibold text-gray-800">{day.dayName}</p>
+                    <p className="text-sm font-semibold text-gray-800">{day.dayName === KEY_OTHER ? t('other') : day.dayName}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-400">
-                    {lastSession && <span>zadnji: {fmtDateShort(lastSession.date)}</span>}
+                    {lastSession && <span>{t('last')} {fmtDateShort(lastSession.date)}</span>}
                     <span>·</span>
-                    <span>{day.sessionCount}× odrađeno</span>
+                    <span>{day.sessionCount}{t('doneTimes')}</span>
                   </div>
                 </div>
 
@@ -294,7 +295,7 @@ export default function ClientHistory({ clientId }: Props) {
                         {/* Trend */}
                         <div className="w-[90px] text-right">
                           {diff == null
-                            ? <span className="text-xs text-gray-300">prvi trening</span>
+                            ? <span className="text-xs text-gray-300">{t('firstTraining')}</span>
                             : diff > 0
                               ? <span className="text-xs font-semibold text-green-500">↑ +{diff} kg</span>
                               : diff < 0
@@ -304,14 +305,13 @@ export default function ClientHistory({ clientId }: Props) {
                         </div>
 
                         {/* Count */}
-                        <span className="text-xs text-gray-400 w-[90px] text-right">{ex.history.length}× odrađeno</span>
+                        <span className="text-xs text-gray-400 w-[90px] text-right">{ex.history.length}{t('doneTimes')}</span>
 
-                        {/* Detalji */}
                         <span
                           className="text-xs text-blue-500 hover:text-blue-700 transition-colors cursor-pointer w-[60px] text-right font-medium"
                           onClick={() => setSheetExercise(ex.name)}
                         >
-                          Detalji →
+                          {t('details')}
                         </span>
                       </div>
                     )
@@ -364,9 +364,9 @@ export default function ClientHistory({ clientId }: Props) {
                           ))}
                         </div>
                         <div className="flex gap-4 text-xs text-gray-400 pt-2.5 border-t border-gray-50">
-                          <span>Maks. <strong className="text-gray-700 ml-1">{maxW} kg</strong></span>
-                          <span>Volumen <strong className="text-gray-700 ml-1">{vol} kg</strong></span>
-                          <span>{session.sets.length} seta</span>
+                          <span>{t('max')} <strong className="text-gray-700 ml-1">{maxW} kg</strong></span>
+                          <span>{t('volume')} <strong className="text-gray-700 ml-1">{vol} kg</strong></span>
+                          <span>{session.sets.length} {t('sets')}</span>
                         </div>
                       </div>
                     </div>

@@ -31,16 +31,16 @@ type MealPlan = {
 }
 type Props = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void }
 
-const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
-  { value: 'default',      label: 'Standardni',  desc: 'Svaki dan isti plan',      color: 'border-gray-300 bg-gray-50 text-gray-700' },
-  { value: 'training_day', label: 'Dan treninga', desc: 'Više kalorija i proteina', color: 'border-blue-300 bg-blue-50 text-blue-700' },
-  { value: 'rest_day',     label: 'Dan odmora',   desc: 'Manji unos kalorija',      color: 'border-purple-300 bg-purple-50 text-purple-700' },
-]
-
 export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
+
+  const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
+    { value: 'default',      label: t('planTypeDefault'),      desc: t('planTypeDefaultDesc'),      color: 'border-gray-300 bg-gray-50 text-gray-700' },
+    { value: 'training_day', label: t('planTypeTrainingDay'),  desc: t('planTypeTrainingDayDesc'),  color: 'border-blue-300 bg-blue-50 text-blue-700' },
+    { value: 'rest_day',     label: t('planTypeRestDay'),      desc: t('planTypeRestDayDesc'),      color: 'border-purple-300 bg-purple-50 text-purple-700' },
+  ]
 
   const [name, setName] = useState(plan.name)
   const [planType, setPlanType] = useState<PlanType>((plan.plan_type as PlanType) || 'default')

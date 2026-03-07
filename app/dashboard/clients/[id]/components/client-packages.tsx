@@ -247,7 +247,7 @@ export default function ClientPackages({ clientId }: Props) {
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <Label className="text-xs">Paket</Label>
+              <Label className="text-xs">{t('packageLabel')}</Label>
               <select
                 value={assignForm.package_id}
                 onChange={(e) => {
@@ -256,17 +256,17 @@ export default function ClientPackages({ clientId }: Props) {
                 }}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               >
-                <option value="">Odaberi paket...</option>
+                <option value="">{t('selectPackage')}</option>
                 {availablePackages.map(pkg => (
                   <option key={pkg.id} value={pkg.id}>
-                    {pkg.name} • {pkg.price}€ • {pkg.duration_days} dana
+                    {pkg.name} • {pkg.price}€ • {pkg.duration_days} {t('days', { count: pkg.duration_days })}
                   </option>
                 ))}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Datum početka</Label>
+                <Label className="text-xs">{t('startDate')}</Label>
                 <Input
                   type="date"
                   value={assignForm.start_date}
@@ -275,23 +275,23 @@ export default function ClientPackages({ clientId }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Cijena (€)</Label>
+                <Label className="text-xs">{t('price')}</Label>
                 <Input
                   type="number"
                   value={assignForm.price}
                   onChange={(e) => setAssignForm({ ...assignForm, price: e.target.value })}
                   className="h-8 text-sm"
-                  placeholder="Automatski iz paketa"
+                  placeholder={t('pricePlaceholder')}
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Napomena (opcionalno)</Label>
+              <Label className="text-xs">{t('notesOptional')}</Label>
               <Input
                 value={assignForm.notes}
                 onChange={(e) => setAssignForm({ ...assignForm, notes: e.target.value })}
                 className="h-8 text-sm"
-                placeholder="Npr. poseban dogovor..."
+                placeholder={t('notesPlaceholder')}
               />
             </div>
             <div className="flex gap-2 pt-1">
@@ -313,11 +313,11 @@ export default function ClientPackages({ clientId }: Props) {
           </DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-gray-500">
-              Paket: <span className="font-medium text-gray-800">{selectedClientPackage?.packages?.name}</span>
+              {t('packageInPayment')} <span className="font-medium text-gray-800">{selectedClientPackage?.packages?.name}</span>
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Iznos (€)</Label>
+                <Label className="text-xs">{t('amount')}</Label>
                 <Input
                   type="number"
                   value={paymentForm.amount}
@@ -326,7 +326,7 @@ export default function ClientPackages({ clientId }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Datum plaćanja</Label>
+                <Label className="text-xs">{t('paymentDate')}</Label>
                 <Input
                   type="date"
                   value={paymentForm.paid_at}
@@ -336,12 +336,12 @@ export default function ClientPackages({ clientId }: Props) {
               </div>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Napomena (opcionalno)</Label>
+              <Label className="text-xs">{t('notesOptional')}</Label>
               <Input
                 value={paymentForm.notes}
                 onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
                 className="h-8 text-sm"
-                placeholder="Npr. plaćeno gotovinom..."
+                placeholder={t('paymentNotesPlaceholder')}
               />
             </div>
             <div className="flex gap-2 pt-1">

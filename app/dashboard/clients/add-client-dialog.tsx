@@ -86,7 +86,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             <Input
               value={form.full_name}
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-              placeholder="Ivan Horvat"
+              placeholder={t('fullNamePlaceholder')}
               required
             />
           </div>
@@ -96,7 +96,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
               type="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="ivan@email.com"
+              placeholder={t('emailPlaceholder')}
               required
             />
           </div>

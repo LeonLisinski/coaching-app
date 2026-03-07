@@ -2,6 +2,15 @@
   "app": {
     "name": "Coaching App"
   },
+  "login": {
+    "title": "Coaching App",
+    "email": "Email",
+    "password": "Password",
+    "placeholderEmail": "trainer@email.com",
+    "placeholderPassword": "••••••••",
+    "submit": "Log in",
+    "loading": "Logging in..."
+  },
   "common": {
     "loading": "Loading...",
     "logout": "Log out",
@@ -182,7 +191,9 @@
         "startDate": "Start date",
         "notes": "Notes",
         "submit": "Add client",
-        "adding": "Adding..."
+        "adding": "Adding...",
+        "fullNamePlaceholder": "John Doe",
+        "emailPlaceholder": "john@email.com"
       },
       "edit": {
         "title": "Edit client",
@@ -191,7 +202,9 @@
     },
     "detail": {
       "tabs": {
-        "weeklyCheckin": "Weekly check-in",
+        "pracenje": "Tracking",
+        "weeklyCheckin": "Check-in",
+        "slike": "Images",
         "history": "History",
         "graphs": "Graphs",
         "checkinSettings": "Check-in settings",
@@ -234,7 +247,22 @@
       "note": "Note (optional)...",
       "assign": "Assign",
       "assignedOn": "Assigned on",
-      "removeConfirm": "Remove this meal plan?"
+      "removeConfirm": "Remove this meal plan?",
+      "infoBannerBoth": "✓ Client has training and rest day plans set — the app will show the right plan automatically.",
+      "infoBannerTip": "💡 You can set separate plans for <strong>training day</strong> and <strong>rest day</strong> — the client will see the right plan depending on the day.",
+      "planTypeLabel": "Plan type",
+      "trainingDayHint": "The app will show this plan on days when the client has a workout logged.",
+      "restDayHint": "The app will show this plan on days without a workout.",
+      "activePlans": "Active plans",
+      "inactivePlans": "Inactive",
+      "mealsCount": "{count, plural, one {# meal} other {# meals}}",
+      "changeTypeTitle": "Change plan type",
+      "typeLabel": "Type",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "planTypeDefault": "Default",
+      "planTypeTrainingDay": "Training day",
+      "planTypeRestDay": "Rest day"
     },
     "packages": {
       "title": "Packages & Payments",
@@ -245,7 +273,41 @@
       "markPaid": "Mark as paid",
       "markUnpaid": "Mark as unpaid",
       "sessions": "{count, plural, one {# session} other {# sessions}}",
-      "removeConfirm": "Remove this package?"
+      "removeConfirm": "Remove this package?",
+      "packageLabel": "Package",
+      "selectPackage": "Select package...",
+      "startDate": "Start date",
+      "price": "Price (€)",
+      "pricePlaceholder": "From package",
+      "notesOptional": "Note (optional)",
+      "notesPlaceholder": "e.g. special agreement...",
+      "amount": "Amount (€)",
+      "paymentDate": "Payment date",
+      "paymentNotesPlaceholder": "e.g. paid in cash...",
+      "packageInPayment": "Package:",
+      "days": "{count, plural, one {# day} other {# days}}"
+    },
+    "history": {
+      "tabNutrition": "Nutrition",
+      "tabTraining": "Training",
+      "loading": "Loading...",
+      "thisWeek": "this week",
+      "day": "Day",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "average": "Ø Average",
+      "checkinDayLegend": "● = check-in day",
+      "noWorkouts": "No workouts recorded",
+      "last": "last:",
+      "doneTimes": "× done",
+      "other": "Other",
+      "firstTraining": "first workout",
+      "details": "Details →",
+      "max": "Max.",
+      "volume": "Volume",
+      "sets": "sets"
     }
   },
   "training": {
@@ -480,7 +542,13 @@
         "mealType": "Meal type",
         "mealName": "Meal name",
         "useRecipe": "Use recipe",
-        "customMeal": "Custom meal"
+        "customMeal": "Custom meal",
+        "planTypeDefault": "Default",
+        "planTypeDefaultDesc": "Same plan every day",
+        "planTypeTrainingDay": "Training day",
+        "planTypeTrainingDayDesc": "Higher calorie intake",
+        "planTypeRestDay": "Rest day",
+        "planTypeRestDayDesc": "Lower calorie intake"
       }
     }
   },

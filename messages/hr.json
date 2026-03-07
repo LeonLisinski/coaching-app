@@ -2,6 +2,15 @@
   "app": {
     "name": "Coaching App"
   },
+  "login": {
+    "title": "Coaching App",
+    "email": "Email",
+    "password": "Lozinka",
+    "placeholderEmail": "trener@email.com",
+    "placeholderPassword": "••••••••",
+    "submit": "Prijavi se",
+    "loading": "Prijava..."
+  },
   "common": {
     "loading": "Učitavanje...",
     "logout": "Odjava",
@@ -182,7 +191,9 @@
         "startDate": "Datum početka",
         "notes": "Bilješke",
         "submit": "Dodaj klijenta",
-        "adding": "Dodavanje..."
+        "adding": "Dodavanje...",
+        "fullNamePlaceholder": "Ivan Horvat",
+        "emailPlaceholder": "ivan@email.com"
       },
       "edit": {
         "title": "Uredi klijenta",
@@ -191,7 +202,9 @@
     },
     "detail": {
       "tabs": {
-        "weeklyCheckin": "Weekly check-in",
+        "pracenje": "Praćenje",
+        "weeklyCheckin": "Check-in",
+        "slike": "Slike",
         "history": "Povijest",
         "graphs": "Grafovi",
         "checkinSettings": "Check-in postavke",
@@ -234,7 +247,22 @@
       "note": "Napomena (opcionalno)...",
       "assign": "Dodijeli",
       "assignedOn": "Dodijeljeno",
-      "removeConfirm": "Ukloniti ovaj plan prehrane?"
+      "removeConfirm": "Ukloniti ovaj plan prehrane?",
+      "infoBannerBoth": "✓ Klijent ima postavljene planove za dane treninga i odmora — app će automatski prikazati pravi plan.",
+      "infoBannerTip": "💡 Možeš postaviti zasebne planove za <strong>dan treninga</strong> i <strong>dan odmora</strong> — klijent će automatski vidjeti pravi plan ovisno o danu.",
+      "planTypeLabel": "Tip plana",
+      "trainingDayHint": "App će prikazati ovaj plan na danima kada klijent ima zabilježen trening.",
+      "restDayHint": "App će prikazati ovaj plan na danima bez treninga.",
+      "activePlans": "Aktivni planovi",
+      "inactivePlans": "Neaktivni",
+      "mealsCount": "{count, plural, one {# obrok} other {# obroka}}",
+      "changeTypeTitle": "Promijeni tip plana",
+      "typeLabel": "Tip",
+      "deactivate": "Deaktiviraj",
+      "activate": "Aktiviraj",
+      "planTypeDefault": "Standardni",
+      "planTypeTrainingDay": "Dan treninga",
+      "planTypeRestDay": "Dan odmora"
     },
     "packages": {
       "title": "Paketi i plaćanja",
@@ -245,7 +273,41 @@
       "markPaid": "Označi kao plaćeno",
       "markUnpaid": "Označi kao neplaćeno",
       "sessions": "{count, plural, one {# sat} other {# sati}}",
-      "removeConfirm": "Ukloniti ovaj paket?"
+      "removeConfirm": "Ukloniti ovaj paket?",
+      "packageLabel": "Paket",
+      "selectPackage": "Odaberi paket...",
+      "startDate": "Datum početka",
+      "price": "Cijena (€)",
+      "pricePlaceholder": "Automatski iz paketa",
+      "notesOptional": "Napomena (opcionalno)",
+      "notesPlaceholder": "Npr. poseban dogovor...",
+      "amount": "Iznos (€)",
+      "paymentDate": "Datum plaćanja",
+      "paymentNotesPlaceholder": "Npr. plaćeno gotovinom...",
+      "packageInPayment": "Paket:",
+      "days": "{count, plural, one {# dan} other {# dana}}"
+    },
+    "history": {
+      "tabNutrition": "Prehrana",
+      "tabTraining": "Trening",
+      "loading": "Učitavanje...",
+      "thisWeek": "ovaj tjedan",
+      "day": "Dan",
+      "calories": "Kalorije",
+      "protein": "Proteini",
+      "carbs": "Ugljiko.",
+      "fat": "Masti",
+      "average": "Ø Prosjek",
+      "checkinDayLegend": "● = check-in dan",
+      "noWorkouts": "Nema zabilježenih treninga",
+      "last": "zadnji:",
+      "doneTimes": "× odrađeno",
+      "other": "Ostalo",
+      "firstTraining": "prvi trening",
+      "details": "Detalji →",
+      "max": "Maks.",
+      "volume": "Volumen",
+      "sets": "seta"
     }
   },
   "training": {
@@ -480,7 +542,13 @@
         "mealType": "Tip obroka",
         "mealName": "Naziv obroka",
         "useRecipe": "Koristi recept",
-        "customMeal": "Vlastiti obrok"
+        "customMeal": "Vlastiti obrok",
+        "planTypeDefault": "Standardni",
+        "planTypeDefaultDesc": "Svaki dan isti plan",
+        "planTypeTrainingDay": "Dan treninga",
+        "planTypeTrainingDayDesc": "Više unos kalorija",
+        "planTypeRestDay": "Dan odmora",
+        "planTypeRestDayDesc": "Manji unos kalorija"
       }
     }
   },

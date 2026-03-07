@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
+  const t = useTranslations('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -32,35 +34,35 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Coaching App</CardTitle>
+          <CardTitle className="text-2xl text-center">{t('title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('email')}</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="trener@email.com"
+                placeholder={t('placeholderEmail')}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Lozinka</Label>
+              <Label htmlFor="password">{t('password')}</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder={t('placeholderPassword')}
                 required
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Prijava...' : 'Prijavi se'}
+              {loading ? t('loading') : t('submit')}
             </Button>
           </form>
         </CardContent>
