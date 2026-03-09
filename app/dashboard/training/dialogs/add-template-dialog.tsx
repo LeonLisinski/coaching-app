@@ -34,7 +34,6 @@ type TemplateExercise = {
 export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
   const t = useTranslations('training.dialogs.template')
   const tCommon = useTranslations('common')
-  const tExercises = useTranslations('training.exercisesTab')
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -45,16 +44,16 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (open) fetchExercises()
+    if (open) { fetchExercises(); setName(''); setDescription(''); setSelected([]) }
   }, [open])
 
   const fetchExercises = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    // FIX: fetch sve vježbe (default + trenerove), ne samo trenerove
     const { data } = await supabase
       .from('exercises')
       .select('id, name, category')
-      .eq('trainer_id', user.id)
       .order('name')
     if (data) setExercises(data)
   }
@@ -108,9 +107,6 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
     setLoading(false)
     onSuccess()
     onClose()
-    setName('')
-    setDescription('')
-    setSelected([])
   }
 
   const filteredExercises = exercises.filter(e =>
@@ -162,7 +158,8 @@ export default function AddTemplateDialog({ open, onClose, onSuccess }: Props) {
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm"
                   >
                     <span>{e.name}</span>
-                    <Badge variant="outline" className="text-xs">{tExercises(`categories.${e.category}` as any)}</Badge>
+                    {/* FIX: direktno e.category, ne kroz tExercises */}
+                    <Badge variant="outline" className="text-xs">{e.category}</Badge>
                   </button>
                 ))}
               </div>

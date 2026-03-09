@@ -42,7 +42,6 @@ type Props = {
 export default function EditTemplateDialog({ template, open, onClose, onSuccess }: Props) {
   const t = useTranslations('training.dialogs.template')
   const tCommon = useTranslations('common')
-  const tExercises = useTranslations('training.exercisesTab')
 
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || '')
@@ -52,17 +51,25 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // FIX: reset state kad se otvori za drugi template
   useEffect(() => {
-    if (open) fetchExercises()
-  }, [open])
+    if (open) {
+      setName(template.name)
+      setDescription(template.description || '')
+      setSelected(template.exercises || [])
+      setSearch('')
+      setError('')
+      fetchExercises()
+    }
+  }, [open, template.id])
 
   const fetchExercises = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    // FIX: fetch sve vježbe (default + trenerove), ne samo trenerove
     const { data } = await supabase
       .from('exercises')
       .select('id, name, category')
-      .eq('trainer_id', user.id)
       .order('name')
     if (data) setExercises(data)
   }
@@ -112,6 +119,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
 
     setLoading(false)
     onSuccess()
+    onClose() // FIX: zatvori dialog nakon uspješnog save
   }
 
   const filteredExercises = exercises.filter(e =>
@@ -161,7 +169,8 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess 
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm"
                   >
                     <span>{e.name}</span>
-                    <Badge variant="outline" className="text-xs">{tExercises(`categories.${e.category}` as any)}</Badge>
+                    {/* FIX: direktno e.category, ne kroz tExercises */}
+                    <Badge variant="outline" className="text-xs">{e.category}</Badge>
                   </button>
                 ))}
               </div>

@@ -219,29 +219,29 @@ export default function ExercisesTab() {
           <span className="text-xs text-gray-400">Aktivni filteri:</span>
           {activeMuscle !== 'Sve' && (
             <button onClick={() => setActiveMuscle('Sve')}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#6366f1', color:'white', border:'none', cursor:'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#6366f1', color: 'white', border: 'none', cursor: 'pointer' }}>
               {activeMuscle} <X size={10} />
             </button>
           )}
           {activeEquipment !== 'Sve' && (
             <button onClick={() => setActiveEquipment('Sve')}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#111827', color:'white', border:'none', cursor:'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}>
               {activeEquipment} <X size={10} />
             </button>
           )}
           {showOnlyMine && (
             <button onClick={() => setShowOnlyMine(false)}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#3b82f6', color:'white', border:'none', cursor:'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#3b82f6', color: 'white', border: 'none', cursor: 'pointer' }}>
               Samo moje <X size={10} />
             </button>
           )}
           {sortKey !== 'name_asc' && (
             <button onClick={() => setSortKey('name_asc')}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'white', color:'#374151', border:'1px solid #e5e7eb', cursor:'pointer' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: 'white', color: '#374151', border: '1px solid #e5e7eb', cursor: 'pointer' }}>
               Sortirano <X size={10} />
             </button>
           )}
-          <button onClick={clearFilters} style={{ fontSize:11, color:'#9ca3af', cursor:'pointer', background:'none', border:'none', padding:0 }}>
+          <button onClick={clearFilters} style={{ fontSize: 11, color: '#9ca3af', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}>
             Očisti sve
           </button>
         </div>
@@ -255,8 +255,6 @@ export default function ExercisesTab() {
         <div className="grid grid-cols-1 gap-2">
           {filtered.map(ex => {
             const isExpanded = expandedId === ex.id
-            const extras = ex.extras || {}
-            const extraTags = [extras.rir && 'RIR', extras.rpe && 'RPE', extras.tempo && 'Tempo'].filter(Boolean) as string[]
 
             return (
               <Card key={ex.id} className="hover:shadow-sm transition-shadow cursor-pointer"
@@ -274,9 +272,6 @@ export default function ExercisesTab() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-medium text-sm">{ex.name}</p>
                           {ex.is_default && <span className="text-xs text-gray-400">(default)</span>}
-                          {extraTags.map(tag => (
-                            <span key={tag} className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{tag}</span>
-                          ))}
                         </div>
                         {ex.muscle_group && <p className="text-xs text-gray-500">💪 {ex.muscle_group}</p>}
                       </div>
@@ -289,11 +284,9 @@ export default function ExercisesTab() {
                           Video
                         </a>
                       )}
-                      {/* Edit uvijek vidljiv */}
                       <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditExercise(ex) }}>
                         <Pencil size={14} />
                       </Button>
-                      {/* Delete samo za trenerove */}
                       {!ex.is_default && (
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(ex.id) }}>
                           <Trash2 size={14} className="text-red-400" />

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, Dumbbell, ArrowUpDown, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Dumbbell, Pencil, Trash2 } from 'lucide-react'
 import AddTemplateDialog from '../dialogs/add-template-dialog'
 import EditTemplateDialog from '../dialogs/edit-template-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -57,8 +57,8 @@ export default function TemplatesTab() {
   const sorted = [...templates].sort((a, b) => {
     if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    if (sort === 'name_asc') return a.name.localeCompare(b.name)
-    if (sort === 'name_desc') return b.name.localeCompare(a.name)
+    if (sort === 'name_asc') return a.name.localeCompare(b.name, 'hr')
+    if (sort === 'name_desc') return b.name.localeCompare(a.name, 'hr')
     return 0
   })
 
@@ -66,30 +66,22 @@ export default function TemplatesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-gray-500 text-sm">{t('count', { count: templates.length })}</p>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
-          <Plus size={14} />
-          {t('add')}
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <ArrowUpDown size={14} className="text-gray-400" />
-        <span className="text-sm text-gray-500">{t('sortLabel')}</span>
-        {[
-          { value: 'date_desc', labelKey: 'sortNewest' },
-          { value: 'date_asc', labelKey: 'sortOldest' },
-          { value: 'name_asc', labelKey: 'sortAZ' },
-          { value: 'name_desc', labelKey: 'sortZA' },
-        ].map(option => (
-          <Button
-            key={option.value}
-            variant={sort === option.value ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSort(option.value as SortOption)}
+        <div className="flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value as SortOption)}
+            className="border rounded-md px-3 py-2 text-sm h-9 bg-white text-gray-700 cursor-pointer"
           >
-            {t(option.labelKey as any)}
+            <option value="date_desc">{t('sortNewest')}</option>
+            <option value="date_asc">{t('sortOldest')}</option>
+            <option value="name_asc">{t('sortAZ')}</option>
+            <option value="name_desc">{t('sortZA')}</option>
+          </select>
+          <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
+            <Plus size={14} />
+            {t('add')}
           </Button>
-        ))}
+        </div>
       </div>
 
       {loading ? (

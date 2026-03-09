@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, Trash2, ArrowUpDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react'
 import AddPlanDialog from '../dialogs/add-plan-dialog'
 import EditPlanDialog from '../dialogs/edit-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -57,8 +57,8 @@ export default function PlansTab() {
     .sort((a, b) => {
       if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      if (sort === 'name_asc') return a.name.localeCompare(b.name)
-      if (sort === 'name_desc') return b.name.localeCompare(a.name)
+      if (sort === 'name_asc') return a.name.localeCompare(b.name, 'hr')
+      if (sort === 'name_desc') return b.name.localeCompare(a.name, 'hr')
       return 0
     })
 
@@ -72,34 +72,27 @@ export default function PlansTab() {
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <Input
-          placeholder={t('searchPlaceholder')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
+      {/* Search + Sort u jednom redu */}
       <div className="flex items-center gap-2">
-        <ArrowUpDown size={14} className="text-gray-400" />
-        <span className="text-sm text-gray-500">{t('sortLabel')}</span>
-        {([
-          { value: 'date_desc', labelKey: 'sortNewest' },
-          { value: 'date_asc', labelKey: 'sortOldest' },
-          { value: 'name_asc', labelKey: 'sortAZ' },
-          { value: 'name_desc', labelKey: 'sortZA' },
-        ] as { value: SortOption; labelKey: string }[]).map(option => (
-          <Button
-            key={option.value}
-            variant={sort === option.value ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setSort(option.value)}
-          >
-            {t(option.labelKey as any)}
-          </Button>
-        ))}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <Input
+            placeholder={t('searchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value as SortOption)}
+          className="border rounded-md px-3 py-2 text-sm h-10 bg-white text-gray-700 cursor-pointer"
+        >
+          <option value="date_desc">{t('sortNewest')}</option>
+          <option value="date_asc">{t('sortOldest')}</option>
+          <option value="name_asc">{t('sortAZ')}</option>
+          <option value="name_desc">{t('sortZA')}</option>
+        </select>
       </div>
 
       {loading ? (

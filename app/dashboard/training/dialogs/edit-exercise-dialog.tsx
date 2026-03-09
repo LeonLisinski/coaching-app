@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,20 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
   const [error, setError] = useState('')
 
   const isFork = exercise.is_default
+
+  // FIX: reset forme kad se promijeni exercise prop
+  useEffect(() => {
+    if (open) {
+      setForm({
+        name: exercise.name,
+        category: exercise.category || 'Slobodni utezi',
+        muscle_group: exercise.muscle_group || 'Prsa',
+        description: exercise.description || '',
+        video_url: exercise.video_url || '',
+      })
+      setError('')
+    }
+  }, [open, exercise.id])
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -54,6 +68,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
 
     setLoading(false)
     onSuccess()
+    onClose() // FIX: zatvori dialog nakon uspješnog save
   }
 
   return (
