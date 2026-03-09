@@ -7,31 +7,46 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown, ChevronRight } from 'lucide-react'
 import AddExerciseDialog from '../dialogs/add-exercise-dialog'
 import EditExerciseDialog from '../dialogs/edit-exercise-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 
-type Exercise = {
+export type Exercise = {
   id: string
   name: string
   category: string
   muscle_group: string
   description: string
   video_url: string
+  is_default: boolean
+  trainer_id: string | null
+  extras?: Record<string, string> | null
 }
 
-const CATEGORIES = ['Sve', 'Snaga', 'Kardio', 'Mobilnost', 'HIIT', 'Ostalo']
+export const EQUIPMENT_CATEGORIES = [
+  'Slobodni utezi', 'Bučice', 'Kabel', 'Sprave',
+  'Vlastita težina', 'Kettlebell', 'Ostalo',
+]
+
+export const MUSCLE_GROUPS = [
+  'Prsa', 'Leđa', 'Ramena', 'Biceps', 'Triceps', 'Podlaktice',
+  'Kvadricepsi', 'Stražnja loža', 'Gluteusi', 'Listovi', 'Trbuh', 'Cijelo tijelo',
+]
+
+type SortKey = 'name_asc' | 'name_desc'
 
 export default function ExercisesTab() {
-  const t = useTranslations('training.exercisesTab')
   const tCommon = useTranslations('common')
 
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('Sve')
+  const [activeEquipment, setActiveEquipment] = useState('Sve')
   const [activeMuscle, setActiveMuscle] = useState('Sve')
+  const [showOnlyMine, setShowOnlyMine] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>('name_asc')
   const [showFilters, setShowFilters] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [editExercise, setEditExercise] = useState<Exercise | null>(null)
@@ -40,176 +55,194 @@ export default function ExercisesTab() {
   useEffect(() => { fetchExercises() }, [])
 
   const fetchExercises = async () => {
+    setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('exercises').select('*').eq('trainer_id', user.id).order('name')
-    if (data) setExercises(data)
+
+    const [{ data: allEx }, { data: overrides }] = await Promise.all([
+      supabase.from('exercises').select('*').order('name'),
+      supabase.from('trainer_overrides')
+        .select('default_id')
+        .eq('trainer_id', user.id)
+        .eq('resource_type', 'exercise'),
+    ])
+
+    const overriddenIds = new Set((overrides || []).map(o => o.default_id))
+
+    const visible = (allEx || []).filter(e =>
+      (!e.is_default && e.trainer_id === user.id) ||
+      (e.is_default && !overriddenIds.has(e.id))
+    )
+    setExercises(visible)
     setLoading(false)
   }
 
   const deleteExercise = async (id: string) => {
     await supabase.from('exercises').delete().eq('id', id)
-    setExercises(exercises.filter(e => e.id !== id))
+    setExercises(prev => prev.filter(e => e.id !== id))
     setConfirmDelete(null)
   }
 
-  const muscleGroups = ['Sve', ...Array.from(new Set(
-    exercises
-      .flatMap(e => e.muscle_group?.split(',').map(m => m.trim()) || [])
-      .filter(Boolean)
-  )).sort()]
+  const sorted = [...exercises].sort((a, b) =>
+    sortKey === 'name_asc' ? a.name.localeCompare(b.name, 'hr') : b.name.localeCompare(a.name, 'hr')
+  )
 
-  const filtered = exercises.filter(e => {
+  const filtered = sorted.filter(e => {
     const matchSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
       e.muscle_group?.toLowerCase().includes(search.toLowerCase())
-    const matchCategory = activeCategory === 'Sve' || e.category === activeCategory
-    const matchMuscle = activeMuscle === 'Sve' ||
-      e.muscle_group?.split(',').map(m => m.trim()).includes(activeMuscle)
-    return matchSearch && matchCategory && matchMuscle
+    const matchEquipment = activeEquipment === 'Sve' || e.category === activeEquipment
+    const matchMuscle = activeMuscle === 'Sve' || e.muscle_group === activeMuscle
+    const matchMine = !showOnlyMine || !e.is_default
+    return matchSearch && matchEquipment && matchMuscle && matchMine
   })
 
-  const activeFilterCount = [
-    activeCategory !== 'Sve',
-    activeMuscle !== 'Sve',
-    search !== '',
-  ].filter(Boolean).length
+  const activeFilterCount = [activeEquipment !== 'Sve', activeMuscle !== 'Sve', showOnlyMine, sortKey !== 'name_asc'].filter(Boolean).length
 
-  const clearFilters = () => {
-    setActiveCategory('Sve')
-    setActiveMuscle('Sve')
-    setSearch('')
-  }
+  const clearFilters = () => { setActiveEquipment('Sve'); setActiveMuscle('Sve'); setShowOnlyMine(false); setSortKey('name_asc') }
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{t('count', { count: filtered.length })} / {t('count', { count: exercises.length })}</p>
+        <p className="text-gray-500 text-sm">{filtered.length} / {exercises.length} vježbi</p>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2">
             <SlidersHorizontal size={14} />
-            {t('filterLabel')}
+            Filtriraj
             {activeFilterCount > 0 && (
               <span className="bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}
+            <ChevronDown size={12} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </Button>
           <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
-            <Plus size={14} />
-            {t('add')}
+            <Plus size={14} /> Dodaj
           </Button>
         </div>
       </div>
 
+      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <Input
-          placeholder={t('searchPlaceholder')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+        <Input placeholder="Pretraži vježbe..." value={search}
+          onChange={e => setSearch(e.target.value)} className="pl-9" />
         {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
             <X size={14} />
           </button>
         )}
       </div>
 
+      {/* Filter panel */}
       {showFilters && (
         <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('categoryHeader')}</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Mišićna grupa</p>
             <div className="flex gap-2 flex-wrap">
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+              {['Sve', ...MUSCLE_GROUPS].map(m => (
+                <button key={m} onClick={() => setActiveMuscle(m)}
                   style={{
-                    padding: '4px 12px',
-                    borderRadius: 99,
-                    fontSize: 13,
-                    fontWeight: activeCategory === cat ? 600 : 400,
-                    backgroundColor: activeCategory === cat ? '#111827' : 'white',
-                    color: activeCategory === cat ? 'white' : '#374151',
-                    border: `1px solid ${activeCategory === cat ? '#111827' : '#e5e7eb'}`,
+                    padding: '4px 12px', borderRadius: 99, fontSize: 13,
+                    fontWeight: activeMuscle === m ? 600 : 400,
+                    backgroundColor: activeMuscle === m ? '#6366f1' : 'white',
+                    color: activeMuscle === m ? 'white' : '#374151',
+                    border: `1px solid ${activeMuscle === m ? '#6366f1' : '#e5e7eb'}`,
                     cursor: 'pointer',
-                  }}
-                >
-                  {cat === 'Sve' ? t('filterAll') : t(`categories.${cat}` as any)}
+                  }}>
+                  {m}
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('muscleGroupHeader')}</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Oprema</p>
             <div className="flex gap-2 flex-wrap">
-              {muscleGroups.map(muscle => (
-                <button
-                  key={muscle}
-                  onClick={() => setActiveMuscle(muscle)}
+              {['Sve', ...EQUIPMENT_CATEGORIES].map(eq => (
+                <button key={eq} onClick={() => setActiveEquipment(eq)}
                   style={{
-                    padding: '4px 12px',
-                    borderRadius: 99,
-                    fontSize: 13,
-                    fontWeight: activeMuscle === muscle ? 600 : 400,
-                    backgroundColor: activeMuscle === muscle ? '#6366f1' : 'white',
-                    color: activeMuscle === muscle ? 'white' : '#374151',
-                    border: `1px solid ${activeMuscle === muscle ? '#6366f1' : '#e5e7eb'}`,
+                    padding: '4px 12px', borderRadius: 99, fontSize: 13,
+                    fontWeight: activeEquipment === eq ? 600 : 400,
+                    backgroundColor: activeEquipment === eq ? '#111827' : 'white',
+                    color: activeEquipment === eq ? 'white' : '#374151',
+                    border: `1px solid ${activeEquipment === eq ? '#111827' : '#e5e7eb'}`,
                     cursor: 'pointer',
-                  }}
-                >
-                  {muscle}
+                  }}>
+                  {eq}
                 </button>
               ))}
             </div>
           </div>
 
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <div className="flex gap-2 flex-wrap">
+              {([
+                { key: 'name_asc', label: 'Naziv A→Z' },
+                { key: 'name_desc', label: 'Naziv Z→A' },
+              ] as const).map(opt => (
+                <button key={opt.key} onClick={() => setSortKey(opt.key)}
+                  style={{
+                    padding: '4px 12px', borderRadius: 99, fontSize: 13,
+                    fontWeight: sortKey === opt.key ? 600 : 400,
+                    backgroundColor: sortKey === opt.key ? '#111827' : 'white',
+                    color: sortKey === opt.key ? 'white' : '#374151',
+                    border: `1px solid ${sortKey === opt.key ? '#111827' : '#e5e7eb'}`,
+                    cursor: 'pointer',
+                  }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-700">Samo moje vježbe</p>
+            <button onClick={() => setShowOnlyMine(!showOnlyMine)}
+              className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-blue-500' : 'bg-gray-200'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+
           {activeFilterCount > 0 && (
-            <button
-              onClick={clearFilters}
-              style={{ fontSize: 12, color: '#ef4444', cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}
-            >
-              <X size={12} />
-              {t('clearAllFilters')}
+            <button onClick={clearFilters} className="text-xs text-red-500 flex items-center gap-1">
+              <X size={11} /> Očisti filtere
             </button>
           )}
         </div>
       )}
 
+      {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
-          {activeCategory !== 'Sve' && (
-            <button
-              onClick={() => setActiveCategory('Sve')}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}
-            >
-              {t(`categories.${activeCategory}` as any)} <X size={10} />
-            </button>
-          )}
+          <span className="text-xs text-gray-400">Aktivni filteri:</span>
           {activeMuscle !== 'Sve' && (
-            <button
-              onClick={() => setActiveMuscle('Sve')}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#6366f1', color: 'white', border: 'none', cursor: 'pointer' }}
-            >
+            <button onClick={() => setActiveMuscle('Sve')}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#6366f1', color:'white', border:'none', cursor:'pointer' }}>
               {activeMuscle} <X size={10} />
             </button>
           )}
-          <button
-            onClick={clearFilters}
-            style={{ fontSize: 11, color: '#9ca3af', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
-          >
-            {t('clearAll')}
+          {activeEquipment !== 'Sve' && (
+            <button onClick={() => setActiveEquipment('Sve')}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#111827', color:'white', border:'none', cursor:'pointer' }}>
+              {activeEquipment} <X size={10} />
+            </button>
+          )}
+          {showOnlyMine && (
+            <button onClick={() => setShowOnlyMine(false)}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#3b82f6', color:'white', border:'none', cursor:'pointer' }}>
+              Samo moje <X size={10} />
+            </button>
+          )}
+          {sortKey !== 'name_asc' && (
+            <button onClick={() => setSortKey('name_asc')}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'white', color:'#374151', border:'1px solid #e5e7eb', cursor:'pointer' }}>
+              Sortirano <X size={10} />
+            </button>
+          )}
+          <button onClick={clearFilters} style={{ fontSize:11, color:'#9ca3af', cursor:'pointer', background:'none', border:'none', padding:0 }}>
+            Očisti sve
           </button>
         </div>
       )}
@@ -217,43 +250,64 @@ export default function ExercisesTab() {
       {loading ? (
         <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {t('noExercises')}
-          </CardContent>
-        </Card>
+        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">Nema vježbi</CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 gap-2">
-          {filtered.map((exercise) => (
-            <Card
-              key={exercise.id}
-              className="hover:shadow-sm transition-shadow cursor-pointer"
-              onDoubleClick={() => setEditExercise(exercise)}
-            >
-              <CardContent className="py-3 flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-sm">{exercise.name}</p>
-                  {exercise.muscle_group && (
-                    <p className="text-xs text-gray-500">💪 {exercise.muscle_group}</p>
+          {filtered.map(ex => {
+            const isExpanded = expandedId === ex.id
+            const extras = ex.extras || {}
+            const extraTags = [extras.rir && 'RIR', extras.rpe && 'RPE', extras.tempo && 'Tempo'].filter(Boolean) as string[]
+
+            return (
+              <Card key={ex.id} className="hover:shadow-sm transition-shadow cursor-pointer"
+                onDoubleClick={() => setEditExercise(ex)}>
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {ex.description ? (
+                        <button onClick={e => { e.stopPropagation(); setExpandedId(isExpanded ? null : ex.id) }}
+                          className="text-gray-400 hover:text-gray-600 shrink-0">
+                          {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        </button>
+                      ) : <div className="w-3.5 shrink-0" />}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-medium text-sm">{ex.name}</p>
+                          {ex.is_default && <span className="text-xs text-gray-400">(default)</span>}
+                          {extraTags.map(tag => (
+                            <span key={tag} className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{tag}</span>
+                          ))}
+                        </div>
+                        {ex.muscle_group && <p className="text-xs text-gray-500">💪 {ex.muscle_group}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">{ex.category}</Badge>
+                      {ex.video_url && (
+                        <a href={ex.video_url} target="_blank" rel="noreferrer"
+                          className="text-xs text-blue-500 hover:underline" onClick={e => e.stopPropagation()}>
+                          Video
+                        </a>
+                      )}
+                      {/* Edit uvijek vidljiv */}
+                      <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditExercise(ex) }}>
+                        <Pencil size={14} />
+                      </Button>
+                      {/* Delete samo za trenerove */}
+                      {!ex.is_default && (
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(ex.id) }}>
+                          <Trash2 size={14} className="text-red-400" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {isExpanded && ex.description && (
+                    <p className="text-xs text-gray-500 mt-2 ml-5 leading-relaxed">{ex.description}</p>
                   )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">{t(`categories.${exercise.category}` as any)}</Badge>
-                  {exercise.video_url && (
-                    <a href={exercise.video_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline" onClick={e => e.stopPropagation()}>
-                      Video
-                    </a>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditExercise(exercise) }}>
-                    <Pencil size={14} />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(exercise.id) }}>
-                    <Trash2 size={14} className="text-red-400" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
@@ -268,8 +322,8 @@ export default function ExercisesTab() {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title={t('deleteTitle')}
-        description={t('deleteConfirm')}
+        title="Obriši vježbu"
+        description="Jesi li siguran da želiš obrisati ovu vježbu?"
         onConfirm={() => confirmDelete && deleteExercise(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
         confirmLabel={tCommon('delete')}

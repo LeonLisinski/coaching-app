@@ -388,6 +388,7 @@
         "muscleGroupPlaceholder": "npr. Prsa, triceps",
         "description": "Opis",
         "descriptionPlaceholder": "Opis vježbe...",
+        "defaultMetrics": "Metrike (iz profila)",
         "save": "Spremi vježbu"
       },
       "template": {

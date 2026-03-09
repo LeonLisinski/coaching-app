@@ -388,6 +388,7 @@
         "muscleGroupPlaceholder": "e.g. Chest, triceps",
         "description": "Description",
         "descriptionPlaceholder": "Exercise description...",
+        "defaultMetrics": "Metrics (from profile)",
         "save": "Save exercise"
       },
       "template": {

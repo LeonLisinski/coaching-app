@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FOOD_CATEGORIES } from '../tabs/foods-tab'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 type Props = {
   open: boolean
@@ -14,23 +15,22 @@ type Props = {
   onSuccess: () => void
 }
 
-const CATEGORIES = ['Meso & Riba', 'Mliječni', 'Žitarice', 'Voće', 'Povrće', 'Orašasti', 'Ostalo']
-
 export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
-  const t = useTranslations('nutrition.dialogs.food')
-  const tCat = useTranslations('nutrition.foodsTab')
-  const tCommon = useTranslations('common')
+  const { settings, loading: settingsLoading } = useTrainerSettings()
 
   const [form, setForm] = useState({
     name: '',
-    category: 'Ostalo',
+    category: FOOD_CATEGORIES[0],
     calories_per_100g: '',
     protein_per_100g: '',
     carbs_per_100g: '',
     fat_per_100g: '',
   })
+  const [extras, setExtras] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const activeFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -40,106 +40,116 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error } = await supabase
-      .from('foods')
-      .insert({
-        trainer_id: user.id,
-        name: form.name,
-        category: form.category,
-        calories_per_100g: parseFloat(form.calories_per_100g) || 0,
-        protein_per_100g: parseFloat(form.protein_per_100g) || 0,
-        carbs_per_100g: parseFloat(form.carbs_per_100g) || 0,
-        fat_per_100g: parseFloat(form.fat_per_100g) || 0,
-      })
+    const extrasPayload: Record<string, number | null> = {}
+    for (const f of activeFields) {
+      extrasPayload[f.key] = extras[f.key] !== undefined && extras[f.key] !== ''
+        ? parseFloat(extras[f.key]) : null
+    }
 
-    if (error) {
-      setError(error.message)
+    const { error: insertErr } = await supabase.from('foods').insert({
+      trainer_id: user.id,
+      name: form.name,
+      category: form.category,
+      calories_per_100g: parseFloat(form.calories_per_100g) || 0,
+      protein_per_100g: parseFloat(form.protein_per_100g) || 0,
+      carbs_per_100g: parseFloat(form.carbs_per_100g) || 0,
+      fat_per_100g: parseFloat(form.fat_per_100g) || 0,
+      is_default: false,
+      extras: extrasPayload,
+    })
+
+    if (insertErr) {
+      setError(insertErr.message)
       setLoading(false)
       return
     }
 
     setLoading(false)
+    setForm({ name: '', category: FOOD_CATEGORIES[0], calories_per_100g: '', protein_per_100g: '', carbs_per_100g: '', fat_per_100g: '' })
+    setExtras({})
     onSuccess()
     onClose()
-    setForm({ name: '', category: 'Ostalo', calories_per_100g: '', protein_per_100g: '', carbs_per_100g: '', fat_per_100g: '' })
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t('addTitle')}</DialogTitle>
+          <DialogTitle>Dodaj namirnicu</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>{t('name')}</Label>
+            <Label>Naziv</Label>
             <Input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t('namePlaceholder')}
+              onChange={e => setForm({ ...form, name: e.target.value })}
               required
             />
           </div>
           <div className="space-y-2">
-            <Label>{t('category')}</Label>
+            <Label>Kategorija</Label>
             <select
               value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              onChange={e => setForm({ ...form, category: e.target.value })}
               className="w-full border rounded-md px-3 py-2 text-sm"
             >
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{tCat(`categories.${cat}` as any)}</option>
+              {FOOD_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
           </div>
-          <p className="text-xs text-gray-500">{tCat('per100g')}</p>
+
+          <p className="text-xs text-gray-500">Vrijednosti na 100g (sirove mase)</p>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('calories')}</Label>
-              <Input
-                type="number"
-                value={form.calories_per_100g}
-                onChange={(e) => setForm({ ...form, calories_per_100g: e.target.value })}
-                placeholder="165"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('protein')}</Label>
-              <Input
-                type="number"
-                value={form.protein_per_100g}
-                onChange={(e) => setForm({ ...form, protein_per_100g: e.target.value })}
-                placeholder="31"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('carbs')}</Label>
-              <Input
-                type="number"
-                value={form.carbs_per_100g}
-                onChange={(e) => setForm({ ...form, carbs_per_100g: e.target.value })}
-                placeholder="0"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('fat')}</Label>
-              <Input
-                type="number"
-                value={form.fat_per_100g}
-                onChange={(e) => setForm({ ...form, fat_per_100g: e.target.value })}
-                placeholder="3.6"
-                required
-              />
-            </div>
+            {[
+              { key: 'calories_per_100g', label: 'Kalorije' },
+              { key: 'protein_per_100g', label: 'Proteini (g)' },
+              { key: 'carbs_per_100g', label: 'Ugljikohidrati (g)' },
+              { key: 'fat_per_100g', label: 'Masti (g)' },
+            ].map(field => (
+              <div key={field.key} className="space-y-2">
+                <Label>{field.label}</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={form[field.key as keyof typeof form]}
+                  onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                  required
+                />
+              </div>
+            ))}
           </div>
+
+          {/* Dinamička extras polja iz trainer settings */}
+          {!settingsLoading && activeFields.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Dodatni podaci <span className="text-gray-400 font-normal normal-case">(opcionalno)</span>
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {activeFields.map(field => (
+                  <div key={field.key} className="space-y-2">
+                    <Label className="text-xs">{field.label} ({field.unit})</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      placeholder="—"
+                      value={extras[field.key] ?? ''}
+                      onChange={e => setExtras({ ...extras, [field.key]: e.target.value })}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Odustani
+            </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? tCommon('saving') : t('save')}
+              {loading ? 'Sprema...' : 'Dodaj namirnicu'}
             </Button>
           </div>
         </form>
