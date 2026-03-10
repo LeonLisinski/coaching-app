@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus } from 'lucide-react'
+import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
@@ -15,25 +15,25 @@ type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
 type Recipe = {
   id: string; name: string
   total_calories: number; total_protein: number; total_carbs: number; total_fat: number
+  ingredients?: any[]
 }
-
 type Food = {
   id: string; name: string
   calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number
+  extras?: Record<string, number>
 }
-
 type MealSlot = {
   meal_type: string; recipe_id: string | null; recipe_name: string
   calories: number; protein: number; carbs: number; fat: number
   custom_ingredients?: any[]; save_as_recipe?: boolean
 }
-
 type PlanType = 'default' | 'training_day' | 'rest_day'
 
 export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
+  const { settings } = useTrainerSettings()
 
   const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
     { value: 'default',      label: t('planTypeDefault'),      desc: t('planTypeDefaultDesc'),      color: 'border-gray-300 bg-gray-50 text-gray-700' },
@@ -58,7 +58,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data } = await supabase.from('recipes')
-      .select('id, name, total_calories, total_protein, total_carbs, total_fat')
+      .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients')
       .eq('trainer_id', user.id).order('name')
     if (data) setRecipes(data)
   }
@@ -73,7 +73,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
   const addMeal = () => setMeals([...meals, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
 
   const updateMeal = (index: number, field: string, value: any) => {
-    setMeals(meals.map((m, i) => {
+    setMeals(prev => prev.map((m, i) => {
       if (i !== index) return m
       if (field === '_custom') return { ...m, ...value }
       if (field === 'recipe_id') {
@@ -125,30 +125,23 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t('addTitle')}</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>{t('addTitle')}</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>{t('name')}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('namePlaceholder')} required />
           </div>
 
-          {/* Plan type */}
           <div className="space-y-2">
             <Label>Tip plana</Label>
             <div className="grid grid-cols-3 gap-2">
               {PLAN_TYPE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPlanType(opt.value)}
+                <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
                   className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
                     planType === opt.value
                       ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
                       : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
+                  }`}>
                   <p className="font-semibold text-xs">{opt.label}</p>
                   <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
                 </button>
@@ -158,10 +151,10 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
 
           <div className="grid grid-cols-4 gap-3">
             {[
-              { key: 'calories', label: t('targetCalories'), placeholder: '2000' },
-              { key: 'protein',  label: t('targetProtein'),  placeholder: '150' },
-              { key: 'carbs',    label: t('targetCarbs'),    placeholder: '200' },
-              { key: 'fat',      label: t('targetFat'),      placeholder: '70' },
+              { key: 'calories', label: 'Kcal',        placeholder: '2000' },
+              { key: 'protein',  label: 'Proteini (g)', placeholder: '150' },
+              { key: 'carbs',    label: 'Ugljik. (g)',  placeholder: '200' },
+              { key: 'fat',      label: 'Masti (g)',    placeholder: '70' },
             ].map(f => (
               <div key={f.key} className="space-y-1">
                 <Label className="text-xs">{f.label}</Label>
@@ -175,12 +168,17 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>{t('meals', { count: meals.length })}</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addMeal} className="flex items-center gap-1">
-                <Plus size={12} />{t('addMeal')}
+              <Button type="button" variant="outline" size="sm" onClick={addMeal}>
+                + {t('addMeal')}
               </Button>
             </div>
             {meals.map((meal, index) => (
-              <MealSlotEditor key={index} meal={meal} index={index} recipes={recipes} foods={foods} onChange={updateMeal} onRemove={removeMeal} />
+              <MealSlotEditor
+                key={index} meal={meal} index={index}
+                recipes={recipes} foods={foods}
+                nutritionFields={settings.nutritionFields}
+                onChange={updateMeal} onRemove={removeMeal}
+              />
             ))}
             {meals.length > 0 && (
               <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm">

@@ -11,6 +11,7 @@ import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown } from 
 import AddFoodDialog from '../dialogs/add-food-dialog'
 import EditFoodDialog from '../dialogs/edit-food-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 export type Food = {
   id: string
@@ -22,11 +23,7 @@ export type Food = {
   fat_per_100g: number
   is_default: boolean
   trainer_id: string | null
-  extras?: {
-    fiber?: number | null
-    sugar?: number | null
-    sodium?: number | null
-  }
+  extras?: Record<string, number | null>
 }
 
 export const FOOD_CATEGORIES = [
@@ -39,6 +36,7 @@ type SortKey = 'name_asc' | 'name_desc' | 'calories_asc' | 'calories_desc' | 'pr
 
 export default function FoodsTab() {
   const tCommon = useTranslations('common')
+  const { settings } = useTrainerSettings()
 
   const [foods, setFoods] = useState<Food[]>([])
   const [overrideIds, setOverrideIds] = useState<Set<string>>(new Set())
@@ -51,6 +49,9 @@ export default function FoodsTab() {
   const [showAdd, setShowAdd] = useState(false)
   const [editFood, setEditFood] = useState<Food | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  // Aktivna extra polja koja trener koristi
+  const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
   useEffect(() => { fetchFoods() }, [])
 
@@ -102,12 +103,10 @@ export default function FoodsTab() {
   })
 
   const activeFilterCount = [activeCategory !== 'Sve', showOnlyMine, sortKey !== 'name_asc'].filter(Boolean).length
-
   const clearFilters = () => { setActiveCategory('Sve'); setShowOnlyMine(false); setSortKey('name_asc') }
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-gray-500 text-sm">{filtered.length} / {foods.length} namirnica</p>
         <div className="flex items-center gap-2">
@@ -127,7 +126,6 @@ export default function FoodsTab() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
         <Input placeholder="Pretraži namirnice..." value={search}
@@ -139,10 +137,8 @@ export default function FoodsTab() {
         )}
       </div>
 
-      {/* Filter panel */}
       {showFilters && (
         <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
-          {/* Kategorija */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kategorija</p>
             <div className="flex gap-2 flex-wrap">
@@ -161,8 +157,6 @@ export default function FoodsTab() {
               ))}
             </div>
           </div>
-
-          {/* Sortiranje */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
             <div className="flex gap-2 flex-wrap">
@@ -187,8 +181,6 @@ export default function FoodsTab() {
               ))}
             </div>
           </div>
-
-          {/* Samo moje */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-700">Samo moje namirnice</p>
             <button onClick={() => setShowOnlyMine(!showOnlyMine)}
@@ -196,7 +188,6 @@ export default function FoodsTab() {
               <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-5' : ''}`} />
             </button>
           </div>
-
           {activeFilterCount > 0 && (
             <button onClick={clearFilters} className="text-xs text-red-500 flex items-center gap-1">
               <X size={11} /> Očisti filtere
@@ -205,7 +196,6 @@ export default function FoodsTab() {
         </div>
       )}
 
-      {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-400">Aktivni filteri:</span>
@@ -249,12 +239,18 @@ export default function FoodsTab() {
                     {food.is_default && <span className="text-xs text-gray-400">(default)</span>}
                   </div>
                   <p className="text-xs text-gray-400">na 100g sirove mase</p>
-                  {/* Extras ako postoje */}
-                  {food.extras && (food.extras.fiber != null || food.extras.sugar != null || food.extras.sodium != null) && (
-                    <div className="flex gap-2 mt-0.5">
-                      {food.extras.fiber != null && <span className="text-xs text-gray-400">Vlakna: {food.extras.fiber}g</span>}
-                      {food.extras.sugar != null && <span className="text-xs text-gray-400">Šećer: {food.extras.sugar}g</span>}
-                      {food.extras.sodium != null && <span className="text-xs text-gray-400">Natrij: {food.extras.sodium}mg</span>}
+                  {/* FIXED: dinamički extras prema nutritionFields */}
+                  {food.extras && activeExtraFields.length > 0 && (
+                    <div className="flex gap-2 mt-0.5 flex-wrap">
+                      {activeExtraFields.map(f => {
+                        const val = food.extras?.[f.key]
+                        if (val == null) return null
+                        return (
+                          <span key={f.key} className="text-xs text-gray-400">
+                            {f.label}: {val}{f.unit}
+                          </span>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -266,11 +262,9 @@ export default function FoodsTab() {
                     <span>🫒 {food.fat_per_100g}g</span>
                   </div>
                   <Badge variant="outline" className="text-xs">{food.category}</Badge>
-                  {/* Edit uvijek vidljiv — fork ili normalni edit */}
                   <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditFood(food) }}>
                     <Pencil size={14} />
                   </Button>
-                  {/* Delete samo za trenerove (ne default) */}
                   {!food.is_default && (
                     <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(food.id) }}>
                       <Trash2 size={14} className="text-red-400" />
@@ -283,14 +277,10 @@ export default function FoodsTab() {
         </div>
       )}
 
-      <AddFoodDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={() => fetchFoods()} />
+      <AddFoodDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchFoods} />
       {editFood && (
-        <EditFoodDialog
-          food={editFood}
-          open={!!editFood}
-          onClose={() => setEditFood(null)}
-          onSuccess={() => { setEditFood(null); fetchFoods() }}
-        />
+        <EditFoodDialog food={editFood} open={!!editFood} onClose={() => setEditFood(null)}
+          onSuccess={() => { setEditFood(null); fetchFoods() }} />
       )}
       <ConfirmDialog
         open={confirmDelete !== null}

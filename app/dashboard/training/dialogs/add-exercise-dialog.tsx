@@ -7,16 +7,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
+import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
 
 export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
+  const { settings } = useTrainerSettings()
   const [form, setForm] = useState({
     name: '', category: 'Slobodni utezi', muscle_group: 'Prsa',
     description: '', video_url: '',
   })
+  const [extras, setExtras] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const extraFields = EXERCISE_FIELD_OPTIONS.filter(f => settings.exerciseFields.includes(f.key))
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
@@ -24,6 +29,10 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
     setError('')
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    const cleanExtras = Object.fromEntries(
+      Object.entries(extras).filter(([_, v]) => v !== '')
+    )
 
     const { error } = await supabase.from('exercises').insert({
       trainer_id: user.id,
@@ -33,6 +42,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
       muscle_group: form.muscle_group || null,
       description: form.description || null,
       video_url: form.video_url || null,
+      extras: Object.keys(cleanExtras).length > 0 ? cleanExtras : null,
     })
 
     if (error) { setError(error.message); setLoading(false); return }
@@ -40,6 +50,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
     onSuccess()
     onClose()
     setForm({ name: '', category: 'Slobodni utezi', muscle_group: 'Prsa', description: '', video_url: '' })
+    setExtras({})
   }
 
   return (
@@ -68,6 +79,29 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
               </select>
             </div>
           </div>
+
+          {/* Dinamična extras polja prema trainer_profiles.exercise_fields */}
+          {extraFields.length > 0 && (
+            <div className="space-y-2">
+              <Label>Dodatne metrike <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
+              <div className="grid grid-cols-2 gap-3">
+                {extraFields.map(f => (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs text-gray-600">
+                      {f.label} {f.unit && <span className="text-gray-400">({f.unit})</span>}
+                    </Label>
+                    <Input
+                      value={extras[f.key] || ''}
+                      onChange={e => setExtras({ ...extras, [f.key]: e.target.value })}
+                      placeholder={f.desc}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>Opis <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
             <textarea value={form.description}

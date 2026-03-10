@@ -4,8 +4,23 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Plus, Pencil, Trash2, X, UtensilsCrossed } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
@@ -29,7 +44,32 @@ type AssignedPlan = {
   assigned_at: string
   notes: string | null
   plan_type: 'default' | 'training_day' | 'rest_day'
+  meals: any[] | null
+  calories_target: number | null
+  protein_target: number | null
+  carbs_target: number | null
+  fat_target: number | null
   meal_plan: MealPlan
+}
+
+type Recipe = {
+  id: string
+  name: string
+  total_calories: number
+  total_protein: number
+  total_carbs: number
+  total_fat: number
+  ingredients: any[]
+}
+
+type AssignMeal = {
+  meal_type: string
+  recipe_id: string | null
+  recipe_name: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
 }
 
 const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -37,6 +77,8 @@ const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
   training_day: { color: '#2563eb', bg: '#dbeafe' },
   rest_day:     { color: '#7c3aed', bg: '#ede9fe' },
 }
+
+const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
 
 export default function ClientMealPlans({ clientId }: Props) {
   const t = useTranslations('clients.mealPlans')
@@ -51,15 +93,22 @@ export default function ClientMealPlans({ clientId }: Props) {
 
   const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([])
   const [availablePlans, setAvailablePlans] = useState<MealPlan[]>([])
+  const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
-  const [showAdd, setShowAdd] = useState(false)
-  const [showCreateNew, setShowCreateNew] = useState(false)
+
+  // Assign dialog
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState('')
-  const [selectedPlanType, setSelectedPlanType] = useState<'default' | 'training_day' | 'rest_day'>('default')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [assignMeals, setAssignMeals] = useState<AssignMeal[]>([])
+  const [assignTargets, setAssignTargets] = useState({ calories: '', protein: '', carbs: '', fat: '' })
+  const [assignPlanType, setAssignPlanType] = useState<'default' | 'training_day' | 'rest_day'>('default')
+  const [assignNotes, setAssignNotes] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  // Other
+  const [showCreateNew, setShowCreateNew] = useState(false)
+  const [editTarget, setEditTarget] = useState<AssignedPlan | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [editPlan, setEditPlan] = useState<MealPlan | null>(null)
   const [editingPlanTypeId, setEditingPlanTypeId] = useState<string | null>(null)
 
   useEffect(() => { fetchData() }, [clientId])
@@ -68,11 +117,12 @@ export default function ClientMealPlans({ clientId }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: assigned }, { data: available }] = await Promise.all([
+    const [{ data: assigned }, { data: available }, { data: recipes }] = await Promise.all([
       supabase
         .from('client_meal_plans')
         .select(`
-          id, active, assigned_at, notes, plan_type,
+          id, active, assigned_at, notes, plan_type, meals,
+          calories_target, protein_target, carbs_target, fat_target,
           meal_plan:meal_plans (id, name, calories_target, protein_target, carbs_target, fat_target, meals)
         `)
         .eq('client_id', clientId)
@@ -81,27 +131,85 @@ export default function ClientMealPlans({ clientId }: Props) {
         .from('meal_plans')
         .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals')
         .eq('trainer_id', user.id)
-        .order('name')
+        .order('name'),
+      supabase
+        .from('recipes')
+        .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients')
+        .eq('trainer_id', user.id)
+        .order('name'),
     ])
 
     if (assigned) setAssignedPlans(assigned as any)
     if (available) setAvailablePlans(available)
+    if (recipes) setAvailableRecipes(recipes)
     setLoading(false)
   }
 
+  const handleSelectPlan = (planId: string) => {
+    setSelectedPlanId(planId)
+    const plan = availablePlans.find(p => p.id === planId)
+    if (!plan) { setAssignMeals([]); return }
+
+    setAssignTargets({
+      calories: plan.calories_target?.toString() || '',
+      protein: plan.protein_target?.toString() || '',
+      carbs: plan.carbs_target?.toString() || '',
+      fat: plan.fat_target?.toString() || '',
+    })
+    setAssignMeals((plan.meals || []).map((m: any) => ({
+      meal_type: m.meal_type ?? 'Doručak',
+      recipe_id: m.recipe_id ?? null,
+      recipe_name: m.recipe_name ?? '',
+      calories: m.calories ?? 0,
+      protein: m.protein ?? 0,
+      carbs: m.carbs ?? 0,
+      fat: m.fat ?? 0,
+    })))
+  }
+
+  const updateAssignMealRecipe = (idx: number, recipeId: string) => {
+    const recipe = availableRecipes.find(r => r.id === recipeId)
+    setAssignMeals(prev => prev.map((m, i) => i !== idx ? m : {
+      ...m,
+      recipe_id: recipeId || null,
+      recipe_name: recipe?.name || '',
+      calories: recipe?.total_calories || 0,
+      protein: recipe?.total_protein || 0,
+      carbs: recipe?.total_carbs || 0,
+      fat: recipe?.total_fat || 0,
+    }))
+  }
+
+  const updateAssignMealField = (idx: number, field: string, value: any) => {
+    setAssignMeals(prev => prev.map((m, i) => i !== idx ? m : { ...m, [field]: value }))
+  }
+
+  const removeAssignMeal = (idx: number) => {
+    setAssignMeals(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const addAssignMeal = () => {
+    setAssignMeals(prev => [...prev, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
+  }
+
+  const assignTotals = assignMeals.reduce((acc, m) => ({
+    calories: acc.calories + (m.calories || 0),
+    protein: acc.protein + (m.protein || 0),
+    carbs: acc.carbs + (m.carbs || 0),
+    fat: acc.fat + (m.fat || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+
   const assignPlan = async () => {
     if (!selectedPlanId) return
-    setSaving(true)
+    setAssigning(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    // If assigning training_day or rest_day, deactivate any existing plan of same type
-    if (selectedPlanType !== 'default') {
-      await supabase
-        .from('client_meal_plans')
+    if (assignPlanType !== 'default') {
+      await supabase.from('client_meal_plans')
         .update({ active: false })
         .eq('client_id', clientId)
-        .eq('plan_type', selectedPlanType)
+        .eq('plan_type', assignPlanType)
         .eq('active', true)
     }
 
@@ -109,41 +217,45 @@ export default function ClientMealPlans({ clientId }: Props) {
       trainer_id: user.id,
       client_id: clientId,
       meal_plan_id: selectedPlanId,
-      notes: notes || null,
+      meals: assignMeals,
+      calories_target: assignTargets.calories ? parseInt(assignTargets.calories) : null,
+      protein_target: assignTargets.protein ? parseInt(assignTargets.protein) : null,
+      carbs_target: assignTargets.carbs ? parseInt(assignTargets.carbs) : null,
+      fat_target: assignTargets.fat ? parseInt(assignTargets.fat) : null,
+      notes: assignNotes || null,
       active: true,
-      plan_type: selectedPlanType,
+      plan_type: assignPlanType,
     })
 
-    setSaving(false)
-    setShowAdd(false)
+    setAssigning(false)
+    setShowAssignDialog(false)
     setSelectedPlanId('')
-    setSelectedPlanType('default')
-    setNotes('')
+    setAssignMeals([])
+    setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' })
+    setAssignPlanType('default')
+    setAssignNotes('')
     fetchData()
   }
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from('client_meal_plans').update({ active: !current }).eq('id', id)
-    setAssignedPlans(assignedPlans.map(p => p.id === id ? { ...p, active: !current } : p))
+    setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: !current } : p))
   }
 
   const changePlanType = async (id: string, newType: 'default' | 'training_day' | 'rest_day') => {
     await supabase.from('client_meal_plans').update({ plan_type: newType }).eq('id', id)
-    setAssignedPlans(assignedPlans.map(p => p.id === id ? { ...p, plan_type: newType } : p))
+    setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, plan_type: newType } : p))
     setEditingPlanTypeId(null)
   }
 
   const removePlan = async (id: string) => {
     await supabase.from('client_meal_plans').delete().eq('id', id)
-    setAssignedPlans(assignedPlans.filter(p => p.id !== id))
+    setAssignedPlans(prev => prev.filter(p => p.id !== id))
     setConfirmDelete(null)
   }
 
-  // Group plans for display
   const activePlans = assignedPlans.filter(p => p.active)
   const inactivePlans = assignedPlans.filter(p => !p.active)
-
-  // Check what plan types are already assigned & active
   const hasTrainingDay = activePlans.some(p => p.plan_type === 'training_day')
   const hasRestDay = activePlans.some(p => p.plan_type === 'rest_day')
   const hasDefault = activePlans.some(p => p.plan_type === 'default')
@@ -152,7 +264,8 @@ export default function ClientMealPlans({ clientId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Info banner if both training/rest plans set */}
+
+      {/* Info banneri */}
       {hasTrainingDay && hasRestDay && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
           {t('infoBannerBoth')}
@@ -164,201 +277,330 @@ export default function ClientMealPlans({ clientId }: Props) {
         </div>
       )}
 
+      {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-gray-500 text-sm">{t('assigned', { count: assignedPlans.length })}</p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setShowCreateNew(true); setShowAdd(false) }}
-            className="flex items-center gap-2"
-          >
-            <Plus size={14} />
-            {t('createNew')}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowCreateNew(true)} className="flex items-center gap-2">
+            <Plus size={14} /> {t('createNew')}
           </Button>
-          <Button
-            size="sm"
-            onClick={() => { setShowAdd(!showAdd); setShowCreateNew(false) }}
-            className="flex items-center gap-2"
-          >
-            <Plus size={14} />
-            {t('assignExisting')}
+          <Button size="sm" onClick={() => setShowAssignDialog(true)} className="flex items-center gap-2">
+            <Plus size={14} /> {t('assignExisting')}
           </Button>
         </div>
       </div>
 
-      {showAdd && (
-        <Card className="border-blue-200 bg-blue-50/30">
-          <CardContent className="py-4 space-y-3">
-            <p className="font-medium text-sm">{t('assignPlan')}</p>
-
-            {/* Plan type selector */}
-            <div className="space-y-1.5">
-              <p className="text-xs text-gray-500 font-medium">{t('planTypeLabel')}</p>
-              <div className="flex gap-2">
-                {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
-                  <button
-                    key={key}
-                    onClick={() => setSelectedPlanType(key as any)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
-                      selectedPlanType === key
-                        ? 'border-blue-500 bg-blue-500 text-white'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    {val.label}
-                  </button>
-                ))}
-              </div>
-              {selectedPlanType === 'training_day' && (
-                <p className="text-xs text-blue-600">{t('trainingDayHint')}</p>
-              )}
-              {selectedPlanType === 'rest_day' && (
-                <p className="text-xs text-purple-600">{t('restDayHint')}</p>
-              )}
-            </div>
-
-            <select
-              value={selectedPlanId}
-              onChange={(e) => setSelectedPlanId(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">{t('selectPlan')}</option>
-              {availablePlans.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}{p.calories_target ? ` (${p.calories_target} kcal)` : ''}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t('note')}
-              className="w-full border rounded-md px-3 py-2 text-sm min-h-16 resize-none"
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={assignPlan} disabled={!selectedPlanId || saving}>
-                {saving ? tCommon('saving') : t('assign')}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>
-                {tCommon('cancel')}
-              </Button>
-            </div>
+      {/* Empty */}
+      {assignedPlans.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <UtensilsCrossed size={24} className="text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 mb-1">{t('noPlans')}</p>
+            <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
+              {t('assignExisting')} →
+            </button>
           </CardContent>
         </Card>
       )}
 
-      {assignedPlans.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {t('noPlans')}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {/* Active plans grouped by type */}
-          {activePlans.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('activePlans')}</p>
-              {activePlans.map((assigned) => {
-                const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
-                return (
-                  <Card key={assigned.id} className="hover:shadow-sm transition-shadow cursor-pointer" onDoubleClick={() => setEditPlan(assigned.meal_plan)}>
-                    <CardContent className="py-3 flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
-                          <span
-                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
-                          >
-                            {typeInfo.label}
+      {/* Active plans */}
+      {activePlans.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('activePlans')}</p>
+          {activePlans.map(assigned => {
+            const meals = assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || []
+            const isPersonalized = !!(assigned.meals?.length)
+            const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
+            const calories = assigned.calories_target ?? assigned.meal_plan.calories_target
+            const protein = assigned.protein_target ?? assigned.meal_plan.protein_target
+            const carbs = assigned.carbs_target ?? assigned.meal_plan.carbs_target
+            const fat = assigned.fat_target ?? assigned.meal_plan.fat_target
+
+            return (
+              <Card
+                key={assigned.id}
+                className="hover:shadow-sm transition-shadow cursor-pointer"
+                onDoubleClick={() => setEditTarget(assigned)}
+              >
+                <CardContent className="py-0">
+                  <div className="py-4 flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">{assigned.meal_plan.name}</span>
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
+                        >
+                          {typeInfo.label}
+                        </span>
+                        {isPersonalized && (
+                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
+                            Personalizirano
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {calories ? `${calories} kcal · ` : ''}
+                        {protein ? `P: ${protein}g · ` : ''}
+                        {carbs ? `U: ${carbs}g · ` : ''}
+                        {fat ? `M: ${fat}g · ` : ''}
+                        {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                      </p>
+                      {assigned.notes && <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {editingPlanTypeId === assigned.id ? (
+                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                          {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
+                            <button key={key} onClick={() => changePlanType(assigned.id, key as any)}
+                              className={`px-2 py-1 rounded text-xs font-semibold border transition-all ${
+                                assigned.plan_type === key ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                              }`}>
+                              {val.label}
+                            </button>
+                          ))}
+                          <button onClick={() => setEditingPlanTypeId(null)} className="text-xs text-gray-400 px-1">✕</button>
+                        </div>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
+                            <span className="text-xs text-gray-400">{t('typeLabel')}</span>
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
+                            <Pencil size={14} />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
+                            <span className="text-xs text-gray-400">{t('deactivate')}</span>
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
+                            <Trash2 size={14} className="text-red-400" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Meals list */}
+                  {meals.length > 0 && (
+                    <div className="border-t border-gray-100 pb-2">
+                      {meals.map((meal: any, mIdx: number) => (
+                        <div key={mIdx} className="flex items-center justify-between py-2 px-1 border-b border-gray-50 last:border-0">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-300 w-4 text-right tabular-nums">{mIdx + 1}</span>
+                            <div>
+                              <span className="text-sm text-gray-800">{meal.recipe_name || meal.meal_type}</span>
+                              {meal.recipe_name && <span className="text-xs text-gray-400 ml-1.5">{meal.meal_type}</span>}
+                            </div>
+                          </div>
+                          <span className="text-xs text-gray-400 tabular-nums">
+                            {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
+                            {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {assigned.meal_plan.calories_target ? `${assigned.meal_plan.calories_target} kcal · ` : ''}
-                          {t('mealsCount', { count: assigned.meal_plan.meals?.length || 0 })} ·
-                          {new Date(assigned.assigned_at).toLocaleDateString(locale)}
-                        </p>
-                        {assigned.notes && (
-                          <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 ml-2">
-                        {editingPlanTypeId === assigned.id ? (
-                          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
-                              <button
-                                key={key}
-                                onClick={() => changePlanType(assigned.id, key as any)}
-                                className={`px-2 py-1 rounded text-xs font-semibold border transition-all ${
-                                  assigned.plan_type === key
-                                    ? 'border-blue-500 bg-blue-500 text-white'
-                                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                                }`}
-                              >
-                                {val.label}
-                              </button>
-                            ))}
-                            <button onClick={() => setEditingPlanTypeId(null)} className="text-xs text-gray-400 px-1">✕</button>
-                          </div>
-                        ) : (
-                          <>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}
-                              title={t('changeTypeTitle')}>
-                              <span className="text-xs text-gray-400">{t('typeLabel')}</span>
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setEditPlan(assigned.meal_plan) }}>
-                              <Pencil size={14} />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                              <span className="text-xs text-gray-400">{t('deactivate')}</span>
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
-                              <Trash2 size={14} className="text-red-400" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Inactive plans */}
-          {inactivePlans.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('inactivePlans')}</p>
-              {inactivePlans.map((assigned) => {
-                const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
-                return (
-                  <Card key={assigned.id} className="opacity-50 hover:opacity-70 transition-opacity cursor-pointer" onDoubleClick={() => setEditPlan(assigned.meal_plan)}>
-                    <CardContent className="py-2.5 flex items-center justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
-                          <span className="text-xs text-gray-400">{typeInfo.label}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                          {t('activate')}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
-                          <Trash2 size={14} className="text-red-400" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )}
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
 
+      {/* Inactive plans */}
+      {inactivePlans.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('inactivePlans')}</p>
+          {inactivePlans.map(assigned => {
+            const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
+            return (
+              <Card key={assigned.id} className="opacity-50 hover:opacity-70 transition-opacity cursor-pointer" onDoubleClick={() => setEditTarget(assigned)}>
+                <CardContent className="py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
+                    <span className="text-xs text-gray-400">{typeInfo.label}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
+                      {t('activate')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
+                      <Trash2 size={14} className="text-red-400" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── ASSIGN DIALOG ── */}
+      <Dialog
+        open={showAssignDialog}
+        onOpenChange={v => {
+          setShowAssignDialog(v)
+          if (!v) { setSelectedPlanId(''); setAssignMeals([]); setAssignNotes(''); setAssignPlanType('default'); setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' }) }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dodijeli plan klijentu</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 pt-1">
+            {/* Plan select */}
+            <div className="space-y-1.5">
+              <Label>Plan</Label>
+              <Select value={selectedPlanId} onValueChange={handleSelectPlan}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Odaberi plan..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePlans.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}{p.calories_target ? ` · ${p.calories_target} kcal` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Plan type */}
+            {selectedPlanId && (
+              <div className="space-y-1.5">
+                <Label>Tip plana</Label>
+                <div className="flex gap-2">
+                  {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setAssignPlanType(key as any)}
+                      className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold border transition-all ${
+                        assignPlanType === key
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {val.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nutritivni ciljevi */}
+            {selectedPlanId && (
+              <div className="space-y-1.5">
+                <Label>Nutritivni ciljevi <span className="text-gray-400 font-normal text-xs">(prilagodi za klijenta)</span></Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { key: 'calories', label: 'Kcal' },
+                    { key: 'protein', label: 'Proteini (g)' },
+                    { key: 'carbs', label: 'Ugljik. (g)' },
+                    { key: 'fat', label: 'Masti (g)' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <p className="text-xs text-gray-400 mb-0.5">{f.label}</p>
+                      <Input
+                        type="number"
+                        value={assignTargets[f.key as keyof typeof assignTargets]}
+                        onChange={e => setAssignTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Editable meals */}
+            {assignMeals.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Obroci</p>
+                  <Button variant="outline" size="sm" onClick={addAssignMeal} className="flex items-center gap-1 h-7 text-xs">
+                    <Plus size={12} /> Dodaj obrok
+                  </Button>
+                </div>
+
+                {assignMeals.map((meal, idx) => (
+                  <Card key={idx}>
+                    <CardContent className="py-0">
+                      <div className="py-3 flex items-center justify-between border-b border-gray-100">
+                        <select
+                          value={meal.meal_type}
+                          onChange={e => updateAssignMealField(idx, 'meal_type', e.target.value)}
+                          className="text-sm font-medium bg-transparent border-none outline-none cursor-pointer text-gray-700"
+                        >
+                          {MEAL_TYPES.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+                        </select>
+                        <Button variant="ghost" size="sm" onClick={() => removeAssignMeal(idx)}>
+                          <X size={12} className="text-gray-400" />
+                        </Button>
+                      </div>
+
+                      <div className="py-3 space-y-2">
+                        {/* Recipe select */}
+                        <Select value={meal.recipe_id || ''} onValueChange={v => updateAssignMealRecipe(idx, v)}>
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Odaberi recept..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRecipes.map(r => (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.name} · {Math.round(r.total_calories)} kcal
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Makro prikaz */}
+                        {meal.calories > 0 && (
+                          <div className="flex gap-3 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5">
+                            <span>🔥 {Math.round(meal.calories)} kcal</span>
+                            <span>🥩 {Math.round(meal.protein)}g</span>
+                            <span>🍞 {Math.round(meal.carbs)}g</span>
+                            <span>🫒 {Math.round(meal.fat)}g</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* Ukupno */}
+                {assignTotals.calories > 0 && (
+                  <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm border border-gray-100">
+                    <span className="font-medium text-gray-600">Ukupno:</span>
+                    <span>🔥 {Math.round(assignTotals.calories)} kcal</span>
+                    <span>🥩 {Math.round(assignTotals.protein)}g</span>
+                    <span>🍞 {Math.round(assignTotals.carbs)}g</span>
+                    <span>🫒 {Math.round(assignTotals.fat)}g</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Napomena */}
+            <div className="space-y-1.5">
+              <Label>Napomena <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
+              <Input value={assignNotes} onChange={e => setAssignNotes(e.target.value)} placeholder="npr. Počni od ponedjeljka" />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">Odustani</Button>
+              <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1">
+                {assigning ? 'Sprema...' : 'Dodijeli plan'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create new */}
       <AddMealPlanDialog
         open={showCreateNew}
         onClose={() => setShowCreateNew(false)}
@@ -366,12 +608,19 @@ export default function ClientMealPlans({ clientId }: Props) {
           const { data: { user } } = await supabase.auth.getUser()
           if (!user) return
           const { data: latestPlan } = await supabase
-            .from('meal_plans').select('id').eq('trainer_id', user.id)
+            .from('meal_plans').select('id, meals, calories_target, protein_target, carbs_target, fat_target')
+            .eq('trainer_id', user.id)
             .order('created_at', { ascending: false }).limit(1).single()
           if (latestPlan) {
             await supabase.from('client_meal_plans').insert({
               trainer_id: user.id, client_id: clientId,
-              meal_plan_id: latestPlan.id, active: true, plan_type: 'default',
+              meal_plan_id: latestPlan.id,
+              meals: latestPlan.meals || [],
+              calories_target: latestPlan.calories_target,
+              protein_target: latestPlan.protein_target,
+              carbs_target: latestPlan.carbs_target,
+              fat_target: latestPlan.fat_target,
+              active: true, plan_type: 'default',
             })
           }
           setShowCreateNew(false)
@@ -379,9 +628,22 @@ export default function ClientMealPlans({ clientId }: Props) {
         }}
       />
 
-      {editPlan && (
-        <EditMealPlanDialog plan={editPlan} open={!!editPlan} onClose={() => setEditPlan(null)}
-          onSuccess={() => { setEditPlan(null); fetchData() }} />
+      {/* Edit client copy */}
+      {editTarget && (
+        <EditMealPlanDialog
+          open={!!editTarget}
+          plan={{
+            ...editTarget.meal_plan,
+            meals: editTarget.meals?.length ? editTarget.meals : editTarget.meal_plan.meals,
+            calories_target: editTarget.calories_target ?? editTarget.meal_plan.calories_target,
+            protein_target: editTarget.protein_target ?? editTarget.meal_plan.protein_target,
+            carbs_target: editTarget.carbs_target ?? editTarget.meal_plan.carbs_target,
+            fat_target: editTarget.fat_target ?? editTarget.meal_plan.fat_target,
+          }}
+          clientAssignId={editTarget.id}
+          onClose={() => setEditTarget(null)}
+          onSuccess={() => { setEditTarget(null); fetchData() }}
+        />
       )}
 
       <ConfirmDialog

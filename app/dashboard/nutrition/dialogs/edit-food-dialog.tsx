@@ -113,7 +113,7 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
             {[
               { key: 'calories_per_100g', label: 'Kalorije' },
               { key: 'protein_per_100g', label: 'Proteini (g)' },
-              { key: 'carbs_per_100g', label: 'Ugljikohidrati (g)' },
+              { key: 'carbs_per_100g', label: 'Ugljik. (g)' },
               { key: 'fat_per_100g', label: 'Masti (g)' },
             ].map(field => (
               <div key={field.key} className="space-y-2">

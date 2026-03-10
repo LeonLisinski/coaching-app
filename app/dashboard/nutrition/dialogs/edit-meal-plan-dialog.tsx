@@ -7,16 +7,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Plus } from 'lucide-react'
+import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 
 type Recipe = {
   id: string; name: string
   total_calories: number; total_protein: number; total_carbs: number; total_fat: number
+  ingredients?: any[]
 }
 type Food = {
   id: string; name: string
   calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number
+  extras?: Record<string, number>
 }
 type MealSlot = {
   meal_type: string; recipe_id: string | null; recipe_name: string
@@ -29,12 +31,17 @@ type MealPlan = {
   calories_target: number | null; protein_target: number | null
   carbs_target: number | null; fat_target: number | null; meals: MealSlot[]
 }
-type Props = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void }
+type Props = {
+  plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void
+  clientAssignId?: string
+}
 
-export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: Props) {
+export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, clientAssignId }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
+  const isClientEdit = !!clientAssignId
+  const { settings } = useTrainerSettings()
 
   const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
     { value: 'default',      label: t('planTypeDefault'),      desc: t('planTypeDefaultDesc'),      color: 'border-gray-300 bg-gray-50 text-gray-700' },
@@ -46,9 +53,9 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
   const [planType, setPlanType] = useState<PlanType>((plan.plan_type as PlanType) || 'default')
   const [targets, setTargets] = useState({
     calories: plan.calories_target?.toString() || '',
-    protein: plan.protein_target?.toString() || '',
-    carbs: plan.carbs_target?.toString() || '',
-    fat: plan.fat_target?.toString() || '',
+    protein:  plan.protein_target?.toString()  || '',
+    carbs:    plan.carbs_target?.toString()    || '',
+    fat:      plan.fat_target?.toString()      || '',
   })
   const [meals, setMeals] = useState<MealSlot[]>(plan.meals || [])
   const [recipes, setRecipes] = useState<Recipe[]>([])
@@ -57,14 +64,33 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (open) { fetchRecipes(); fetchFoods() }
+    if (open) {
+      setName(plan.name)
+      setPlanType((plan.plan_type as PlanType) || 'default')
+      setTargets({
+        calories: plan.calories_target?.toString() || '',
+        protein:  plan.protein_target?.toString()  || '',
+        carbs:    plan.carbs_target?.toString()    || '',
+        fat:      plan.fat_target?.toString()      || '',
+      })
+      setMeals((plan.meals || []).map((m: any) => ({
+        meal_type: m.meal_type ?? 'Doručak',
+        recipe_id: m.recipe_id ?? null,
+        recipe_name: m.recipe_name ?? '',
+        calories: m.calories ?? 0, protein: m.protein ?? 0,
+        carbs: m.carbs ?? 0, fat: m.fat ?? 0,
+        custom_ingredients: m.custom_ingredients,
+      })))
+      fetchRecipes()
+      fetchFoods()
+    }
   }, [open])
 
   const fetchRecipes = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data } = await supabase.from('recipes')
-      .select('id, name, total_calories, total_protein, total_carbs, total_fat')
+      .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients')
       .eq('trainer_id', user.id).order('name')
     if (data) setRecipes(data)
   }
@@ -79,7 +105,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
   const addMeal = () => setMeals([...meals, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
 
   const updateMeal = (index: number, field: string, value: any) => {
-    setMeals(meals.map((m, i) => {
+    setMeals(prev => prev.map((m, i) => {
       if (i !== index) return m
       if (field === '_custom') return { ...m, ...value }
       if (field === 'recipe_id') {
@@ -114,16 +140,27 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
       return meal
     }))
 
-    const { error } = await supabase.from('meal_plans').update({
-      name, plan_type: planType,
-      calories_target: targets.calories ? parseInt(targets.calories) : null,
-      protein_target: targets.protein ? parseInt(targets.protein) : null,
-      carbs_target: targets.carbs ? parseInt(targets.carbs) : null,
-      fat_target: targets.fat ? parseInt(targets.fat) : null,
-      meals: processedMeals,
-    }).eq('id', plan.id)
+    if (isClientEdit) {
+      const { error } = await supabase.from('client_meal_plans').update({
+        meals: processedMeals,
+        calories_target: targets.calories ? parseInt(targets.calories) : null,
+        protein_target:  targets.protein  ? parseInt(targets.protein)  : null,
+        carbs_target:    targets.carbs    ? parseInt(targets.carbs)    : null,
+        fat_target:      targets.fat      ? parseInt(targets.fat)      : null,
+      }).eq('id', clientAssignId)
+      if (error) { setError(error.message); setLoading(false); return }
+    } else {
+      const { error } = await supabase.from('meal_plans').update({
+        name, plan_type: planType,
+        calories_target: targets.calories ? parseInt(targets.calories) : null,
+        protein_target:  targets.protein  ? parseInt(targets.protein)  : null,
+        carbs_target:    targets.carbs    ? parseInt(targets.carbs)    : null,
+        fat_target:      targets.fat      ? parseInt(targets.fat)      : null,
+        meals: processedMeals,
+      }).eq('id', plan.id)
+      if (error) { setError(error.message); setLoading(false); return }
+    }
 
-    if (error) { setError(error.message); setLoading(false); return }
     setLoading(false); onSuccess()
   }
 
@@ -131,42 +168,45 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t('editTitle')}</DialogTitle>
+          <DialogTitle>{isClientEdit ? `Uredi plan klijenta — ${plan.name}` : t('editTitle')}</DialogTitle>
+          {isClientEdit && (
+            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 mt-1">
+              Promjene vrijede samo za ovog klijenta. Originalni plan ostaje nepromijenjen.
+            </p>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t('name')}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} required />
-          </div>
-
-          {/* Plan type */}
-          <div className="space-y-2">
-            <Label>Tip plana</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {PLAN_TYPE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPlanType(opt.value)}
-                  className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
-                    planType === opt.value
-                      ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                  }`}
-                >
-                  <p className="font-semibold text-xs">{opt.label}</p>
-                  <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
+          {!isClientEdit && (
+            <>
+              <div className="space-y-2">
+                <Label>{t('name')}</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Tip plana</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {PLAN_TYPE_OPTIONS.map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
+                      className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
+                        planType === opt.value
+                          ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
+                          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                      }`}>
+                      <p className="font-semibold text-xs">{opt.label}</p>
+                      <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-4 gap-3">
             {[
-              { key: 'calories', label: t('targetCalories'), placeholder: '2000' },
-              { key: 'protein',  label: t('targetProtein'),  placeholder: '150' },
-              { key: 'carbs',    label: t('targetCarbs'),    placeholder: '200' },
-              { key: 'fat',      label: t('targetFat'),      placeholder: '70' },
+              { key: 'calories', label: 'Kcal',        placeholder: '2000' },
+              { key: 'protein',  label: 'Proteini (g)', placeholder: '150' },
+              { key: 'carbs',    label: 'Ugljik. (g)',  placeholder: '200' },
+              { key: 'fat',      label: 'Masti (g)',    placeholder: '70' },
             ].map(f => (
               <div key={f.key} className="space-y-1">
                 <Label className="text-xs">{f.label}</Label>
@@ -180,12 +220,17 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess }: P
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <Label>{t('meals', { count: meals.length })}</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addMeal} className="flex items-center gap-1">
-                <Plus size={12} />{t('addMeal')}
+              <Button type="button" variant="outline" size="sm" onClick={addMeal}>
+                + {t('addMeal')}
               </Button>
             </div>
             {meals.map((meal, index) => (
-              <MealSlotEditor key={index} meal={meal} index={index} recipes={recipes} foods={foods} onChange={updateMeal} onRemove={removeMeal} />
+              <MealSlotEditor
+                key={index} meal={meal} index={index}
+                recipes={recipes} foods={foods}
+                nutritionFields={settings.nutritionFields}
+                onChange={updateMeal} onRemove={removeMeal}
+              />
             ))}
             {meals.length > 0 && (
               <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm">
