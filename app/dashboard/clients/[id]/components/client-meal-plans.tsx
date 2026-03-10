@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, X, UtensilsCrossed } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
@@ -79,6 +79,110 @@ const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
 }
 
 const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
+
+function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget, fatTarget }: {
+  meals: any[]
+  caloriesTarget: number | null
+  proteinTarget: number | null
+  carbsTarget: number | null
+  fatTarget: number | null
+}) {
+  const totals = meals.reduce((acc, m) => ({
+    calories: acc.calories + (m.calories || 0),
+    protein:  acc.protein  + (m.protein  || 0),
+    carbs:    acc.carbs    + (m.carbs    || 0),
+    fat:      acc.fat      + (m.fat      || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+
+  if (totals.calories === 0 && totals.protein === 0) return null
+
+  const items = [
+    { label: 'Kcal',     val: Math.round(totals.calories), target: caloriesTarget, unit: ''  },
+    { label: 'Proteini', val: Math.round(totals.protein),  target: proteinTarget,  unit: 'g' },
+    { label: 'Ugljik.',  val: Math.round(totals.carbs),    target: carbsTarget,    unit: 'g' },
+    { label: 'Masti',    val: Math.round(totals.fat),      target: fatTarget,      unit: 'g' },
+  ]
+
+  return (
+    <div className="px-3 pt-2.5 pb-3 border-t border-gray-100 bg-gray-50/60 grid grid-cols-4 gap-3">
+      {items.map(item => {
+        const pct    = item.target ? Math.min((item.val / item.target) * 100, 110) : null
+        const over   = item.target != null && item.val > item.target
+        const barPct = pct != null ? Math.min(pct, 100) : null
+        const barColor = pct == null ? 'bg-gray-300'
+          : over             ? 'bg-red-400'
+          : pct >= 90        ? 'bg-emerald-500'
+          :                    'bg-amber-400'
+        return (
+          <div key={item.label}>
+            <div className="flex items-baseline justify-between mb-1">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.label}</span>
+              <span className={`text-[10px] font-semibold tabular-nums ${over ? 'text-red-500' : 'text-gray-700'}`}>
+                {item.val}{item.unit}
+                {item.target != null && <span className="text-gray-400 font-normal">/{item.target}{item.unit}</span>}
+              </span>
+            </div>
+            {barPct != null && (
+              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                  style={{ width: `${barPct}%` }} />
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function MealAccordion({ meals }: { meals: any[] }) {
+  const [openMeals, setOpenMeals] = useState<Record<number, boolean>>({})
+  const toggle = (i: number) => setOpenMeals(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
+
+  return (
+    <div className="border-t border-gray-100 divide-y divide-gray-50">
+      {meals.map((meal: any, mIdx: number) => {
+        const ingredients: any[] = meal.custom_ingredients || []
+        const hasIngredients = ingredients.length > 0
+        const isOpen = openMeals[mIdx] ?? false
+        return (
+          <div key={mIdx}>
+            <button
+              type="button"
+              onClick={() => hasIngredients && toggle(mIdx)}
+              className={`w-full flex items-center gap-2 px-2 py-2 text-left transition-colors ${hasIngredients ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
+            >
+              {hasIngredients ? (
+                isOpen ? <ChevronUp size={12} className="text-gray-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />
+              ) : (
+                <span className="w-3 shrink-0" />
+              )}
+              <span className="text-xs text-gray-300 w-4 text-right tabular-nums shrink-0">{mIdx + 1}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm text-gray-800">{meal.recipe_name || meal.meal_type}</span>
+                {meal.recipe_name && <span className="text-xs text-gray-400 ml-1.5">{meal.meal_type}</span>}
+              </div>
+              <span className="text-xs text-gray-400 tabular-nums shrink-0">
+                {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
+                {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
+              </span>
+            </button>
+            {hasIngredients && isOpen && (
+              <div className="pb-2 px-3">
+                {ingredients.map((ing: any, iIdx: number) => (
+                  <div key={iIdx} className="flex items-center justify-between py-1 text-xs text-gray-500 border-b border-gray-50 last:border-0">
+                    <span className="ml-5">{ing.name}</span>
+                    <span className="text-gray-400">{ing.grams}g · {Math.round(ing.calories)} kcal</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function ClientMealPlans({ clientId }: Props) {
   const t = useTranslations('clients.mealPlans')
@@ -324,29 +428,28 @@ export default function ClientMealPlans({ clientId }: Props) {
               >
                 <CardContent className="py-0">
                   <div className="py-4 flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{assigned.meal_plan.name}</span>
-                        <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                          style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
-                        >
-                          {typeInfo.label}
-                        </span>
-                        {isPersonalized && (
-                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
-                            Personalizirano
-                          </Badge>
-                        )}
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="mt-[5px] w-2 h-2 rounded-full shrink-0 bg-emerald-400" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{assigned.meal_plan.name}</span>
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
+                          >
+                            {typeInfo.label}
+                          </span>
+                          {isPersonalized && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
+                              Personalizirano
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                        </p>
+                        {assigned.notes && <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {calories ? `${calories} kcal · ` : ''}
-                        {protein ? `P: ${protein}g · ` : ''}
-                        {carbs ? `U: ${carbs}g · ` : ''}
-                        {fat ? `M: ${fat}g · ` : ''}
-                        {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
-                      </p>
-                      {assigned.notes && <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>}
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
@@ -364,14 +467,16 @@ export default function ClientMealPlans({ clientId }: Props) {
                         </div>
                       ) : (
                         <>
+                          <Button variant="ghost" size="sm"
+                            onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
+                            className="text-xs h-7 px-3 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100">
+                            Aktivno
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
                             <span className="text-xs text-gray-400">{t('typeLabel')}</span>
                           </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
                             <Pencil size={14} />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                            <span className="text-xs text-gray-400">{t('deactivate')}</span>
                           </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
                             <Trash2 size={14} className="text-red-400" />
@@ -381,26 +486,19 @@ export default function ClientMealPlans({ clientId }: Props) {
                     </div>
                   </div>
 
-                  {/* Meals list */}
+                  {/* Nutritional summary — ostvareno vs. cilj */}
                   {meals.length > 0 && (
-                    <div className="border-t border-gray-100 pb-2">
-                      {meals.map((meal: any, mIdx: number) => (
-                        <div key={mIdx} className="flex items-center justify-between py-2 px-1 border-b border-gray-50 last:border-0">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-300 w-4 text-right tabular-nums">{mIdx + 1}</span>
-                            <div>
-                              <span className="text-sm text-gray-800">{meal.recipe_name || meal.meal_type}</span>
-                              {meal.recipe_name && <span className="text-xs text-gray-400 ml-1.5">{meal.meal_type}</span>}
-                            </div>
-                          </div>
-                          <span className="text-xs text-gray-400 tabular-nums">
-                            {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
-                            {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <NutritionalSummary
+                      meals={meals}
+                      caloriesTarget={calories}
+                      proteinTarget={protein}
+                      carbsTarget={carbs}
+                      fatTarget={fat}
+                    />
                   )}
+
+                  {/* Meals list — collapsible ingredients */}
+                  {meals.length > 0 && <MealAccordion meals={meals} />}
                 </CardContent>
               </Card>
             )
@@ -415,15 +513,25 @@ export default function ClientMealPlans({ clientId }: Props) {
           {inactivePlans.map(assigned => {
             const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
             return (
-              <Card key={assigned.id} className="opacity-50 hover:opacity-70 transition-opacity cursor-pointer" onDoubleClick={() => setEditTarget(assigned)}>
-                <CardContent className="py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
-                    <span className="text-xs text-gray-400">{typeInfo.label}</span>
+              <Card key={assigned.id} className="opacity-55 hover:opacity-75 transition-opacity cursor-pointer" onDoubleClick={() => setEditTarget(assigned)}>
+                <CardContent className="py-3 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-gray-300" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}>{typeInfo.label}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Button variant="outline" size="sm" onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}>
-                      {t('activate')}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="sm"
+                      onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
+                      className="text-xs h-7 px-3 rounded-full border text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100">
+                      Neaktivno
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
+                      <Pencil size={14} />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
                       <Trash2 size={14} className="text-red-400" />

@@ -122,18 +122,20 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             <div className="space-y-2">
               <Label>{t('weight')}</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                onChange={(e) => setForm({ ...form, weight: e.target.value.replace(',', '.') })}
                 placeholder="80"
               />
             </div>
             <div className="space-y-2">
               <Label>{t('height')}</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={form.height}
-                onChange={(e) => setForm({ ...form, height: e.target.value })}
+                onChange={(e) => setForm({ ...form, height: e.target.value.replace(',', '.') })}
                 placeholder="180"
               />
             </div>

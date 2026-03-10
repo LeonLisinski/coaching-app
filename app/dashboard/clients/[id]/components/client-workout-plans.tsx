@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,11 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Dumbbell, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddPlanDialog from '@/app/dashboard/training/dialogs/add-plan-dialog'
 import EditPlanDialog from '@/app/dashboard/training/dialogs/edit-plan-dialog'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import SortableExerciseCard from '@/app/dashboard/training/components/sortable-exercise-card'
 
 type Props = { clientId: string }
 
@@ -48,6 +54,7 @@ type Exercise = {
   id: string
   name: string
   category: string
+  exercise_type?: string
 }
 
 type PlanExercise = {
@@ -57,6 +64,7 @@ type PlanExercise = {
   reps: string
   rest_seconds: number
   notes: string
+  exercise_type?: 'strength' | 'endurance'
 }
 
 type PlanDay = {
@@ -66,6 +74,43 @@ type PlanDay = {
 }
 
 
+
+function DayAccordion({ days }: { days: any[] }) {
+  const [openDays, setOpenDays] = useState<Record<number, boolean>>({})
+  const toggle = (i: number) => setOpenDays(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
+  return (
+    <div className="border-t border-gray-100 divide-y divide-gray-50">
+      {days.map((day: any, dayIdx: number) => (
+        <div key={dayIdx}>
+          <button
+            type="button"
+            onClick={() => toggle(dayIdx)}
+            className="w-full flex items-center gap-2 px-2 py-2 hover:bg-gray-50 transition-colors text-left"
+          >
+            {openDays[dayIdx] ? <ChevronUp size={12} className="text-gray-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />}
+            <span className="text-xs font-semibold text-gray-600">{day.name}</span>
+            <span className="text-xs text-gray-400 ml-1">{day.exercises?.length || 0} vježbi</span>
+          </button>
+          {openDays[dayIdx] && (
+            <div className="px-2 pb-2">
+              {(day.exercises || []).map((ex: any, exIdx: number) => (
+                <div key={ex.exercise_id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-300 w-4 text-right tabular-nums">{exIdx + 1}</span>
+                    <span className="text-sm text-gray-800">{ex.name}</span>
+                  </div>
+                  <span className="text-xs text-gray-400 tabular-nums">
+                    {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function ClientWorkoutPlans({ clientId }: Props) {
   const tCommon = useTranslations('common')
@@ -82,6 +127,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [assignNotes, setAssignNotes] = useState('')
   const [assigning, setAssigning] = useState(false)
   const [assignExSearch, setAssignExSearch] = useState<Record<number, string>>({})
+  const [saveToDb, setSaveToDb] = useState(false)
+  const [assignSearchFocused, setAssignSearchFocused] = useState<Record<number, boolean>>({})
+  const assignBlurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+
+  const assignSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editTarget, setEditTarget] = useState<AssignedPlan | null>(null)
@@ -106,7 +159,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         .order('name'),
       supabase
         .from('exercises')
-        .select('id, name, category')
+        .select('id, name, category, exercise_type')
         .eq('trainer_id', user.id)
         .order('name'),
     ])
@@ -131,6 +184,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         reps: String(e.reps ?? '10'),
         rest_seconds: e.rest_seconds ?? 60,
         notes: e.notes ?? '',
+        exercise_type: e.exercise_type || 'strength',
       }))
     })))
   }
@@ -149,9 +203,26 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
   const addAssignEx = (dayIdx: number, ex: Exercise) => {
     setAssignDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
-      ...d, exercises: [...d.exercises, { exercise_id: ex.id, name: ex.name, sets: 3, reps: '10', rest_seconds: 60, notes: '' }]
+      ...d, exercises: [...d.exercises, {
+        exercise_id: ex.id, name: ex.name, sets: 3,
+        reps: ex.exercise_type === 'endurance' ? '5min' : '10',
+        rest_seconds: 60, notes: '',
+        exercise_type: (ex.exercise_type as 'strength' | 'endurance') || 'strength',
+      }]
     }))
     setAssignExSearch(prev => ({ ...prev, [dayIdx]: '' }))
+    setAssignSearchFocused(prev => ({ ...prev, [dayIdx]: false }))
+  }
+
+  const reorderAssignEx = (dayIdx: number, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setAssignDays(prev => prev.map((d, i) => {
+      if (i !== dayIdx) return d
+      const oldIdx = d.exercises.findIndex(e => e.exercise_id === active.id)
+      const newIdx = d.exercises.findIndex(e => e.exercise_id === over.id)
+      return { ...d, exercises: arrayMove(d.exercises, oldIdx, newIdx) }
+    }))
   }
 
   const assignPlan = async () => {
@@ -159,6 +230,16 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     setAssigning(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    if (saveToDb) {
+      const planName = availablePlans.find(p => p.id === selectedPlanId)?.name || 'Plan'
+      await supabase.from('workout_plans').insert({
+        trainer_id: user.id,
+        name: `${planName} (kopija)`,
+        days: assignDays,
+      })
+    }
+
     await supabase.from('client_workout_plans').insert({
       trainer_id: user.id,
       client_id: clientId,
@@ -172,6 +253,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     setSelectedPlanId('')
     setAssignDays([])
     setAssignNotes('')
+    setSaveToDb(false)
     fetchData()
   }
 
@@ -234,6 +316,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       {assignedPlans.map(assigned => {
         const days = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
         const isPersonalized = !!(assigned.days?.length)
+        const totalExercises = days.reduce((sum: number, d: any) => sum + (d.exercises?.length || 0), 0)
 
         return (
           <Card
@@ -257,7 +340,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                       )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Dodijeljeno {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                      {days.length} {days.length === 1 ? 'dan' : days.length < 5 ? 'dana' : 'dana'} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                       {assigned.notes && <> · {assigned.notes}</>}
                     </p>
                   </div>
@@ -293,35 +376,9 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                 </div>
               </div>
 
-              {/* Days */}
+              {/* Days — collapsible accordion */}
               {days.length > 0 && (
-                <div className="border-t border-gray-100 pb-2">
-                  {days.map((day: any, dayIdx: number) => (
-                    <div key={dayIdx} className="mt-3">
-                      {/* Day label */}
-                      <div className="flex items-center gap-2 px-1 mb-1">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-gray-300" />
-                        <span className="text-xs font-semibold text-gray-600">{day.name}</span>
-                        <span className="text-xs text-gray-400">{day.exercises?.length || 0} vježbi</span>
-                      </div>
-                      {/* Exercises */}
-                      {(day.exercises || []).map((ex: any, exIdx: number) => (
-                        <div
-                          key={ex.exercise_id}
-                          className="flex items-center justify-between py-2 px-1 border-b border-gray-50 last:border-0"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-300 w-4 text-right tabular-nums">{exIdx + 1}</span>
-                            <span className="text-sm text-gray-800">{ex.name}</span>
-                          </div>
-                          <span className="text-xs text-gray-400 tabular-nums">
-                            {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+                <DayAccordion days={days} />
               )}
 
             </CardContent>
@@ -334,14 +391,15 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         open={showAssignDialog}
         onOpenChange={v => {
           setShowAssignDialog(v)
-          if (!v) { setSelectedPlanId(''); setAssignDays([]); setAssignNotes('') }
+          if (!v) { setSelectedPlanId(''); setAssignDays([]); setAssignNotes(''); setSaveToDb(false) }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
             <DialogTitle>Dodijeli plan klijentu</DialogTitle>
           </DialogHeader>
 
+          <div className="flex-1 overflow-y-auto px-6 pb-2">
           <div className="space-y-5 pt-1">
             {/* Plan select */}
             <div className="space-y-1.5">
@@ -375,85 +433,56 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                         <span className="text-xs text-gray-400">{day.exercises.length} vježbi</span>
                       </div>
 
-                      {/* Exercises */}
+                      {/* Exercises with DnD */}
                       <div className="py-2 space-y-2">
-                        {day.exercises.map((ex, exIdx) => (
-                          <div key={ex.exercise_id} className="border border-gray-100 rounded-lg p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">{exIdx + 1}. {ex.name}</span>
-                              <Button variant="ghost" size="sm" onClick={() => removeAssignEx(dayIdx, ex.exercise_id)}>
-                                <X size={12} className="text-gray-400" />
-                              </Button>
+                        <DndContext sensors={assignSensors} collisionDetection={closestCenter}
+                          onDragEnd={ev => reorderAssignEx(dayIdx, ev)}>
+                          <SortableContext items={day.exercises.map(e => e.exercise_id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-2">
+                              {day.exercises.map((ex, exIdx) => (
+                                <SortableExerciseCard
+                                  key={ex.exercise_id} ex={ex} index={exIdx}
+                                  onUpdate={(field, val) => updateAssignEx(dayIdx, ex.exercise_id, field, val)}
+                                  onRemove={() => removeAssignEx(dayIdx, ex.exercise_id)}
+                                  labelSets="Serije" labelRest="Odmor (s)" labelNotes="Bilješka (opcionalno)"
+                                />
+                              ))}
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <Label className="text-xs text-gray-500">Serije</Label>
-                                <Input
-                                  type="number"
-                                  value={ex.sets}
-                                  onChange={e => updateAssignEx(dayIdx, ex.exercise_id, 'sets', parseInt(e.target.value) || 0)}
-                                  className="h-8 text-sm mt-0.5"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-gray-500">Ponav.</Label>
-                                <Input
-                                  value={ex.reps}
-                                  onChange={e => updateAssignEx(dayIdx, ex.exercise_id, 'reps', e.target.value)}
-                                  className="h-8 text-sm mt-0.5"
-                                  placeholder="10 ili 8-12"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-gray-500">Odmor (s)</Label>
-                                <Input
-                                  type="number"
-                                  value={ex.rest_seconds}
-                                  onChange={e => updateAssignEx(dayIdx, ex.exercise_id, 'rest_seconds', parseInt(e.target.value) || 0)}
-                                  className="h-8 text-sm mt-0.5"
-                                />
-                              </div>
-                            </div>
-                            <Input
-                              value={ex.notes}
-                              onChange={e => updateAssignEx(dayIdx, ex.exercise_id, 'notes', e.target.value)}
-                              placeholder="Bilješka (opcionalno)"
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        ))}
+                          </SortableContext>
+                        </DndContext>
 
-                        {/* Add exercise search */}
-                        <div className="relative">
+                        {/* Add exercise search — inline dropdown */}
+                        <div className="space-y-1">
                           <Input
                             value={assignExSearch[dayIdx] || ''}
                             onChange={e => setAssignExSearch(prev => ({ ...prev, [dayIdx]: e.target.value }))}
+                            onFocus={() => { if (assignBlurTimers.current[dayIdx]) clearTimeout(assignBlurTimers.current[dayIdx]); setAssignSearchFocused(prev => ({ ...prev, [dayIdx]: true })) }}
+                            onBlur={() => { assignBlurTimers.current[dayIdx] = setTimeout(() => setAssignSearchFocused(prev => ({ ...prev, [dayIdx]: false })), 150) }}
                             placeholder="+ Dodaj vježbu..."
-                            className="h-8 text-sm"
+                            className="h-8 text-sm border-dashed"
                           />
-                          {assignExSearch[dayIdx] && (
-                            <div className="absolute top-full left-0 right-0 z-30 bg-white border border-gray-200 rounded-lg shadow-lg mt-0.5 max-h-40 overflow-y-auto">
+                          {!!(assignSearchFocused[dayIdx] || assignExSearch[dayIdx]) && (
+                            <div className="border rounded-md bg-white shadow-sm overflow-y-auto max-h-44"
+                              onWheel={e => e.stopPropagation()}>
                               {allExercises
                                 .filter(e =>
-                                  e.name.toLowerCase().includes(assignExSearch[dayIdx].toLowerCase()) &&
+                                  e.name.toLowerCase().includes((assignExSearch[dayIdx] || '').toLowerCase()) &&
                                   !day.exercises.find(de => de.exercise_id === e.id)
                                 )
-                                .slice(0, 8)
+                                .slice(0, 20)
                                 .map(e => (
-                                  <button
-                                    key={e.id}
-                                    type="button"
+                                  <button key={e.id} type="button"
+                                    onMouseDown={ev => ev.preventDefault()}
                                     onClick={() => addAssignEx(dayIdx, e)}
-                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm border-b border-gray-50 last:border-0"
-                                  >
+                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm border-b last:border-0">
                                     <span>{e.name}</span>
-                                    <Badge variant="outline" className="text-xs">{e.category}</Badge>
+                                    <div className="flex items-center gap-1">
+                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>}
+                                      <Badge variant="outline" className="text-xs">{e.category}</Badge>
+                                    </div>
                                   </button>
                                 ))
                               }
-                              {allExercises.filter(e => e.name.toLowerCase().includes(assignExSearch[dayIdx].toLowerCase())).length === 0 && (
-                                <p className="text-xs text-gray-400 px-3 py-2">Nema rezultata</p>
-                              )}
                             </div>
                           )}
                         </div>
@@ -475,8 +504,21 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                 placeholder="npr. Počni od sljedećeg tjedna"
               />
             </div>
+          </div>
+          </div>
 
-            {/* Actions */}
+          {/* ── Sticky footer: checkbox + actions ── */}
+          <div className="px-6 py-4 border-t bg-white shrink-0 space-y-3">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={saveToDb}
+                onChange={e => setSaveToDb(e.target.checked)}
+                className="rounded border-gray-300 text-gray-900 w-4 h-4"
+              />
+              <span className="text-sm text-gray-700">Spremi prilagođeni plan u bazu treninga</span>
+              <span className="text-xs text-gray-400">(kreira kopiju)</span>
+            </label>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">
                 Odustani

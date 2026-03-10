@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import LocaleSwitcher from '@/components/locale-switcher'
 
@@ -37,6 +37,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+
+  // Globalno: zarez → točka za sve decimal/number inpute
+  useEffect(() => {
+    const handleComma = (e: KeyboardEvent) => {
+      if (e.key !== ',') return
+      const el = e.target as HTMLInputElement
+      if (!el || el.tagName !== 'INPUT') return
+      if (el.type === 'number' || el.inputMode === 'decimal' || el.inputMode === 'numeric') {
+        e.preventDefault()
+        if (el.type !== 'number') {
+          const start = el.selectionStart ?? el.value.length
+          const end   = el.selectionEnd   ?? el.value.length
+          const newVal = el.value.slice(0, start) + '.' + el.value.slice(end)
+          const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+          setter?.call(el, newVal)
+          el.dispatchEvent(new Event('input', { bubbles: true }))
+          requestAnimationFrame(() => {
+            try { el.setSelectionRange(start + 1, start + 1) } catch {}
+          })
+        }
+      }
+    }
+    document.addEventListener('keydown', handleComma, true)
+    return () => document.removeEventListener('keydown', handleComma, true)
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

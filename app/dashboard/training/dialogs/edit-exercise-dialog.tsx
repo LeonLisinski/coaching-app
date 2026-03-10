@@ -17,6 +17,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     muscle_group: exercise.muscle_group || 'Prsa',
     description: exercise.description || '',
     video_url: exercise.video_url || '',
+    exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +33,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
         muscle_group: exercise.muscle_group || 'Prsa',
         description: exercise.description || '',
         video_url: exercise.video_url || '',
+        exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
       })
       setError('')
     }
@@ -51,6 +53,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       muscle_group: form.muscle_group || null,
       description: form.description || null,
       video_url: form.video_url || null,
+      exercise_type: form.exercise_type,
     }
 
     if (isFork) {
@@ -87,6 +90,21 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
             <Label>Naziv</Label>
             <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
+
+          {/* Tip vježbe */}
+          <div className="space-y-1.5">
+            <Label>Tip vježbe</Label>
+            <div className="flex gap-2">
+              {(['strength', 'endurance'] as const).map(t => (
+                <button key={t} type="button"
+                  onClick={() => setForm(f => ({ ...f, exercise_type: t }))}
+                  className={`text-xs px-4 py-1.5 rounded-full border transition-colors ${form.exercise_type === t ? 'bg-gray-900 text-white border-gray-900 font-semibold' : 'text-gray-500 border-gray-300 hover:border-gray-400'}`}>
+                  {t === 'strength' ? 'Snaga (serije×ponav.)' : 'Izdržljivost (serije×min)'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Mišićna grupa</Label>

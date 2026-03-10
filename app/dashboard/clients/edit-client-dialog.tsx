@@ -109,17 +109,19 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
             <div className="space-y-2">
               <Label>{tAdd('weight')}</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                onChange={(e) => setForm({ ...form, weight: e.target.value.replace(',', '.') })}
               />
             </div>
             <div className="space-y-2">
               <Label>{tAdd('height')}</Label>
               <Input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={form.height}
-                onChange={(e) => setForm({ ...form, height: e.target.value })}
+                onChange={(e) => setForm({ ...form, height: e.target.value.replace(',', '.') })}
               />
             </div>
           </div>

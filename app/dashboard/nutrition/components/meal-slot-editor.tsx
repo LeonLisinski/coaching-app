@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, ChevronDown, ChevronUp } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { X, ChevronDown, ChevronUp, GripVertical, Copy } from 'lucide-react'
 import { NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+
+/** Input za grame koji drži lokalni string state, pa comma→točka radi ispravno */
+function GramInput({ value, onChange, className }: { value: number; onChange: (v: number) => void; className?: string }) {
+  const [display, setDisplay] = useState(value > 0 ? String(value) : '')
+  const prevExternal = useRef(value)
+
+  useEffect(() => {
+    if (value !== prevExternal.current) {
+      prevExternal.current = value
+      setDisplay(value > 0 ? String(value) : '')
+    }
+  }, [value])
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={display}
+      onChange={e => {
+        const raw = e.target.value.replace(',', '.')
+        setDisplay(raw)
+        const num = parseFloat(raw)
+        if (!isNaN(num)) { prevExternal.current = num; onChange(num) }
+      }}
+      className={className}
+    />
+  )
+}
 
 type Recipe = {
   id: string
@@ -65,6 +94,9 @@ type Props = {
   nutritionFields?: string[] // iz trainer_profiles
   onChange: (index: number, field: string, value: any) => void
   onRemove: (index: number) => void
+  onCopy?: (index: number) => void
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
+  isDragging?: boolean
 }
 
 const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Snack 1', 'Snack 2', 'Užina', 'Prije treninga', 'Nakon treninga']
@@ -78,7 +110,7 @@ function calcTotals(ings: Ingredient[]) {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 }
 
-export default function MealSlotEditor({ meal, index, recipes, foods, nutritionFields = [], onChange, onRemove }: Props) {
+export default function MealSlotEditor({ meal, index, recipes, foods, nutritionFields = [], onChange, onRemove, onCopy, dragHandleProps, isDragging }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
 
@@ -94,6 +126,11 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const [saveAsRecipe, setSaveAsRecipe] = useState(meal.save_as_recipe || false)
   const [ingredients, setIngredients] = useState<Ingredient[]>(meal.custom_ingredients || [])
   const [search, setSearch] = useState('')
+
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [expanded, setExpanded]           = useState(true)
+  const [searchFocused, setSearchFocused] = useState(false)
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sinkroniziraj kad se index promijeni
   useEffect(() => {
@@ -234,23 +271,54 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const activeIngredients = mode === 'existing' ? recipeIngredients : ingredients
 
   return (
-    <div className="border rounded-md p-3 space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Select value={meal.meal_type} onValueChange={v => onChange(index, 'meal_type', v)}>
-          <SelectTrigger className="h-8 w-44 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MEAL_TYPES.map(type => (
-              <SelectItem key={type} value={type}>{type}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button type="button" onClick={() => onRemove(index)}>
-          <X size={14} className="text-gray-400 hover:text-red-500" />
+    <div className={`border rounded-md overflow-hidden transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
+      {/* Collapsible header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-b border-gray-100">
+        {dragHandleProps && (
+          <button type="button" {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none"
+            tabIndex={-1}>
+            <GripVertical size={14} />
+          </button>
+        )}
+        <button type="button" onClick={() => setExpanded(v => !v)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden">
+          {expanded
+            ? <ChevronUp   size={14} className="text-gray-400 shrink-0" />
+            : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
+          {expanded ? (
+            <span className="text-sm font-medium text-gray-700 truncate">{meal.meal_type || 'Obrok'}</span>
+          ) : (
+            <span className="text-xs text-gray-500 truncate min-w-0">
+              {(meal.calories > 0 || meal.protein > 0)
+                ? `🔥 ${Math.round(meal.calories)} kcal · P: ${Math.round(meal.protein)}g · U: ${Math.round(meal.carbs)}g · M: ${Math.round(meal.fat)}g`
+                : <span className="text-gray-400">Prazan obrok</span>}
+            </span>
+          )}
         </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <Select value={meal.meal_type} onValueChange={v => onChange(index, 'meal_type', v)}>
+            <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent hover:bg-gray-100 px-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MEAL_TYPES.map(type => (
+                <SelectItem key={type} value={type}>{type}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {onCopy && (
+            <button type="button" title="Kopiraj obrok" onClick={() => onCopy(index)} className="p-1">
+              <Copy size={13} className="text-gray-400 hover:text-gray-600" />
+            </button>
+          )}
+          <button type="button" onClick={() => setConfirmRemove(true)} className="p-1">
+            <X size={13} className="text-gray-400 hover:text-red-500" />
+          </button>
+        </div>
       </div>
+
+      {!expanded ? null : (
+      <div className="p-3 space-y-3">
 
       {/* Mode toggle */}
       <div className="flex gap-2">
@@ -303,12 +371,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                   {recipeIngredients.map(ing => (
                     <div key={ing.food_id} className="flex items-center gap-2 text-xs">
                       <span className="flex-1 text-gray-700">{ing.name}</span>
-                      <Input
-                        type="number"
-                        value={ing.grams}
-                        onChange={e => updateRecipeIngredientGrams(ing.food_id, parseFloat(e.target.value) || 0)}
-                        className="w-16 h-7 text-xs"
-                      />
+                      <GramInput value={ing.grams} onChange={v => updateRecipeIngredientGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
                       <span className="text-gray-400">g</span>
                       <span className="text-gray-400 w-16 text-right">{Math.round(ing.calories)} kcal</span>
                     </div>
@@ -326,13 +389,21 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             placeholder={`${t('mealName')}...`}
             className="h-8 text-sm"
           />
-          <div className="relative">
-            <Input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder={tRecipe('addIngredients')} className="h-8 text-sm" />
-            {search && filteredFoods.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-20 border rounded-md max-h-36 overflow-y-auto bg-white shadow-md mt-0.5">
-                {filteredFoods.slice(0, 8).map(f => (
-                  <button key={f.id} type="button" onClick={() => addIngredient(f)}
+          <div className="space-y-1">
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setSearchFocused(true) }}
+              onBlur={() => { blurTimer.current = setTimeout(() => setSearchFocused(false), 150) }}
+              placeholder={tRecipe('addIngredients')}
+              className="h-8 text-sm"
+            />
+            {(searchFocused || !!search) && filteredFoods.length > 0 && (
+              <div className="border rounded-md bg-white shadow-sm overflow-y-auto max-h-44" onWheel={e => e.stopPropagation()}>
+                {filteredFoods.slice(0, 20).map(f => (
+                  <button key={f.id} type="button"
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => { addIngredient(f); setSearchFocused(false) }}
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 text-xs flex justify-between border-b last:border-0">
                     <span>{f.name}</span>
                     <span className="text-gray-400">{f.calories_per_100g} kcal/100g</span>
@@ -344,9 +415,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           {ingredients.map(ing => (
             <div key={ing.food_id} className="flex items-center gap-2 text-xs">
               <span className="flex-1 text-gray-700">{ing.name}</span>
-              <Input type="number" value={ing.grams}
-                onChange={e => updateCustomGrams(ing.food_id, parseFloat(e.target.value) || 0)}
-                className="w-16 h-7 text-xs" />
+              <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
               <span className="text-gray-400">g</span>
               <span className="text-gray-400 w-16 text-right">{Math.round(ing.calories)} kcal</span>
               <button type="button" onClick={() => removeIngredient(ing.food_id)}>
@@ -371,7 +440,6 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           <p className="text-xs text-gray-400">
             🔥 {Math.round(meal.calories)} kcal · 🥩 {Math.round(meal.protein)}g · 🍞 {Math.round(meal.carbs)}g · 🫒 {Math.round(meal.fat)}g
           </p>
-          {/* Extra nutrition fields ako trener ima konfigurirano */}
           {extraNutritionFields.length > 0 && activeIngredients.length > 0 && (
             <p className="text-xs text-gray-300">
               {extraNutritionFields.map(f => {
@@ -382,6 +450,19 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           )}
         </div>
       ) : null}
+
+      </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmRemove}
+        title="Ukloni obrok"
+        description={`Sigurno želiš ukloniti obrok "${meal.meal_type}"?`}
+        onConfirm={() => { setConfirmRemove(false); onRemove(index) }}
+        onCancel={() => setConfirmRemove(false)}
+        confirmLabel="Ukloni"
+        destructive
+      />
     </div>
   )
 }

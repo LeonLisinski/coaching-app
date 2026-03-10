@@ -110,10 +110,10 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
               <div key={field.key} className="space-y-2">
                 <Label>{field.label}</Label>
                 <Input
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   value={form[field.key as keyof typeof form]}
-                  onChange={e => setForm({ ...form, [field.key]: e.target.value })}
+                  onChange={e => setForm({ ...form, [field.key]: e.target.value.replace(',', '.') })}
                   required
                 />
               </div>
@@ -131,11 +131,11 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
                   <div key={field.key} className="space-y-2">
                     <Label className="text-xs">{field.label} ({field.unit})</Label>
                     <Input
-                      type="number"
-                      step="0.1"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="—"
                       value={extras[field.key] ?? ''}
-                      onChange={e => setExtras({ ...extras, [field.key]: e.target.value })}
+                      onChange={e => setExtras({ ...extras, [field.key]: e.target.value.replace(',', '.') })}
                     />
                   </div>
                 ))}

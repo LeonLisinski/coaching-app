@@ -22,6 +22,7 @@ export type Exercise = {
   is_default: boolean
   trainer_id: string | null
   extras?: Record<string, string> | null
+  exercise_type?: 'strength' | 'endurance'
 }
 
 export const EQUIPMENT_CATEGORIES = [
@@ -272,6 +273,9 @@ export default function ExercisesTab() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="font-medium text-sm">{ex.name}</p>
                           {ex.is_default && <span className="text-xs text-gray-400">(default)</span>}
+                          {ex.exercise_type === 'endurance' && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>
+                          )}
                         </div>
                         {ex.muscle_group && <p className="text-xs text-gray-500">💪 {ex.muscle_group}</p>}
                       </div>
