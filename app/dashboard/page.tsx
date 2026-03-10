@@ -1,55 +1,137 @@
 'use client'
 export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie
+  PieChart, Pie,
 } from 'recharts'
+import {
+  Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
+  Clock, ArrowRight, MessageSquare,
+} from 'lucide-react'
 
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-type ClientSummary = {
+type ClientRow = {
   id: string
   full_name: string
+  start_date: string | null
   checkin_day: number | null
   last_checkin: string | null
-  status: 'submitted' | 'late' | 'neutral'
   total_checkins: number
   checkin_rate: number
+  status: 'submitted' | 'late' | 'neutral'
 }
 
-function getStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getCheckinStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  const daysAgo = (today.getDay() - checkinDay + 7) % 7
-  const expectedDate = new Date(today)
-  expectedDate.setDate(today.getDate() - daysAgo)
-  expectedDate.setHours(0, 0, 0, 0)
+  const daysBack = (today.getDay() - checkinDay + 7) % 7
+  const expected = new Date(today)
+  expected.setDate(today.getDate() - daysBack)
+  expected.setHours(0, 0, 0, 0)
   if (!lastCheckin) return 'late'
-  const lastDate = new Date(lastCheckin)
-  lastDate.setHours(0, 0, 0, 0)
-  return lastDate >= expectedDate ? 'submitted' : 'late'
+  const last = new Date(lastCheckin)
+  last.setHours(0, 0, 0, 0)
+  return last >= expected ? 'submitted' : 'late'
 }
 
-export default function DashboardPage() {
-  const t = useTranslations('dashboard')
-  const tDays = useTranslations('days')
-  const tCommon = useTranslations('common')
-  const locale = useLocale()
+function getCheckinRate(totalCheckins: number, startDate: string | null): number {
+  if (!startDate) return 0
+  const start = new Date(startDate)
+  const now = new Date()
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000
+  const weeksActive = Math.max(1, Math.floor((now.getTime() - start.getTime()) / msPerWeek))
+  return Math.min(100, Math.round((totalCheckins / weeksActive) * 100))
+}
 
-  const getMonthLabel = (date: Date) =>
-    date.toLocaleDateString(locale, { month: 'short' })
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
+  icon: React.ElementType; label: string; value: string | number
+  sub?: string; color: string; onClick?: () => void
+}) {
+  const colorMap: Record<string, { bg: string; icon: string; val: string }> = {
+    indigo:  { bg: 'bg-indigo-50',  icon: 'text-indigo-500',  val: 'text-indigo-600' },
+    emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-500', val: 'text-emerald-600' },
+    rose:    { bg: 'bg-rose-50',    icon: 'text-rose-500',    val: 'text-rose-600' },
+    amber:   { bg: 'bg-amber-50',   icon: 'text-amber-500',   val: 'text-amber-600' },
+    violet:  { bg: 'bg-violet-50',  icon: 'text-violet-500',  val: 'text-violet-600' },
+    sky:     { bg: 'bg-sky-50',     icon: 'text-sky-500',     val: 'text-sky-600' },
+  }
+  const c = colorMap[color] || colorMap.indigo
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm transition-shadow hover:shadow-md ${onClick ? 'cursor-pointer' : ''}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
+          <Icon size={18} className={c.icon} />
+        </div>
+        {onClick && <ArrowRight size={14} className="text-gray-300 mt-1" />}
+      </div>
+      <p className={`text-3xl font-extrabold leading-none ${c.val}`}>{value}</p>
+      <p className="text-sm text-gray-500 mt-1.5 font-medium">{label}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  )
+}
+
+function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => void }) {
+  const STATUS = {
+    submitted: { label: 'Predano',   cls: 'bg-emerald-50 text-emerald-700' },
+    late:      { label: 'Kasni',     cls: 'bg-rose-50 text-rose-600' },
+    neutral:   { label: 'Bez rasporeda', cls: 'bg-gray-100 text-gray-500' },
+  }
+  const s = STATUS[client.status]
+  const rateColor = client.checkin_rate >= 70 ? 'bg-emerald-400' : client.checkin_rate >= 40 ? 'bg-amber-400' : 'bg-rose-400'
+  const initials = client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+
+  return (
+    <div onClick={onClick} className="flex items-center gap-3 py-2.5 px-1 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+        <span className="text-xs font-semibold text-indigo-600">{initials}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{client.full_name}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex-1 max-w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${rateColor}`} style={{ width: `${client.checkin_rate}%` }} />
+          </div>
+          <span className="text-xs text-gray-400 tabular-nums">{client.checkin_rate}%</span>
+        </div>
+      </div>
+      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${s.cls}`}>{s.label}</span>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const t      = useTranslations('dashboard')
+  const locale = useLocale()
   const router = useRouter()
+
   const [loading, setLoading] = useState(true)
+  const [trainerName, setTrainerName] = useState('')
   const [stats, setStats] = useState({
-    activeClients: 0, checkinSent: 0, checkinLate: 0, checkinToday: 0,
-    expectedMonth: 0, collectedMonth: 0, latePayments: 0, avgCheckinRate: 0,
+    activeClients: 0, submitted: 0, late: 0, neutral: 0,
+    expectedMonth: 0, collectedMonth: 0, latePayments: 0,
+    avgCheckinRate: 0, unreadMessages: 0,
   })
+  const [clients, setClients]             = useState<ClientRow[]>([])
   const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; ocekivano: number; naplaceno: number }[]>([])
-  const [topClients, setTopClients] = useState<ClientSummary[]>([])
   const [progressPercent, setProgressPercent] = useState(0)
+
+  const getMonthLabel = (d: Date) => d.toLocaleDateString(locale, { month: 'short' })
 
   useEffect(() => { fetchData() }, [])
 
@@ -57,17 +139,22 @@ export default function DashboardPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
+    // Trainer name
+    const { data: profileData } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    if (profileData) setTrainerName(profileData.full_name?.split(' ')[0] || '')
+
+    // Clients
     const { data: clientsData } = await supabase
       .from('clients')
-      .select(`id, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
+      .select(`id, start_date, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
       .eq('trainer_id', user.id)
       .eq('active', true)
 
     const clientIds = clientsData?.map(c => c.id) || []
 
+    // Checkins
     const { data: allCheckins } = await supabase
-      .from('checkins')
-      .select('client_id, date')
+      .from('checkins').select('client_id, date')
       .in('client_id', clientIds)
       .order('date', { ascending: false })
 
@@ -78,37 +165,49 @@ export default function DashboardPage() {
       checkinCountMap[c.client_id] = (checkinCountMap[c.client_id] || 0) + 1
     })
 
-    const now = new Date()
-    const today = now.getDay()
-
-    const mapped: ClientSummary[] = (clientsData || []).map((c: any) => {
-      const checkinDay = c.checkin_config?.[0]?.checkin_day ?? null
+    // Build client rows
+    const rows: ClientRow[] = (clientsData || []).map((c: any) => {
+      const checkinDay  = c.checkin_config?.[0]?.checkin_day ?? null
       const lastCheckin = lastCheckinMap[c.id] || null
-      const totalCheckins = checkinCountMap[c.id] || 0
-      const weeksActive = Math.max(1, Math.floor((Date.now() - new Date('2024-01-01').getTime()) / (7 * 24 * 60 * 60 * 1000)))
-      const checkinRate = Math.min(100, Math.round((totalCheckins / weeksActive) * 100))
+      const total       = checkinCountMap[c.id] || 0
+      const rate        = getCheckinRate(total, c.start_date)
       return {
         id: c.id,
         full_name: c.profiles?.full_name || 'Bez imena',
+        start_date: c.start_date,
         checkin_day: checkinDay,
         last_checkin: lastCheckin,
-        status: getStatus(checkinDay, lastCheckin),
-        total_checkins: totalCheckins,
-        checkin_rate: checkinRate,
+        total_checkins: total,
+        checkin_rate: rate,
+        status: getCheckinStatus(checkinDay, lastCheckin),
       }
     })
 
-    const submitted = mapped.filter(c => c.status === 'submitted').length
-    const late = mapped.filter(c => c.status === 'late').length
-    const todayCount = mapped.filter(c => c.checkin_day === today).length
-    const avgRate = mapped.length > 0 ? Math.round(mapped.reduce((s, c) => s + c.checkin_rate, 0) / mapped.length) : 0
+    const submitted = rows.filter(r => r.status === 'submitted').length
+    const late      = rows.filter(r => r.status === 'late').length
+    const neutral   = rows.filter(r => r.status === 'neutral').length
+    const avgRate   = rows.length ? Math.round(rows.reduce((s, r) => s + r.checkin_rate, 0) / rows.length) : 0
 
-    const top = [...mapped].filter(c => c.total_checkins > 0).sort((a, b) => b.checkin_rate - a.checkin_rate).slice(0, 5)
-    setTopClients(top)
+    // Sort: late first, then by rate desc
+    rows.sort((a, b) => {
+      if (a.status === 'late' && b.status !== 'late') return -1
+      if (b.status === 'late' && a.status !== 'late') return 1
+      return b.checkin_rate - a.checkin_rate
+    })
+    setClients(rows)
 
-    // Paketi
+    // Unread messages
+    const { count: unread } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('trainer_id', user.id)
+      .neq('sender_id', user.id)
+      .eq('read', false)
+
+    // Revenue
+    const now        = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
     const { data: packagesData } = await supabase
       .from('client_packages')
@@ -132,8 +231,8 @@ export default function DashboardPage() {
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
         const mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
-        const key = getMonthLabel(d)
+        const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+        const key    = getMonthLabel(d)
         if (cp.end_date >= mStart && cp.end_date <= mEnd) monthly[key].ocekivano += cp.price || 0
         ;(cp.payments as any[])?.forEach((p: any) => {
           if (p.status === 'paid' && p.paid_at >= mStart && p.paid_at <= mEnd) {
@@ -146,150 +245,137 @@ export default function DashboardPage() {
 
     const progress = expectedMonth > 0 ? Math.min(100, Math.round((collectedMonth / expectedMonth) * 100)) : 0
 
-    setStats({ activeClients: clientsData?.length || 0, checkinSent: submitted, checkinLate: late, checkinToday: todayCount, expectedMonth, collectedMonth, latePayments, avgCheckinRate: avgRate })
+    setStats({ activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 })
     setMonthlyRevenue(Object.entries(monthly).map(([month, v]) => ({ month, ...v })))
     setProgressPercent(progress)
     setLoading(false)
   }
 
+  const now = new Date()
+  const greeting = now.getHours() < 12 ? 'Dobro jutro' : now.getHours() < 18 ? 'Dobar dan' : 'Dobra večer'
+  const dateStr = now.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
   const pieData = [{ value: progressPercent }, { value: 100 - progressPercent }]
 
-  const statCards = [
-    { label: t('stats.activeClients'), value: stats.activeClients, color: '#6366f1', bg: '#eef2ff', onClick: () => router.push('/dashboard/clients') },
-    { label: t('stats.pendingCheckins'), value: stats.checkinSent, color: '#22c55e', bg: '#f0fdf4', onClick: () => router.push('/dashboard/checkins') },
-    { label: t('checkinStatus.late'), value: stats.checkinLate, color: '#ef4444', bg: '#fef2f2', onClick: () => router.push('/dashboard/checkins') },
-    { label: t('stats.todayCheckins'), value: stats.checkinToday, color: '#f59e0b', bg: '#fffbeb', onClick: () => router.push('/dashboard/checkins') },
-    { label: t('revenue.expectedMonth'), value: `${stats.expectedMonth}€`, color: '#8b5cf6', bg: '#f5f3ff' },
-    { label: t('revenue.collectedMonth'), value: `${stats.collectedMonth}€`, color: '#10b981', bg: '#ecfdf5' },
-    { label: t('revenue.latePayments'), value: stats.latePayments, color: '#f43f5e', bg: '#fff1f2' },
-    { label: t('revenue.avgRegularity'), value: `${stats.avgCheckinRate}%`, color: '#0ea5e9', bg: '#f0f9ff' },
-  ]
+  if (loading) return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-64 bg-gray-100 rounded-lg" />
+      <div className="grid grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl" />)}
+      </div>
+    </div>
+  )
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 1300, margin: '0 auto' }}>
+    <div className="space-y-6">
 
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0, color: '#111827' }}>{t('title')}</h1>
-        <p style={{ color: '#9ca3af', fontSize: 13, margin: '4px 0 0' }}>
-          {new Date().toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {greeting}{trainerName ? `, ${trainerName}` : ''} 👋
+          </h1>
+          <p className="text-gray-400 text-sm mt-0.5 capitalize">{dateStr}</p>
+        </div>
       </div>
 
-      {/* Stat kartice */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
-        {statCards.map((card, i) => (
-          <div
-            key={i}
-            onClick={card.onClick}
-            style={{
-              backgroundColor: 'white',
-              borderRadius: 14,
-              padding: '20px 22px',
-              border: '1px solid #f1f5f9',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-              cursor: card.onClick ? 'pointer' : 'default',
-              borderLeft: `4px solid ${card.color}`,
-              transition: 'box-shadow 0.15s',
-            }}
-          >
-            <p style={{ fontSize: 32, fontWeight: 800, margin: '0 0 4px', color: card.color, lineHeight: 1 }}>
-              {card.value}
-            </p>
-            <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{card.label}</p>
+      {/* Stat cards — 2 rows × 4 */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard icon={Users}         label="Aktivni klijenti"         value={stats.activeClients}     color="indigo"  onClick={() => router.push('/dashboard/clients')} />
+        <StatCard icon={CheckCircle2}  label="Check-in ovaj tjedan"     value={stats.submitted}         color="emerald" sub={`${stats.late} kasni`} onClick={() => router.push('/dashboard/checkins')} />
+        <StatCard icon={AlertCircle}   label="Kasni check-in"           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
+        <StatCard icon={TrendingUp}    label="Prosj. redovitost"        value={`${stats.avgCheckinRate}%`} color="sky"  sub="check-in stopa" />
+        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={`od ${stats.expectedMonth}€`} />
+        <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/clients')} />
+        <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="violet"  onClick={() => router.push('/dashboard/chat')} />
+        <StatCard icon={Clock}         label="Bez rasporeda"            value={stats.neutral}           color="sky"     sub="klijenata bez check-in dana" />
+      </div>
+
+      {/* Charts + checkin list */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {/* Revenue bar chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">{t('revenue.title')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Zadnjih 6 mjeseci</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />
+                <span className="text-xs text-gray-400">{t('revenue.expected')}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
+                <span className="text-xs text-gray-400">{t('revenue.collected')}</span>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-
-      {/* Grafovi */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 28 }}>
-
-        {/* Bar chart */}
-        <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>{t('revenue.title')}</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={monthlyRevenue} barGap={6} barCategoryGap="35%">
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+          <ResponsiveContainer width="100%" height={190}>
+            <BarChart data={monthlyRevenue} barGap={4} barCategoryGap="38%">
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={36} />
               <Tooltip
-                formatter={(v: number | undefined, name: string | undefined) => [`${v || 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
+                formatter={(v: number, name: string) => [`${v || 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
               />
-              <Bar dataKey="ocekivano" fill="#e0e7ff" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="naplaceno" fill="#6366f1" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="ocekivano" fill="#e0e7ff" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="naplaceno" fill="#6366f1" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 20, marginTop: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#e0e7ff' }} />
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t('revenue.expected')}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: '#6366f1' }} />
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>{t('revenue.collected')}</span>
-            </div>
-          </div>
         </div>
 
-        {/* Progress ring */}
-        <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 16px', color: '#111827' }}>{t('revenue.thisMonth')}</p>
-          <div style={{ position: 'relative' }}>
-            <PieChart width={160} height={160}>
-              <Pie data={pieData} cx={75} cy={75} innerRadius={52} outerRadius={70} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
+        {/* Donut — this month */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center">
+          <p className="text-sm font-semibold text-gray-900 mb-1">{t('revenue.thisMonth')}</p>
+          <p className="text-xs text-gray-400 mb-4">{now.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</p>
+          <div className="relative">
+            <PieChart width={150} height={150}>
+              <Pie data={pieData} cx={70} cy={70} innerRadius={48} outerRadius={65} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
                 <Cell fill="#6366f1" />
                 <Cell fill="#e0e7ff" />
               </Pie>
             </PieChart>
-            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-              <p style={{ fontSize: 28, fontWeight: 800, margin: 0, color: '#6366f1', lineHeight: 1 }}>{progressPercent}%</p>
-              <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{t('revenue.paid')}</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-2xl font-extrabold text-indigo-600 leading-none">{progressPercent}%</p>
+              <p className="text-[10px] text-gray-400 mt-1">{t('revenue.paid')}</p>
             </div>
           </div>
-          <p style={{ fontSize: 13, color: '#6b7280', marginTop: 12, fontWeight: 500 }}>
-            {stats.collectedMonth}€ <span style={{ color: '#d1d5db' }}>/</span> {stats.expectedMonth}€
+          <p className="text-sm font-semibold text-gray-700 mt-3">
+            {stats.collectedMonth}€
+            <span className="text-gray-300 mx-1">/</span>
+            <span className="text-gray-400 font-normal">{stats.expectedMonth}€</span>
           </p>
+          {stats.latePayments > 0 && (
+            <p className="text-xs text-rose-500 mt-1.5 font-medium">{stats.latePayments} kasno plaćanje</p>
+          )}
         </div>
       </div>
 
-      {/* Top klijenti */}
-      <div style={{ backgroundColor: 'white', borderRadius: 14, padding: '22px 24px', border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 20px', color: '#111827' }}>{t('checkinStatus.title')}</p>
-        {topClients.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#9ca3af' }}>{t('noUpcomingCheckins')}</p>
+      {/* Checkin status — all clients */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Status check-ina</p>
+            <p className="text-xs text-gray-400 mt-0.5">{stats.submitted} predano · {stats.late} kasni · {stats.neutral} bez rasporeda</p>
+          </div>
+          <button type="button" onClick={() => router.push('/dashboard/checkins')}
+            className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
+            Svi check-ini <ArrowRight size={12} />
+          </button>
+        </div>
+
+        {clients.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">{t('noUpcomingCheckins')}</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
-            {topClients.map((client) => {
-              const barColor = client.checkin_rate >= 70 ? '#22c55e' : client.checkin_rate >= 40 ? '#f59e0b' : '#ef4444'
-              return (
-                <div
-                  key={client.id}
-                  onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                  style={{
-                    cursor: 'pointer',
-                    padding: '16px',
-                    borderRadius: 12,
-                    border: '1px solid #f1f5f9',
-                    backgroundColor: '#fafafa',
-                    textAlign: 'center',
-                    transition: 'box-shadow 0.15s',
-                  }}
-                >
-                  <div style={{ width: 44, height: 44, borderRadius: '50%', backgroundColor: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: '#6366f1' }}>{client.full_name.charAt(0)}</span>
-                  </div>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>{client.full_name.split(' ')[0]}</p>
-                  <div style={{ width: '100%', height: 6, backgroundColor: '#f3f4f6', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
-                    <div style={{ width: `${client.checkin_rate}%`, height: '100%', backgroundColor: barColor, borderRadius: 99 }} />
-                  </div>
-                  <p style={{ fontSize: 14, color: barColor, fontWeight: 700, margin: '0 0 2px' }}>{client.checkin_rate}%</p>
-                  <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>{client.total_checkins} checkina</p>
-                </div>
-              )
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 divide-y divide-gray-50 sm:divide-y-0">
+            {clients.map(c => (
+              <CheckinRow key={c.id} client={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
+            ))}
           </div>
         )}
       </div>
+
     </div>
   )
 }

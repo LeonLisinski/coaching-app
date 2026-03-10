@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Send } from 'lucide-react'
 
 type Props = {
@@ -23,6 +22,24 @@ type Message = {
   client_id: string
 }
 
+function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const COLORS = [
+    'bg-violet-100 text-violet-700',
+    'bg-blue-100 text-blue-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-amber-100 text-amber-700',
+    'bg-rose-100 text-rose-700',
+    'bg-cyan-100 text-cyan-700',
+  ]
+  const color = COLORS[name.charCodeAt(0) % COLORS.length]
+  const sz = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-9 h-9 text-sm'
+  return (
+    <div className={`${sz} ${color} rounded-full flex items-center justify-center font-semibold flex-shrink-0`}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  )
+}
+
 export default function ChatWindow({ clientId, clientName, onMessageSent }: Props) {
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
@@ -36,9 +53,7 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
 
   useEffect(() => {
     initChat()
-    return () => {
-      supabase.removeAllChannels()
-    }
+    return () => { supabase.removeAllChannels() }
   }, [clientId])
 
   useEffect(() => {
@@ -63,7 +78,6 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
       .eq('client_id', clientId)
       .eq('trainer_id', uid)
       .order('created_at', { ascending: true })
-
     if (data) setMessages(data)
     setLoading(false)
   }
@@ -81,34 +95,21 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
   const subscribeToMessages = (uid: string) => {
     supabase
       .channel(`chat-${clientId}-${uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          const msg = payload.new as Message
-          if (msg.client_id === clientId && msg.trainer_id === uid) {
-            setMessages(prev => {
-              if (prev.find(m => m.id === msg.id)) return prev
-              return [...prev, msg]
-            })
-            markAsRead(uid)
-          }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new as Message
+        if (msg.client_id === clientId && msg.trainer_id === uid) {
+          setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
+          markAsRead(uid)
         }
-      )
+      })
       .subscribe()
   }
 
   const sendMessage = async () => {
     if (!input.trim() || !userIdRef.current || sending) return
     setSending(true)
-
     const content = input.trim()
     setInput('')
-
     const { error } = await supabase.from('messages').insert({
       trainer_id: userIdRef.current,
       client_id: clientId,
@@ -116,96 +117,89 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
       content,
       read: false,
     })
-
-    if (error) {
-      console.error('Send error:', error.message)
-      setInput(content)
-    } else {
-      onMessageSent()
-    }
-
+    if (error) { console.error('Send error:', error.message); setInput(content) }
+    else onMessageSent()
     setSending(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const formatTime = (time: string) => {
-    return new Date(time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const fmtTime = (t: string) => new Date(t).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  const fmtDate = (t: string) => {
+    const d = new Date(t)
+    const now = new Date()
+    const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
+    if (diff === 0) return 'Danas'
+    if (diff === 1) return 'Jučer'
+    return d.toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' })
   }
 
-  const formatDate = (time: string) => {
-    return new Date(time).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
-  }
-
-  const groupedMessages = messages.reduce((acc, msg) => {
-    const date = formatDate(msg.created_at)
-    if (!acc[date]) acc[date] = []
-    acc[date].push(msg)
+  const grouped = messages.reduce((acc, msg) => {
+    const key = new Date(msg.created_at).toLocaleDateString()
+    if (!acc[key]) acc[key] = []
+    acc[key].push(msg)
     return acc
   }, {} as Record<string, Message[]>)
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', background: 'white', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#4b5563' }}>
-            {clientName.charAt(0).toUpperCase()}
-          </span>
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b bg-white flex-shrink-0">
+        <Avatar name={clientName} />
+        <div>
+          <p className="text-sm font-semibold text-gray-900">{clientName}</p>
+          <p className="text-xs text-gray-400">Klijent</p>
         </div>
-        <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{clientName}</p>
       </div>
 
-      {/* Poruke */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
         {loading ? (
-          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>{tCommon('loading')}</p>
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-gray-400">{tCommon('loading')}</p>
+          </div>
         ) : messages.length === 0 ? (
-          <p style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', marginTop: 32 }}>{t('window.startOfConversation')}</p>
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+              <Send size={18} className="text-gray-400" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">Nema poruka</p>
+            <p className="text-xs text-gray-400">{t('window.startOfConversation')}</p>
+          </div>
         ) : (
-          Object.entries(groupedMessages).map(([date, dayMessages]) => (
-            <div key={date} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {/* Datum separator */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px 0' }}>
-                <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
-                <span style={{ fontSize: 12, color: '#9ca3af', padding: '0 8px' }}>{date}</span>
-                <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+          Object.entries(grouped).map(([key, dayMessages]) => (
+            <div key={key} className="space-y-1">
+              {/* Date separator */}
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-[11px] text-gray-400 font-medium px-1">{fmtDate(dayMessages[0].created_at)}</span>
+                <div className="flex-1 h-px bg-gray-100" />
               </div>
-              {dayMessages.map(msg => {
+
+              {dayMessages.map((msg, i) => {
                 const isTrainer = msg.sender_id === msg.trainer_id
+                const prev = dayMessages[i - 1]
+                const isSameAuthorAsPrev = prev && prev.sender_id === msg.sender_id
                 return (
-                  <div
-                    key={msg.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: isTrainer ? 'flex-end' : 'flex-start',
-                      width: '100%',
-                    }}
-                  >
-                    <div
-                      style={{
-                        maxWidth: '70%',
-                        padding: '8px 12px',
-                        borderRadius: isTrainer ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                        backgroundColor: isTrainer ? '#3b82f6' : '#e5e7eb',
-                        color: isTrainer ? '#ffffff' : '#1f2937',
-                      }}
-                    >
-                      <p style={{ margin: 0, fontSize: 14 }}>{msg.content}</p>
-                      <p style={{
-                        margin: '4px 0 0 0',
-                        fontSize: 11,
-                        textAlign: 'right',
-                        color: isTrainer ? '#bfdbfe' : '#6b7280',
-                      }}>
-                        {formatTime(msg.created_at)}
-                        {isTrainer && <span style={{ marginLeft: 4 }}>{msg.read ? '✓✓' : '✓'}</span>}
-                      </p>
+                  <div key={msg.id} className={`flex ${isTrainer ? 'justify-end' : 'justify-start'} ${isSameAuthorAsPrev ? 'mt-0.5' : 'mt-3'}`}>
+                    <div className={`max-w-[72%] ${isTrainer ? 'items-end' : 'items-start'} flex flex-col`}>
+                      <div className={`px-3.5 py-2 text-sm leading-relaxed ${
+                        isTrainer
+                          ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
+                          : 'bg-white border border-gray-100 text-gray-900 rounded-2xl rounded-bl-sm shadow-sm'
+                      }`}>
+                        {msg.content}
+                      </div>
+                      <div className={`flex items-center gap-1 mt-0.5 px-1 ${isTrainer ? 'flex-row-reverse' : ''}`}>
+                        <span className="text-[10px] text-gray-400">{fmtTime(msg.created_at)}</span>
+                        {isTrainer && (
+                          <span className={`text-[10px] ${msg.read ? 'text-blue-400' : 'text-gray-300'}`}>
+                            {msg.read ? '✓✓' : '✓'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
@@ -217,25 +211,28 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
       </div>
 
       {/* Input */}
-      <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: 'white', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t('window.messagePlaceholder')}
-          style={{ flex: 1 }}
-          disabled={sending}
-          autoFocus
-        />
-        <Button
-          onClick={sendMessage}
-          disabled={!input.trim() || sending}
-          size="sm"
-          aria-label={t('window.send')}
-        >
-          <Send size={14} />
-        </Button>
+      <div className="flex-shrink-0 px-4 py-3 border-t bg-white">
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 focus-within:border-primary/50 focus-within:bg-white transition-colors">
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t('window.messagePlaceholder')}
+            disabled={sending}
+            autoFocus
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900"
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || sending}
+            aria-label={t('window.send')}
+            className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity flex-shrink-0"
+          >
+            <Send size={13} />
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-400 text-center mt-1.5">Enter za slanje · Shift+Enter za novi red</p>
       </div>
-    </>
+    </div>
   )
 }
