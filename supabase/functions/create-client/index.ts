@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password } = await req.json()
+    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password, gender, notes, activity_level } = await req.json()
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       .update({ full_name, role: 'client' })
       .eq('id', authData.user.id)
 
-    const { error: clientError } = await supabaseAdmin
+    const { data: clientData, error: clientError } = await supabaseAdmin
       .from('clients')
       .insert({
         trainer_id,
@@ -58,12 +58,17 @@ Deno.serve(async (req) => {
         date_of_birth: date_of_birth || null,
         weight: weight || null,
         height: height || null,
+        gender: gender || null,
+        notes: notes || null,
+        activity_level: activity_level || null,
       })
+      .select('id')
+      .single()
 
     if (clientError) throw clientError
 
     return new Response(
-      JSON.stringify({ success: true, user_id: authData.user.id }),
+      JSON.stringify({ success: true, user_id: authData.user.id, client_id: clientData?.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

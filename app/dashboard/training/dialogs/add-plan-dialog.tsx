@@ -31,12 +31,13 @@ function SortableDayWrapper({ id, children }: { id: string; children: (handle: R
 type Props = {
   open: boolean; onClose: () => void; onSuccess: () => void
   onSuccessWithId?: (planId: string, days: any[]) => void
+  isTemplate?: boolean
 }
 type Template = { id: string; name: string; exercises: any[] }
 type Exercise  = { id: string; name: string; category: string; exercise_type?: string }
 type PlanDay   = { _id: string; day_number: number; name: string; template_id: string | null; exercises: PlanExercise[]; mode: 'template' | 'custom' }
 
-export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithId }: Props) {
+export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithId, isTemplate = true }: Props) {
   const t         = useTranslations('training.dialogs.plan')
   const tCommon   = useTranslations('common')
   const tTemplate = useTranslations('training.dialogs.template')
@@ -181,7 +182,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
 
     const { data: created, error } = await supabase
       .from('workout_plans')
-      .insert({ trainer_id: user.id, name, description: description || null, days })
+      .insert({ trainer_id: user.id, name, description: description || null, days, is_template: isTemplate })
       .select('id').single()
 
     if (error) { setError(error.message); setLoading(false); return }

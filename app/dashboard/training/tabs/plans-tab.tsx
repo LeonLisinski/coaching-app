@@ -42,6 +42,7 @@ export default function PlansTab() {
       .from('workout_plans')
       .select('*')
       .eq('trainer_id', user.id)
+      .eq('is_template', true)
     if (data) setPlans(data)
     setLoading(false)
   }

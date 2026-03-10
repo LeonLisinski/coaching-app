@@ -156,6 +156,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         .from('workout_plans')
         .select('id, name, description, days')
         .eq('trainer_id', user.id)
+        .eq('is_template', true)
         .order('name'),
       supabase
         .from('exercises')
@@ -373,7 +374,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                   >
                     <Trash2 size={14} className="text-red-400" />
                   </Button>
-                </div>
+                </div>image.png
               </div>
 
               {/* Days — collapsible accordion */}
@@ -537,6 +538,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         onClose={() => setShowCreateDialog(false)}
         onSuccess={() => { setShowCreateDialog(false); fetchData() }}
         onSuccessWithId={handleNewPlanCreated}
+        isTemplate={false}
       />
 
       {/* Edit client copy */}

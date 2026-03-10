@@ -18,7 +18,7 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
+type Props = { open: boolean; onClose: () => void; onSuccess: () => void; isTemplate?: boolean }
 
 type Recipe   = { id: string; name: string; total_calories: number; total_protein: number; total_carbs: number; total_fat: number; ingredients?: any[] }
 type Food     = { id: string; name: string; calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number; extras?: Record<string, number> }
@@ -43,7 +43,7 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
   )
 }
 
-export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
+export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate = true }: Props) {
   const t       = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
@@ -170,6 +170,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess }: Props) {
       trainer_id: user.id, name, plan_type: planType,
       calories_target: tgt.calories, protein_target: tgt.protein, carbs_target: tgt.carbs, fat_target: tgt.fat,
       meals: processedMeals,
+      is_template: isTemplate,
     })
 
     if (error) { setError(error.message); setLoading(false); return }

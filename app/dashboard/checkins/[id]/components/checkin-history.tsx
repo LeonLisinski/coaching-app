@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ChevronDown, ChevronUp, GitCompare, ArrowUpDown } from 'lucide-react'
 
 type Props = { clientId: string }
 
@@ -58,6 +59,10 @@ export default function CheckinHistory({ clientId }: Props) {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareSelected, setCompareSelected] = useState<string[]>([])
+  const [sortDesc, setSortDesc] = useState(true) // true = newest first (default)
+  const MAX_COMPARE = 5
 
   useEffect(() => { fetchData() }, [clientId])
 
@@ -104,6 +109,24 @@ export default function CheckinHistory({ clientId }: Props) {
     </div>
   )
 
+  const checkinsWithPhotos = checkins.filter(c => (c.photo_urls as any[])?.length > 0)
+
+  // Build compare view — supports multiple selected check-ins
+  const compareCheckins = compareSelected
+    .map(date => checkins.find(c => c.date === date))
+    .filter(Boolean) as Checkin[]
+  const comparePositions = compareCheckins.length >= 2
+    ? [...new Set(compareCheckins.flatMap(c => (c.photo_urls || []).map((p: any) => p.position)))]
+    : []
+
+  const toggleCompareSelect = (date: string) => {
+    setCompareSelected(prev =>
+      prev.includes(date)
+        ? prev.filter(d => d !== date)
+        : prev.length < MAX_COMPARE ? [...prev, date] : prev
+    )
+  }
+
   return (
     <div className="space-y-3">
       {lightbox && (
@@ -112,9 +135,166 @@ export default function CheckinHistory({ clientId }: Props) {
         </div>
       )}
 
-      <p className="text-sm text-gray-500">{t('totalCount', { count: checkins.length })}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-gray-500">{t('totalCount', { count: checkins.length })}</p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSortDesc(v => !v)}
+            className="flex items-center gap-1.5 text-xs"
+          >
+            <ArrowUpDown size={12} />
+            {sortDesc ? 'Najnoviji prvo' : 'Najstariji prvo'}
+          </Button>
+          {checkinsWithPhotos.length >= 1 && (
+            <Button
+              variant={compareMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setCompareMode(v => !v); setCompareSelected([]) }}
+              className="flex items-center gap-1.5"
+            >
+              <GitCompare size={13} />
+              {compareMode ? 'Zatvori usporedbu' : 'Usporedi fotografije'}
+            </Button>
+          )}
+        </div>
+      </div>
 
-      {checkins.map(c => {
+      {/* Compare mode */}
+      {compareMode && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Odaberi tjedne za usporedbu</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {compareSelected.length === 0
+                  ? `Klikni na tjedan — do ${MAX_COMPARE} tjedana`
+                  : `${compareSelected.length} odabrano${compareSelected.length < 2 ? ' — odaberi još najmanje jedan' : ''}`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {checkinsWithPhotos.length >= 2 && (
+                <button type="button"
+              onClick={() => {
+                  const sorted = [...checkinsWithPhotos].sort((a, b) => a.date.localeCompare(b.date))
+                  setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date])
+                }}
+                  className="text-xs text-primary underline font-medium whitespace-nowrap">
+                  Prva ↔ Zadnja
+                </button>
+              )}
+              {compareSelected.length > 0 && (
+                <button type="button"
+                  onClick={() => setCompareSelected([])}
+                  className="text-xs text-gray-400 underline whitespace-nowrap">
+                  Poništi
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Thumbnail grid — newest (highest week #) first */}
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+            {[...checkinsWithPhotos]
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map((c, idx, arr) => {
+                const selected = compareSelected.includes(c.date)
+                const selIdx = compareSelected.indexOf(c.date)
+                const atMax = !selected && compareSelected.length >= MAX_COMPARE
+                const thumbPhoto = (c.photo_urls as any[])?.[0]
+                const weekNum = arr.length - idx  // T(max) first, T1 last
+                return (
+                  <button
+                    key={c.date}
+                    type="button"
+                    onClick={() => !atMax && toggleCompareSelect(c.date)}
+                    title={atMax ? `Maksimalno ${MAX_COMPARE} tjedana` : fmtDateYear(c.date)}
+                    className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                      selected
+                        ? 'border-primary shadow-md ring-2 ring-primary/30'
+                        : atMax
+                        ? 'border-gray-200 opacity-40 cursor-not-allowed'
+                        : 'border-gray-200 hover:border-primary/50 cursor-pointer'
+                    }`}
+                  >
+                    {thumbPhoto ? (
+                      <img src={thumbPhoto.url} alt="" className="w-full aspect-square object-cover" />
+                    ) : (
+                      <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
+                        <span className="text-xs text-gray-400">—</span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-4 pb-1">
+                      <p className="text-[11px] text-white font-bold leading-tight">{weekNum}. tjedan</p>
+                      <p className="text-[9px] text-white/60 leading-tight">{fmtDate(c.date)}</p>
+                    </div>
+                    {selected && (
+                      <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center shadow-md">
+                        {selIdx + 1}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+          </div>
+
+          {/* Comparison result */}
+          {compareCheckins.length >= 2 && (
+            <div className="border-t border-gray-200 pt-4 space-y-5">
+              {comparePositions.map(position => (
+                <div key={position}>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 capitalize">{position}</p>
+                  {/* Horizontally scrollable row of photos */}
+                  <div className="flex gap-3 overflow-x-auto pb-1">
+                    {compareCheckins.map((checkin, i) => {
+                      const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
+                      const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
+                      const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
+                      return (
+                        <div key={checkin.date} className="flex-none w-40">
+                          <div className="text-center mb-1">
+                            <p className="text-xs font-bold text-gray-800">{weekNum}. tjedan</p>
+                            <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
+                          </div>
+                          {photo ? (
+                            <img
+                              src={photo.url}
+                              alt={position}
+                              className="w-full aspect-[3/4] object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setLightbox(photo.url)}
+                            />
+                          ) : (
+                            <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
+                              <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {compareCheckins.length === 1 && (
+            <p className="text-xs text-center text-gray-400 pt-2">Odaberi još jedan tjedan za prikaz usporedbe</p>
+          )}
+        </div>
+      )}
+
+      {(() => {
+        // Assign week numbers based on chronological order (oldest = week 1)
+        const chronological = [...checkins].sort((a, b) => a.date.localeCompare(b.date))
+        const weekNumberMap = Object.fromEntries(chronological.map((c, i) => [c.date, i + 1]))
+        const sorted = [...checkins].sort((a, b) =>
+          sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
+        )
+        return sorted.map(c => {
+        const weekNum = weekNumberMap[c.date]
         const { start: weekStart, end: weekEnd } = getWeekBounds(c.date, checkinDay)
         const isOpen = expanded === weekEnd
         const photos = (c.photo_urls as any[]) || []
@@ -129,9 +309,9 @@ export default function CheckinHistory({ clientId }: Props) {
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold">{fmtDate(weekStart)} — {fmtDateYear(weekEnd)}</p>
+                  <p className="text-sm font-semibold">{weekNum}. tjedan</p>
                   <p className="text-xs text-gray-400">
-                    {new Date(c.date).toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: '2-digit' })}
+                    {fmtDate(weekStart)} — {fmtDateYear(weekEnd)}
                     {photos.length > 0 && ` · ${photos.length} ${t('foto')}`}
                   </p>
                 </div>
@@ -214,7 +394,7 @@ export default function CheckinHistory({ clientId }: Props) {
             )}
           </Card>
         )
-      })}
+      })})()}
     </div>
   )
 }

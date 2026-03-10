@@ -45,6 +45,7 @@ export default function PlansTab() {
       .from('meal_plans')
       .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals, created_at')
       .eq('trainer_id', user.id)
+      .eq('is_template', true)
     if (data) setPlans(data)
     setLoading(false)
   }

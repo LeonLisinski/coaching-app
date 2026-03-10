@@ -235,6 +235,7 @@ export default function ClientMealPlans({ clientId }: Props) {
         .from('meal_plans')
         .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals')
         .eq('trainer_id', user.id)
+        .eq('is_template', true)
         .order('name'),
       supabase
         .from('recipes')
@@ -712,6 +713,7 @@ export default function ClientMealPlans({ clientId }: Props) {
       <AddMealPlanDialog
         open={showCreateNew}
         onClose={() => setShowCreateNew(false)}
+        isTemplate={false}
         onSuccess={async () => {
           const { data: { user } } = await supabase.auth.getUser()
           if (!user) return
