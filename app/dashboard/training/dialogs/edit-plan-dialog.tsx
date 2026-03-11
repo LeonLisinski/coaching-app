@@ -6,10 +6,10 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
-import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical } from 'lucide-react'
+import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -52,7 +52,9 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const [confirmEx, setConfirmEx]     = useState<{ day: number; id: string } | null>(null)
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({})
   const [searchFocused, setSearchFocused] = useState<Record<number, boolean>>({})
+  const [dropdownKbIndex, setDropdownKbIndex] = useState<Record<number, number>>({})
   const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+  const searchRefs = useRef<Record<number, HTMLInputElement | null>>({})
   const daysEndRef = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
@@ -148,6 +150,31 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     }))
   }
 
+  const getFilteredExercisesForDay = (dayIndex: number) =>
+    exercises
+      .filter(e => e.name.toLowerCase().includes((exerciseSearch[dayIndex] || '').toLowerCase())
+        && !days[dayIndex]?.exercises.find(de => de.exercise_id === e.id))
+      .slice(0, 20)
+
+  const handleExerciseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, dayIndex: number) => {
+    const filtered = getFilteredExercisesForDay(dayIndex)
+    const kbIdx = dropdownKbIndex[dayIndex] ?? -1
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setDropdownKbIndex(prev => ({ ...prev, [dayIndex]: Math.min(kbIdx + 1, filtered.length - 1) }))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setDropdownKbIndex(prev => ({ ...prev, [dayIndex]: Math.max(kbIdx - 1, 0) }))
+    } else if (e.key === 'Enter' && kbIdx >= 0) {
+      e.preventDefault()
+      addExercise(dayIndex, filtered[kbIdx])
+      setDropdownKbIndex(prev => ({ ...prev, [dayIndex]: -1 }))
+    } else if (e.key === 'Escape') {
+      setSearchFocused(prev => ({ ...prev, [dayIndex]: false }))
+      setDropdownKbIndex(prev => ({ ...prev, [dayIndex]: -1 }))
+    }
+  }
+
   const addExercise = (dayIndex: number, exercise: Exercise) => {
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d
@@ -160,7 +187,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       }]}
     }))
     setExerciseSearch(prev => ({ ...prev, [dayIndex]: '' }))
-    setSearchFocused(prev => ({ ...prev, [dayIndex]: false }))
+    setTimeout(() => searchRefs.current[dayIndex]?.focus(), 0)
   }
 
   const updateExercise = (dayIndex: number, exerciseId: string, field: string, value: any) =>
@@ -201,35 +228,60 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-            <DialogTitle>{isClientEdit ? `Uredi plan klijenta — ${plan.name}` : t('editTitle')}</DialogTitle>
-            {isClientEdit && (
-              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 mt-1">
+        <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+          <DialogTitle className="sr-only">
+            {isClientEdit ? `Uredi plan klijenta — ${plan.name}` : t('editTitle')}
+          </DialogTitle>
+
+          {/* Colored header */}
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <CalendarDays size={16} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-white font-bold text-base">
+                {isClientEdit ? `Uredi plan klijenta` : t('editTitle')}
+              </h2>
+              <p className="text-indigo-100/70 text-xs truncate">{plan.name}</p>
+            </div>
+            <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Client edit notice */}
+          {isClientEdit && (
+            <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 shrink-0">
+              <p className="text-xs text-amber-700">
                 Promjene vrijede samo za ovog klijenta. Originalni plan ostaje nepromijenjen.
               </p>
-            )}
-          </DialogHeader>
+            </div>
+          )}
+
+          {/* Fixed: name + description */}
+          {!isClientEdit && (
+            <div className="px-6 pt-4 pb-3 border-b shrink-0 bg-indigo-50/30">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-gray-600">{t('form.name')}</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} required className="h-9" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold text-gray-600">{t('form.description')}</Label>
+                  <Input value={description} onChange={e => setDescription(e.target.value)} className="h-9" />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto px-6 pb-2">
             <form id="edit-plan-form" onSubmit={handleSubmit} className="space-y-4 py-2">
-              {!isClientEdit && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t('form.name')}</Label>
-                    <Input value={name} onChange={e => setName(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{t('form.description')}</Label>
-                    <Input value={description} onChange={e => setDescription(e.target.value)} />
-                  </div>
-                </div>
-              )}
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>{t('form.trainingDays')} ({days.length})</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addDay} className="gap-1">
+                  <span className="text-xs font-semibold text-gray-600">{t('form.trainingDays')} ({days.length})</span>
+                  <Button type="button" variant="outline" size="sm" onClick={addDay}
+                    className="flex items-center gap-1 h-7 text-xs px-2.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
                     <Plus size={12} /> {t('form.addDayLabel')}
                   </Button>
                 </div>
@@ -243,9 +295,9 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id}>
                   {(dayDragHandle) => (
-                  <div className="border rounded-md overflow-hidden">
+                  <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
                     {/* Accordion header */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-indigo-50/50 border-b border-indigo-100/60">
                       <button type="button" {...dayDragHandle} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none" tabIndex={-1}>
                         <GripVertical size={14} />
                       </button>
@@ -317,32 +369,42 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
                         {/* Search */}
                         <div className="space-y-1">
-                          <Input
-                            value={exerciseSearch[index] || ''}
-                            onChange={e => setExerciseSearch(prev => ({ ...prev, [index]: e.target.value }))}
-                            onFocus={() => { if (blurTimers.current[index]) clearTimeout(blurTimers.current[index]); setSearchFocused(prev => ({ ...prev, [index]: true })) }}
-                            onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 150) }}
-                            placeholder={day.mode === 'template' ? '+ Dodaj još vježbu...' : tTemplate('searchExercises')}
-                            className="h-8 text-sm border-dashed"
-                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                              <Plus size={13} />
+                            </span>
+                            <Input
+                              ref={el => { searchRefs.current[index] = el }}
+                              value={exerciseSearch[index] || ''}
+                              onChange={e => { setExerciseSearch(prev => ({ ...prev, [index]: e.target.value })); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
+                              onFocus={() => { if (blurTimers.current[index]) clearTimeout(blurTimers.current[index]); setSearchFocused(prev => ({ ...prev, [index]: true })) }}
+                              onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
+                              onKeyDown={e => handleExerciseKeyDown(e, index)}
+                              placeholder="Pretraži i dodaj vježbu... (↑↓ Enter)"
+                              className="h-8 text-sm pl-8 border-dashed focus:border-solid focus:border-indigo-300"
+                            />
+                          </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
-                            <div className="border rounded-md bg-white shadow-sm overflow-y-auto max-h-48" onWheel={e => e.stopPropagation()}>
-                              {exercises
-                                .filter(e => e.name.toLowerCase().includes((exerciseSearch[index] || '').toLowerCase()) && !day.exercises.find(de => de.exercise_id === e.id))
-                                .slice(0, 20)
-                                .map(e => (
-                                  <button key={e.id} type="button"
-                                    onMouseDown={ev => ev.preventDefault()}
-                                    onClick={() => addExercise(index, e)}
-                                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm border-b last:border-0">
-                                    <span>{e.name}</span>
-                                    <div className="flex items-center gap-1">
-                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>}
-                                      <Badge variant="outline" className="text-xs">{e.category}</Badge>
-                                    </div>
-                                  </button>
-                                ))
-                              }
+                            <div className="border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48" onWheel={e => e.stopPropagation()}>
+                              {getFilteredExercisesForDay(index).length === 0 ? (
+                                <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
+                                  {exercises.length === 0 ? 'Učitavanje...' : `Nema rezultata${exerciseSearch[index] ? ` za "${exerciseSearch[index]}"` : ''}`}
+                                </p>
+                              ) : getFilteredExercisesForDay(index).map((e, ei) => (
+                                <button key={e.id} type="button"
+                                  onMouseDown={ev => ev.preventDefault()}
+                                  onClick={() => { addExercise(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
+                                  onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
+                                  className={`w-full text-left px-3 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                                    (dropdownKbIndex[index] ?? -1) === ei ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'
+                                  }`}>
+                                  <span className="font-medium">{e.name}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>}
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200">{e.category}</span>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -363,7 +425,8 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
           <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
             {error && <p className="text-red-500 text-sm flex-1">{error}</p>}
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
-            <Button type="submit" form="edit-plan-form" disabled={loading} className="flex-1">
+            <Button type="submit" form="edit-plan-form" disabled={loading}
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700">
               {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>

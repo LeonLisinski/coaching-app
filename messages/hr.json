@@ -313,10 +313,10 @@
   "training": {
     "page": {
       "title": "Treninzi",
-      "subtitle": "Planovi, predlošci i vježbe",
+      "subtitle": "Planovi, treninzi i vježbe",
       "tabs": {
         "plans": "Planovi",
-        "templates": "Predlošci",
+        "templates": "Treninzi",
         "exercises": "Vježbe"
       }
     },
@@ -337,18 +337,18 @@
       "deleteConfirm": "Sigurno želiš obrisati ovaj plan? Ova radnja se ne može poništiti."
     },
     "templatesTab": {
-      "count": "{count, plural, one {# predložak} other {# predložaka}}",
-      "add": "Dodaj predložak",
-      "searchPlaceholder": "Pretraži predloške...",
+      "count": "{count, plural, one {# trening} other {# treninga}}",
+      "add": "Dodaj trening",
+      "searchPlaceholder": "Pretraži treninge...",
       "exercises": "{count, plural, one {# vježba} other {# vježbi}}",
-      "noTemplates": "Nema predložaka.",
+      "noTemplates": "Nema treninga.",
       "sortLabel": "Sortiraj:",
       "sortNewest": "Najnoviji",
       "sortOldest": "Najstariji",
       "sortAZ": "A → Z",
       "sortZA": "Z → A",
-      "deleteTitle": "Obriši predložak",
-      "deleteConfirm": "Sigurno želiš obrisati ovaj predložak? Ova radnja se ne može poništiti."
+      "deleteTitle": "Obriši trening",
+      "deleteConfirm": "Sigurno želiš obrisati ovaj trening? Ova radnja se ne može poništiti."
     },
     "exercisesTab": {
       "count": "{count, plural, one {# vježba} other {# vježbi}}",
@@ -392,21 +392,23 @@
         "save": "Spremi vježbu"
       },
       "template": {
-        "addTitle": "Novi predložak",
-        "editTitle": "Uredi predložak",
-        "name": "Naziv predloška",
+        "addTitle": "Novi trening",
+        "editTitle": "Uredi trening",
+        "name": "Naziv treninga",
         "namePlaceholder": "npr. Push dan",
         "description": "Opis (opcionalno)",
         "descriptionPlaceholder": "Kratki opis...",
         "exercises": "Vježbe",
         "addExercise": "Dodaj vježbu",
         "searchExercises": "Pretraži vježbe...",
-        "sets": "Seri",
+        "sets": "Serije",
         "reps": "Ponav.",
         "rest": "Odmor (s)",
         "notes": "Bilješka",
-        "save": "Spremi predložak",
-        "noExercises": "Dodaj vježbe iz liste desno."
+        "save": "Spremi trening",
+        "noExercises": "Pretraži i dodaj vježbe.",
+        "removeExerciseTitle": "Ukloni vježbu",
+        "removeExerciseConfirm": "Sigurno želiš ukloniti ovu vježbu iz treninga?"
       },
       "plan": {
         "addTitle": "Novi plan",

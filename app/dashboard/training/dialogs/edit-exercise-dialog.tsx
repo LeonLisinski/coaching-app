@@ -5,54 +5,86 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { X, Dumbbell, Pencil } from 'lucide-react'
 import { Exercise, EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
 
 type Props = { exercise: Exercise; open: boolean; onClose: () => void; onSuccess: () => void }
+
+function MuscleChipSelect({
+  value, onChange, label, color = 'emerald',
+}: {
+  value: string[]
+  onChange: (v: string[]) => void
+  label: string
+  color?: 'emerald' | 'gray'
+}) {
+  const toggle = (m: string) =>
+    onChange(value.includes(m) ? value.filter(x => x !== m) : [...value, m])
+  const activeClass = color === 'emerald'
+    ? 'bg-emerald-600 text-white border-emerald-600'
+    : 'bg-gray-600 text-white border-gray-600'
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold text-gray-600">{label}</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {MUSCLE_GROUPS.map(m => (
+          <button
+            key={m} type="button" onClick={() => toggle(m)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              value.includes(m) ? activeClass : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
+            }`}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function EditExerciseDialog({ exercise, open, onClose, onSuccess }: Props) {
   const [form, setForm] = useState({
     name: exercise.name,
     category: exercise.category || 'Slobodni utezi',
-    muscle_group: exercise.muscle_group || 'Prsa',
     description: exercise.description || '',
     video_url: exercise.video_url || '',
     exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
   })
+  const [primaryMuscles, setPrimaryMuscles] = useState<string[]>(exercise.primary_muscles || [])
+  const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>(exercise.secondary_muscles || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const isFork = exercise.is_default
 
-  // FIX: reset forme kad se promijeni exercise prop
   useEffect(() => {
     if (open) {
       setForm({
         name: exercise.name,
         category: exercise.category || 'Slobodni utezi',
-        muscle_group: exercise.muscle_group || 'Prsa',
         description: exercise.description || '',
         video_url: exercise.video_url || '',
         exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
       })
+      setPrimaryMuscles(exercise.primary_muscles || [])
+      setSecondaryMuscles(exercise.secondary_muscles || [])
       setError('')
     }
   }, [open, exercise.id])
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
     const payload = {
-      name: form.name,
-      category: form.category,
-      muscle_group: form.muscle_group || null,
-      description: form.description || null,
-      video_url: form.video_url || null,
+      name: form.name, category: form.category,
+      muscle_group: primaryMuscles[0] || null,
+      primary_muscles: primaryMuscles, secondary_muscles: secondaryMuscles,
+      description: form.description || null, video_url: form.video_url || null,
       exercise_type: form.exercise_type,
     }
 
@@ -69,74 +101,104 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       if (updateErr) { setError(updateErr.message); setLoading(false); return }
     }
 
-    setLoading(false)
-    onSuccess()
-    onClose() // FIX: zatvori dialog nakon uspješnog save
+    setLoading(false); onSuccess(); onClose()
   }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isFork ? 'Prilagodi vježbu' : 'Uredi vježbu'}</DialogTitle>
-          {isFork && (
-            <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md mt-1">
+      <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+        <DialogTitle className="sr-only">{isFork ? 'Prilagodi vježbu' : 'Uredi vježbu'}</DialogTitle>
+
+        {/* Colored header */}
+        <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 shrink-0 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            {isFork ? <Pencil size={16} className="text-white" /> : <Dumbbell size={16} className="text-white" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-base">
+              {isFork ? 'Prilagodi vježbu' : 'Uredi vježbu'}
+            </h2>
+            <p className="text-emerald-100/70 text-xs truncate">{exercise.name}</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {isFork && (
+          <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 shrink-0">
+            <p className="text-xs text-amber-700">
               Uređuješ default vježbu. Bit će kreirana tvoja verzija, a original će biti sakriven.
             </p>
-          )}
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Naziv</Label>
-            <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
+        )}
 
-          {/* Tip vježbe */}
-          <div className="space-y-1.5">
-            <Label>Tip vježbe</Label>
-            <div className="flex gap-2">
-              {(['strength', 'endurance'] as const).map(t => (
-                <button key={t} type="button"
-                  onClick={() => setForm(f => ({ ...f, exercise_type: t }))}
-                  className={`text-xs px-4 py-1.5 rounded-full border transition-colors ${form.exercise_type === t ? 'bg-gray-900 text-white border-gray-900 font-semibold' : 'text-gray-500 border-gray-300 hover:border-gray-400'}`}>
-                  {t === 'strength' ? 'Snaga (serije×ponav.)' : 'Izdržljivost (serije×min)'}
-                </button>
-              ))}
-            </div>
-          </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Mišićna grupa</Label>
-              <select value={form.muscle_group} onChange={e => setForm({ ...form, muscle_group: e.target.value })}
-                className="w-full border rounded-md px-3 py-2 text-sm">
-                {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-gray-600">Naziv</Label>
+              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                required className="h-9" />
             </div>
-            <div className="space-y-2">
-              <Label>Oprema</Label>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">Tip vježbe</Label>
+              <div className="flex gap-2">
+                {(['strength', 'endurance'] as const).map(t => (
+                  <button key={t} type="button"
+                    onClick={() => setForm(f => ({ ...f, exercise_type: t }))}
+                    className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                      form.exercise_type === t
+                        ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
+                        : 'text-gray-500 border-gray-200 hover:border-emerald-300'
+                    }`}>
+                    {t === 'strength' ? '🏋️ Snaga (serije × ponav.)' : '🏃 Izdržljivost (serije × min)'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">Oprema</Label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                className="w-full border rounded-md px-3 py-2 text-sm">
+                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400">
                 {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Opis <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
-            <textarea value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              className="w-full border rounded-md px-3 py-2 text-sm resize-none h-20" />
-          </div>
-          <div className="space-y-2">
-            <Label>Video URL <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
-            <Input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
-              placeholder="https://youtube.com/..." />
+
+            <MuscleChipSelect value={primaryMuscles} onChange={setPrimaryMuscles}
+              label="Primarne mišićne grupe" color="emerald" />
+
+            <MuscleChipSelect value={secondaryMuscles} onChange={setSecondaryMuscles}
+              label="Sekundarne mišićne grupe (opcionalno)" color="gray" />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">
+                Opis <span className="text-gray-400 font-normal">(opcionalno)</span>
+              </Label>
+              <textarea value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="Kratki opis tehnike izvedbe..."
+                rows={3}
+                className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder:text-gray-400" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">
+                Video URL <span className="text-gray-400 font-normal">(opcionalno)</span>
+              </Label>
+              <Input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
+                placeholder="https://youtube.com/..." />
+            </div>
+
+            {error && <p className="text-red-500 text-sm">{error}</p>}
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex gap-3 pt-2">
+          <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
-            <Button type="submit" disabled={loading} className="flex-1">
+            <Button type="submit" disabled={loading || !form.name}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700">
               {loading ? 'Sprema...' : isFork ? 'Spremi kao moju' : 'Spremi promjene'}
             </Button>
           </div>
