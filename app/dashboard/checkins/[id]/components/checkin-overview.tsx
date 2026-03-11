@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Send } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Send, CalendarCheck, CalendarX } from 'lucide-react'
 
 type Props = { clientId: string }
 type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
@@ -128,47 +127,65 @@ export default function CheckinOverview({ clientId }: Props) {
   return (
     <div className="space-y-4">
       {/* Week navigator */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w - 1)}>
-          <ChevronLeft size={14} />
-        </Button>
+      <div className="flex items-center justify-between bg-gray-50/80 rounded-xl px-4 py-2.5 border border-gray-100">
+        <button
+          onClick={() => setWeekOffset(w => w - 1)}
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition-all text-gray-500"
+        >
+          <ChevronLeft size={15} />
+        </button>
         <div className="text-center">
-          <p className="text-sm font-semibold">{fmt(days[0])} — {fmt(days[6])}</p>
-          {weekOffset === 0 && <p className="text-xs text-blue-500">{t('thisWeek')}</p>}
+          <p className="text-sm font-semibold text-gray-800">{fmt(days[0])} — {fmt(days[6])}</p>
+          {weekOffset === 0 && <p className="text-[11px] text-teal-500 font-medium">{t('thisWeek')}</p>}
+          {weekOffset < 0 && <p className="text-[11px] text-gray-400">{Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? 'tjedan ranije' : 'tjedna ranije'}</p>}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
-          <ChevronRight size={14} />
-        </Button>
+        <button
+          onClick={() => setWeekOffset(w => w + 1)}
+          disabled={weekOffset >= 0}
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition-all text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm text-center py-8">{t('loading')}</p>
+        <div className="space-y-3">
+          <div className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+        </div>
       ) : (
         <>
-          {/* Tjedni check-in — compact */}
-          <Card className={checkin ? 'border-green-200' : ''}>
-            <div className="p-3">
-              <div className="flex items-center justify-between mb-2">
+          {/* Weekly check-in card */}
+          <div className={`rounded-xl border transition-all ${checkin ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-100 bg-white'}`}>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-sm">{t('weeklyCheckin')}</p>
+                  {checkin
+                    ? <CalendarCheck size={15} className="text-emerald-500" />
+                    : <CalendarX size={15} className="text-gray-300" />
+                  }
+                  <p className="font-semibold text-sm text-gray-800">{t('weeklyCheckin')}</p>
                   <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${checkin ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {checkin ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}` : t('notSent')}
+                <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${checkin ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
+                  {checkin
+                    ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
+                    : t('notSent')
+                  }
                 </span>
               </div>
 
-              {/* Weekly values inline */}
+              {/* Weekly param values */}
               {weeklyParams.length > 0 && (
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-2 flex-wrap mb-3">
                   {weeklyParams.map(p => {
                     const raw = checkin?.values?.[p.id]
                     const val = parseVal(raw)
                     const hasVal = !isNaN(val)
                     return (
-                      <div key={p.id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-md px-2.5 py-1.5">
-                        <span className="text-xs text-gray-400">{p.name}</span>
-                        <span className={`text-sm font-semibold ${hasVal ? 'text-gray-800' : 'text-gray-300'}`}>
+                      <div key={p.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${hasVal ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}`}>
+                        <span className="text-[11px] text-gray-400 font-medium">{p.name}</span>
+                        <span className={`text-sm font-bold ${hasVal ? 'text-gray-800' : 'text-gray-300'}`}>
                           {hasVal ? `${val % 1 === 0 ? val : val.toFixed(1)}${p.unit ? ` ${p.unit}` : ''}` : '—'}
                         </span>
                       </div>
@@ -177,16 +194,16 @@ export default function CheckinOverview({ clientId }: Props) {
                 </div>
               )}
 
-              {/* Send comment as chat message */}
+              {/* Trainer comment */}
               {checkin && (
-                <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+                <div className="pt-3 border-t border-gray-100 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('commentToClient')}</p>
-                    <p className="text-xs text-gray-400">{t('sendAsChat')}</p>
+                    <p className="text-[11px] text-gray-400">{t('sendAsChat')}</p>
                   </div>
                   {checkin.trainer_comment && (
-                    <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500 border border-gray-100">
-                      {t('lastLabel')}: "{checkin.trainer_comment}"
+                    <div className="bg-teal-50 rounded-lg px-3 py-2 text-xs text-teal-700 border border-teal-100">
+                      {t('lastLabel')}: &ldquo;{checkin.trainer_comment}&rdquo;
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -195,9 +212,10 @@ export default function CheckinOverview({ clientId }: Props) {
                       onChange={e => setComment(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
                       placeholder={t('commentPlaceholder')}
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-300"
+                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-300 transition-colors"
                     />
-                    <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent} className="flex-shrink-0 gap-1.5">
+                    <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent}
+                      className={`flex-shrink-0 gap-1.5 h-9 text-xs px-3 ${sent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
                       <Send size={13} />
                       {sending ? t('sending') : sent ? t('sent') : t('send')}
                     </Button>
@@ -205,21 +223,21 @@ export default function CheckinOverview({ clientId }: Props) {
                 </div>
               )}
             </div>
-          </Card>
+          </div>
 
           {/* Daily table */}
           {dailyParams.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('dailyEntries')}</p>
-              <Card>
+              <div className="rounded-xl border border-gray-100 overflow-hidden bg-white">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 w-28">{t('day')}</th>
+                      <tr className="border-b border-gray-100 bg-gray-50/60">
+                        <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 w-28">{t('day')}</th>
                         {dailyParams.map(p => (
-                          <th key={p.id} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-500">
-                            {p.name}{p.unit && <span className="font-normal text-gray-400"> ({p.unit})</span>}
+                          <th key={p.id} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400">
+                            {p.name}{p.unit && <span className="font-normal text-gray-300"> ({p.unit})</span>}
                           </th>
                         ))}
                       </tr>
@@ -231,16 +249,18 @@ export default function CheckinOverview({ clientId }: Props) {
                         const isToday = iso === isoDate(new Date())
                         const isCheckinDayRow = day.getDay() === checkinDay
                         return (
-                          <tr key={iso} className={['border-b border-gray-50 last:border-0', isToday ? 'bg-blue-50' : i % 2 !== 0 ? 'bg-gray-50/40' : ''].join(' ')}>
-                            <td className="px-4 py-2">
+                          <tr key={iso} className={`border-b border-gray-50 last:border-0 transition-colors ${
+                            isToday ? 'bg-teal-50/60' : i % 2 !== 0 ? 'bg-gray-50/30' : ''
+                          }`}>
+                            <td className="px-4 py-2.5">
                               <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-green-400' : 'bg-gray-200'}`} />
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-emerald-400' : 'bg-gray-200'}`} />
                                 <div>
                                   <div className="flex items-center gap-1">
-                                    <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-700'}`}>{tDaysShort(String(day.getDay()))}</span>
-                                    {isCheckinDayRow && <span className="text-purple-400 text-xs">●</span>}
+                                    <span className={`text-xs font-semibold ${isToday ? 'text-teal-600' : 'text-gray-700'}`}>{tDaysShort(String(day.getDay()))}</span>
+                                    {isCheckinDayRow && <span className="text-indigo-400 text-[10px] font-bold">●</span>}
                                   </div>
-                                  <div className="text-xs text-gray-400">{fmt(day)}</div>
+                                  <div className="text-[11px] text-gray-400">{fmt(day)}</div>
                                 </div>
                               </div>
                             </td>
@@ -249,8 +269,11 @@ export default function CheckinOverview({ clientId }: Props) {
                               const val = parseVal(raw)
                               const display = !isNaN(val) ? (val % 1 === 0 ? val : val.toFixed(1)) : (raw !== undefined && raw !== null && raw !== '' ? raw : null)
                               return (
-                                <td key={p.id} className="text-center px-4 py-2">
-                                  {display !== null ? <span className="font-medium text-gray-800">{display}</span> : <span className="text-gray-200">—</span>}
+                                <td key={p.id} className="text-center px-4 py-2.5">
+                                  {display !== null
+                                    ? <span className="font-semibold text-gray-800 text-sm">{display}</span>
+                                    : <span className="text-gray-200 text-sm">—</span>
+                                  }
                                 </td>
                               )
                             })}
@@ -258,18 +281,20 @@ export default function CheckinOverview({ clientId }: Props) {
                         )
                       })}
                       <tr className="border-t-2 border-gray-100 bg-gray-50">
-                        <td className="px-4 py-2 text-xs font-semibold text-gray-500">{t('average')}</td>
+                        <td className="px-4 py-2.5 text-xs font-bold text-gray-500">{t('average')}</td>
                         {dailyParams.map(p => (
-                          <td key={p.id} className="text-center px-4 py-2 text-xs font-semibold text-gray-600">
-                            {p.type === 'number' ? (avg(p.id) ?? '—') : '—'}
+                          <td key={p.id} className="text-center px-4 py-2.5 text-xs font-bold text-teal-600">
+                            {p.type === 'number' ? (avg(p.id) ?? <span className="text-gray-300">—</span>) : <span className="text-gray-300">—</span>}
                           </td>
                         ))}
                       </tr>
                     </tbody>
                   </table>
                 </div>
-              </Card>
-              <p className="text-xs text-gray-400 mt-1 ml-0.5">{t('checkinDayLegend')}</p>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5 ml-1 flex items-center gap-1">
+                <span className="text-indigo-400 font-bold">●</span> {t('checkinDayLegend')}
+              </p>
             </div>
           )}
         </>

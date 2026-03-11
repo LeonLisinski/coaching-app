@@ -3,10 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, UserX, UserCheck, ArrowUpDown, ChevronDown, SlidersHorizontal, X, Trash2 } from 'lucide-react'
+import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
@@ -39,6 +37,15 @@ function calcAge(dob: string): number {
   const m = today.getMonth() - birth.getMonth()
   if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
   return age
+}
+
+function getInitials(name: string) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
+function avatarStyle(gender: string | null): string {
+  if (gender === 'F') return 'bg-gradient-to-br from-rose-400 to-pink-500'
+  if (gender === 'M') return 'bg-gradient-to-br from-sky-400 to-blue-500'
+  return 'bg-gradient-to-br from-gray-400 to-gray-500'
 }
 
 export default function ClientsPage() {
@@ -203,166 +210,83 @@ export default function ClientsPage() {
     })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <h1 className="text-2xl font-bold">{t('title')}</h1>
         <p className="text-gray-500">{t('subtitle')}</p>
       </div>
 
-      {/* Search + Add */}
+      {/* Toolbar row 1: search + add */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
           />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={13} />
+            </button>
+          )}
         </div>
-        <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2 shrink-0">
-          <Plus size={14} />
-          {t('addClient')}
+        <Button onClick={() => setShowAdd(true)} size="sm"
+          className="h-9 flex items-center gap-1.5 px-3.5 bg-violet-600 hover:bg-violet-700 shrink-0">
+          <Plus size={13} /> {t('addClient')}
         </Button>
       </div>
 
-      {/* Toolbar: status pills + filter btn + sort */}
+      {/* Toolbar row 2: status pills + filter + sort */}
       <div className="flex flex-wrap items-center gap-2">
-        {/* Status */}
+        {/* Status pills */}
         <div className="flex gap-1">
-          {[
-            { value: 'active', label: t('filterActive') },
+          {([
+            { value: 'active',   label: t('filterActive') },
             { value: 'inactive', label: t('filterInactive') },
-            { value: 'all', label: t('filterAll') },
-          ].map(opt => (
-            <Button
-              key={opt.value}
-              variant={statusFilter === opt.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusFilter(opt.value as any)}
-            >
+            { value: 'all',      label: t('filterAll') },
+          ] as const).map(opt => (
+            <button key={opt.value} type="button" onClick={() => setStatusFilter(opt.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                statusFilter === opt.value
+                  ? 'bg-violet-600 text-white border-violet-600'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
+              }`}>
               {opt.label}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Filter button */}
-        <div className="relative" ref={filterRef}>
-          <Button
-            variant={activeFilterCount > 0 ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilters(v => !v)}
-            className="flex items-center gap-1.5"
-          >
-            <SlidersHorizontal size={13} />
-            Filteri
-            {activeFilterCount > 0 && (
-              <span className="bg-white text-primary rounded-full w-4 h-4 text-xs flex items-center justify-center font-bold">
-                {activeFilterCount}
-              </span>
-            )}
-          </Button>
-
-          {showFilters && (
-            <div className="absolute left-0 top-full mt-1 z-30 bg-white border rounded-xl shadow-lg w-72 p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">Filteri</span>
-                {activeFilterCount > 0 && (
-                  <button type="button" onClick={clearFilters} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1">
-                    <X size={11} /> Resetiraj
-                  </button>
-                )}
-              </div>
-
-              {/* Gender */}
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Spol</p>
-                <div className="flex gap-1.5">
-                  {([['', 'Svi'], ['M', '♂ Muško'], ['F', '♀ Žensko']] as const).map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setGenderFilter(val)}
-                      className={`flex-1 py-1.5 rounded-md border text-xs font-medium transition-colors ${
-                        genderFilter === val
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-input bg-background hover:bg-accent'
-                      }`}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Package */}
-              {packages.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Paket</p>
-                  <select
-                    value={packageFilter}
-                    onChange={e => setPackageFilter(e.target.value)}
-                    className="w-full border border-input rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    <option value="">Svi paketi</option>
-                    {packages.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Age range */}
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Dob (godine)</p>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max="120"
-                    placeholder="Od"
-                    value={ageFrom}
-                    onChange={e => setAgeFrom(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                  <span className="text-gray-400 shrink-0">–</span>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="120"
-                    placeholder="Do"
-                    value={ageTo}
-                    onChange={e => setAgeTo(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
+        <Button variant="outline" size="sm"
+          onClick={() => setShowFilters(v => !v)}
+          className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-violet-300 text-violet-600 bg-violet-50' : ''}`}>
+          <SlidersHorizontal size={12} />
+          Filteri
+          {activeFilterCount > 0 && (
+            <span className="bg-violet-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+              {activeFilterCount}
+            </span>
           )}
-        </div>
+          <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+        </Button>
 
-        {/* Sort */}
-        <div className="relative ml-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSortMenu(v => !v)}
-            className="flex items-center gap-1"
-          >
-            <ArrowUpDown size={13} />
+        {/* Sort dropdown */}
+        <div className="relative ml-auto" ref={filterRef}>
+          <button type="button" onClick={() => setShowSortMenu(v => !v)}
+            className="flex items-center gap-1.5 text-xs h-7 px-2.5 rounded-md border border-gray-200 bg-white text-gray-600 hover:border-violet-300 transition-colors font-medium">
             {sortLabels[sortKey]}
-            <ChevronDown size={13} />
-          </Button>
+            <ChevronDown size={11} className={`transition-transform ${showSortMenu ? 'rotate-180' : ''}`} />
+          </button>
           {showSortMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
-              <div className="absolute right-0 top-full mt-1 z-20 bg-white border rounded-md shadow-md min-w-[180px] py-1">
+              <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-100 rounded-xl shadow-lg min-w-[190px] py-1.5 overflow-hidden">
                 {(Object.entries(sortLabels) as [SortKey, string][]).map(([key, label]) => (
-                  <button
-                    key={key}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${sortKey === key ? 'font-medium text-primary' : ''}`}
-                    onClick={() => { setSortKey(key); setShowSortMenu(false) }}
-                  >
+                  <button key={key} type="button"
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${sortKey === key ? 'font-semibold text-violet-600' : 'text-gray-700'}`}
+                    onClick={() => { setSortKey(key); setShowSortMenu(false) }}>
                     {label}
                   </button>
                 ))}
@@ -372,124 +296,189 @@ export default function ClientsPage() {
         </div>
       </div>
 
+      {/* Inline filter panel */}
+      {showFilters && (
+        <div className="bg-violet-50/60 rounded-xl p-3 space-y-3 border border-violet-100">
+          {/* Gender */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Spol</p>
+            <div className="flex gap-1.5">
+              {([['', 'Svi'], ['M', '♂ Muško'], ['F', '♀ Žensko']] as const).map(([val, lbl]) => (
+                <button key={val} type="button" onClick={() => setGenderFilter(val)}
+                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                    genderFilter === val ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
+                  }`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Package */}
+          {packages.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Paket</p>
+              <div className="flex gap-1.5 flex-wrap">
+                <button type="button" onClick={() => setPackageFilter('')}
+                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                    !packageFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
+                  }`}>
+                  Svi paketi
+                </button>
+                {packages.map(p => (
+                  <button key={p.id} type="button" onClick={() => setPackageFilter(p.id)}
+                    className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+                      packageFilter === p.id ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
+                    }`}>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Age range */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dob (godine)</p>
+            <div className="flex items-center gap-2">
+              <Input type="number" min="1" max="120" placeholder="Od" value={ageFrom}
+                onChange={e => setAgeFrom(e.target.value)} className="h-8 text-sm w-24 focus:border-violet-300" />
+              <span className="text-gray-400 text-sm">–</span>
+              <Input type="number" min="1" max="120" placeholder="Do" value={ageTo}
+                onChange={e => setAgeTo(e.target.value)} className="h-8 text-sm w-24 focus:border-violet-300" />
+            </div>
+          </div>
+
+          {activeFilterCount > 0 && (
+            <button type="button" onClick={clearFilters} className="text-xs text-violet-600 flex items-center gap-1 hover:text-violet-800">
+              <X size={11} /> Očisti filtere
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Active filter chips */}
-      {activeFilterCount > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+      {activeFilterCount > 0 && !showFilters && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-gray-400">Filteri:</span>
           {genderFilter && (
-            <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
               {genderFilter === 'M' ? '♂ Muško' : '♀ Žensko'}
-              <button type="button" onClick={() => setGenderFilter('')}><X size={10} /></button>
+              <button type="button" onClick={() => setGenderFilter('')}><X size={9} /></button>
             </span>
           )}
           {packageFilter && (
-            <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
-              📦 {packages.find(p => p.id === packageFilter)?.name}
-              <button type="button" onClick={() => setPackageFilter('')}><X size={10} /></button>
+            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              {packages.find(p => p.id === packageFilter)?.name}
+              <button type="button" onClick={() => setPackageFilter('')}><X size={9} /></button>
             </span>
           )}
           {(ageFrom || ageTo) && (
-            <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
-              Dob: {ageFrom || '?'} – {ageTo || '?'} god.
-              <button type="button" onClick={() => { setAgeFrom(''); setAgeTo('') }}><X size={10} /></button>
+            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              Dob: {ageFrom || '?'}–{ageTo || '?'} god.
+              <button type="button" onClick={() => { setAgeFrom(''); setAgeTo('') }}><X size={9} /></button>
             </span>
           )}
         </div>
       )}
 
-      <p className="text-sm text-gray-500">{t('clientCount', { count: filtered.length })}</p>
+      {/* Count */}
+      <p className="text-xs text-gray-500">{filtered.length} / {clients.length} klijenata</p>
 
+      {/* List */}
       {loading ? (
-        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
+        <div className="space-y-2">
+          {[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-gray-500 text-sm">
-            {t('noClients')}
-          </CardContent>
-        </Card>
+        <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-xl">
+          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mx-auto mb-2">
+            <Users size={20} className="text-violet-400" />
+          </div>
+          <p className="text-gray-400 text-sm">{t('noClients')}</p>
+          {!search && (
+            <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1 mx-auto">
+              <Plus size={11} /> Dodaj prvog klijenta
+            </button>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((client) => {
             const age = client.date_of_birth ? calcAge(client.date_of_birth) : null
             return (
-              <Card
+              <div
                 key={client.id}
-                className={`transition-shadow cursor-pointer hover:shadow-sm ${!client.active ? 'opacity-60' : ''}`}
+                className={`border rounded-xl px-4 py-3 bg-white hover:shadow-sm hover:border-violet-200 transition-all cursor-default select-none group ${
+                  !client.active ? 'opacity-55' : 'border-gray-100'
+                }`}
                 onDoubleClick={() => router.push(`/dashboard/clients/${client.id}`)}
               >
-                <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className={`w-10 h-10 rounded-xl ${avatarStyle(client.gender)} flex items-center justify-center shrink-0`}>
+                    <span className="text-white text-xs font-bold">{getInitials(client.full_name)}</span>
+                  </div>
+
+                  {/* Info */}
                   <div className="flex-1 min-w-0 space-y-0.5">
-                    {/* Row 1: name + gender + status + package */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium text-sm">{client.full_name}</p>
-                      {client.gender && (
-                        <span className="text-xs text-gray-400">{client.gender === 'M' ? '♂' : '♀'}</span>
-                      )}
+                      <p className="font-semibold text-sm text-gray-800">{client.full_name}</p>
                       {!client.active && (
-                        <Badge variant="secondary" className="text-xs">{tCommon('inactive')}</Badge>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200 font-medium">
+                          {tCommon('inactive')}
+                        </span>
                       )}
                       {client.activePackageName && (
-                        <span
-                          className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold"
                           style={{
-                            backgroundColor: (client.activePackageColor || '#6366f1') + '18',
-                            color: client.activePackageColor || '#6366f1',
-                          }}
-                        >
+                            backgroundColor: (client.activePackageColor || '#7c3aed') + '20',
+                            color: client.activePackageColor || '#7c3aed',
+                            border: `1px solid ${(client.activePackageColor || '#7c3aed')}30`,
+                          }}>
                           {client.activePackageName}
                         </span>
                       )}
                     </div>
-
-                    {/* Row 2: email + goal + metrics — all subtle, dot-separated */}
-                    <div className="flex items-center gap-0 text-xs text-gray-400 flex-wrap">
+                    <div className="flex items-center text-[11px] text-gray-400 flex-wrap gap-0">
                       <span>{client.email}</span>
-                      {client.goal && <><span className="mx-1.5 text-gray-300">·</span><span>{client.goal}</span></>}
-                      {client.weight && <><span className="mx-1.5 text-gray-300">·</span><span>{client.weight} kg</span></>}
-                      {client.height && <><span className="mx-1.5 text-gray-300">·</span><span>{client.height} cm</span></>}
-                      {age !== null && <><span className="mx-1.5 text-gray-300">·</span><span>{age} god.</span></>}
-                      {client.start_date && <><span className="mx-1.5 text-gray-300">·</span><span>od {new Date(client.start_date).toLocaleDateString('hr-HR')}</span></>}
+                      {client.goal && <><span className="mx-1.5 text-gray-200">·</span><span>{client.goal}</span></>}
+                      {client.weight && <><span className="mx-1.5 text-gray-200">·</span><span>{client.weight} kg</span></>}
+                      {client.height && <><span className="mx-1.5 text-gray-200">·</span><span>{client.height} cm</span></>}
+                      {age !== null && <><span className="mx-1.5 text-gray-200">·</span><span>{age} god.</span></>}
+                      {client.start_date && <><span className="mx-1.5 text-gray-200">·</span><span>od {new Date(client.start_date).toLocaleDateString('hr-HR')}</span></>}
                     </div>
-
-                    {/* Row 3: notes — only if present */}
                     {client.notes && (
-                      <p className="text-xs text-gray-400 truncate max-w-[400px] italic" title={client.notes}>
+                      <p className="text-[11px] text-gray-400 truncate max-w-[380px] italic" title={client.notes}>
                         {client.notes}
                       </p>
                     )}
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); setEditClient(client) }}
-                      title="Uredi klijenta"
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); setConfirmToggle(client) }}
-                      title={client.active ? 'Deaktiviraj klijenta' : 'Aktiviraj klijenta'}
-                    >
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button type="button" onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 group-hover:text-violet-400 transition-colors">
+                      <ChevronRight size={15} />
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setEditClient(client) }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-violet-600 hover:bg-violet-50 transition-colors">
+                      <Pencil size={13} />
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmToggle(client) }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-50 transition-colors">
                       {client.active
-                        ? <UserX size={14} className="text-red-400" />
-                        : <UserCheck size={14} className="text-green-500" />
+                        ? <UserX size={13} className="text-red-400" />
+                        : <UserCheck size={13} className="text-emerald-500" />
                       }
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(client) }}
-                      title="Obriši klijenta"
-                    >
-                      <Trash2 size={14} className="text-red-400" />
-                    </Button>
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmDelete(client) }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )
           })}
         </div>

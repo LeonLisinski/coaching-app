@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronRight, ClipboardList, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 type ClientCheckin = {
   id: string
   full_name: string
+  gender: string | null
   checkin_day: number | null
   last_checkin: string | null
   status: 'submitted' | 'late' | 'neutral'
@@ -30,21 +30,36 @@ function getStatus(checkinDay: number | null, lastCheckin: string | null): 'subm
   return last >= expected ? 'submitted' : 'late'
 }
 
-const STATUS_DOT = { submitted: 'bg-green-500', late: 'bg-red-500', neutral: 'bg-gray-300' }
-const STATUS_TEXT = { submitted: 'text-green-600', late: 'text-red-500', neutral: 'text-gray-400' }
+const STATUS_CONFIG = {
+  submitted: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Predano' },
+  late:      { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-600 border-red-200',             label: 'Kasni' },
+  neutral:   { dot: 'bg-gray-300',   badge: 'bg-gray-50 text-gray-400 border-gray-200',           label: 'Bez konfiguracije' },
+}
+
+const DAY_NAMES_SHORT = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
+const DAY_NAMES_FULL  = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
+
+function getInitials(name: string) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function avatarStyle(gender: string | null): string {
+  if (gender === 'F') return 'bg-gradient-to-br from-rose-400 to-pink-500'
+  if (gender === 'M') return 'bg-gradient-to-br from-sky-400 to-blue-500'
+  return 'bg-gradient-to-br from-gray-400 to-gray-500'
+}
 
 export default function ClientsCheckinTab() {
   const locale = useLocale()
   const t = useTranslations('checkins.clientsTab')
-  const tDays = useTranslations('days')
-  const tDaysShort = useTranslations('daysShort')
+
   const SORT_OPTIONS = [
-    { value: 'name_asc', label: t('sortAZ') },
+    { value: 'name_asc',  label: t('sortAZ') },
     { value: 'name_desc', label: t('sortZA') },
-    { value: 'day_asc', label: t('sortDay') },
-    { value: 'status', label: t('sortStatus') },
+    { value: 'day_asc',   label: t('sortDay') },
+    { value: 'status',    label: t('sortStatus') },
   ]
-  const STATUS_LABEL = { submitted: t('statuses.onTime'), late: t('statuses.late'), neutral: t('statuses.noConfig') }
+
   const [clients, setClients] = useState<ClientCheckin[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -59,7 +74,7 @@ export default function ClientsCheckinTab() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: clientsData } = await supabase.from('clients')
-      .select(`id, profiles!clients_user_id_fkey (full_name)`)
+      .select(`id, gender, profiles!clients_user_id_fkey (full_name)`)
       .eq('trainer_id', user.id).eq('active', true)
     if (!clientsData) return
     const clientIds = clientsData.map(c => c.id)
@@ -74,101 +89,101 @@ export default function ClientsCheckinTab() {
     setClients(clientsData.map((c: any) => {
       const checkinDay = configMap[c.id] ?? null
       const lastCheckin = lastMap[c.id] || null
-      return { id: c.id, full_name: c.profiles?.full_name || '—', checkin_day: checkinDay, last_checkin: lastCheckin, status: getStatus(checkinDay, lastCheckin) }
+      return { id: c.id, full_name: c.profiles?.full_name || '—', gender: c.gender || null, checkin_day: checkinDay, last_checkin: lastCheckin, status: getStatus(checkinDay, lastCheckin) }
     }))
     setLoading(false)
   }
 
+  const hasFilters = sort !== 'name_asc' || dayFilter !== 'all'
   const activeFilterCount = (sort !== 'name_asc' ? 1 : 0) + (dayFilter !== 'all' ? 1 : 0)
-
   const clearFilters = () => { setSort('name_asc'); setDayFilter('all') }
 
   const filtered = clients
     .filter(c => c.full_name.toLowerCase().includes(search.toLowerCase()) && (dayFilter === 'all' || c.checkin_day === dayFilter))
     .sort((a, b) => {
-      if (sort === 'name_asc') return a.full_name.localeCompare(b.full_name)
+      if (sort === 'name_asc')  return a.full_name.localeCompare(b.full_name)
       if (sort === 'name_desc') return b.full_name.localeCompare(a.full_name)
-      if (sort === 'day_asc') return (a.checkin_day ?? 99) - (b.checkin_day ?? 99)
-      if (sort === 'status') return ({ late: 0, neutral: 1, submitted: 2 }[a.status]) - ({ late: 0, neutral: 1, submitted: 2 }[b.status])
+      if (sort === 'day_asc')   return (a.checkin_day ?? 99) - (b.checkin_day ?? 99)
+      if (sort === 'status')    return ({ late: 0, neutral: 1, submitted: 2 }[a.status]) - ({ late: 0, neutral: 1, submitted: 2 }[b.status])
       return 0
     })
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{t('clientCount', { filtered: filtered.length, total: clients.length })}</p>
-        <Button variant="outline" size="sm" onClick={() => setShowFilters(f => !f)} className="flex items-center gap-2">
-          <SlidersHorizontal size={14} />
-          {t('filters')}
+        <p className="text-gray-500 text-xs">{filtered.length} / {clients.length} klijenata</p>
+        <Button
+          variant="outline" size="sm"
+          onClick={() => setShowFilters(f => !f)}
+          className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-teal-300 text-teal-600 bg-teal-50' : ''}`}
+        >
+          <SlidersHorizontal size={12} />
+          Filtriraj
           {activeFilterCount > 0 && (
-            <span className="bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{activeFilterCount}</span>
+            <span className="bg-teal-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+              {activeFilterCount}
+            </span>
           )}
+          <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
         </Button>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <Input placeholder={t('searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+        <Input
+          placeholder={t('searchPlaceholder')}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+        />
         {search && (
           <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X size={14} />
+            <X size={13} />
           </button>
         )}
       </div>
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
+        <div className="bg-teal-50/60 rounded-xl p-3 space-y-3 border border-teal-100">
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortLabel')}</p>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {SORT_OPTIONS.map(opt => (
-                <button key={opt.value} onClick={() => setSort(opt.value)} style={{
-                  padding: '4px 12px', borderRadius: 99, fontSize: 13,
-                  fontWeight: sort === opt.value ? 600 : 400,
-                  backgroundColor: sort === opt.value ? '#111827' : 'white',
-                  color: sort === opt.value ? 'white' : '#374151',
-                  border: `1px solid ${sort === opt.value ? '#111827' : '#e5e7eb'}`, cursor: 'pointer',
-                }}>{opt.label}</button>
+                <button key={opt.value} type="button" onClick={() => setSort(opt.value)}
+                  className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+                    sort === opt.value ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                  }`}>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('dayLabel')}</p>
-            <div className="flex gap-2 flex-wrap">
-              {['all', 0,1,2,3,4,5,6].map(d => (
-                <button key={String(d)} onClick={() => setDayFilter(d as any)} style={{
-                  padding: '4px 12px', borderRadius: 99, fontSize: 13,
-                  fontWeight: dayFilter === d ? 600 : 400,
-                  backgroundColor: dayFilter === d ? '#111827' : 'white',
-                  color: dayFilter === d ? 'white' : '#374151',
-                  border: `1px solid ${dayFilter === d ? '#111827' : '#e5e7eb'}`, cursor: 'pointer',
-                }}>{d === 'all' ? t('allDays') : tDaysShort(String(d))}</button>
+            <div className="flex gap-1.5 flex-wrap">
+              <button type="button" onClick={() => setDayFilter('all')}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+                  dayFilter === 'all' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                }`}>
+                {t('allDays')}
+              </button>
+              {[0,1,2,3,4,5,6].map(d => (
+                <button key={d} type="button" onClick={() => setDayFilter(d)}
+                  className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+                    dayFilter === d ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                  }`}>
+                  {DAY_NAMES_SHORT[d]}
+                </button>
               ))}
             </div>
           </div>
-          {activeFilterCount > 0 && (
-            <button onClick={clearFilters} style={{ fontSize: 12, color: '#ef4444', cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <X size={12} /> {t('resetFilters')}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Active filter chips */}
-      {activeFilterCount > 0 && !showFilters && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
-          {sort !== 'name_asc' && (
-            <button onClick={() => setSort('name_asc')} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}>
-              {SORT_OPTIONS.find(o => o.value === sort)?.label} <X size={10} />
-            </button>
-          )}
-          {dayFilter !== 'all' && (
-            <button onClick={() => setDayFilter('all')} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 99, fontSize: 12, backgroundColor: '#111827', color: 'white', border: 'none', cursor: 'pointer' }}>
-              {tDays(String(dayFilter))} <X size={10} />
+          {hasFilters && (
+            <button type="button" onClick={clearFilters} className="text-xs text-teal-600 flex items-center gap-1 hover:text-teal-800">
+              <X size={11} /> Očisti filtere
             </button>
           )}
         </div>
@@ -176,31 +191,59 @@ export default function ClientsCheckinTab() {
 
       {/* List */}
       {loading ? (
-        <p className="text-gray-500 text-sm">{t('loading')}</p>
+        <div className="space-y-2">
+          {[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">{t('noClients')}</CardContent></Card>
+        <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
+          <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-2">
+            <ClipboardList size={20} className="text-teal-400" />
+          </div>
+          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : t('noClients')}</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-2">
-          {filtered.map(client => (
-            <Card key={client.id} className="hover:shadow-sm transition-shadow cursor-pointer" onClick={() => router.push(`/dashboard/checkins/${client.id}`)}>
-              <CardContent className="py-3 flex items-center justify-between">
+          {filtered.map(client => {
+            const cfg = STATUS_CONFIG[client.status]
+            return (
+              <div
+                key={client.id}
+                onClick={() => router.push(`/dashboard/checkins/${client.id}`)}
+                className="border border-gray-100 rounded-xl p-3 bg-white hover:shadow-sm hover:border-teal-200 transition-all cursor-pointer select-none group"
+              >
                 <div className="flex items-center gap-3">
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_DOT[client.status]}`} />
-                  <div>
-                    <p className="font-medium text-sm">{client.full_name}</p>
-                    <p className="text-xs text-gray-500">
-                      {client.checkin_day !== null ? `${t('checkinPrefix')} ${tDays(String(client.checkin_day))}` : t('noDay')}
-                      {client.last_checkin && ` · ${t('lastPrefix')} ${new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}`}
+                  {/* Avatar */}
+                  <div className={`w-9 h-9 rounded-xl ${avatarStyle(client.gender)} flex items-center justify-center shrink-0`}>
+                    <span className="text-white text-xs font-bold">{getInitials(client.full_name)}</span>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-800 truncate">{client.full_name}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      {client.checkin_day !== null
+                        ? `Check-in: ${DAY_NAMES_FULL[client.checkin_day]}`
+                        : 'Bez konfiguriranog dana'}
+                      {client.last_checkin && (
+                        <span className="ml-1.5">
+                          · Zadnji: {new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </span>
+                      )}
                     </p>
                   </div>
+
+                  {/* Status + arrow */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.badge}`}>
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${cfg.dot} mr-1`} />
+                      {cfg.label}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-300 group-hover:text-teal-500 transition-colors" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs ${STATUS_TEXT[client.status]}`}>{STATUS_LABEL[client.status]}</span>
-                  <Button variant="outline" size="sm">{t('viewClient')}</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

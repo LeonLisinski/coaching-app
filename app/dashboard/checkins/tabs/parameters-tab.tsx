@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2, GripVertical, Pencil } from 'lucide-react'
+import { Label } from '@/components/ui/label'
+import { Plus, Trash2, GripVertical, Pencil, Settings2, X, Check } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 type Parameter = {
@@ -21,21 +20,183 @@ type Parameter = {
   frequency: 'daily' | 'weekly'
 }
 
+type FormState = { name: string; type: string; unit: string; options: string; required: boolean; frequency: 'daily' | 'weekly' }
+
+const TYPE_COLORS: Record<string, string> = {
+  number:  'bg-sky-50 text-sky-700 border-sky-200',
+  text:    'bg-amber-50 text-amber-700 border-amber-200',
+  boolean: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  select:  'bg-violet-50 text-violet-700 border-violet-200',
+}
+
+const BLANK_FORM: FormState = { name: '', type: 'number', unit: '', options: '', required: false, frequency: 'daily' }
+
+function paramToForm(p: Parameter): FormState {
+  return { name: p.name, type: p.type, unit: p.unit || '', options: p.options?.join(', ') || '', required: p.required, frequency: p.frequency }
+}
+
+// ─── Inline edit form rendered inside the card ───────────────────────────────
+function InlineForm({
+  form, onChange, onSave, onCancel, types, t, isNew,
+}: {
+  form: FormState
+  onChange: (f: FormState) => void
+  onSave: () => void
+  onCancel: () => void
+  types: { value: string; label: string }[]
+  t: (k: string) => string
+  isNew: boolean
+}) {
+  const nameRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50) }, [])
+
+  return (
+    <div className="mt-2 pt-3 border-t border-indigo-100 space-y-3">
+      {/* Frequency */}
+      <div className="flex gap-1.5">
+        {[{ value: 'daily', label: t('daily') }, { value: 'weekly', label: t('weekly') }].map(f => (
+          <button key={f.value} type="button" onClick={() => onChange({ ...form, frequency: f.value as any })}
+            className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+              form.frequency === f.value ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+            }`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-xs text-gray-500">{t('name')}</Label>
+          <Input ref={nameRef} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })}
+            placeholder={t('namePlaceholder')} className="h-8 text-sm focus:border-indigo-300"
+            onKeyDown={e => { if (e.key === 'Enter' && form.name) onSave(); if (e.key === 'Escape') onCancel() }}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-gray-500">{t('typeLabel')}</Label>
+          <select value={form.type} onChange={e => onChange({ ...form, type: e.target.value })}
+            className="w-full border border-input rounded-md px-2.5 py-1.5 text-sm h-8 bg-white focus:border-indigo-300 focus:outline-none">
+            {types.map(ty => <option key={ty.value} value={ty.value}>{ty.label}</option>)}
+          </select>
+        </div>
+        {form.type === 'number' && (
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500">{t('unit')}</Label>
+            <Input value={form.unit} onChange={e => onChange({ ...form, unit: e.target.value })}
+              placeholder={t('unitPlaceholder')} className="h-8 text-sm focus:border-indigo-300" />
+          </div>
+        )}
+        {form.type === 'select' && (
+          <div className="space-y-1 col-span-2">
+            <Label className="text-xs text-gray-500">{t('optionsLabel')}</Label>
+            <Input value={form.options} onChange={e => onChange({ ...form, options: e.target.value })}
+              placeholder={t('optionsPlaceholder')} className="h-8 text-sm focus:border-indigo-300" />
+          </div>
+        )}
+      </div>
+
+      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+        <input type="checkbox" className="accent-indigo-600 w-3.5 h-3.5" checked={form.required} onChange={e => onChange({ ...form, required: e.target.checked })} />
+        <span className="text-gray-600">{t('requiredLabel')}</span>
+      </label>
+
+      <div className="flex gap-1.5">
+        <button type="button" onClick={onSave} disabled={!form.name}
+          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors">
+          <Check size={12} /> {isNew ? t('addButton') : t('save')}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+          {t('cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Single parameter card with optional inline edit ─────────────────────────
+function ParamCard({
+  param, isEditing, onDoubleClick, onEdit, onDelete, onSave, onCancel, editForm, onFormChange, types, t,
+}: {
+  param: Parameter
+  isEditing: boolean
+  onDoubleClick: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onSave: () => void
+  onCancel: () => void
+  editForm: FormState
+  onFormChange: (f: FormState) => void
+  types: { value: string; label: string }[]
+  t: (k: string) => string
+}) {
+  const typeLabel = types.find(x => x.value === param.type)?.label || param.type
+
+  return (
+    <div
+      className={`border rounded-xl px-3 py-2.5 bg-white transition-all ${
+        isEditing ? 'border-indigo-300 shadow-sm ring-1 ring-indigo-200/50' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+      }`}
+      onDoubleClick={onDoubleClick}
+    >
+      <div className="flex items-center gap-2">
+        <GripVertical size={13} className="text-gray-300 shrink-0 cursor-grab" />
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <p className="font-medium text-sm text-gray-800 truncate">{param.name}</p>
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${TYPE_COLORS[param.type] || 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+            {typeLabel}{param.unit && ` · ${param.unit}`}
+          </span>
+          {param.required && (
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-rose-50 text-rose-600 border-rose-200 shrink-0">
+              Obavezno
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button type="button" title="Uredi (ili dvoklik)" onClick={onEdit}
+            className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+            <Pencil size={12} />
+          </button>
+          <button type="button" onClick={onDelete}
+            className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+
+      {isEditing && (
+        <InlineForm
+          form={editForm}
+          onChange={onFormChange}
+          onSave={onSave}
+          onCancel={onCancel}
+          types={types}
+          t={t}
+          isNew={false}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function ParametersTab() {
   const t = useTranslations('checkins.parametersTab')
   const tCommon = useTranslations('common')
   const TYPES = [
-    { value: 'number', label: t('typeNumber') },
-    { value: 'text', label: t('typeText') },
+    { value: 'number',  label: t('typeNumber') },
+    { value: 'text',    label: t('typeText') },
     { value: 'boolean', label: t('typeBoolean') },
-    { value: 'select', label: t('typeSelect') },
+    { value: 'select',  label: t('typeSelect') },
   ]
+
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editParam, setEditParam] = useState<Parameter | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addForm, setAddForm] = useState<FormState>(BLANK_FORM)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForms, setEditForms] = useState<Record<string, FormState>>({})
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', type: 'number', unit: '', options: '', required: false, frequency: 'daily' as 'daily' | 'weekly' })
 
   useEffect(() => { fetchParameters() }, [])
 
@@ -47,31 +208,43 @@ export default function ParametersTab() {
     setLoading(false)
   }
 
-  const openAdd = () => {
-    setEditParam(null)
-    setForm({ name: '', type: 'number', unit: '', options: '', required: false, frequency: 'daily' })
-    setShowForm(true)
+  const startEdit = (param: Parameter) => {
+    setEditForms(prev => ({ ...prev, [param.id]: paramToForm(param) }))
+    setEditingId(param.id)
+    setShowAddForm(false)
   }
 
-  const openEdit = (param: Parameter) => {
-    setEditParam(param)
-    setForm({ name: param.name, type: param.type, unit: param.unit || '', options: param.options?.join(', ') || '', required: param.required, frequency: param.frequency || 'daily' })
-    setShowForm(true)
-  }
+  const cancelEdit = () => setEditingId(null)
 
-  const handleSave = async () => {
+  const saveEdit = async (param: Parameter) => {
+    const form = editForms[param.id]
+    if (!form?.name) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const payload = {
-      trainer_id: user.id, name: form.name, type: form.type,
+    await supabase.from('checkin_parameters').update({
+      name: form.name, type: form.type,
       unit: form.unit || null,
       options: form.type === 'select' ? form.options.split(',').map(o => o.trim()).filter(Boolean) : null,
       required: form.required, frequency: form.frequency,
-      order_index: editParam ? editParam.order_index : parameters.length,
-    }
-    if (editParam) await supabase.from('checkin_parameters').update(payload).eq('id', editParam.id)
-    else await supabase.from('checkin_parameters').insert(payload)
-    setShowForm(false)
+      trainer_id: user.id,
+    }).eq('id', param.id)
+    setEditingId(null)
+    fetchParameters()
+  }
+
+  const saveAdd = async () => {
+    if (!addForm.name) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('checkin_parameters').insert({
+      trainer_id: user.id, name: addForm.name, type: addForm.type,
+      unit: addForm.unit || null,
+      options: addForm.type === 'select' ? addForm.options.split(',').map(o => o.trim()).filter(Boolean) : null,
+      required: addForm.required, frequency: addForm.frequency,
+      order_index: parameters.length,
+    })
+    setShowAddForm(false)
+    setAddForm(BLANK_FORM)
     fetchParameters()
   }
 
@@ -81,132 +254,107 @@ export default function ParametersTab() {
     setConfirmDelete(null)
   }
 
-  const typeLabel = (type: string) => TYPES.find(x => x.value === type)?.label || type
-  const daily = parameters.filter(p => p.frequency === 'daily')
+  const daily  = parameters.filter(p => p.frequency === 'daily')
   const weekly = parameters.filter(p => p.frequency === 'weekly')
 
+  const tStr = (k: string) => t(k as any)
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{t('paramCount', { count: parameters.length })}</p>
-        <Button onClick={openAdd} size="sm" className="flex items-center gap-2">
-          <Plus size={14} /> {t('add')}
+        <p className="text-gray-500 text-xs">{parameters.length} parametara · dvoklik za uređivanje</p>
+        <Button onClick={() => { setShowAddForm(v => !v); setEditingId(null) }} size="sm"
+          className={`h-7 text-xs flex items-center gap-1 px-2.5 ${showAddForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+          {showAddForm ? <><X size={12} /> Zatvori</> : <><Plus size={12} /> {t('add')}</>}
         </Button>
       </div>
 
-      {showForm && (
-        <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
-          <p className="font-medium text-sm">{editParam ? t('editParam') : t('newParam')}</p>
-
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('frequency')}</p>
-            <div className="flex gap-2">
-              {[{ value: 'daily', label: t('daily') }, { value: 'weekly', label: t('weekly') }].map(f => (
-                <button key={f.value} onClick={() => setForm({ ...form, frequency: f.value as any })} style={{
-                  padding: '4px 14px', borderRadius: 99, fontSize: 13,
-                  fontWeight: form.frequency === f.value ? 600 : 400,
-                  backgroundColor: form.frequency === f.value ? '#111827' : 'white',
-                  color: form.frequency === f.value ? 'white' : '#374151',
-                  border: `1px solid ${form.frequency === f.value ? '#111827' : '#e5e7eb'}`, cursor: 'pointer',
-                }}>{f.label}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('name')}</p>
-              <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('namePlaceholder')} className="h-9" />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('typeLabel')}</p>
-              <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
-                className="w-full border border-input rounded-md px-3 py-2 text-sm h-9 bg-white">
-                {TYPES.map(ty => <option key={ty.value} value={ty.value}>{ty.label}</option>)}
-              </select>
-            </div>
-            {form.type === 'number' && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('unit')}</p>
-                <Input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder={t('unitPlaceholder')} className="h-9" />
-              </div>
-            )}
-            {form.type === 'select' && (
-              <div className="space-y-1.5 col-span-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('optionsLabel')}</p>
-                <Input value={form.options} onChange={e => setForm({ ...form, options: e.target.value })} placeholder={t('optionsPlaceholder')} className="h-9" />
-              </div>
-            )}
-          </div>
-
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={form.required} onChange={e => setForm({ ...form, required: e.target.checked })} />
-            {t('requiredLabel')}
-          </label>
-
-          <div className="flex gap-2">
-            <Button size="sm" onClick={handleSave} disabled={!form.name}>{editParam ? t('save') : t('addButton')}</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>{t('cancel')}</Button>
-          </div>
+      {/* Add new — inline below header */}
+      {showAddForm && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 px-4 pt-3 pb-4 space-y-0">
+          <p className="text-xs font-semibold text-indigo-700 mb-3 flex items-center gap-1.5">
+            <Settings2 size={12} /> Novi parametar
+          </p>
+          <InlineForm
+            form={addForm}
+            onChange={setAddForm}
+            onSave={saveAdd}
+            onCancel={() => { setShowAddForm(false); setAddForm(BLANK_FORM) }}
+            types={TYPES}
+            t={tStr}
+            isNew
+          />
         </div>
       )}
 
+      {/* Parameter list */}
       {loading ? (
-        <p className="text-gray-500 text-sm">{t('loading')}</p>
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="h-11 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
       ) : parameters.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">{t('noParameters')}</CardContent></Card>
+        <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-2">
+            <Settings2 size={20} className="text-indigo-400" />
+          </div>
+          <p className="text-gray-400 text-sm">{t('noParameters')}</p>
+          <button onClick={() => setShowAddForm(true)} className="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mx-auto">
+            <Plus size={11} /> Dodaj prvi parametar
+          </button>
+        </div>
       ) : (
         <div className="space-y-4">
           {daily.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('dailyCount', { count: daily.length })}</p>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-teal-400" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('dailyCount', { count: daily.length })}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5">
                 {daily.map(param => (
-                  <Card key={param.id} className="hover:shadow-sm transition-shadow">
-                    <CardContent className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <GripVertical size={14} className="text-gray-300" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">{param.name}</p>
-                            {param.required && <Badge variant="outline" className="text-xs">Obavezno</Badge>}
-                          </div>
-                          <p className="text-xs text-gray-500">{typeLabel(param.type)}{param.unit && ` · ${param.unit}`}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(param)}><Pencil size={14} /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(param.id)}><Trash2 size={14} className="text-red-400" /></Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ParamCard
+                    key={param.id}
+                    param={param}
+                    isEditing={editingId === param.id}
+                    onDoubleClick={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onDelete={() => setConfirmDelete(param.id)}
+                    onSave={() => saveEdit(param)}
+                    onCancel={cancelEdit}
+                    editForm={editForms[param.id] || paramToForm(param)}
+                    onFormChange={f => setEditForms(prev => ({ ...prev, [param.id]: f }))}
+                    types={TYPES}
+                    t={tStr}
+                  />
                 ))}
               </div>
             </div>
           )}
+
           {weekly.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('weeklyCount', { count: weekly.length })}</p>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('weeklyCount', { count: weekly.length })}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5">
                 {weekly.map(param => (
-                  <Card key={param.id} className="hover:shadow-sm transition-shadow">
-                    <CardContent className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <GripVertical size={14} className="text-gray-300" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">{param.name}</p>
-                            {param.required && <Badge variant="outline" className="text-xs">Obavezno</Badge>}
-                          </div>
-                          <p className="text-xs text-gray-500">{typeLabel(param.type)}{param.unit && ` · ${param.unit}`}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(param)}><Pencil size={14} /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(param.id)}><Trash2 size={14} className="text-red-400" /></Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <ParamCard
+                    key={param.id}
+                    param={param}
+                    isEditing={editingId === param.id}
+                    onDoubleClick={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onDelete={() => setConfirmDelete(param.id)}
+                    onSave={() => saveEdit(param)}
+                    onCancel={cancelEdit}
+                    editForm={editForms[param.id] || paramToForm(param)}
+                    onFormChange={f => setEditForms(prev => ({ ...prev, [param.id]: f }))}
+                    types={TYPES}
+                    t={tStr}
+                  />
                 ))}
               </div>
             </div>
@@ -214,9 +362,15 @@ export default function ParametersTab() {
         </div>
       )}
 
-      <ConfirmDialog open={confirmDelete !== null} title={t('deleteTitle')} description={t('deleteConfirm')}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteParameter(confirmDelete)}
-        onCancel={() => setConfirmDelete(null)} confirmLabel={tCommon('delete')} destructive />
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel={tCommon('delete')}
+        destructive
+      />
     </div>
   )
 }
