@@ -6,11 +6,11 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
-import { Plus } from 'lucide-react'
+import { Plus, X, CalendarDays } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -180,13 +180,25 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>{t('addTitle')}</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+        <DialogTitle className="sr-only">Dodaj plan prehrane</DialogTitle>
+
+        {/* Purple header */}
+        <div className="bg-gradient-to-r from-purple-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <CalendarDays size={16} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-base">Dodaj plan prehrane</h2>
+            <p className="text-purple-100/70 text-xs">Novi predložak plana prehrane</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
           <form id="add-meal-plan-form" onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>{t('name')}</Label>
@@ -275,7 +287,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
-            <Button type="submit" form="add-meal-plan-form" disabled={loading} className="flex-1">
+            <Button type="submit" form="add-meal-plan-form" disabled={loading} className="flex-1 bg-purple-600 hover:bg-purple-700">
               {loading ? tCommon('saving') : t('save')}
             </Button>
           </div>

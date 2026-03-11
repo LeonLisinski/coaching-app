@@ -6,11 +6,11 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
-import { Plus } from 'lucide-react'
+import { Plus, X, CalendarDays } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -202,18 +202,29 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
-          <DialogTitle>{isClientEdit ? `Uredi plan klijenta — ${plan.name}` : t('editTitle')}</DialogTitle>
-          {isClientEdit && (
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 mt-1">
-              Promjene vrijede samo za ovog klijenta. Originalni plan ostaje nepromijenjen.
+      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+        <DialogTitle className="sr-only">Uredi plan prehrane</DialogTitle>
+
+        {/* Purple header */}
+        <div className="bg-gradient-to-r from-purple-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <CalendarDays size={16} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-base truncate">
+              {isClientEdit ? `Uredi plan klijenta — ${plan.name}` : 'Uredi plan prehrane'}
+            </h2>
+            <p className="text-purple-100/70 text-xs">
+              {isClientEdit ? 'Promjene vrijede samo za ovog klijenta' : 'Uredi obroke i ciljeve plana'}
             </p>
-          )}
-        </DialogHeader>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
           <form id="edit-meal-plan-form" onSubmit={handleSubmit} className="space-y-4">
             {!isClientEdit && (
               <>
@@ -305,7 +316,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
-            <Button type="submit" form="edit-meal-plan-form" disabled={loading} className="flex-1">
+            <Button type="submit" form="edit-meal-plan-form" disabled={loading} className="flex-1 bg-purple-600 hover:bg-purple-700">
               {loading ? tCommon('saving') : tCommon('saveChanges')}
             </Button>
           </div>

@@ -130,7 +130,9 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [expanded, setExpanded]           = useState(true)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [dropdownIndex, setDropdownIndex] = useState(-1)
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   // Sinkroniziraj kad se index promijeni
   useEffect(() => {
@@ -223,7 +225,20 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     }]
     setIngredients(newIngs)
     setSearch('')
+    setDropdownIndex(-1)
     updateCustomTotals(newIngs, customName, saveAsRecipe)
+    setTimeout(() => searchRef.current?.focus(), 0)
+  }
+
+  const showDropdown = searchFocused || !!search
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    const visible = filteredFoods.slice(0, 20)
+    if (!showDropdown || visible.length === 0) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownIndex(i => Math.min(i + 1, visible.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownIndex(i => Math.max(i - 1, -1)) }
+    else if (e.key === 'Enter' && dropdownIndex >= 0) { e.preventDefault(); addIngredient(visible[dropdownIndex]); setSearchFocused(false) }
+    else if (e.key === 'Escape') { setSearchFocused(false); setDropdownIndex(-1) }
   }
 
   const updateCustomGrams = (food_id: string, grams: number) => {
@@ -391,24 +406,35 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           />
           <div className="space-y-1">
             <Input
+              ref={searchRef}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
               onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setSearchFocused(true) }}
-              onBlur={() => { blurTimer.current = setTimeout(() => setSearchFocused(false), 150) }}
+              onBlur={() => { blurTimer.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
+              onKeyDown={handleSearchKeyDown}
               placeholder={tRecipe('addIngredients')}
               className="h-8 text-sm"
             />
-            {(searchFocused || !!search) && filteredFoods.length > 0 && (
-              <div className="border rounded-md bg-white shadow-sm overflow-y-auto max-h-44" onWheel={e => e.stopPropagation()}>
-                {filteredFoods.slice(0, 20).map(f => (
-                  <button key={f.id} type="button"
-                    onMouseDown={e => e.preventDefault()}
-                    onClick={() => { addIngredient(f); setSearchFocused(false) }}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-xs flex justify-between border-b last:border-0">
-                    <span>{f.name}</span>
-                    <span className="text-gray-400">{f.calories_per_100g} kcal/100g</span>
-                  </button>
-                ))}
+            {showDropdown && (
+              <div className="border rounded-md bg-white shadow-sm overflow-hidden" onWheel={e => e.stopPropagation()}>
+                <div className="overflow-y-auto max-h-44">
+                  {filteredFoods.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-400 text-center">
+                      {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
+                    </p>
+                  ) : filteredFoods.slice(0, 20).map((f, i) => (
+                    <button key={f.id} type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => { addIngredient(f); setSearchFocused(false) }}
+                      onMouseEnter={() => setDropdownIndex(i)}
+                      className={`w-full text-left px-3 py-2 text-xs flex justify-between border-b border-gray-50 last:border-0 transition-colors ${
+                        dropdownIndex === i ? 'bg-purple-50 text-purple-700' : 'hover:bg-gray-50'
+                      }`}>
+                      <span className="font-medium">{f.name}</span>
+                      <span className="text-gray-400">{f.calories_per_100g} kcal/100g</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

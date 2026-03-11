@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { X, BookOpen } from 'lucide-react'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 type Food = {
@@ -39,10 +39,14 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
   const [name, setName] = useState(recipe.name)
   const [description, setDescription] = useState(recipe.description || '')
   const [foods, setFoods] = useState<Food[]>([])
+  const [foodsLoaded, setFoodsLoaded] = useState(false)
   const [ingredients, setIngredients] = useState<Ingredient[]>(recipe.ingredients || [])
   const [search, setSearch] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [dropdownIndex, setDropdownIndex] = useState(-1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const activeNutritionFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -57,8 +61,9 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
   }, [open, recipe.id])
 
   const fetchFoods = async () => {
-    // FIX: fetchaj sve namirnice (default + trenerove)
+    setFoodsLoaded(false)
     const { data } = await supabase.from('foods').select('*').order('name')
+    setFoodsLoaded(true)
     if (data) setFoods(data)
   }
 
@@ -68,12 +73,28 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
     if (food.extras) {
       Object.entries(food.extras).forEach(([k, v]) => { if (v != null) extras[k] = v })
     }
-    setIngredients([...ingredients, {
+    setIngredients(prev => [...prev, {
       food_id: food.id, name: food.name, grams: 100,
       calories: food.calories_per_100g, protein: food.protein_per_100g,
       carbs: food.carbs_per_100g, fat: food.fat_per_100g, extras,
     }])
     setSearch('')
+    setDropdownIndex(-1)
+    setTimeout(() => searchRef.current?.focus(), 0)
+  }
+
+  const filteredFoods = foods.filter(f =>
+    f.name.toLowerCase().includes(search.toLowerCase()) &&
+    !ingredients.find(i => i.food_id === f.id)
+  )
+  const showDropdown = searchFocused || search.length > 0
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (!showDropdown) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setDropdownIndex(i => Math.min(i + 1, filteredFoods.length - 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setDropdownIndex(i => Math.max(i - 1, -1)) }
+    else if (e.key === 'Enter' && dropdownIndex >= 0) { e.preventDefault(); addIngredient(filteredFoods[dropdownIndex]) }
+    else if (e.key === 'Escape') { setSearchFocused(false); setDropdownIndex(-1) }
   }
 
   const updateGrams = (food_id: string, grams: number) => {
@@ -122,16 +143,27 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
     setLoading(false); onSuccess()
   }
 
-  const filteredFoods = foods.filter(f =>
-    f.name.toLowerCase().includes(search.toLowerCase()) &&
-    !ingredients.find(i => i.food_id === f.id)
-  )
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{t('editTitle')}</DialogTitle></DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+        <DialogTitle className="sr-only">Uredi recept</DialogTitle>
+
+        {/* Rose header */}
+        <div className="bg-gradient-to-r from-rose-500 to-pink-400 px-6 py-4 shrink-0 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <BookOpen size={16} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-base">Uredi recept</h2>
+            <p className="text-rose-100/70 text-xs">Uredi sastojke i podatke recepta</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{t('name')}</Label>
@@ -146,16 +178,40 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
           <div className="space-y-2">
             <Label>{t('addIngredients')}</Label>
             <div className="relative">
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('searchIngredients')} />
-              {search && filteredFoods.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-20 border rounded-md max-h-40 overflow-y-auto bg-white shadow-md mt-0.5">
-                  {filteredFoods.map(f => (
-                    <button key={f.id} type="button" onClick={() => addIngredient(f)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm flex justify-between border-b last:border-0">
-                      <span>{f.name}</span>
-                      <span className="text-gray-400">{f.calories_per_100g} kcal/100g</span>
-                    </button>
-                  ))}
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder={t('searchIngredients')}
+                className="focus:border-rose-300"
+              />
+              {showDropdown && (
+                <div className="border border-rose-100 rounded-xl bg-white shadow-md overflow-hidden mt-1">
+                  {!foodsLoaded ? (
+                    <p className="px-4 py-3 text-xs text-gray-400 text-center">Učitavanje namirnica...</p>
+                  ) : (
+                    <div className="overflow-y-auto max-h-44">
+                      {filteredFoods.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-gray-400 text-center">
+                          {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
+                        </p>
+                      ) : filteredFoods.map((f, i) => (
+                        <button key={f.id} type="button"
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => addIngredient(f)}
+                          onMouseEnter={() => setDropdownIndex(i)}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                            dropdownIndex === i ? 'bg-rose-50 text-rose-700' : 'hover:bg-gray-50'
+                          }`}>
+                          <span className="font-medium">{f.name}</span>
+                          <span className="text-gray-400 text-xs">{f.calories_per_100g} kcal/100g</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -200,12 +256,14 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
           )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
-            <Button type="submit" disabled={loading || ingredients.length === 0} className="flex-1">
-              {loading ? tCommon('saving') : tCommon('saveChanges')}
-            </Button>
-          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+          <Button type="submit" disabled={loading || ingredients.length === 0} className="flex-1 bg-rose-500 hover:bg-rose-600">
+            {loading ? tCommon('saving') : tCommon('saveChanges')}
+          </Button>
+        </div>
         </form>
       </DialogContent>
     </Dialog>

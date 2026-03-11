@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { X, UtensilsCrossed } from 'lucide-react'
 import { FOOD_CATEGORIES } from '../tabs/foods-tab'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
@@ -73,11 +74,25 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Dodaj namirnicu</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+        <DialogTitle className="sr-only">Dodaj namirnicu</DialogTitle>
+
+        {/* Orange header */}
+        <div className="bg-gradient-to-r from-orange-500 to-amber-400 px-6 py-4 shrink-0 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <UtensilsCrossed size={16} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white font-bold text-base">Dodaj namirnicu</h2>
+            <p className="text-orange-100/70 text-xs">Nova namirnica u tvoju biblioteku</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           <div className="space-y-2">
             <Label>Naziv</Label>
             <Input
@@ -144,14 +159,14 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
           )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-              Odustani
-            </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Sprema...' : 'Dodaj namirnicu'}
-            </Button>
-          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+          <Button type="submit" disabled={loading} className="flex-1 bg-orange-500 hover:bg-orange-600">
+            {loading ? 'Sprema...' : 'Dodaj namirnicu'}
+          </Button>
+        </div>
         </form>
       </DialogContent>
     </Dialog>

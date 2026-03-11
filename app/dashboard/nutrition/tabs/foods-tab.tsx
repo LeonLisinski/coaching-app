@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown, GripVertical, UtensilsCrossed } from 'lucide-react'
 import AddFoodDialog from '../dialogs/add-food-dialog'
 import EditFoodDialog from '../dialogs/edit-food-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useDraggable } from '@dnd-kit/core'
 
 export type Food = {
   id: string
@@ -34,12 +32,42 @@ export const FOOD_CATEGORIES = [
 
 type SortKey = 'name_asc' | 'name_desc' | 'calories_asc' | 'calories_desc' | 'protein_desc'
 
-export default function FoodsTab() {
-  const tCommon = useTranslations('common')
+// ─── Draggable food card ───────────────────────────────────────────────────────
+function DraggableFoodCard({
+  food,
+  children,
+}: {
+  food: Food
+  children: (dragHandleProps: React.HTMLAttributes<HTMLButtonElement>) => React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `food::${food.id}`,
+    data: {
+      type: 'food',
+      name: food.name,
+      subtitle: `${food.calories_per_100g} kcal/100g`,
+      payload: food,
+    },
+  })
+  return (
+    <div ref={setNodeRef} style={{ opacity: isDragging ? 0.4 : 1 }} className="transition-opacity">
+      {children({ ...attributes, ...listeners })}
+    </div>
+  )
+}
+
+export default function FoodsTab({
+  activeType,
+  refreshKey,
+  onFoodCreated,
+}: {
+  activeType?: 'food' | 'recipe' | null
+  refreshKey?: number
+  onFoodCreated?: () => void
+}) {
   const { settings } = useTrainerSettings()
 
   const [foods, setFoods] = useState<Food[]>([])
-  const [overrideIds, setOverrideIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('Sve')
   const [showOnlyMine, setShowOnlyMine] = useState(false)
@@ -50,10 +78,9 @@ export default function FoodsTab() {
   const [editFood, setEditFood] = useState<Food | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  // Aktivna extra polja koja trener koristi
   const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
-  useEffect(() => { fetchFoods() }, [])
+  useEffect(() => { fetchFoods() }, [refreshKey])
 
   const fetchFoods = async () => {
     setLoading(true)
@@ -69,8 +96,6 @@ export default function FoodsTab() {
     ])
 
     const overriddenIds = new Set((overrides || []).map(o => o.default_id))
-    setOverrideIds(overriddenIds)
-
     const visible = (allFoods || []).filter(f =>
       (!f.is_default && f.trainer_id === user.id) ||
       (f.is_default && !overriddenIds.has(f.id))
@@ -105,53 +130,62 @@ export default function FoodsTab() {
   const activeFilterCount = [activeCategory !== 'Sve', showOnlyMine, sortKey !== 'name_asc'].filter(Boolean).length
   const clearFilters = () => { setActiveCategory('Sve'); setShowOnlyMine(false); setSortKey('name_asc') }
 
+  const pillClass = (active: boolean) =>
+    `text-xs px-3 py-1 rounded-full border transition-colors cursor-pointer font-medium ${
+      active ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300'
+    }`
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{filtered.length} / {foods.length} namirnica</p>
+        <p className="text-gray-500 text-xs">{filtered.length} / {foods.length} namirnica</p>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2">
-            <SlidersHorizontal size={14} />
+          <Button
+            variant="outline" size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-orange-300 text-orange-700 bg-orange-50' : ''}`}
+          >
+            <SlidersHorizontal size={12} />
             Filtriraj
             {activeFilterCount > 0 && (
-              <span className="bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              <span className="bg-orange-600 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}
-            <ChevronDown size={12} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </Button>
-          <Button onClick={() => setShowAdd(true)} size="sm" className="flex items-center gap-2">
-            <Plus size={14} /> Dodaj
+          <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-orange-500 hover:bg-orange-600">
+            <Plus size={12} /> Dodaj
           </Button>
         </div>
       </div>
 
+      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-        <Input placeholder="Pretraži namirnice..." value={search}
-          onChange={e => setSearch(e.target.value)} className="pl-9" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+        <Input
+          placeholder="Pretraži namirnice..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+        />
         {search && (
           <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X size={14} />
+            <X size={13} />
           </button>
         )}
       </div>
 
+      {/* Filter panel */}
       {showFilters && (
-        <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
+        <div className="bg-orange-50/60 rounded-xl p-3 space-y-3 border border-orange-100">
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kategorija</p>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {['Sve', ...FOOD_CATEGORIES].map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)}
-                  style={{
-                    padding: '4px 12px', borderRadius: 99, fontSize: 13,
-                    fontWeight: activeCategory === cat ? 600 : 400,
-                    backgroundColor: activeCategory === cat ? '#111827' : 'white',
-                    color: activeCategory === cat ? 'white' : '#374151',
-                    border: `1px solid ${activeCategory === cat ? '#111827' : '#e5e7eb'}`,
-                    cursor: 'pointer',
-                  }}>
+                <button key={cat} type="button" onClick={() => setActiveCategory(cat)}
+                  className={pillClass(activeCategory === cat)}>
                   {cat}
                 </button>
               ))}
@@ -159,7 +193,7 @@ export default function FoodsTab() {
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {([
                 { key: 'name_asc', label: 'Naziv A→Z' },
                 { key: 'name_desc', label: 'Naziv Z→A' },
@@ -167,117 +201,140 @@ export default function FoodsTab() {
                 { key: 'calories_desc', label: 'Kalorije ↓' },
                 { key: 'protein_desc', label: 'Proteini ↓' },
               ] as const).map(opt => (
-                <button key={opt.key} onClick={() => setSortKey(opt.key)}
-                  style={{
-                    padding: '4px 12px', borderRadius: 99, fontSize: 13,
-                    fontWeight: sortKey === opt.key ? 600 : 400,
-                    backgroundColor: sortKey === opt.key ? '#111827' : 'white',
-                    color: sortKey === opt.key ? 'white' : '#374151',
-                    border: `1px solid ${sortKey === opt.key ? '#111827' : '#e5e7eb'}`,
-                    cursor: 'pointer',
-                  }}>
+                <button key={opt.key} type="button" onClick={() => setSortKey(opt.key)}
+                  className={pillClass(sortKey === opt.key)}>
                   {opt.label}
                 </button>
               ))}
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-700">Samo moje namirnice</p>
-            <button onClick={() => setShowOnlyMine(!showOnlyMine)}
-              className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-blue-500' : 'bg-gray-200'}`}>
-              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-5' : ''}`} />
+            <p className="text-xs text-gray-600 font-medium">Samo moje namirnice</p>
+            <button type="button" onClick={() => setShowOnlyMine(!showOnlyMine)}
+              className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-orange-500' : 'bg-gray-200'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-4' : ''}`} />
             </button>
           </div>
           {activeFilterCount > 0 && (
-            <button onClick={clearFilters} className="text-xs text-red-500 flex items-center gap-1">
+            <button type="button" onClick={clearFilters} className="text-xs text-orange-600 flex items-center gap-1 hover:text-orange-800">
               <X size={11} /> Očisti filtere
             </button>
           )}
         </div>
       )}
 
+      {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-gray-400">Aktivni filteri:</span>
           {activeCategory !== 'Sve' && (
-            <button onClick={() => setActiveCategory('Sve')}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#111827', color:'white', border:'none', cursor:'pointer' }}>
+            <button type="button" onClick={() => setActiveCategory('Sve')}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-600 text-white">
               {activeCategory} <X size={10} />
             </button>
           )}
           {showOnlyMine && (
-            <button onClick={() => setShowOnlyMine(false)}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'#3b82f6', color:'white', border:'none', cursor:'pointer' }}>
+            <button type="button" onClick={() => setShowOnlyMine(false)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white">
               Samo moje <X size={10} />
             </button>
           )}
           {sortKey !== 'name_asc' && (
-            <button onClick={() => setSortKey('name_asc')}
-              style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 8px', borderRadius:99, fontSize:12, backgroundColor:'white', color:'#374151', border:'1px solid #e5e7eb', cursor:'pointer' }}>
+            <button type="button" onClick={() => setSortKey('name_asc')}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white text-gray-700 border border-gray-200">
               Sortirano <X size={10} />
             </button>
           )}
-          <button onClick={clearFilters} style={{ fontSize:11, color:'#9ca3af', cursor:'pointer', background:'none', border:'none', padding:0 }}>
-            Očisti sve
-          </button>
         </div>
       )}
 
+      {/* Food list */}
       {loading ? (
-        <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
+        <div className="space-y-2">
+          {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-8 text-center text-gray-500 text-sm">Nema namirnica</CardContent></Card>
+        <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mx-auto mb-2">
+            <UtensilsCrossed size={20} className="text-orange-400" />
+          </div>
+          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : 'Nema namirnica'}</p>
+          {!search && (
+            <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-orange-600 hover:text-orange-800 font-medium flex items-center gap-1 mx-auto">
+              <Plus size={11} /> Dodaj prvu namirnicu
+            </button>
+          )}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 gap-1.5">
           {filtered.map(food => (
-            <Card key={food.id} className="hover:shadow-sm transition-shadow cursor-pointer"
-              onDoubleClick={() => setEditFood(food)}>
-              <CardContent className="py-3 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-medium text-sm">{food.name}</p>
-                    {food.is_default && <span className="text-xs text-gray-400">(default)</span>}
-                  </div>
-                  <p className="text-xs text-gray-400">na 100g sirove mase</p>
-                  {/* FIXED: dinamički extras prema nutritionFields */}
-                  {food.extras && activeExtraFields.length > 0 && (
-                    <div className="flex gap-2 mt-0.5 flex-wrap">
-                      {activeExtraFields.map(f => {
-                        const val = food.extras?.[f.key]
-                        if (val == null) return null
-                        return (
-                          <span key={f.key} className="text-xs text-gray-400">
-                            {f.label}: {val}{f.unit}
-                          </span>
-                        )
-                      })}
+            <DraggableFoodCard key={food.id} food={food}>
+              {(dragHandleProps) => (
+                <div
+                  className="border border-gray-100 rounded-xl p-2.5 bg-white hover:shadow-sm hover:border-gray-200 transition-all cursor-default select-none"
+                  onDoubleClick={() => setEditFood(food)}
+                  title="Dvoklik za uređivanje"
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      {...dragHandleProps}
+                      className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-orange-400 shrink-0 touch-none transition-colors"
+                      title="Povuci u recept"
+                      onDoubleClick={e => e.stopPropagation()}
+                    >
+                      <GripVertical size={14} />
+                    </button>
+
+                    <div className="w-6 h-6 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+                      <UtensilsCrossed size={11} className="text-orange-500" />
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-3 text-xs text-gray-500">
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-medium text-sm truncate text-gray-800">{food.name}</p>
+                        {food.is_default && <span className="text-[10px] text-gray-400 shrink-0">(default)</span>}
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-100 shrink-0 font-medium">
+                      {food.category}
+                    </span>
+
+                    <div className="flex items-center gap-0.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700"
+                        onClick={e => { e.stopPropagation(); setEditFood(food) }}>
+                        <Pencil size={13} />
+                      </Button>
+                      {!food.is_default && (
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                          onClick={e => { e.stopPropagation(); setConfirmDelete(food.id) }}>
+                          <Trash2 size={13} />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Macro values */}
+                  <div className="mt-1 ml-8 flex gap-2.5 text-[10px] text-gray-400 flex-wrap">
                     <span>🔥 {food.calories_per_100g} kcal</span>
                     <span>🥩 {food.protein_per_100g}g</span>
                     <span>🍞 {food.carbs_per_100g}g</span>
                     <span>🫒 {food.fat_per_100g}g</span>
+                    {food.extras && activeExtraFields.map(f => {
+                      const val = food.extras?.[f.key]
+                      if (val == null) return null
+                      return <span key={f.key}>{f.label}: {val}{f.unit}</span>
+                    })}
                   </div>
-                  <Badge variant="outline" className="text-xs">{food.category}</Badge>
-                  <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditFood(food) }}>
-                    <Pencil size={14} />
-                  </Button>
-                  {!food.is_default && (
-                    <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(food.id) }}>
-                      <Trash2 size={14} className="text-red-400" />
-                    </Button>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </DraggableFoodCard>
           ))}
         </div>
       )}
 
-      <AddFoodDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={fetchFoods} />
+      <AddFoodDialog open={showAdd} onClose={() => setShowAdd(false)} onSuccess={() => { fetchFoods(); onFoodCreated?.() }} />
       {editFood && (
         <EditFoodDialog food={editFood} open={!!editFood} onClose={() => setEditFood(null)}
           onSuccess={() => { setEditFood(null); fetchFoods() }} />
@@ -288,7 +345,7 @@ export default function FoodsTab() {
         description="Jesi li siguran da želiš obrisati ovu namirnicu?"
         onConfirm={() => confirmDelete && deleteFood(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel={tCommon('delete')}
+        confirmLabel="Obriši"
         destructive
       />
     </div>
