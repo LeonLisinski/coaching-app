@@ -209,11 +209,11 @@ export default function DashboardPage() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
     const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
 
+    // Fetch all packages (not just active) to include historical payments in charts
     const { data: packagesData } = await supabase
       .from('client_packages')
-      .select(`id, price, status, end_date, payments(*)`)
+      .select(`id, price, status, start_date, end_date, payments(*)`)
       .eq('trainer_id', user.id)
-      .eq('status', 'active')
 
     let expectedMonth = 0, collectedMonth = 0, latePayments = 0
     const monthly: Record<string, { ocekivano: number; naplaceno: number }> = {}
@@ -222,22 +222,26 @@ export default function DashboardPage() {
       monthly[getMonthLabel(d)] = { ocekivano: 0, naplaceno: 0 }
     }
 
-    packagesData?.forEach(cp => {
-      if (cp.end_date >= monthStart && cp.end_date <= monthEnd) expectedMonth += cp.price || 0
-      const payment = (cp.payments as any[])?.[0]
-      if (!payment || payment.status !== 'paid') {
-        if (new Date(cp.end_date) < now) latePayments++
-      }
+    packagesData?.forEach((cp: any) => {
+      // Expected = packages that START in the given month (new invoices)
+      if (cp.start_date >= monthStart && cp.start_date <= monthEnd) expectedMonth += cp.price || 0
+
+      // Late payments = packages with no paid payment and end_date has passed
+      const hasPaid = (cp.payments as any[])?.some((p: any) => p.status === 'paid')
+      if (!hasPaid && new Date(cp.end_date) < now) latePayments++
+
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
         const mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
         const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
         const key    = getMonthLabel(d)
-        if (cp.end_date >= mStart && cp.end_date <= mEnd) monthly[key].ocekivano += cp.price || 0
+        // Expected for month = packages starting in that month
+        if (cp.start_date >= mStart && cp.start_date <= mEnd) monthly[key].ocekivano += cp.price || 0
+        // Collected = payments with paid_at in that month
         ;(cp.payments as any[])?.forEach((p: any) => {
-          if (p.status === 'paid' && p.paid_at >= mStart && p.paid_at <= mEnd) {
+          if (p.status === 'paid' && p.paid_at && p.paid_at >= mStart && p.paid_at <= mEnd) {
             monthly[key].naplaceno += p.amount || 0
-            if (cp.end_date >= monthStart && cp.end_date <= monthEnd) collectedMonth += p.amount || 0
+            if (mStart === monthStart) collectedMonth += p.amount || 0
           }
         })
       }

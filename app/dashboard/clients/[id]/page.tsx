@@ -11,7 +11,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Pencil, Check, X, CreditCard, Settings } from 'lucide-react'
+import { ArrowLeft, Pencil, Check, X, CreditCard, Settings, Trash2 } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 function dobDisplayToIso(display: string): string {
   const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
@@ -141,6 +142,7 @@ export default function ClientDetailPage() {
   })
   const [activePackage, setActivePackage] = useState<ActivePackage | null>(null)
   const [showCheckinConfig, setShowCheckinConfig] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const noName = t('noName')
 
@@ -248,6 +250,19 @@ export default function ClientDetailPage() {
     await fetchClient()
   }
 
+  const deleteClient = async () => {
+    if (!client) return
+    await supabase.from('checkins').delete().eq('client_id', client.id)
+    await supabase.from('payments').delete().eq('client_id', client.id)
+    await supabase.from('client_packages').delete().eq('client_id', client.id)
+    await supabase.from('client_meal_plans').delete().eq('client_id', client.id)
+    await supabase.from('client_workout_plans').delete().eq('client_id', client.id)
+    await supabase.from('checkin_config').delete().eq('client_id', client.id)
+    await supabase.from('messages').delete().eq('receiver_id', client.id)
+    await supabase.from('clients').delete().eq('id', client.id)
+    router.push('/dashboard/clients')
+  }
+
   if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
   if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
 
@@ -281,6 +296,15 @@ export default function ClientDetailPage() {
             )}
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setConfirmDelete(true)}
+          title="Obriši klijenta"
+          className="text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+        >
+          <Trash2 size={16} />
+        </Button>
       </div>
 
       <Card>
@@ -544,6 +568,47 @@ export default function ClientDetailPage() {
           <CheckinConfig clientId={id as string} />
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Brisanje klijenta: ${client.full_name}`}
+        description={
+          <div className="space-y-3">
+            <p>Brisanjem ovog klijenta trajno će se ukloniti <span className="font-semibold text-gray-800">svi podaci vezani za njega</span>:</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-500 text-xs">
+              <li>Svi check-inovi i fotografije napretka</li>
+              <li>Planovi prehrane i treninga</li>
+              <li>Paketi i evidencija plaćanja</li>
+              <li>Sve poruke u chatu</li>
+            </ul>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex gap-2">
+              <span className="text-amber-500 text-base leading-none mt-0.5">💡</span>
+              <p className="text-xs text-amber-800">
+                <span className="font-semibold">Preporuka:</span> Umjesto brisanja, razmotrite{' '}
+                <button
+                  type="button"
+                  className="underline font-semibold hover:text-amber-900"
+                  onClick={async () => {
+                    setConfirmDelete(false)
+                    await supabase.from('clients').update({ active: false }).eq('id', client.id)
+                    fetchClient()
+                  }}
+                >
+                  deaktivaciju klijenta
+                </button>
+                . Na taj način zadržavate sve podatke i povijest, ali klijent više nije aktivan.
+              </p>
+            </div>
+            <p className="font-bold text-red-600">Ova radnja je nepovratna i ne može se poništiti.</p>
+            <p className="text-gray-700">Želite li nastaviti s brisanjem klijenta?</p>
+          </div>
+        }
+        onConfirm={deleteClient}
+        onCancel={() => setConfirmDelete(false)}
+        confirmLabel="Da, obriši"
+        cancelLabel="Ne, odustani"
+        destructive
+      />
     </div>
   )
 }

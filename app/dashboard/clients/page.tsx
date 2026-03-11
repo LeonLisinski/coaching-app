@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Pencil, UserX, UserCheck, ArrowUpDown, ChevronDown, SlidersHorizontal, X } from 'lucide-react'
+import { Plus, Search, Pencil, UserX, UserCheck, ArrowUpDown, ChevronDown, SlidersHorizontal, X, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
@@ -61,6 +61,7 @@ export default function ClientsPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
   const router = useRouter()
   const filterRef = useRef<HTMLDivElement>(null)
 
@@ -138,6 +139,20 @@ export default function ClientsPage() {
     await supabase.from('clients').update({ active: !client.active }).eq('id', client.id)
     setClients(clients.map(c => c.id === client.id ? { ...c, active: !c.active } : c))
     setConfirmToggle(null)
+  }
+
+  const deleteClient = async (client: Client) => {
+    // Delete related data first, then the client record
+    await supabase.from('checkins').delete().eq('client_id', client.id)
+    await supabase.from('payments').delete().eq('client_id', client.id)
+    await supabase.from('client_packages').delete().eq('client_id', client.id)
+    await supabase.from('client_meal_plans').delete().eq('client_id', client.id)
+    await supabase.from('client_workout_plans').delete().eq('client_id', client.id)
+    await supabase.from('checkin_config').delete().eq('client_id', client.id)
+    await supabase.from('messages').delete().eq('receiver_id', client.id)
+    await supabase.from('clients').delete().eq('id', client.id)
+    setClients(prev => prev.filter(c => c.id !== client.id))
+    setConfirmDelete(null)
   }
 
   const sortLabels: Record<SortKey, string> = {
@@ -449,6 +464,7 @@ export default function ClientsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={(e) => { e.stopPropagation(); setEditClient(client) }}
+                      title="Uredi klijenta"
                     >
                       <Pencil size={14} />
                     </Button>
@@ -456,11 +472,20 @@ export default function ClientsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={(e) => { e.stopPropagation(); setConfirmToggle(client) }}
+                      title={client.active ? 'Deaktiviraj klijenta' : 'Aktiviraj klijenta'}
                     >
                       {client.active
                         ? <UserX size={14} className="text-red-400" />
                         : <UserCheck size={14} className="text-green-500" />
                       }
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(client) }}
+                      title="Obriši klijenta"
+                    >
+                      <Trash2 size={14} className="text-red-400" />
                     </Button>
                   </div>
                 </CardContent>
@@ -493,6 +518,46 @@ export default function ClientsPage() {
         onCancel={() => setConfirmToggle(null)}
         confirmLabel={tCommon(confirmToggle?.active ? 'inactive' : 'active')}
         destructive={confirmToggle?.active}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title={`Brisanje klijenta: ${confirmDelete?.full_name || ''}`}
+        description={
+          <div className="space-y-3">
+            <p>Brisanjem ovog klijenta trajno će se ukloniti <span className="font-semibold text-gray-800">svi podaci vezani za njega</span>:</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-500 text-xs">
+              <li>Svi check-inovi i fotografije napretka</li>
+              <li>Planovi prehrane i treninga</li>
+              <li>Paketi i evidencija plaćanja</li>
+              <li>Sve poruke u chatu</li>
+            </ul>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex gap-2">
+              <span className="text-amber-500 text-base leading-none mt-0.5">💡</span>
+              <p className="text-xs text-amber-800">
+                <span className="font-semibold">Preporuka:</span> Umjesto brisanja, razmotrite{' '}
+                <button
+                  type="button"
+                  className="underline font-semibold hover:text-amber-900"
+                  onClick={() => {
+                    setConfirmDelete(null)
+                    if (confirmDelete) setConfirmToggle(confirmDelete)
+                  }}
+                >
+                  deaktivaciju klijenta
+                </button>
+                . Na taj način zadržavate sve podatke i povijest, ali klijent više nije aktivan.
+              </p>
+            </div>
+            <p className="font-bold text-red-600">Ova radnja je nepovratna i ne može se poništiti.</p>
+            <p className="text-gray-700">Želite li nastaviti s brisanjem klijenta?</p>
+          </div>
+        }
+        onConfirm={() => confirmDelete && deleteClient(confirmDelete)}
+        onCancel={() => setConfirmDelete(null)}
+        confirmLabel="Da, obriši"
+        cancelLabel="Ne, odustani"
+        destructive
       />
     </div>
   )
