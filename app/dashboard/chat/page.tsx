@@ -4,8 +4,16 @@ import { useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
+import { Search, MessageCircle } from 'lucide-react'
 import ChatWindow from './components/chat-window'
+import { useAppTheme } from '@/app/contexts/app-theme'
+import { useSearchParams } from 'next/navigation'
+
+const ACCENT_HEX: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 
 type Client = {
   id: string
@@ -17,12 +25,21 @@ type Client = {
 
 export default function ChatPage() {
   const t = useTranslations('chat')
+  const searchParams = useSearchParams()
   const tCommon = useTranslations('common')
   const locale = useLocale()
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
+
+  // Auto-select client from URL param (e.g. from reminder button)
+  useEffect(() => {
+    const preselect = searchParams.get('clientId')
+    if (preselect) setSelectedClientId(preselect)
+  }, [searchParams])
 
   useEffect(() => {
     fetchClients()
@@ -105,19 +122,29 @@ export default function ChatPage() {
   ]
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-white">
       {/* Sidebar */}
-      <div className="w-72 border-r flex flex-col bg-white flex-shrink-0">
+      <div className="w-72 border-r flex flex-col flex-shrink-0">
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">{t('page.title')}</h2>
+        <div className="px-4 pt-4 pb-3 border-b" style={{ background: `linear-gradient(135deg, ${accentHex}12, ${accentHex}06)` }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18` }}>
+              <MessageCircle size={14} style={{ color: accentHex }} />
+            </div>
+            <h2 className="text-sm font-bold text-gray-900">{t('page.title')}</h2>
+            {clients.some(c => c.unread > 0) && (
+              <span className="ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ backgroundColor: accentHex }}>
+                {clients.reduce((s, c) => s + c.unread, 0)}
+              </span>
+            )}
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={13} />
             <Input
               placeholder={t('page.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 text-sm bg-gray-50 border-gray-200"
+              className="pl-8 h-8 text-sm bg-white/80 border-gray-200"
             />
           </div>
         </div>
@@ -148,13 +175,14 @@ export default function ChatPage() {
                     key={client.id}
                     type="button"
                     onClick={() => setSelectedClientId(client.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                      isSelected
-                        ? 'bg-primary/5 border-r-2 border-r-primary'
-                        : 'hover:bg-gray-50'
-                    }`}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                    style={isSelected
+                      ? { backgroundColor: `${accentHex}10`, borderRight: `2px solid ${accentHex}` }
+                      : { borderRight: '2px solid transparent' }}
+                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${accentHex}06` }}
+                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '' }}
                   >
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold ${avatarColor}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-semibold ${avatarColor}`}>
                       {client.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -171,7 +199,7 @@ export default function ChatPage() {
                           {client.last_message || t('page.noMessages')}
                         </p>
                         {client.unread > 0 && (
-                          <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                          <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 text-white text-[10px] font-bold rounded-full flex items-center justify-center" style={{ backgroundColor: accentHex }}>
                             {client.unread > 9 ? '9+' : client.unread}
                           </span>
                         )}
@@ -186,21 +214,30 @@ export default function ChatPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col bg-gray-50/50 overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: `${accentHex}04` }}>
         {selectedClientId ? (
           <ChatWindow
             clientId={selectedClientId}
             clientName={clients.find(c => c.id === selectedClientId)?.full_name || ''}
+            accentHex={accentHex}
             onMessageSent={fetchClients}
           />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-            <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center">
-              <Search size={22} className="text-gray-400" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-sm" style={{ backgroundColor: `${accentHex}15` }}>
+              <MessageCircle size={28} style={{ color: accentHex }} />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-600">Odaberi klijenta</p>
-              <p className="text-xs text-gray-400 mt-0.5">za početak razgovora</p>
+              <p className="text-sm font-semibold text-gray-700">Odaberi klijenta</p>
+              <p className="text-xs text-gray-400 mt-1">za početak razgovora s klijentom</p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {clients.slice(0, 3).map(c => (
+                <button key={c.id} onClick={() => setSelectedClientId(c.id)}
+                  className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors bg-white border-gray-200 text-gray-600 hover:border-gray-300">
+                  {c.full_name.split(' ')[0]}
+                </button>
+              ))}
             </div>
           </div>
         )}

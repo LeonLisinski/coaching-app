@@ -5,8 +5,15 @@ import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, SlidersHorizontal, X, ChevronRight, ClipboardList, ChevronDown } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ChevronRight, ClipboardList, ChevronDown, Bell } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+const ACCENT_HEX_MAP: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 
 type ClientCheckin = {
   id: string
@@ -20,14 +27,16 @@ type ClientCheckin = {
 function getStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  const daysAgo = (today.getDay() - checkinDay + 7) % 7
+  let daysAgo = (today.getDay() - checkinDay + 7) % 7
+  if (daysAgo === 0) daysAgo = 7
   const expected = new Date(today)
   expected.setDate(today.getDate() - daysAgo)
-  expected.setHours(0, 0, 0, 0)
+  const yyyy = expected.getFullYear()
+  const mm   = String(expected.getMonth() + 1).padStart(2, '0')
+  const dd   = String(expected.getDate()).padStart(2, '0')
+  const expectedStr = `${yyyy}-${mm}-${dd}`
   if (!lastCheckin) return 'late'
-  const last = new Date(lastCheckin)
-  last.setHours(0, 0, 0, 0)
-  return last >= expected ? 'submitted' : 'late'
+  return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 
 const STATUS_CONFIG = {
@@ -67,6 +76,8 @@ export default function ClientsCheckinTab() {
   const [dayFilter, setDayFilter] = useState<'all' | number>('all')
   const [showFilters, setShowFilters] = useState(false)
   const router = useRouter()
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
 
   useEffect(() => { fetchClients() }, [])
 
@@ -232,12 +243,27 @@ export default function ClientsCheckinTab() {
                     </p>
                   </div>
 
-                  {/* Status + arrow */}
+                  {/* Status + reminder + arrow */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${cfg.badge}`}>
                       <span className={`inline-block w-1.5 h-1.5 rounded-full ${cfg.dot} mr-1`} />
                       {cfg.label}
                     </span>
+                    {client.status === 'late' && (
+                      <button
+                        title="Pošalji podsjetnik"
+                        onClick={e => {
+                          e.stopPropagation()
+                          router.push(`/dashboard/chat?clientId=${client.id}`)
+                        }}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                        style={{ backgroundColor: `${accentHex}18`, color: accentHex }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = `${accentHex}30`)}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = `${accentHex}18`)}
+                      >
+                        <Bell size={12} />
+                      </button>
+                    )}
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-teal-500 transition-colors" />
                   </div>
                 </div>

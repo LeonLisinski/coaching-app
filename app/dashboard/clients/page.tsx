@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,21 +70,10 @@ export default function ClientsPage() {
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
   const router = useRouter()
-  const filterRef = useRef<HTMLDivElement>(null)
 
   const noName = tDetail('noName')
 
   useEffect(() => { fetchData() }, [])
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setShowFilters(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -233,7 +222,10 @@ export default function ClientsPage() {
           )}
         </div>
         <Button onClick={() => setShowAdd(true)} size="sm"
-          className="h-9 flex items-center gap-1.5 px-3.5 bg-violet-600 hover:bg-violet-700 shrink-0">
+          className="h-9 flex items-center gap-1.5 px-3.5 text-white shrink-0"
+          style={{ backgroundColor: 'var(--app-accent)' }}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}>
           <Plus size={13} /> {t('addClient')}
         </Button>
       </div>
@@ -248,11 +240,11 @@ export default function ClientsPage() {
             { value: 'all',      label: t('filterAll') },
           ] as const).map(opt => (
             <button key={opt.value} type="button" onClick={() => setStatusFilter(opt.value)}
-              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
-                statusFilter === opt.value
-                  ? 'bg-violet-600 text-white border-violet-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
-              }`}>
+              className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors"
+              style={statusFilter === opt.value
+                ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
+              }>
               {opt.label}
             </button>
           ))}
@@ -261,11 +253,12 @@ export default function ClientsPage() {
         {/* Filter button */}
         <Button variant="outline" size="sm"
           onClick={() => setShowFilters(v => !v)}
-          className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-violet-300 text-violet-600 bg-violet-50' : ''}`}>
+          className="flex items-center gap-1.5 h-7 text-xs px-2.5"
+          style={activeFilterCount > 0 ? { borderColor: 'var(--app-accent-muted)', color: 'var(--app-accent)', backgroundColor: 'var(--app-accent-muted)' } : {}}>
           <SlidersHorizontal size={12} />
           Filteri
           {activeFilterCount > 0 && (
-            <span className="bg-violet-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+            <span className="text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent)' }}>
               {activeFilterCount}
             </span>
           )}
@@ -273,7 +266,7 @@ export default function ClientsPage() {
         </Button>
 
         {/* Sort dropdown */}
-        <div className="relative ml-auto" ref={filterRef}>
+        <div className="relative ml-auto">
           <button type="button" onClick={() => setShowSortMenu(v => !v)}
             className="flex items-center gap-1.5 text-xs h-7 px-2.5 rounded-md border border-gray-200 bg-white text-gray-600 hover:border-violet-300 transition-colors font-medium">
             {sortLabels[sortKey]}
@@ -285,7 +278,8 @@ export default function ClientsPage() {
               <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-100 rounded-xl shadow-lg min-w-[190px] py-1.5 overflow-hidden">
                 {(Object.entries(sortLabels) as [SortKey, string][]).map(([key, label]) => (
                   <button key={key} type="button"
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${sortKey === key ? 'font-semibold text-violet-600' : 'text-gray-700'}`}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors text-gray-700"
+                    style={sortKey === key ? { fontWeight: 600, color: 'var(--app-accent)' } : {}}
                     onClick={() => { setSortKey(key); setShowSortMenu(false) }}>
                     {label}
                   </button>
@@ -298,16 +292,18 @@ export default function ClientsPage() {
 
       {/* Inline filter panel */}
       {showFilters && (
-        <div className="bg-violet-50/60 rounded-xl p-3 space-y-3 border border-violet-100">
+        <div className="rounded-xl p-3 space-y-3 border" style={{ backgroundColor: 'var(--app-accent-muted)', borderColor: 'color-mix(in srgb, var(--app-accent) 20%, transparent)' }}>
           {/* Gender */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Spol</p>
             <div className="flex gap-1.5">
               {([['', 'Svi'], ['M', '♂ Muško'], ['F', '♀ Žensko']] as const).map(([val, lbl]) => (
                 <button key={val} type="button" onClick={() => setGenderFilter(val)}
-                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
-                    genderFilter === val ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
-                  }`}>
+                  className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
+                  style={genderFilter === val
+                    ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                    : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
+                  }>
                   {lbl}
                 </button>
               ))}
@@ -320,16 +316,20 @@ export default function ClientsPage() {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Paket</p>
               <div className="flex gap-1.5 flex-wrap">
                 <button type="button" onClick={() => setPackageFilter('')}
-                  className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
-                    !packageFilter ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
-                  }`}>
+                  className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
+                  style={!packageFilter
+                    ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                    : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
+                  }>
                   Svi paketi
                 </button>
                 {packages.map(p => (
                   <button key={p.id} type="button" onClick={() => setPackageFilter(p.id)}
-                    className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
-                      packageFilter === p.id ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-gray-600 border-gray-200 hover:border-violet-300'
-                    }`}>
+                    className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
+                    style={packageFilter === p.id
+                      ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                      : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
+                    }>
                     {p.name}
                   </button>
                 ))}
@@ -350,7 +350,7 @@ export default function ClientsPage() {
           </div>
 
           {activeFilterCount > 0 && (
-            <button type="button" onClick={clearFilters} className="text-xs text-violet-600 flex items-center gap-1 hover:text-violet-800">
+            <button type="button" onClick={clearFilters} className="text-xs flex items-center gap-1" style={{ color: 'var(--app-accent)' }}>
               <X size={11} /> Očisti filtere
             </button>
           )}
@@ -362,19 +362,19 @@ export default function ClientsPage() {
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-xs text-gray-400">Filteri:</span>
           {genderFilter && (
-            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--app-accent-muted)', color: 'var(--app-accent)' }}>
               {genderFilter === 'M' ? '♂ Muško' : '♀ Žensko'}
               <button type="button" onClick={() => setGenderFilter('')}><X size={9} /></button>
             </span>
           )}
           {packageFilter && (
-            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--app-accent-muted)', color: 'var(--app-accent)' }}>
               {packages.find(p => p.id === packageFilter)?.name}
               <button type="button" onClick={() => setPackageFilter('')}><X size={9} /></button>
             </span>
           )}
           {(ageFrom || ageTo) && (
-            <span className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--app-accent-muted)', color: 'var(--app-accent)' }}>
               Dob: {ageFrom || '?'}–{ageTo || '?'} god.
               <button type="button" onClick={() => { setAgeFrom(''); setAgeTo('') }}><X size={9} /></button>
             </span>
@@ -392,12 +392,12 @@ export default function ClientsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-xl">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mx-auto mb-2">
-            <Users size={20} className="text-violet-400" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: 'var(--app-accent-muted)' }}>
+            <Users size={20} style={{ color: 'var(--app-accent)' }} />
           </div>
           <p className="text-gray-400 text-sm">{t('noClients')}</p>
           {!search && (
-            <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1 mx-auto">
+            <button onClick={() => setShowAdd(true)} className="mt-2 text-xs font-medium flex items-center gap-1 mx-auto" style={{ color: 'var(--app-accent)' }}>
               <Plus size={11} /> Dodaj prvog klijenta
             </button>
           )}
@@ -458,11 +458,11 @@ export default function ClientsPage() {
                   {/* Actions */}
                   <div className="flex items-center gap-0.5 shrink-0">
                     <button type="button" onClick={() => router.push(`/dashboard/clients/${client.id}`)}
-                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 group-hover:text-violet-400 transition-colors">
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 transition-colors group-hover:[color:var(--app-accent)]">
                       <ChevronRight size={15} />
                     </button>
                     <button type="button" onClick={(e) => { e.stopPropagation(); setEditClient(client) }}
-                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-violet-600 hover:bg-violet-50 transition-colors">
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 transition-colors hover:[color:var(--app-accent)] hover:[background-color:var(--app-accent-muted)]">
                       <Pencil size={13} />
                     </button>
                     <button type="button" onClick={(e) => { e.stopPropagation(); setConfirmToggle(client) }}

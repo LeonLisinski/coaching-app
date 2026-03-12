@@ -20,11 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
 import { useTranslations, useLocale } from 'next-intl'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, arrayMove, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 type Props = { clientId: string }
 
@@ -63,6 +70,7 @@ type Recipe = {
 }
 
 type AssignMeal = {
+  id: string
   meal_type: string
   recipe_id: string | null
   recipe_name: string
@@ -70,6 +78,87 @@ type AssignMeal = {
   protein: number
   carbs: number
   fat: number
+}
+
+function SortableMealCard({
+  meal, recipes, onUpdate, onRemove,
+}: {
+  meal: AssignMeal
+  recipes: Recipe[]
+  onUpdate: (field: string, val: any) => void
+  onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: meal.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+
+  const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
+
+  return (
+    <div ref={setNodeRef} style={style} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      {/* Meal header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 bg-gray-50/50">
+        <button type="button" {...attributes} {...listeners} className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing shrink-0">
+          <GripVertical size={14} />
+        </button>
+        <select
+          value={meal.meal_type}
+          onChange={e => onUpdate('meal_type', e.target.value)}
+          className="flex-1 text-sm font-semibold bg-transparent border-none outline-none cursor-pointer text-gray-700"
+        >
+          {MEAL_TYPES.map(mt => <option key={mt} value={mt}>{mt}</option>)}
+        </select>
+        <button type="button" onClick={onRemove} className="text-gray-300 hover:text-red-400 transition-colors shrink-0">
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Recipe select + macros */}
+      <div className="px-3 py-3 space-y-2">
+        <Select value={meal.recipe_id || '__none__'} onValueChange={v => {
+          const realVal = v === '__none__' ? null : v
+          const recipe = recipes.find(r => r.id === realVal)
+          onUpdate('recipe_id', realVal)
+          onUpdate('recipe_name', recipe?.name || '')
+          onUpdate('calories', recipe?.total_calories || 0)
+          onUpdate('protein', recipe?.total_protein || 0)
+          onUpdate('carbs', recipe?.total_carbs || 0)
+          onUpdate('fat', recipe?.total_fat || 0)
+        }}>
+          <SelectTrigger className="h-8 text-sm border-gray-200">
+            <SelectValue placeholder="Odaberi recept..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">— Bez recepta —</SelectItem>
+            {recipes.map(r => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.name} · {Math.round(r.total_calories)} kcal
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Manual macro inputs */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            { key: 'calories', label: 'Kcal', color: 'text-orange-500' },
+            { key: 'protein',  label: 'Prot', color: 'text-rose-500'   },
+            { key: 'carbs',    label: 'Ugljik', color: 'text-amber-500' },
+            { key: 'fat',      label: 'Masti', color: 'text-emerald-500'},
+          ].map(f => (
+            <div key={f.key}>
+              <p className={`text-[10px] font-semibold mb-0.5 ${f.color}`}>{f.label}</p>
+              <input
+                type="number"
+                value={Math.round((meal as any)[f.key]) || 0}
+                onChange={e => onUpdate(f.key, parseFloat(e.target.value) || 0)}
+                className="w-full h-7 text-xs border border-gray-200 rounded-md px-2 text-center focus:border-orange-300 focus:outline-none"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -200,6 +289,8 @@ export default function ClientMealPlans({ clientId }: Props) {
   const [availableRecipes, setAvailableRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
 
+  const assignSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
   // Assign dialog
   const [showAssignDialog, setShowAssignDialog] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState('')
@@ -254,14 +345,14 @@ export default function ClientMealPlans({ clientId }: Props) {
     setSelectedPlanId(planId)
     const plan = availablePlans.find(p => p.id === planId)
     if (!plan) { setAssignMeals([]); return }
-
     setAssignTargets({
       calories: plan.calories_target?.toString() || '',
       protein: plan.protein_target?.toString() || '',
       carbs: plan.carbs_target?.toString() || '',
       fat: plan.fat_target?.toString() || '',
     })
-    setAssignMeals((plan.meals || []).map((m: any) => ({
+    setAssignMeals((plan.meals || []).map((m: any, i: number) => ({
+      id: `meal-${Date.now()}-${i}`,
       meal_type: m.meal_type ?? 'Doručak',
       recipe_id: m.recipe_id ?? null,
       recipe_name: m.recipe_name ?? '',
@@ -272,29 +363,29 @@ export default function ClientMealPlans({ clientId }: Props) {
     })))
   }
 
-  const updateAssignMealRecipe = (idx: number, recipeId: string) => {
-    const recipe = availableRecipes.find(r => r.id === recipeId)
-    setAssignMeals(prev => prev.map((m, i) => i !== idx ? m : {
-      ...m,
-      recipe_id: recipeId || null,
-      recipe_name: recipe?.name || '',
-      calories: recipe?.total_calories || 0,
-      protein: recipe?.total_protein || 0,
-      carbs: recipe?.total_carbs || 0,
-      fat: recipe?.total_fat || 0,
-    }))
+  const updateAssignMealField = (id: string, field: string, value: any) => {
+    setAssignMeals(prev => prev.map(m => m.id !== id ? m : { ...m, [field]: value }))
   }
 
-  const updateAssignMealField = (idx: number, field: string, value: any) => {
-    setAssignMeals(prev => prev.map((m, i) => i !== idx ? m : { ...m, [field]: value }))
-  }
-
-  const removeAssignMeal = (idx: number) => {
-    setAssignMeals(prev => prev.filter((_, i) => i !== idx))
+  const removeAssignMeal = (id: string) => {
+    setAssignMeals(prev => prev.filter(m => m.id !== id))
   }
 
   const addAssignMeal = () => {
-    setAssignMeals(prev => [...prev, { meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
+    setAssignMeals(prev => [...prev, {
+      id: `meal-${Date.now()}-${prev.length}`,
+      meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0,
+    }])
+  }
+
+  const handleMealDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setAssignMeals(prev => {
+      const oldIdx = prev.findIndex(m => m.id === active.id)
+      const newIdx = prev.findIndex(m => m.id === over.id)
+      return arrayMove(prev, oldIdx, newIdx)
+    })
   }
 
   const assignTotals = assignMeals.reduce((acc, m) => ({
@@ -553,12 +644,29 @@ export default function ClientMealPlans({ clientId }: Props) {
           if (!v) { setSelectedPlanId(''); setAssignMeals([]); setAssignNotes(''); setAssignPlanType('default'); setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' }) }
         }}
       >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Dodijeli plan klijentu</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0" showCloseButton={false}>
+          <DialogTitle className="sr-only">Dodijeli plan prehrane</DialogTitle>
 
-          <div className="space-y-5 pt-1">
+          {/* Gradient header */}
+          <div className="bg-gradient-to-r from-orange-500 to-rose-500 px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg">
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <UtensilsCrossed size={16} className="text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-white font-bold text-base">Dodijeli plan prehrane</h2>
+              <p className="text-orange-100/70 text-xs">Odaberi i prilagodi plan za klijenta</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAssignDialog(false)}
+              className="text-white/60 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 pb-2">
+          <div className="space-y-5 pt-4">
             {/* Plan select */}
             <div className="space-y-1.5">
               <Label>Plan</Label>
@@ -624,73 +732,60 @@ export default function ClientMealPlans({ clientId }: Props) {
               </div>
             )}
 
-            {/* Editable meals */}
-            {assignMeals.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Obroci</p>
-                  <Button variant="outline" size="sm" onClick={addAssignMeal} className="flex items-center gap-1 h-7 text-xs">
-                    <Plus size={12} /> Dodaj obrok
-                  </Button>
-                </div>
-
-                {assignMeals.map((meal, idx) => (
-                  <Card key={idx}>
-                    <CardContent className="py-0">
-                      <div className="py-3 flex items-center justify-between border-b border-gray-100">
-                        <select
-                          value={meal.meal_type}
-                          onChange={e => updateAssignMealField(idx, 'meal_type', e.target.value)}
-                          className="text-sm font-medium bg-transparent border-none outline-none cursor-pointer text-gray-700"
-                        >
-                          {MEAL_TYPES.map(mt => <option key={mt} value={mt}>{mt}</option>)}
-                        </select>
-                        <Button variant="ghost" size="sm" onClick={() => removeAssignMeal(idx)}>
-                          <X size={12} className="text-gray-400" />
-                        </Button>
-                      </div>
-
-                      <div className="py-3 space-y-2">
-                        {/* Recipe select */}
-                        <Select value={meal.recipe_id || ''} onValueChange={v => updateAssignMealRecipe(idx, v)}>
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue placeholder="Odaberi recept..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableRecipes.map(r => (
-                              <SelectItem key={r.id} value={r.id}>
-                                {r.name} · {Math.round(r.total_calories)} kcal
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {/* Makro prikaz */}
-                        {meal.calories > 0 && (
-                          <div className="flex gap-3 text-xs text-gray-500 bg-gray-50 rounded px-2 py-1.5">
-                            <span>🔥 {Math.round(meal.calories)} kcal</span>
-                            <span>🥩 {Math.round(meal.protein)}g</span>
-                            <span>🍞 {Math.round(meal.carbs)}g</span>
-                            <span>🫒 {Math.round(meal.fat)}g</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {/* Ukupno */}
-                {assignTotals.calories > 0 && (
-                  <div className="bg-gray-50 rounded-md p-3 flex gap-4 text-sm border border-gray-100">
-                    <span className="font-medium text-gray-600">Ukupno:</span>
-                    <span>🔥 {Math.round(assignTotals.calories)} kcal</span>
-                    <span>🥩 {Math.round(assignTotals.protein)}g</span>
-                    <span>🍞 {Math.round(assignTotals.carbs)}g</span>
-                    <span>🫒 {Math.round(assignTotals.fat)}g</span>
-                  </div>
-                )}
+            {/* Editable meals with DnD */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Obroci {assignMeals.length > 0 && `(${assignMeals.length})`}
+                </p>
+                <Button variant="outline" size="sm" onClick={addAssignMeal} className="flex items-center gap-1 h-7 text-xs">
+                  <Plus size={12} /> Dodaj obrok
+                </Button>
               </div>
-            )}
+
+              {assignMeals.length === 0 && selectedPlanId && (
+                <button
+                  type="button"
+                  onClick={addAssignMeal}
+                  className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-orange-300 hover:text-orange-500 transition-colors"
+                >
+                  + Dodaj prvi obrok
+                </button>
+              )}
+
+              <DndContext sensors={assignSensors} collisionDetection={closestCenter} onDragEnd={handleMealDragEnd}>
+                <SortableContext items={assignMeals.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {assignMeals.map(meal => (
+                      <SortableMealCard
+                        key={meal.id}
+                        meal={meal}
+                        recipes={availableRecipes}
+                        onUpdate={(field, val) => updateAssignMealField(meal.id, field, val)}
+                        onRemove={() => removeAssignMeal(meal.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+
+              {/* Ukupno */}
+              {assignTotals.calories > 0 && (
+                <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 grid grid-cols-4 gap-2">
+                  {[
+                    { label: 'Kcal', val: Math.round(assignTotals.calories), color: 'text-orange-600' },
+                    { label: 'Proteini', val: Math.round(assignTotals.protein), color: 'text-rose-600', unit: 'g' },
+                    { label: 'Ugljik.', val: Math.round(assignTotals.carbs), color: 'text-amber-600', unit: 'g' },
+                    { label: 'Masti', val: Math.round(assignTotals.fat), color: 'text-emerald-600', unit: 'g' },
+                  ].map(item => (
+                    <div key={item.label} className="text-center">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
+                      <p className={`text-sm font-bold ${item.color}`}>{item.val}{item.unit || ''}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Napomena */}
             <div className="space-y-1.5">
@@ -698,10 +793,14 @@ export default function ClientMealPlans({ clientId }: Props) {
               <Input value={assignNotes} onChange={e => setAssignNotes(e.target.value)} placeholder="npr. Počni od ponedjeljka" />
             </div>
 
-            {/* Actions */}
+          </div>
+          </div>
+
+          {/* Sticky footer */}
+          <div className="px-6 py-4 border-t bg-white shrink-0">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">Odustani</Button>
-              <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1">
+              <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1 bg-orange-500 hover:bg-orange-600">
                 {assigning ? 'Sprema...' : 'Dodijeli plan'}
               </Button>
             </div>

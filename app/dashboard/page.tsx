@@ -13,6 +13,13 @@ import {
   Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
   Clock, ArrowRight, MessageSquare,
 } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+const ACCENT_HEX: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -32,14 +39,18 @@ type ClientRow = {
 function getCheckinStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  const daysBack = (today.getDay() - checkinDay + 7) % 7
+  let daysBack = (today.getDay() - checkinDay + 7) % 7
+  // If today IS the checkin day, give grace until end of day — look back 7 days
+  if (daysBack === 0) daysBack = 7
   const expected = new Date(today)
   expected.setDate(today.getDate() - daysBack)
-  expected.setHours(0, 0, 0, 0)
+  // Use date-string comparison to avoid timezone issues
+  const yyyy = expected.getFullYear()
+  const mm   = String(expected.getMonth() + 1).padStart(2, '0')
+  const dd   = String(expected.getDate()).padStart(2, '0')
+  const expectedStr = `${yyyy}-${mm}-${dd}`
   if (!lastCheckin) return 'late'
-  const last = new Date(lastCheckin)
-  last.setHours(0, 0, 0, 0)
-  return last >= expected ? 'submitted' : 'late'
+  return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 
 function getCheckinRate(totalCheckins: number, startDate: string | null): number {
@@ -57,27 +68,39 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
   icon: React.ElementType; label: string; value: string | number
   sub?: string; color: string; onClick?: () => void
 }) {
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isAccent = color === 'accent'
+
   const colorMap: Record<string, { bg: string; icon: string; val: string }> = {
-    indigo:  { bg: 'bg-indigo-50',  icon: 'text-indigo-500',  val: 'text-indigo-600' },
     emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-500', val: 'text-emerald-600' },
     rose:    { bg: 'bg-rose-50',    icon: 'text-rose-500',    val: 'text-rose-600' },
     amber:   { bg: 'bg-amber-50',   icon: 'text-amber-500',   val: 'text-amber-600' },
-    violet:  { bg: 'bg-violet-50',  icon: 'text-violet-500',  val: 'text-violet-600' },
     sky:     { bg: 'bg-sky-50',     icon: 'text-sky-500',     val: 'text-sky-600' },
   }
-  const c = colorMap[color] || colorMap.indigo
+  const c = colorMap[color]
+
   return (
     <div
       onClick={onClick}
       className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm transition-shadow hover:shadow-md ${onClick ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
-          <Icon size={18} className={c.icon} />
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${!isAccent && c ? c.bg : ''}`}
+          style={isAccent ? { backgroundColor: `${accentHex}18` } : undefined}
+        >
+          <Icon size={18}
+            className={!isAccent && c ? c.icon : ''}
+            style={isAccent ? { color: accentHex } : undefined}
+          />
         </div>
         {onClick && <ArrowRight size={14} className="text-gray-300 mt-1" />}
       </div>
-      <p className={`text-3xl font-extrabold leading-none ${c.val}`}>{value}</p>
+      <p
+        className={`text-3xl font-extrabold leading-none ${!isAccent && c ? c.val : ''}`}
+        style={isAccent ? { color: accentHex } : undefined}
+      >{value}</p>
       <p className="text-sm text-gray-500 mt-1.5 font-medium">{label}</p>
       {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
     </div>
@@ -85,6 +108,9 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
 }
 
 function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => void }) {
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+
   const STATUS = {
     submitted: { label: 'Predano',   cls: 'bg-emerald-50 text-emerald-700' },
     late:      { label: 'Kasni',     cls: 'bg-rose-50 text-rose-600' },
@@ -96,8 +122,8 @@ function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => voi
 
   return (
     <div onClick={onClick} className="flex items-center gap-3 py-2.5 px-1 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
-      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-        <span className="text-xs font-semibold text-indigo-600">{initials}</span>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accentHex}18` }}>
+        <span className="text-xs font-semibold" style={{ color: accentHex }}>{initials}</span>
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{client.full_name}</p>
@@ -119,6 +145,8 @@ export default function DashboardPage() {
   const t      = useTranslations('dashboard')
   const locale = useLocale()
   const router = useRouter()
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
 
   const [loading, setLoading] = useState(true)
   const [trainerName, setTrainerName] = useState('')
@@ -260,6 +288,15 @@ export default function DashboardPage() {
   const dateStr = now.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
   const pieData = [{ value: progressPercent }, { value: 100 - progressPercent }]
 
+  // Month-over-month revenue trend
+  const lastMonthCollected = monthlyRevenue.length >= 2 ? monthlyRevenue[monthlyRevenue.length - 2].naplaceno : 0
+  const revTrendPct = lastMonthCollected > 0
+    ? Math.round(((stats.collectedMonth - lastMonthCollected) / lastMonthCollected) * 100)
+    : null
+  const revTrendLabel = revTrendPct !== null
+    ? `${revTrendPct >= 0 ? '↑' : '↓'}${Math.abs(revTrendPct)}% vs prošli mj.`
+    : `od ${stats.expectedMonth}€`
+
   if (loading) return (
     <div className="space-y-6 animate-pulse">
       <div className="h-8 w-64 bg-gray-100 rounded-lg" />
@@ -284,13 +321,13 @@ export default function DashboardPage() {
 
       {/* Stat cards — 2 rows × 4 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard icon={Users}         label="Aktivni klijenti"         value={stats.activeClients}     color="indigo"  onClick={() => router.push('/dashboard/clients')} />
+        <StatCard icon={Users}         label="Aktivni klijenti"         value={stats.activeClients}     color="accent"  onClick={() => router.push('/dashboard/clients')} />
         <StatCard icon={CheckCircle2}  label="Check-in ovaj tjedan"     value={stats.submitted}         color="emerald" sub={`${stats.late} kasni`} onClick={() => router.push('/dashboard/checkins')} />
         <StatCard icon={AlertCircle}   label="Kasni check-in"           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
         <StatCard icon={TrendingUp}    label="Prosj. redovitost"        value={`${stats.avgCheckinRate}%`} color="sky"  sub="check-in stopa" />
-        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={`od ${stats.expectedMonth}€`} />
+        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} />
         <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/clients')} />
-        <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="violet"  onClick={() => router.push('/dashboard/chat')} />
+        <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
         <StatCard icon={Clock}         label="Bez rasporeda"            value={stats.neutral}           color="sky"     sub="klijenata bez check-in dana" />
       </div>
 
@@ -306,11 +343,11 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-indigo-200" />
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `${accentHex}35` }} />
                 <span className="text-xs text-gray-400">{t('revenue.expected')}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: accentHex }} />
                 <span className="text-xs text-gray-400">{t('revenue.collected')}</span>
               </div>
             </div>
@@ -323,8 +360,8 @@ export default function DashboardPage() {
                 formatter={(v: number, name: string) => [`${v || 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
               />
-              <Bar dataKey="ocekivano" fill="#e0e7ff" radius={[5, 5, 0, 0]} />
-              <Bar dataKey="naplaceno" fill="#6366f1" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="ocekivano" fill={`${accentHex}30`} radius={[5, 5, 0, 0]} />
+              <Bar dataKey="naplaceno" fill={accentHex} radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -336,12 +373,12 @@ export default function DashboardPage() {
           <div className="relative">
             <PieChart width={150} height={150}>
               <Pie data={pieData} cx={70} cy={70} innerRadius={48} outerRadius={65} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
-                <Cell fill="#6366f1" />
-                <Cell fill="#e0e7ff" />
+                <Cell fill={accentHex} />
+                <Cell fill={`${accentHex}25`} />
               </Pie>
             </PieChart>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-2xl font-extrabold text-indigo-600 leading-none">{progressPercent}%</p>
+              <p className="text-2xl font-extrabold leading-none" style={{ color: accentHex }}>{progressPercent}%</p>
               <p className="text-[10px] text-gray-400 mt-1">{t('revenue.paid')}</p>
             </div>
           </div>
@@ -364,7 +401,8 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 mt-0.5">{stats.submitted} predano · {stats.late} kasni · {stats.neutral} bez rasporeda</p>
           </div>
           <button type="button" onClick={() => router.push('/dashboard/checkins')}
-            className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors">
+            className="flex items-center gap-1 text-xs font-medium transition-colors"
+            style={{ color: accentHex }}>
             Svi check-ini <ArrowRight size={12} />
           </button>
         </div>

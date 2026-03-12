@@ -9,6 +9,7 @@ import { Send } from 'lucide-react'
 type Props = {
   clientId: string
   clientName: string
+  accentHex?: string
   onMessageSent: () => void
 }
 
@@ -40,7 +41,7 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   )
 }
 
-export default function ChatWindow({ clientId, clientName, onMessageSent }: Props) {
+export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed', onMessageSent }: Props) {
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -146,11 +147,14 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b bg-white flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
         <Avatar name={clientName} />
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{clientName}</p>
-          <p className="text-xs text-gray-400">Klijent</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-900 truncate">{clientName}</p>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+            <p className="text-xs text-gray-400">Klijent</p>
+          </div>
         </div>
       </div>
 
@@ -185,17 +189,20 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
                 return (
                   <div key={msg.id} className={`flex ${isTrainer ? 'justify-end' : 'justify-start'} ${isSameAuthorAsPrev ? 'mt-0.5' : 'mt-3'}`}>
                     <div className={`max-w-[72%] ${isTrainer ? 'items-end' : 'items-start'} flex flex-col`}>
-                      <div className={`px-3.5 py-2 text-sm leading-relaxed ${
-                        isTrainer
-                          ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-sm'
-                          : 'bg-white border border-gray-100 text-gray-900 rounded-2xl rounded-bl-sm shadow-sm'
-                      }`}>
+                      <div
+                        className={`px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
+                          isTrainer
+                            ? 'text-white rounded-2xl rounded-br-sm'
+                            : 'bg-white border border-gray-100 text-gray-900 rounded-2xl rounded-bl-sm'
+                        }`}
+                        style={isTrainer ? { background: `linear-gradient(135deg, ${accentHex}, ${accentHex}dd)` } : undefined}
+                      >
                         {msg.content}
                       </div>
                       <div className={`flex items-center gap-1 mt-0.5 px-1 ${isTrainer ? 'flex-row-reverse' : ''}`}>
                         <span className="text-[10px] text-gray-400">{fmtTime(msg.created_at)}</span>
                         {isTrainer && (
-                          <span className={`text-[10px] ${msg.read ? 'text-blue-400' : 'text-gray-300'}`}>
+                          <span className={`text-[10px] ${msg.read ? 'text-emerald-400' : 'text-gray-300'}`}>
                             {msg.read ? '✓✓' : '✓'}
                           </span>
                         )}
@@ -212,21 +219,24 @@ export default function ChatWindow({ clientId, clientName, onMessageSent }: Prop
 
       {/* Input */}
       <div className="flex-shrink-0 px-4 py-3 border-t bg-white">
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2 focus-within:border-primary/50 focus-within:bg-white transition-colors">
-          <input
+        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 transition-colors focus-within:bg-white" style={{ '--focus-border': accentHex } as any}>
+          <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t('window.messagePlaceholder')}
             disabled={sending}
             autoFocus
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900"
+            rows={1}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 resize-none max-h-24 overflow-y-auto leading-relaxed"
+            style={{ minHeight: '1.5rem' }}
           />
           <button
             onClick={sendMessage}
             disabled={!input.trim() || sending}
             aria-label={t('window.send')}
-            className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-opacity flex-shrink-0"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:scale-105 flex-shrink-0 mb-0.5"
+            style={{ backgroundColor: accentHex }}
           >
             <Send size={13} />
           </button>

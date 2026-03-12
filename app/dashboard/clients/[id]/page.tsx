@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Pencil, Check, X, CreditCard, Settings, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Check, X, CreditCard, Settings, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 function dobDisplayToIso(display: string): string {
@@ -266,45 +266,66 @@ export default function ClientDetailPage() {
   if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
   if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
 
+  const initials = client.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+  const headerGradient = client.gender === 'F'
+    ? 'from-rose-800 to-rose-950'
+    : client.gender === 'M'
+      ? 'from-blue-800 to-blue-950'
+      : 'from-violet-800 to-purple-950'
+  const headerBorder = client.gender === 'F' ? 'border-rose-900' : client.gender === 'M' ? 'border-blue-900' : 'border-violet-900'
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft size={16} />
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold">{client.full_name}</h1>
-            {client.gender && (
-              <span className="text-lg">{client.gender === 'M' ? '♂' : '♀'}</span>
-            )}
-            {!client.active && <Badge variant="secondary">Neaktivan</Badge>}
+    <div className="space-y-5">
+      {/* Hero header */}
+      <div className={`rounded-2xl overflow-hidden border ${headerBorder} shadow-sm`}>
+        <div className={`bg-gradient-to-r ${headerGradient} px-6 py-5 flex items-center gap-4`}>
+          <button
+            onClick={() => router.back()}
+            className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0"
+          >
+            <ArrowLeft size={15} className="text-white" />
+          </button>
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">{initials}</span>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <p className="text-gray-500 text-sm">{client.email}</p>
-            {activePackage && (
-              <span
-                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ backgroundColor: activePackage.color + '22', color: activePackage.color }}
-              >
-                <CreditCard size={11} />
-                {activePackage.name}
-                {activePackage.end_date && (
-                  <span className="opacity-70">· do {formatDate(activePackage.end_date)}</span>
-                )}
-              </span>
-            )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-white font-bold text-lg leading-tight">{client.full_name}</h1>
+              {client.gender && <span className="text-white/60">{client.gender === 'M' ? '♂' : '♀'}</span>}
+              {!client.active && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white/80 font-medium">Neaktivan</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className="text-white/60 text-xs">{client.email}</p>
+              {activePackage && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/20 text-white font-medium flex items-center gap-1">
+                  <CreditCard size={10} />
+                  {activePackage.name}
+                  {activePackage.end_date && (
+                    <span className="opacity-70"> · do {formatDate(activePackage.end_date)}</span>
+                  )}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={startEdit}
+              className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+              title="Uredi podatke"
+            >
+              <Pencil size={14} className="text-white" />
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-8 h-8 rounded-xl bg-black/10 hover:bg-red-500/40 flex items-center justify-center transition-colors"
+              title="Obriši klijenta"
+            >
+              <Trash2 size={14} className="text-white" />
+            </button>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setConfirmDelete(true)}
-          title="Obriši klijenta"
-          className="text-red-400 hover:text-red-600 hover:bg-red-50 shrink-0"
-        >
-          <Trash2 size={16} />
-        </Button>
       </div>
 
       <Card>
@@ -447,20 +468,12 @@ export default function ClientDetailPage() {
             </div>
           ) : (
             <div className="relative">
-              <div className="absolute top-0 right-0 flex items-center gap-0.5">
+              <div className="absolute top-0 right-0">
                 <ClientCalculator
                   clientId={client.id}
                   client={client}
                   onSaved={fetchClient}
                 />
-                <button
-                  type="button"
-                  onClick={startEdit}
-                  className="p-1 text-gray-400 hover:text-gray-600"
-                  title="Uredi podatke"
-                >
-                  <Pencil size={14} />
-                </button>
               </div>
 
               {/* Main stats grid */}
@@ -515,24 +528,36 @@ export default function ClientDetailPage() {
       <div className="flex items-center justify-between">
         <Tabs defaultValue="pracenje" className="flex-1">
           <div className="flex items-center gap-2">
-            <TabsList className="flex-wrap h-auto gap-1">
-              <TabsTrigger value="pracenje">{t('tabs.pracenje')}</TabsTrigger>
-              <TabsTrigger value="checkin">{t('tabs.weeklyCheckin')}</TabsTrigger>
-              <TabsTrigger value="slike">{t('tabs.slike')}</TabsTrigger>
-              <TabsTrigger value="graphs">{t('tabs.graphs')}</TabsTrigger>
-              <TabsTrigger value="treninzi">{t('tabs.training')}</TabsTrigger>
-              <TabsTrigger value="prehrana">{t('tabs.nutrition')}</TabsTrigger>
-              <TabsTrigger value="paketi">{t('tabs.packages')}</TabsTrigger>
+            <TabsList className="flex-wrap h-auto gap-1 bg-gray-100/80">
+              <TabsTrigger value="pracenje" className="flex items-center gap-1.5">
+                <ActivitySquare size={13} />{t('tabs.pracenje')}
+              </TabsTrigger>
+              <TabsTrigger value="checkin" className="flex items-center gap-1.5">
+                <ClipboardList size={13} />{t('tabs.weeklyCheckin')}
+              </TabsTrigger>
+              <TabsTrigger value="slike" className="flex items-center gap-1.5">
+                <History size={13} />{t('tabs.slike')}
+              </TabsTrigger>
+              <TabsTrigger value="graphs" className="flex items-center gap-1.5">
+                <BarChart2 size={13} />{t('tabs.graphs')}
+              </TabsTrigger>
+              <TabsTrigger value="treninzi" className="flex items-center gap-1.5">
+                <Dumbbell size={13} />{t('tabs.training')}
+              </TabsTrigger>
+              <TabsTrigger value="prehrana" className="flex items-center gap-1.5">
+                <UtensilsCrossed size={13} />{t('tabs.nutrition')}
+              </TabsTrigger>
+              <TabsTrigger value="paketi" className="flex items-center gap-1.5">
+                <Package size={13} />{t('tabs.packages')}
+              </TabsTrigger>
             </TabsList>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
               onClick={() => setShowCheckinConfig(true)}
               title={t('tabs.checkinSettings')}
-              className="text-gray-400 hover:text-gray-700 shrink-0"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
             >
-              <Settings size={16} />
-            </Button>
+              <Settings2 size={15} />
+            </button>
           </div>
 
           <TabsContent value="pracenje" className="mt-6">

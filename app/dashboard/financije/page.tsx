@@ -1,0 +1,654 @@
+'use client'
+export const dynamic = 'force-dynamic'
+
+import { useEffect, useState, useMemo } from 'react'
+import { supabase } from '@/lib/supabase'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  CartesianGrid,
+} from 'recharts'
+import {
+  Banknote, TrendingUp, AlertTriangle, Package,
+  Check, Clock, ArrowUpRight, ArrowDownRight,
+  Calendar, Filter,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Payment = {
+  id: string
+  amount: number
+  paid_at: string | null
+  status: string
+  notes: string | null
+  client_package_id: string
+}
+
+type ClientPackage = {
+  id: string
+  client_id: string
+  package_id: string
+  start_date: string
+  end_date: string
+  price: number
+  status: string
+  notes: string | null
+  created_at: string
+  // joined separately
+  client_name: string
+  client_gender: string | null
+  pkg_name: string
+  pkg_color: string
+  pkg_duration: number
+  payments: Payment[]
+}
+
+type PkgTemplate = { id: string; name: string; price: number; color: string; active: boolean }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const MONTHS_HR = ['Sij', 'Velj', 'Ožu', 'Tra', 'Svi', 'Lip', 'Srp', 'Kol', 'Ruj', 'Lis', 'Stu', 'Pro']
+const MONTHS_FULL = ['Siječanj', 'Veljača', 'Ožujak', 'Travanj', 'Svibanj', 'Lipanj',
+  'Srpanj', 'Kolovoz', 'Rujan', 'Listopad', 'Studeni', 'Prosinac']
+
+function fmtDate(iso: string | null) {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  return `${d}. ${m}. ${y}.`
+}
+function fmtEur(n: number) {
+  return new Intl.NumberFormat('hr-HR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + ' €'
+}
+function daysLeft(endDate: string) {
+  return Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000)
+}
+
+const ACCENT_HEX: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+function StatCard({ label, value, sub, icon: Icon, trend, color }: {
+  label: string; value: string; sub?: string; icon: React.ElementType
+  trend?: { dir: 'up' | 'down' | 'neutral'; pct: number }; color: string
+}) {
+  const cols: Record<string, { bg: string; ico: string; val: string }> = {
+    emerald: { bg: 'bg-emerald-50', ico: 'text-emerald-500', val: 'text-emerald-600' },
+    violet:  { bg: 'bg-violet-50',  ico: 'text-violet-500',  val: 'text-violet-600' },
+    amber:   { bg: 'bg-amber-50',   ico: 'text-amber-500',   val: 'text-amber-600' },
+    red:     { bg: 'bg-red-50',     ico: 'text-red-500',     val: 'text-red-600' },
+    sky:     { bg: 'bg-sky-50',     ico: 'text-sky-500',     val: 'text-sky-600' },
+  }
+  const c = cols[color] || cols.violet
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
+          <Icon size={18} className={c.ico} />
+        </div>
+        {trend && trend.dir !== 'neutral' && (
+          <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trend.dir === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+            {trend.dir === 'up' ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+            {trend.pct}%
+          </div>
+        )}
+      </div>
+      <p className={`text-2xl font-extrabold leading-none ${c.val}`}>{value}</p>
+      <p className="text-sm text-gray-500 mt-1.5">{label}</p>
+      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  )
+}
+
+function StatusBadge({ status, daysLeftVal }: { status: string; daysLeftVal?: number }) {
+  const cfg: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
+    paid:     { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Plaćeno',        icon: <Check size={10} /> },
+    pending:  { cls: 'bg-gray-50 text-gray-600 border-gray-200',          label: 'Na čekanju',     icon: <Clock size={10} /> },
+    upcoming: { cls: 'bg-amber-50 text-amber-700 border-amber-200',       label: `Za ${daysLeftVal}d`, icon: <Clock size={10} /> },
+    late:     { cls: 'bg-red-50 text-red-700 border-red-200',             label: 'Kasni',          icon: <AlertTriangle size={10} /> },
+  }
+  const c = cfg[status] || cfg.pending
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium ${c.cls}`}>
+      {c.icon}{c.label}
+    </span>
+  )
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export default function FinancijePage() {
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+
+  const [clientPackages, setClientPackages] = useState<ClientPackage[]>([])
+  const [pkgTemplates, setPkgTemplates] = useState<PkgTemplate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear())
+  const [pkgFilter, setPkgFilter] = useState<string>('all')
+  const [showPayDialog, setShowPayDialog] = useState(false)
+  const [selectedCp, setSelectedCp] = useState<ClientPackage | null>(null)
+  const [payForm, setPayForm] = useState({ amount: '', paid_at: new Date().toISOString().split('T')[0], notes: '' })
+  const [saving, setSaving] = useState(false)
+  const [histPage, setHistPage] = useState(0)
+  const HIST_PER_PAGE = 10
+
+  useEffect(() => { fetchData() }, [])
+
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Fetch client_packages, packages, payments separately to avoid broken FK joins
+    const [{ data: cpData }, { data: pkgData }, { data: clientsData }] = await Promise.all([
+      supabase.from('client_packages')
+        .select(`id, client_id, package_id, start_date, end_date, price, status, notes, created_at, payments(*)`)
+        .eq('trainer_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase.from('packages').select('id, name, color, duration_days, price, active').eq('trainer_id', user.id),
+      supabase.from('clients')
+        .select('id, gender, profiles!clients_user_id_fkey(full_name)')
+        .eq('trainer_id', user.id),
+    ])
+
+    // Build lookup maps
+    const pkgMap: Record<string, { name: string; color: string; duration_days: number }> = {}
+    pkgData?.forEach(p => { pkgMap[p.id] = { name: p.name, color: p.color, duration_days: p.duration_days } })
+
+    const clientMap: Record<string, { name: string; gender: string | null }> = {}
+    clientsData?.forEach((c: any) => {
+      clientMap[c.id] = { name: c.profiles?.full_name || 'Nepoznato', gender: c.gender }
+    })
+
+    const enriched: ClientPackage[] = (cpData || []).map((cp: any) => ({
+      ...cp,
+      client_name: clientMap[cp.client_id]?.name || '—',
+      client_gender: clientMap[cp.client_id]?.gender || null,
+      pkg_name: pkgMap[cp.package_id]?.name || '—',
+      pkg_color: pkgMap[cp.package_id]?.color || '#6366f1',
+      pkg_duration: pkgMap[cp.package_id]?.duration_days || 30,
+    }))
+
+    setClientPackages(enriched)
+    if (pkgData) setPkgTemplates(pkgData)
+    setLoading(false)
+  }
+
+  const getPayStatus = (cp: ClientPackage): string => {
+    const p = cp.payments?.[0]
+    if (!p) return 'pending'
+    if (p.status === 'paid') return 'paid'
+    const left = daysLeft(cp.end_date)
+    if (left < 0) return 'late'
+    if (left <= 7) return 'upcoming'
+    return 'pending'
+  }
+
+  // Revenue using paid_at (matches dashboard logic)
+  const getPaidAmount = (cp: ClientPackage): number => {
+    const p = cp.payments?.[0]
+    return p?.status === 'paid' ? (p.amount || cp.price) : 0
+  }
+
+  // ── Summary stats ─────────────────────────────────────────────────────────
+  const now = new Date()
+  const thisMonth = now.getMonth()
+  const thisYear = now.getFullYear()
+  const monthStart = new Date(thisYear, thisMonth, 1).toISOString().split('T')[0]
+  const monthEnd = new Date(thisYear, thisMonth + 1, 0).toISOString().split('T')[0]
+
+  const stats = useMemo(() => {
+    // Collected this month: payments with paid_at in current month
+    let paidThisMonth = 0
+    let paidLastMonth = 0
+    let paidThisYear = 0
+    const lastMonthStart = new Date(thisYear, thisMonth === 0 ? 11 : thisMonth - 1, 1).toISOString().split('T')[0]
+    const lastMonthEnd = new Date(thisYear, thisMonth, 0).toISOString().split('T')[0]
+    const yearStart = `${thisYear}-01-01`
+    const yearEnd = `${thisYear}-12-31`
+
+    clientPackages.forEach(cp => {
+      const p = cp.payments?.[0]
+      if (p?.status === 'paid' && p.paid_at) {
+        if (p.paid_at >= monthStart && p.paid_at <= monthEnd) paidThisMonth += p.amount || cp.price
+        if (p.paid_at >= lastMonthStart && p.paid_at <= lastMonthEnd) paidLastMonth += p.amount || cp.price
+        if (p.paid_at >= yearStart && p.paid_at <= yearEnd) paidThisYear += p.amount || cp.price
+      }
+    })
+
+    const outstanding = clientPackages.reduce((s, cp) => {
+      const p = cp.payments?.[0]
+      return s + (p?.status !== 'paid' ? cp.price : 0)
+    }, 0)
+
+    const activePkgs = clientPackages.filter(cp => cp.status === 'active').length
+    const activeClients = new Set(clientPackages.filter(cp => cp.status === 'active').map(cp => cp.client_id)).size
+
+    const monthTrend = paidLastMonth > 0
+      ? Math.round(((paidThisMonth - paidLastMonth) / paidLastMonth) * 100)
+      : 0
+
+    return { paidThisMonth, paidThisYear, outstanding, activePkgs, activeClients, monthTrend }
+  }, [clientPackages, thisMonth, thisYear, monthStart, monthEnd])
+
+  // ── Monthly chart (last 12 months, by paid_at) ────────────────────────────
+  const monthlyData = useMemo(() => {
+    const data: { month: string; naplaceno: number; fakturirano: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(1)
+      d.setMonth(d.getMonth() - i)
+      const m = d.getMonth()
+      const y = d.getFullYear()
+      const mStart = new Date(y, m, 1).toISOString().split('T')[0]
+      const mEnd = new Date(y, m + 1, 0).toISOString().split('T')[0]
+
+      let naplaceno = 0, fakturirano = 0
+      clientPackages.forEach(cp => {
+        // Fakturirano = packages starting in that month
+        if (cp.start_date >= mStart && cp.start_date <= mEnd) fakturirano += cp.price
+        // Naplaćeno = payments with paid_at in that month
+        const p = cp.payments?.[0]
+        if (p?.status === 'paid' && p.paid_at && p.paid_at >= mStart && p.paid_at <= mEnd) {
+          naplaceno += p.amount || cp.price
+        }
+      })
+
+      const label = `${MONTHS_HR[m]}${y !== thisYear ? ` '${String(y).slice(2)}` : ''}`
+      data.push({ month: label.trim(), naplaceno, fakturirano })
+    }
+    return data
+  }, [clientPackages, thisYear])
+
+  // ── Package popularity ─────────────────────────────────────────────────────
+  const pkgPopularity = useMemo(() => {
+    const map: Record<string, { name: string; color: string; count: number; revenue: number }> = {}
+    clientPackages.forEach(cp => {
+      const id = cp.package_id
+      if (!map[id]) map[id] = { name: cp.pkg_name, color: cp.pkg_color, count: 0, revenue: 0 }
+      map[id].count++
+      map[id].revenue += getPaidAmount(cp)
+    })
+    return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6)
+  }, [clientPackages])
+
+  // ── Filtered + pending ────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return clientPackages.filter(cp => {
+      const year = new Date(cp.start_date).getFullYear()
+      if (yearFilter && year !== yearFilter) return false
+      if (pkgFilter !== 'all' && cp.package_id !== pkgFilter) return false
+      return true
+    })
+  }, [clientPackages, yearFilter, pkgFilter])
+
+  const pendingList = useMemo(() => {
+    return clientPackages
+      .filter(cp => ['pending', 'late', 'upcoming'].includes(getPayStatus(cp)))
+      .sort((a, b) => {
+        const order: Record<string, number> = { late: 0, upcoming: 1, pending: 2 }
+        return (order[getPayStatus(a)] ?? 2) - (order[getPayStatus(b)] ?? 2)
+      })
+  }, [clientPackages])
+
+  const allHistory = useMemo(() =>
+    [...filtered].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()),
+    [filtered])
+  const pagedHistory = allHistory.slice(histPage * HIST_PER_PAGE, (histPage + 1) * HIST_PER_PAGE)
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>(clientPackages.map(cp => new Date(cp.start_date).getFullYear()))
+    years.add(thisYear)
+    return Array.from(years).sort((a, b) => b - a)
+  }, [clientPackages, thisYear])
+
+  const markPaid = async () => {
+    if (!selectedCp) return
+    setSaving(true)
+    const payment = selectedCp.payments?.[0]
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    if (payment) {
+      await supabase.from('payments').update({
+        status: 'paid',
+        amount: parseFloat(payForm.amount) || selectedCp.price,
+        paid_at: payForm.paid_at,
+        notes: payForm.notes || null,
+      }).eq('id', payment.id)
+    } else {
+      await supabase.from('payments').insert({
+        trainer_id: user.id,
+        client_id: selectedCp.client_id,
+        client_package_id: selectedCp.id,
+        amount: parseFloat(payForm.amount) || selectedCp.price,
+        paid_at: payForm.paid_at,
+        status: 'paid',
+        notes: payForm.notes || null,
+      })
+    }
+    setSaving(false)
+    setShowPayDialog(false)
+    fetchData()
+  }
+
+  const openPayDialog = (cp: ClientPackage) => {
+    setSelectedCp(cp)
+    setPayForm({ amount: cp.price.toString(), paid_at: new Date().toISOString().split('T')[0], notes: '' })
+    setShowPayDialog(true)
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-[var(--app-accent)] animate-spin" />
+    </div>
+  )
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
+              <Banknote size={18} style={{ color: accentHex }} />
+            </span>
+            Financije
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5">Pregled prihoda, plaćanja i paketa</p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm">
+            <Calendar size={14} className="text-gray-400" />
+            <select value={yearFilter} onChange={e => setYearFilter(Number(e.target.value))}
+              className="bg-transparent text-gray-700 font-medium focus:outline-none text-sm">
+              {availableYears.map(y => <option key={y} value={y}>{y}.</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm">
+            <Filter size={14} className="text-gray-400" />
+            <select value={pkgFilter} onChange={e => { setPkgFilter(e.target.value); setHistPage(0) }}
+              className="bg-transparent text-gray-700 font-medium focus:outline-none text-sm max-w-[140px]">
+              <option value="all">Svi paketi</option>
+              {pkgTemplates.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label={`Prihod — ${MONTHS_FULL[thisMonth]}`}
+          value={fmtEur(stats.paidThisMonth)}
+          sub={stats.monthTrend !== 0 ? `vs. prošli mj.` : undefined}
+          icon={TrendingUp}
+          color="emerald"
+          trend={stats.monthTrend !== 0 ? { dir: stats.monthTrend >= 0 ? 'up' : 'down', pct: Math.abs(stats.monthTrend) } : { dir: 'neutral', pct: 0 }}
+        />
+        <StatCard label={`Prihod — ${thisYear}.`} value={fmtEur(stats.paidThisYear)} icon={Banknote} color="violet" />
+        <StatCard
+          label="Neplaćeno"
+          value={fmtEur(stats.outstanding)}
+          sub={`${pendingList.length} paketa čeka`}
+          icon={AlertTriangle}
+          color={stats.outstanding > 0 ? 'red' : 'sky'}
+        />
+        <StatCard label="Aktivni paketi" value={stats.activePkgs.toString()} sub={`${stats.activeClients} klijenata`} icon={Package} color="sky" />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+        {/* Monthly bar chart */}
+        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-800 mb-1">Prihod po mjesecima</h2>
+          <p className="text-xs text-gray-400 mb-4">Zadnjih 12 mjeseci · usporedba fakturiranog i naplaćenog</p>
+          <ResponsiveContainer width="100%" height={210}>
+            <BarChart data={monthlyData} barGap={2} barSize={16}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={42} tickFormatter={v => `${v}€`} />
+              <Tooltip
+                formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? 'Naplaćeno' : 'Fakturirano'] as any}
+                contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              />
+              <Bar dataKey="fakturirano" fill={`${accentHex}20`} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="naplaceno" radius={[4, 4, 0, 0]}>
+                {monthlyData.map((_, i) => (
+                  <Cell key={i} fill={accentHex} fillOpacity={0.85} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-5 mt-1">
+            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: `${accentHex}20` }} /> Fakturirano
+            </span>
+            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.85 }} /> Naplaćeno
+            </span>
+          </div>
+        </div>
+
+        {/* Package popularity */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-800 mb-1">Paketi</h2>
+          <p className="text-xs text-gray-400 mb-4">Popularnost i prihod po paketu</p>
+          {pkgPopularity.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center">
+              <Package size={28} className="text-gray-200 mb-2" />
+              <p className="text-sm text-gray-400">Nema podataka</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pkgPopularity.map((p, i) => {
+                const maxCount = pkgPopularity[0].count
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        <span className="text-xs font-medium text-gray-700 truncate">{p.name}</span>
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0 ml-2">{p.count}× · {fmtEur(p.revenue)}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(p.count / maxCount) * 100}%`, backgroundColor: p.color }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pending / late */}
+      {pendingList.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-500" />
+              <h2 className="text-sm font-semibold text-gray-800">Na čekanju</h2>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">{pendingList.length}</span>
+            </div>
+            <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))} ukupno</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {pendingList.slice(0, 8).map(cp => {
+              const s = getPayStatus(cp)
+              const left = daysLeft(cp.end_date)
+              return (
+                <div key={cp.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                    cp.client_gender === 'F' ? 'bg-rose-400' : cp.client_gender === 'M' ? 'bg-sky-500' : 'bg-gray-400'
+                  }`}>
+                    {cp.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{cp.client_name}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cp.pkg_color }} />
+                      <p className="text-xs text-gray-400">{cp.pkg_name}</p>
+                      <span className="text-xs text-gray-300">·</span>
+                      <p className="text-xs text-gray-400">{fmtDate(cp.end_date)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-800">{fmtEur(cp.price)}</p>
+                      <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} />
+                    </div>
+                    <button
+                      onClick={() => openPayDialog(cp)}
+                      className="h-7 text-xs px-3 rounded-lg text-white font-medium flex items-center gap-1"
+                      style={{ backgroundColor: accentHex }}
+                    >
+                      <Check size={11} /> Označi
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Transaction history */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">Povijest transakcija</h2>
+          <p className="text-xs text-gray-400">{allHistory.length} zapisa</p>
+        </div>
+
+        {allHistory.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <Banknote size={32} className="text-gray-200 mx-auto mb-3" />
+            <p className="text-sm text-gray-400">Nema transakcija za odabrane filtre</p>
+            <p className="text-xs text-gray-300 mt-1">Promijeni godinu ili filter paketa</p>
+          </div>
+        ) : (
+          <>
+            {/* Header row */}
+            <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_80px_100px_100px_120px_80px] gap-2 px-5 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50/60">
+              <span>Klijent</span><span>Paket</span><span>Iznos</span>
+              <span>Početak</span><span>Plaćeno</span><span>Status</span><span></span>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {pagedHistory.map(cp => {
+                const p = cp.payments?.[0]
+                const s = getPayStatus(cp)
+                const left = daysLeft(cp.end_date)
+                return (
+                  <div key={cp.id} className="px-5 py-3 grid md:grid-cols-[1.2fr_1.2fr_80px_100px_100px_120px_80px] grid-cols-1 gap-2 items-center hover:bg-gray-50/40 transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                        cp.client_gender === 'F' ? 'bg-rose-400' : cp.client_gender === 'M' ? 'bg-sky-500' : 'bg-gray-400'
+                      }`}>
+                        {cp.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-sm text-gray-800 font-medium truncate">{cp.client_name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cp.pkg_color }} />
+                      <span className="text-sm text-gray-600 truncate">{cp.pkg_name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {p?.status === 'paid' ? fmtEur(p.amount) : fmtEur(cp.price)}
+                    </span>
+                    <span className="text-xs text-gray-500">{fmtDate(cp.start_date)}</span>
+                    <span className="text-xs text-gray-500">{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
+                    <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} />
+                    <div>
+                      {s !== 'paid' && (
+                        <button onClick={() => openPayDialog(cp)}
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors"
+                          style={{ color: accentHex, borderColor: `${accentHex}40` }}>
+                          Označi
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Pagination */}
+            {allHistory.length > HIST_PER_PAGE && (
+              <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between bg-gray-50/40">
+                <p className="text-xs text-gray-400">
+                  {histPage * HIST_PER_PAGE + 1}–{Math.min((histPage + 1) * HIST_PER_PAGE, allHistory.length)} od {allHistory.length}
+                </p>
+                <div className="flex gap-2">
+                  <button disabled={histPage === 0} onClick={() => setHistPage(p => p - 1)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                    ← Prethodna
+                  </button>
+                  <button disabled={(histPage + 1) * HIST_PER_PAGE >= allHistory.length} onClick={() => setHistPage(p => p + 1)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                    Sljedeća →
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Pay dialog */}
+      {showPayDialog && selectedCp && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowPayDialog(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 flex items-center gap-3" style={{ backgroundColor: accentHex, backgroundImage: `linear-gradient(135deg, ${accentHex}, ${accentHex}cc)` }}>
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Check size={16} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-sm">Potvrdi plaćanje</h3>
+                <p className="text-white/70 text-xs">{selectedCp.client_name} · {selectedCp.pkg_name}</p>
+              </div>
+              <button onClick={() => setShowPayDialog(false)} className="ml-auto text-white/60 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1.5">Iznos (€)</label>
+                  <input type="number" value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+                    style={{ '--tw-ring-color': accentHex } as any}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1.5">Datum plaćanja</label>
+                  <input type="date" value={payForm.paid_at} onChange={e => setPayForm({ ...payForm, paid_at: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1.5">Napomena (opcionalno)</label>
+                <input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })}
+                  placeholder="Npr. gotovina, poseban dogovor..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={markPaid} disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: accentHex }}>
+                  {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={14} />}
+                  {saving ? 'Sprema...' : 'Potvrdi plaćanje'}
+                </button>
+                <button onClick={() => setShowPayDialog(false)} className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">
+                  Odustani
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

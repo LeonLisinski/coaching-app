@@ -1,15 +1,18 @@
 {
   "app": {
-    "name": "Coaching App"
+    "name": "UnitLift"
   },
   "login": {
-    "title": "Coaching App",
+    "title": "UnitLift",
+    "welcome": "Prijava u sustav",
+    "subtitle": "Unesi podatke za pristup UnitLift platformi",
     "email": "Email",
     "password": "Lozinka",
     "placeholderEmail": "trener@email.com",
     "placeholderPassword": "••••••••",
     "submit": "Prijavi se",
-    "loading": "Prijava..."
+    "loading": "Prijava...",
+    "noAccount": "Nemaš račun? Kontaktiraj administratora."
   },
   "common": {
     "loading": "Učitavanje...",
@@ -45,6 +48,7 @@
     "training": "Treninzi",
     "nutrition": "Prehrana",
     "checkins": "Check-ini",
+    "finance": "Financije",
     "chat": "Chat",
     "profile": "Profil"
   },
@@ -742,5 +746,21 @@
       "messagePlaceholder": "Napiši poruku...",
       "send": "Pošalji"
     }
+  },
+  "settings": {
+    "title": "Postavke",
+    "subtitle": "Prilagodi svoje iskustvo",
+    "tabs": {
+      "theme": "Izgled",
+      "contact": "Pomoć i kontakt"
+    },
+    "accentColor": "Boja akcenta",
+    "currentAccent": "Trenutna",
+    "displayMode": "Mod prikaza",
+    "modeLight": "Svjetlo",
+    "modeDark": "Tamno",
+    "contactDesc": "Trebate pomoć? Kontaktirajte nas putem nekog od kanala ispod.",
+    "website": "Web stranica",
+    "madeWith": "Napravljeno s"
   }
 }

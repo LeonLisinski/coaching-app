@@ -8,8 +8,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Pencil, Trash2, Phone, Globe, Instagram, Camera, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, Phone, Globe, Instagram, Camera, Check, User, Package, Settings } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+const ACCENT_HEX_MAP: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 
 type Profile = {
   id: string; full_name: string; email: string; bio: string | null
@@ -45,6 +52,8 @@ export default function ProfilePage() {
   const t       = useTranslations('profile')
   const tPkg    = useTranslations('profile.packages')
   const tCommon = useTranslations('common')
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
 
   const [profile, setProfile]             = useState<Profile | null>(null)
   const [packages, setPackages]           = useState<Package[]>([])
@@ -127,75 +136,75 @@ export default function ProfilePage() {
   const initials = form.full_name ? form.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold">{t('title')}</h1>
-        <p className="text-gray-500">{t('subtitle')}</p>
+      {/* ── Hero header ── */}
+      <div className="rounded-2xl overflow-hidden shadow-sm border border-white/20">
+        <div className="px-6 py-6 flex items-center gap-5" style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accentHex} 70%, #0f0a1e), color-mix(in srgb, ${accentHex} 50%, #0f0a1e))` }}>
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-white/20 border border-white/30 overflow-hidden flex items-center justify-center shadow-sm">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              )}
+            </div>
+            <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors border border-gray-200">
+              <Camera size={11} className="text-gray-500" />
+              <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
+            </label>
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-white leading-tight">{form.full_name || '—'}</h1>
+            <p className="text-white/60 text-sm mt-0.5">{profile?.email}</p>
+            <div className="flex flex-wrap gap-3 mt-2">
+              {form.instagram && (
+                <span className="flex items-center gap-1 text-xs text-white/70">
+                  <Instagram size={10} />@{form.instagram.replace('@', '')}
+                </span>
+              )}
+              {form.phone && (
+                <span className="flex items-center gap-1 text-xs text-white/70">
+                  <Phone size={10} />{form.phone}
+                </span>
+              )}
+              {form.website && (
+                <span className="flex items-center gap-1 text-xs text-white/70">
+                  <Globe size={10} />{form.website.replace(/^https?:\/\//, '')}
+                </span>
+              )}
+            </div>
+            {form.bio && <p className="text-xs text-white/55 mt-1.5 leading-relaxed max-w-lg">{form.bio}</p>}
+          </div>
+
+          {/* Remove avatar */}
+          {profile?.avatar_url && (
+            <button onClick={async () => { await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile!.id); fetchData() }}
+              className="text-xs text-white/50 hover:text-white/80 transition-colors shrink-0">
+              {t('avatar.remove')}
+            </button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="profil">
-        <TabsList>
-          <TabsTrigger value="profil">{t('tabs.profile')}</TabsTrigger>
-          <TabsTrigger value="paketi">{t('tabs.packages')}</TabsTrigger>
-          <TabsTrigger value="postavke">Postavke</TabsTrigger>
+        <TabsList className="bg-gray-100 p-1 rounded-xl">
+          <TabsTrigger value="profil" className="rounded-lg text-xs font-medium flex items-center gap-1.5">
+            <User size={12} />{t('tabs.profile')}
+          </TabsTrigger>
+          <TabsTrigger value="paketi" className="rounded-lg text-xs font-medium flex items-center gap-1.5">
+            <Package size={12} />{t('tabs.packages')}
+          </TabsTrigger>
+          <TabsTrigger value="postavke" className="rounded-lg text-xs font-medium flex items-center gap-1.5">
+            <Settings size={12} />Postavke
+          </TabsTrigger>
         </TabsList>
 
         {/* ── PROFIL TAB ── */}
-        <TabsContent value="profil" className="mt-6 space-y-5">
-
-          {/* Profile card */}
-          <Card>
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-start gap-5">
-                {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-primary">{initials}</span>
-                    )}
-                  </div>
-                  <label className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors">
-                    <Camera size={12} className="text-gray-500" />
-                    <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
-                  </label>
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-semibold text-gray-900">{form.full_name || '—'}</h2>
-                  <p className="text-sm text-gray-400">{profile?.email}</p>
-                  <div className="flex flex-wrap gap-3 mt-2">
-                    {form.instagram && (
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
-                        <Instagram size={11} className="text-pink-400" />@{form.instagram.replace('@', '')}
-                      </span>
-                    )}
-                    {form.phone && (
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
-                        <Phone size={11} className="text-green-500" />{form.phone}
-                      </span>
-                    )}
-                    {form.website && (
-                      <span className="flex items-center gap-1 text-xs text-gray-500">
-                        <Globe size={11} className="text-blue-400" />{form.website.replace(/^https?:\/\//, '')}
-                      </span>
-                    )}
-                  </div>
-                  {form.bio && <p className="text-sm text-gray-500 mt-2 leading-relaxed">{form.bio}</p>}
-                  {profile?.avatar_url && (
-                    <button onClick={async () => { await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile.id); fetchData() }}
-                      className="mt-2 text-xs text-red-400 hover:text-red-600 transition-colors">
-                      {t('avatar.remove')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="profil" className="mt-5 space-y-5">
 
           {/* Edit form */}
           <Card>
@@ -228,9 +237,11 @@ export default function ProfilePage() {
                   className="w-full border border-input rounded-lg px-3 py-2 text-sm min-h-20 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-colors" />
               </div>
               <div className="flex items-center gap-3 pt-1">
-                <Button onClick={saveProfile} disabled={saving} size="sm">
+                <button onClick={saveProfile} disabled={saving}
+                  className="h-9 px-4 rounded-lg text-white text-sm font-medium disabled:opacity-60 transition-colors"
+                  style={{ backgroundColor: accentHex }}>
                   {saving ? tCommon('saving') : t('saveProfile')}
-                </Button>
+                </button>
                 {saved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> Spremljeno</span>}
               </div>
             </CardContent>
@@ -238,17 +249,19 @@ export default function ProfilePage() {
         </TabsContent>
 
         {/* ── PAKETI TAB ── */}
-        <TabsContent value="paketi" className="mt-6 space-y-4">
+        <TabsContent value="paketi" className="mt-5 space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">{tPkg('count', { count: packages.length })}</p>
-            <Button onClick={openNewPackage} size="sm" className="flex items-center gap-1.5">
-              <Plus size={13} />{tPkg('addNew').replace('+ ', '')}
-            </Button>
+            <button onClick={openNewPackage}
+              className="h-8 px-3 rounded-lg text-white text-xs font-medium flex items-center gap-1.5"
+              style={{ backgroundColor: accentHex }}>
+              <Plus size={12} />{tPkg('addNew').replace('+ ', '')}
+            </button>
           </div>
 
           {/* Package form */}
           {showPackageForm && (
-            <Card className="border-primary/20 bg-primary/5">
+            <Card className="border-gray-200" style={{ borderColor: `${accentHex}30`, backgroundColor: `${accentHex}06` }}>
               <CardContent className="pt-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-800">{editPackage ? tPkg('editTitle') : tPkg('newTitle')}</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -332,7 +345,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         {/* ── POSTAVKE TAB ── */}
-        <TabsContent value="postavke" className="mt-6 space-y-5 max-w-2xl">
+        <TabsContent value="postavke" className="mt-5 space-y-5 max-w-2xl">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold">Dodatna nutritivna polja</CardTitle>
@@ -344,13 +357,17 @@ export default function ProfilePage() {
                   const active = nutritionFields.includes(opt.key)
                   return (
                     <button key={opt.key} type="button" onClick={() => toggleField(opt.key, nutritionFields, setNutritionFields)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all ${active ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
+                      className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all"
+                      style={active
+                        ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' }
+                        : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
                       <div>
                         <p className="text-sm font-medium">{opt.label}</p>
-                        <p className={`text-xs ${active ? 'text-gray-400' : 'text-gray-400'}`}>{opt.unit}</p>
+                        <p className="text-xs opacity-60">{opt.unit}</p>
                       </div>
-                      <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${active ? 'bg-white border-white' : 'border-gray-300'}`}>
-                        {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                      <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                        style={active ? { backgroundColor: 'white', borderColor: 'white' } : { borderColor: '#d1d5db' }}>
+                        {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke={accentHex} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                       </div>
                     </button>
                   )
@@ -370,13 +387,17 @@ export default function ProfilePage() {
                   const active = exerciseFields.includes(opt.key)
                   return (
                     <button key={opt.key} type="button" onClick={() => toggleField(opt.key, exerciseFields, setExerciseFields)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all ${active ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
+                      className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-left transition-all"
+                      style={active
+                        ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' }
+                        : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
                       <div className="min-w-0 pr-2">
                         <p className="text-sm font-medium">{opt.label}</p>
-                        <p className={`text-xs truncate ${active ? 'text-gray-400' : 'text-gray-400'}`}>{opt.desc}</p>
+                        <p className="text-xs truncate opacity-60">{opt.desc}</p>
                       </div>
-                      <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${active ? 'bg-white border-white' : 'border-gray-300'}`}>
-                        {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                      <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors"
+                        style={active ? { backgroundColor: 'white', borderColor: 'white' } : { borderColor: '#d1d5db' }}>
+                        {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke={accentHex} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                       </div>
                     </button>
                   )
@@ -386,9 +407,11 @@ export default function ProfilePage() {
           </Card>
 
           <div className="flex items-center gap-3">
-            <Button onClick={saveSettings} disabled={savingSettings} size="sm">
+            <button onClick={saveSettings} disabled={savingSettings}
+              className="h-9 px-4 rounded-lg text-white text-sm font-medium disabled:opacity-60 transition-colors"
+              style={{ backgroundColor: accentHex }}>
               {savingSettings ? 'Sprema...' : 'Spremi postavke'}
-            </Button>
+            </button>
             {settingsSaved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> Spremljeno</span>}
           </div>
         </TabsContent>

@@ -7,6 +7,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ArrowLeft, ClipboardList, History, BarChart2, Settings2 } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+const ACCENT_HEX: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 import CheckinOverview from '@/app/dashboard/checkins/[id]/components/checkin-overview'
 import CheckinHistory from '@/app/dashboard/checkins/[id]/components/checkin-history'
 import CheckinGraphs from '@/app/dashboard/checkins/[id]/components/checkin-graphs'
@@ -16,6 +23,7 @@ type Client = {
   id: string
   full_name: string
   email: string
+  gender: string | null
 }
 
 export default function ClientCheckinPage() {
@@ -23,6 +31,8 @@ export default function ClientCheckinPage() {
   const router = useRouter()
   const t = useTranslations('checkins')
   const tCommon = useTranslations('common')
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
 
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
@@ -36,6 +46,7 @@ export default function ClientCheckinPage() {
       .from('clients')
       .select(`
         id,
+        gender,
         profiles!clients_user_id_fkey (full_name, email)
       `)
       .eq('id', id)
@@ -46,6 +57,7 @@ export default function ClientCheckinPage() {
         id: data.id,
         full_name: (data.profiles as any)?.full_name || 'Bez imena',
         email: (data.profiles as any)?.email || '',
+        gender: (data as any).gender || null,
       })
     }
     setLoading(false)
@@ -59,8 +71,15 @@ export default function ClientCheckinPage() {
   return (
     <div className="space-y-5">
       {/* Hero header */}
-      <div className="rounded-2xl overflow-hidden border border-teal-100 shadow-sm">
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-500 px-6 py-5 flex items-center gap-4">
+      {(() => {
+        const headerGrad = client.gender === 'F'
+          ? 'linear-gradient(135deg, #be123c, #881337)'
+          : client.gender === 'M'
+          ? 'linear-gradient(135deg, #1d4ed8, #1e3a8a)'
+          : `linear-gradient(135deg, color-mix(in srgb, ${accentHex} 70%, #0f0a1e), color-mix(in srgb, ${accentHex} 50%, #0f0a1e))`
+        return (
+      <div className="rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-6 py-5 flex items-center gap-4" style={{ background: headerGrad }}>
           <button
             onClick={() => router.back()}
             className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0"
@@ -72,10 +91,12 @@ export default function ClientCheckinPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-white font-bold text-lg leading-tight truncate">{client.full_name}</h1>
-            <p className="text-teal-100/70 text-xs mt-0.5">Checkini i napredak</p>
+            <p className="text-white/60 text-xs mt-0.5">Checkini i napredak</p>
           </div>
         </div>
       </div>
+        )
+      })()}
 
       <Tabs defaultValue="overview">
         <TabsList className="bg-gray-100/80">

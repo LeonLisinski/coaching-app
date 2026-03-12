@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Plus, Trash2, GripVertical, Pencil, Settings2, X, Check } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
+
+const ACCENT_HEX_MAP: Record<string, string> = {
+  violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
+  teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
+  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+}
 
 type Parameter = {
   id: string
@@ -50,15 +57,20 @@ function InlineForm({
   const nameRef = useRef<HTMLInputElement>(null)
   useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50) }, [])
 
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
+
   return (
-    <div className="mt-2 pt-3 border-t border-indigo-100 space-y-3">
+    <div className="mt-2 pt-3 border-t border-gray-100 space-y-3">
       {/* Frequency */}
       <div className="flex gap-1.5">
         {[{ value: 'daily', label: t('daily') }, { value: 'weekly', label: t('weekly') }].map(f => (
           <button key={f.value} type="button" onClick={() => onChange({ ...form, frequency: f.value as any })}
-            className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-              form.frequency === f.value ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
-            }`}>
+            className="text-xs px-3 py-1 rounded-full border transition-colors font-medium"
+            style={form.frequency === f.value
+              ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex }
+              : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
+            }>
             {f.label}
           </button>
         ))}
@@ -102,7 +114,8 @@ function InlineForm({
 
       <div className="flex gap-1.5">
         <button type="button" onClick={onSave} disabled={!form.name}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors">
+          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
+          style={{ backgroundColor: accentHex }}>
           <Check size={12} /> {isNew ? t('addButton') : t('save')}
         </button>
         <button type="button" onClick={onCancel}
@@ -131,12 +144,13 @@ function ParamCard({
   t: (k: string) => string
 }) {
   const typeLabel = types.find(x => x.value === param.type)?.label || param.type
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
 
   return (
     <div
-      className={`border rounded-xl px-3 py-2.5 bg-white transition-all ${
-        isEditing ? 'border-indigo-300 shadow-sm ring-1 ring-indigo-200/50' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
-      }`}
+      className="border rounded-xl px-3 py-2.5 bg-white transition-all"
+      style={isEditing ? { borderColor: `${accentHex}60`, boxShadow: `0 0 0 1px ${accentHex}30` } : undefined}
       onDoubleClick={onDoubleClick}
     >
       <div className="flex items-center gap-2">
@@ -154,7 +168,9 @@ function ParamCard({
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <button type="button" title="Uredi (ili dvoklik)" onClick={onEdit}
-            className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+            className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-50 transition-colors"
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = accentHex }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '' }}>
             <Pencil size={12} />
           </button>
           <button type="button" onClick={onDelete}
@@ -183,6 +199,8 @@ function ParamCard({
 export default function ParametersTab() {
   const t = useTranslations('checkins.parametersTab')
   const tCommon = useTranslations('common')
+  const { accent } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
   const TYPES = [
     { value: 'number',  label: t('typeNumber') },
     { value: 'text',    label: t('typeText') },
@@ -266,15 +284,16 @@ export default function ParametersTab() {
       <div className="flex items-center justify-between">
         <p className="text-gray-500 text-xs">{parameters.length} parametara · dvoklik za uređivanje</p>
         <Button onClick={() => { setShowAddForm(v => !v); setEditingId(null) }} size="sm"
-          className={`h-7 text-xs flex items-center gap-1 px-2.5 ${showAddForm ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+          className="h-7 text-xs flex items-center gap-1 px-2.5"
+          style={showAddForm ? {} : { backgroundColor: accentHex, border: 'none' }}>
           {showAddForm ? <><X size={12} /> Zatvori</> : <><Plus size={12} /> {t('add')}</>}
         </Button>
       </div>
 
       {/* Add new — inline below header */}
       {showAddForm && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 px-4 pt-3 pb-4 space-y-0">
-          <p className="text-xs font-semibold text-indigo-700 mb-3 flex items-center gap-1.5">
+        <div className="rounded-xl border px-4 pt-3 pb-4 space-y-0" style={{ borderColor: `${accentHex}40`, backgroundColor: `${accentHex}06` }}>
+          <p className="text-xs font-semibold mb-3 flex items-center gap-1.5" style={{ color: accentHex }}>
             <Settings2 size={12} /> Novi parametar
           </p>
           <InlineForm
@@ -296,11 +315,11 @@ export default function ParametersTab() {
         </div>
       ) : parameters.length === 0 ? (
         <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-2">
-            <Settings2 size={20} className="text-indigo-400" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: `${accentHex}12` }}>
+            <Settings2 size={20} style={{ color: accentHex }} />
           </div>
           <p className="text-gray-400 text-sm">{t('noParameters')}</p>
-          <button onClick={() => setShowAddForm(true)} className="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mx-auto">
+          <button onClick={() => setShowAddForm(true)} className="mt-2 text-xs font-medium flex items-center gap-1 mx-auto" style={{ color: accentHex }}>
             <Plus size={11} /> Dodaj prvi parametar
           </button>
         </div>
@@ -309,7 +328,7 @@ export default function ParametersTab() {
           {daily.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-teal-400" />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: accentHex }} />
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('dailyCount', { count: daily.length })}</p>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
@@ -336,7 +355,7 @@ export default function ParametersTab() {
           {weekly.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                <div className="w-2 h-2 rounded-full opacity-60" style={{ backgroundColor: accentHex }} />
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('weeklyCount', { count: weekly.length })}</p>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
