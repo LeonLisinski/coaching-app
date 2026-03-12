@@ -262,3 +262,4 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     </Dialog>
   )
 }
+

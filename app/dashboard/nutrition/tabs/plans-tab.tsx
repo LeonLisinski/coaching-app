@@ -241,3 +241,4 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
     </div>
   )
 }
+

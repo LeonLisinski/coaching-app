@@ -159,12 +159,12 @@
   --app-accent-muted: rgba(220,38,38,0.15);
 }
 [data-accent="rose"] {
-  --primary: oklch(0.599 0.236 14);
-  --ring: oklch(0.599 0.236 14);
-  --app-accent: #e11d48;
-  --app-accent-hover: #be123c;
-  --app-accent-light: #ffe4e6;
-  --app-accent-muted: rgba(225,29,72,0.15);
+  --primary: oklch(0.656 0.241 354);
+  --ring: oklch(0.656 0.241 354);
+  --app-accent: #ec4899;
+  --app-accent-hover: #db2777;
+  --app-accent-light: #fce7f3;
+  --app-accent-muted: rgba(236,72,153,0.15);
 }
 [data-accent="amber"] {
   --primary: oklch(0.676 0.189 85);

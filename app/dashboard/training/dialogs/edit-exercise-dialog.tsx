@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { X, Dumbbell, Pencil } from 'lucide-react'
 import { Exercise, EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
+import { useTranslations } from 'next-intl'
 
 type Props = { exercise: Exercise; open: boolean; onClose: () => void; onSuccess: () => void }
 
@@ -44,6 +45,8 @@ function MuscleChipSelect({
 }
 
 export default function EditExerciseDialog({ exercise, open, onClose, onSuccess }: Props) {
+  const t = useTranslations('training.dialogs.exercise')
+  const tCommon = useTranslations('common')
   const [form, setForm] = useState({
     name: exercise.name,
     category: exercise.category || 'Slobodni utezi',
@@ -107,7 +110,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
-        <DialogTitle className="sr-only">{isFork ? 'Prilagodi vježbu' : 'Uredi vježbu'}</DialogTitle>
+        <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
 
         {/* Colored header */}
         <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -116,7 +119,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-white font-bold text-base">
-              {isFork ? 'Prilagodi vježbu' : 'Uredi vježbu'}
+              {t('editTitle')}
             </h2>
             <p className="text-emerald-100/70 text-xs truncate">{exercise.name}</p>
           </div>
@@ -128,7 +131,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
         {isFork && (
           <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 shrink-0">
             <p className="text-xs text-amber-700">
-              Uređuješ default vježbu. Bit će kreirana tvoja verzija, a original će biti sakriven.
+              {t('forkNotice')}
             </p>
           </div>
         )}
@@ -137,30 +140,30 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-gray-600">Naziv</Label>
+              <Label className="text-xs font-semibold text-gray-600">{t('name')}</Label>
               <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                 required className="h-9" />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">Tip vježbe</Label>
+              <Label className="text-xs font-semibold text-gray-600">{t('exerciseType')}</Label>
               <div className="flex gap-2">
-                {(['strength', 'endurance'] as const).map(t => (
-                  <button key={t} type="button"
-                    onClick={() => setForm(f => ({ ...f, exercise_type: t }))}
+                {(['strength', 'endurance'] as const).map(exType => (
+                  <button key={exType} type="button"
+                    onClick={() => setForm(f => ({ ...f, exercise_type: exType }))}
                     className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
-                      form.exercise_type === t
+                      form.exercise_type === exType
                         ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
                         : 'text-gray-500 border-gray-200 hover:border-emerald-300'
                     }`}>
-                    {t === 'strength' ? '🏋️ Snaga (serije × ponav.)' : '🏃 Izdržljivost (serije × min)'}
+                    {exType === 'strength' ? `🏋️ ${t('strengthType')}` : `🏃 ${t('enduranceType')}`}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">Oprema</Label>
+              <Label className="text-xs font-semibold text-gray-600">{t('equipment')}</Label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
                 className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400">
                 {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -168,25 +171,25 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
             </div>
 
             <MuscleChipSelect value={primaryMuscles} onChange={setPrimaryMuscles}
-              label="Primarne mišićne grupe" color="emerald" />
+              label={t('primaryMuscles')} color="emerald" />
 
             <MuscleChipSelect value={secondaryMuscles} onChange={setSecondaryMuscles}
-              label="Sekundarne mišićne grupe (opcionalno)" color="gray" />
+              label={`${t('secondaryMuscles')} (${tCommon('optional')})`} color="gray" />
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-600">
-                Opis <span className="text-gray-400 font-normal">(opcionalno)</span>
+                {t('description')} <span className="text-gray-400 font-normal">({tCommon('optional')})</span>
               </Label>
               <textarea value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
-                placeholder="Kratki opis tehnike izvedbe..."
+                placeholder={t('descriptionPlaceholder')}
                 rows={3}
                 className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder:text-gray-400" />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-600">
-                Video URL <span className="text-gray-400 font-normal">(opcionalno)</span>
+                {t('videoUrl')} <span className="text-gray-400 font-normal">({tCommon('optional')})</span>
               </Label>
               <Input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
                 placeholder="https://youtube.com/..." />
@@ -196,10 +199,10 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
           </div>
 
           <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading || !form.name}
               className="flex-1 bg-emerald-600 hover:bg-emerald-700">
-              {loading ? 'Sprema...' : isFork ? 'Spremi kao moju' : 'Spremi promjene'}
+              {loading ? tCommon('saving') : t('save')}
             </Button>
           </div>
         </form>
@@ -207,3 +210,4 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     </Dialog>
   )
 }
+

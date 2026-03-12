@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTranslations } from 'next-intl'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Payment = {
@@ -47,9 +48,6 @@ type ClientPackage = {
 type PkgTemplate = { id: string; name: string; price: number; color: string; active: boolean }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const MONTHS_HR = ['Sij', 'Velj', 'Ožu', 'Tra', 'Svi', 'Lip', 'Srp', 'Kol', 'Ruj', 'Lis', 'Stu', 'Pro']
-const MONTHS_FULL = ['Siječanj', 'Veljača', 'Ožujak', 'Travanj', 'Svibanj', 'Lipanj',
-  'Srpanj', 'Kolovoz', 'Rujan', 'Listopad', 'Studeni', 'Prosinac']
 
 function fmtDate(iso: string | null) {
   if (!iso) return '—'
@@ -66,7 +64,7 @@ function daysLeft(endDate: string) {
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
   teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
-  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+  orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -102,12 +100,12 @@ function StatCard({ label, value, sub, icon: Icon, trend, color }: {
   )
 }
 
-function StatusBadge({ status, daysLeftVal }: { status: string; daysLeftVal?: number }) {
+function StatusBadge({ status, daysLeftVal, t }: { status: string; daysLeftVal?: number; t: (k: string, v?: any) => string }) {
   const cfg: Record<string, { cls: string; label: string; icon: React.ReactNode }> = {
-    paid:     { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Plaćeno',        icon: <Check size={10} /> },
-    pending:  { cls: 'bg-gray-50 text-gray-600 border-gray-200',          label: 'Na čekanju',     icon: <Clock size={10} /> },
-    upcoming: { cls: 'bg-amber-50 text-amber-700 border-amber-200',       label: `Za ${daysLeftVal}d`, icon: <Clock size={10} /> },
-    late:     { cls: 'bg-red-50 text-red-700 border-red-200',             label: 'Kasni',          icon: <AlertTriangle size={10} /> },
+    paid:     { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: t('finance.status.paid'),    icon: <Check size={10} /> },
+    pending:  { cls: 'bg-gray-50 text-gray-600 border-gray-200',          label: t('finance.status.pending'), icon: <Clock size={10} /> },
+    upcoming: { cls: 'bg-amber-50 text-amber-700 border-amber-200',       label: t('finance.status.upcomingDays', { days: daysLeftVal }), icon: <Clock size={10} /> },
+    late:     { cls: 'bg-red-50 text-red-700 border-red-200',             label: t('finance.status.late'),    icon: <AlertTriangle size={10} /> },
   }
   const c = cfg[status] || cfg.pending
   return (
@@ -121,6 +119,10 @@ function StatusBadge({ status, daysLeftVal }: { status: string; daysLeftVal?: nu
 export default function FinancijePage() {
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const tRaw = useTranslations()
+  const t = (key: string, values?: any) => tRaw(key as any, values)
+  const tMonths = useTranslations('common.months')
+  const tMonthsFull = useTranslations('common.monthsFull')
 
   const [clientPackages, setClientPackages] = useState<ClientPackage[]>([])
   const [pkgTemplates, setPkgTemplates] = useState<PkgTemplate[]>([])
@@ -198,8 +200,13 @@ export default function FinancijePage() {
   const monthStart = new Date(thisYear, thisMonth, 1).toISOString().split('T')[0]
   const monthEnd = new Date(thisYear, thisMonth + 1, 0).toISOString().split('T')[0]
 
+  // Filter only by package template (not year) for stats/chart — year filter applies to history table
+  const filteredByPkg = useMemo(() => {
+    if (pkgFilter === 'all') return clientPackages
+    return clientPackages.filter(cp => cp.package_id === pkgFilter)
+  }, [clientPackages, pkgFilter])
+
   const stats = useMemo(() => {
-    // Collected this month: payments with paid_at in current month
     let paidThisMonth = 0
     let paidLastMonth = 0
     let paidThisYear = 0
@@ -208,7 +215,7 @@ export default function FinancijePage() {
     const yearStart = `${thisYear}-01-01`
     const yearEnd = `${thisYear}-12-31`
 
-    clientPackages.forEach(cp => {
+    filteredByPkg.forEach(cp => {
       const p = cp.payments?.[0]
       if (p?.status === 'paid' && p.paid_at) {
         if (p.paid_at >= monthStart && p.paid_at <= monthEnd) paidThisMonth += p.amount || cp.price
@@ -217,20 +224,20 @@ export default function FinancijePage() {
       }
     })
 
-    const outstanding = clientPackages.reduce((s, cp) => {
+    const outstanding = filteredByPkg.reduce((s, cp) => {
       const p = cp.payments?.[0]
       return s + (p?.status !== 'paid' ? cp.price : 0)
     }, 0)
 
-    const activePkgs = clientPackages.filter(cp => cp.status === 'active').length
-    const activeClients = new Set(clientPackages.filter(cp => cp.status === 'active').map(cp => cp.client_id)).size
+    const activePkgs    = filteredByPkg.filter(cp => cp.status === 'active').length
+    const activeClients = new Set(filteredByPkg.filter(cp => cp.status === 'active').map(cp => cp.client_id)).size
 
     const monthTrend = paidLastMonth > 0
       ? Math.round(((paidThisMonth - paidLastMonth) / paidLastMonth) * 100)
       : 0
 
     return { paidThisMonth, paidThisYear, outstanding, activePkgs, activeClients, monthTrend }
-  }, [clientPackages, thisMonth, thisYear, monthStart, monthEnd])
+  }, [filteredByPkg, thisMonth, thisYear, monthStart, monthEnd])
 
   // ── Monthly chart (last 12 months, by paid_at) ────────────────────────────
   const monthlyData = useMemo(() => {
@@ -245,21 +252,19 @@ export default function FinancijePage() {
       const mEnd = new Date(y, m + 1, 0).toISOString().split('T')[0]
 
       let naplaceno = 0, fakturirano = 0
-      clientPackages.forEach(cp => {
-        // Fakturirano = packages starting in that month
+      filteredByPkg.forEach(cp => {
         if (cp.start_date >= mStart && cp.start_date <= mEnd) fakturirano += cp.price
-        // Naplaćeno = payments with paid_at in that month
         const p = cp.payments?.[0]
         if (p?.status === 'paid' && p.paid_at && p.paid_at >= mStart && p.paid_at <= mEnd) {
           naplaceno += p.amount || cp.price
         }
       })
 
-      const label = `${MONTHS_HR[m]}${y !== thisYear ? ` '${String(y).slice(2)}` : ''}`
+      const label = `${tMonths(String(m) as any)}${y !== thisYear ? ` '${String(y).slice(2)}` : ''}`
       data.push({ month: label.trim(), naplaceno, fakturirano })
     }
     return data
-  }, [clientPackages, thisYear])
+  }, [filteredByPkg, thisYear])
 
   // ── Package popularity ─────────────────────────────────────────────────────
   const pkgPopularity = useMemo(() => {
@@ -284,13 +289,13 @@ export default function FinancijePage() {
   }, [clientPackages, yearFilter, pkgFilter])
 
   const pendingList = useMemo(() => {
-    return clientPackages
+    return filteredByPkg
       .filter(cp => ['pending', 'late', 'upcoming'].includes(getPayStatus(cp)))
       .sort((a, b) => {
         const order: Record<string, number> = { late: 0, upcoming: 1, pending: 2 }
         return (order[getPayStatus(a)] ?? 2) - (order[getPayStatus(b)] ?? 2)
       })
-  }, [clientPackages])
+  }, [filteredByPkg])
 
   const allHistory = useMemo(() =>
     [...filtered].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()),
@@ -355,9 +360,9 @@ export default function FinancijePage() {
             <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
               <Banknote size={18} style={{ color: accentHex }} />
             </span>
-            Financije
+            {t('finance.title')}
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">Pregled prihoda, plaćanja i paketa</p>
+          <p className="text-sm text-gray-400 mt-0.5">{t('finance.subtitle')}</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -372,7 +377,7 @@ export default function FinancijePage() {
             <Filter size={14} className="text-gray-400" />
             <select value={pkgFilter} onChange={e => { setPkgFilter(e.target.value); setHistPage(0) }}
               className="bg-transparent text-gray-700 font-medium focus:outline-none text-sm max-w-[140px]">
-              <option value="all">Svi paketi</option>
+              <option value="all">{t('finance.allPackages')}</option>
               {pkgTemplates.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -382,22 +387,22 @@ export default function FinancijePage() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label={`Prihod — ${MONTHS_FULL[thisMonth]}`}
+          label={`${t('finance.stats.paidThisMonth')} — ${tMonthsFull(String(thisMonth) as any)}`}
           value={fmtEur(stats.paidThisMonth)}
-          sub={stats.monthTrend !== 0 ? `vs. prošli mj.` : undefined}
+          sub={stats.monthTrend !== 0 ? t('finance.stats.vsLastMonth') : undefined}
           icon={TrendingUp}
           color="emerald"
           trend={stats.monthTrend !== 0 ? { dir: stats.monthTrend >= 0 ? 'up' : 'down', pct: Math.abs(stats.monthTrend) } : { dir: 'neutral', pct: 0 }}
         />
-        <StatCard label={`Prihod — ${thisYear}.`} value={fmtEur(stats.paidThisYear)} icon={Banknote} color="violet" />
+        <StatCard label={`${t('finance.stats.paidThisYear')} — ${thisYear}.`} value={fmtEur(stats.paidThisYear)} icon={Banknote} color="violet" />
         <StatCard
-          label="Neplaćeno"
+          label={t('finance.stats.outstanding')}
           value={fmtEur(stats.outstanding)}
-          sub={`${pendingList.length} paketa čeka`}
+          sub={`${pendingList.length} ${t('finance.popularity.clients')}`}
           icon={AlertTriangle}
           color={stats.outstanding > 0 ? 'red' : 'sky'}
         />
-        <StatCard label="Aktivni paketi" value={stats.activePkgs.toString()} sub={`${stats.activeClients} klijenata`} icon={Package} color="sky" />
+        <StatCard label={t('finance.stats.activeClients')} value={stats.activePkgs.toString()} sub={`${stats.activeClients} ${t('finance.popularity.clients')}`} icon={Package} color="sky" />
       </div>
 
       {/* Charts */}
@@ -405,15 +410,15 @@ export default function FinancijePage() {
 
         {/* Monthly bar chart */}
         <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-800 mb-1">Prihod po mjesecima</h2>
-          <p className="text-xs text-gray-400 mb-4">Zadnjih 12 mjeseci · usporedba fakturiranog i naplaćenog</p>
+          <h2 className="text-sm font-semibold text-gray-800 mb-1">{t('finance.chart.title')}</h2>
+          <p className="text-xs text-gray-400 mb-4">{t('dashboard.revenue.title')}</p>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={monthlyData} barGap={2} barSize={16}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={42} tickFormatter={v => `${v}€`} />
               <Tooltip
-                formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? 'Naplaćeno' : 'Fakturirano'] as any}
+                formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? t('dashboard.revenue.collected') : t('dashboard.revenue.expected')] as any}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
               <Bar dataKey="fakturirano" fill={`${accentHex}20`} radius={[4, 4, 0, 0]} />
@@ -426,22 +431,22 @@ export default function FinancijePage() {
           </ResponsiveContainer>
           <div className="flex items-center gap-5 mt-1">
             <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: `${accentHex}20` }} /> Fakturirano
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: `${accentHex}20` }} /> {t('dashboard.revenue.expected')}
             </span>
             <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.85 }} /> Naplaćeno
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.85 }} /> {t('dashboard.revenue.collected')}
             </span>
           </div>
         </div>
 
         {/* Package popularity */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-800 mb-1">Paketi</h2>
-          <p className="text-xs text-gray-400 mb-4">Popularnost i prihod po paketu</p>
+          <h2 className="text-sm font-semibold text-gray-800 mb-1">{t('finance.popularity.title')}</h2>
+          <p className="text-xs text-gray-400 mb-4">{t('finance.package')}</p>
           {pkgPopularity.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <Package size={28} className="text-gray-200 mb-2" />
-              <p className="text-sm text-gray-400">Nema podataka</p>
+              <p className="text-sm text-gray-400">{t('finance.popularity.noPackages')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -473,10 +478,10 @@ export default function FinancijePage() {
           <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-amber-500" />
-              <h2 className="text-sm font-semibold text-gray-800">Na čekanju</h2>
+              <h2 className="text-sm font-semibold text-gray-800">{t('finance.status.pending')}</h2>
               <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">{pendingList.length}</span>
             </div>
-            <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))} ukupno</p>
+            <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))}</p>
           </div>
           <div className="divide-y divide-gray-50">
             {pendingList.slice(0, 8).map(cp => {
@@ -501,14 +506,14 @@ export default function FinancijePage() {
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-semibold text-gray-800">{fmtEur(cp.price)}</p>
-                      <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} />
+                      <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
                     </div>
                     <button
                       onClick={() => openPayDialog(cp)}
                       className="h-7 text-xs px-3 rounded-lg text-white font-medium flex items-center gap-1"
                       style={{ backgroundColor: accentHex }}
                     >
-                      <Check size={11} /> Označi
+                      <Check size={11} /> {t('finance.payment.markPaid')}
                     </button>
                   </div>
                 </div>
@@ -521,22 +526,21 @@ export default function FinancijePage() {
       {/* Transaction history */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-800">Povijest transakcija</h2>
-          <p className="text-xs text-gray-400">{allHistory.length} zapisa</p>
+          <h2 className="text-sm font-semibold text-gray-800">{t('finance.table.title')}</h2>
+          <p className="text-xs text-gray-400">{allHistory.length}</p>
         </div>
 
-        {allHistory.length === 0 ? (
+          {allHistory.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <Banknote size={32} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-sm text-gray-400">Nema transakcija za odabrane filtre</p>
-            <p className="text-xs text-gray-300 mt-1">Promijeni godinu ili filter paketa</p>
+            <p className="text-sm text-gray-400">{t('finance.table.noData')}</p>
           </div>
         ) : (
           <>
             {/* Header row */}
             <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_80px_100px_100px_120px_80px] gap-2 px-5 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50/60">
-              <span>Klijent</span><span>Paket</span><span>Iznos</span>
-              <span>Početak</span><span>Plaćeno</span><span>Status</span><span></span>
+              <span>{t('finance.table.client')}</span><span>{t('finance.table.package')}</span><span>{t('finance.table.amount')}</span>
+              <span>{t('common.date')}</span><span>{t('finance.status.paid')}</span><span>{t('finance.table.status')}</span><span></span>
             </div>
             <div className="divide-y divide-gray-50">
               {pagedHistory.map(cp => {
@@ -562,13 +566,13 @@ export default function FinancijePage() {
                     </span>
                     <span className="text-xs text-gray-500">{fmtDate(cp.start_date)}</span>
                     <span className="text-xs text-gray-500">{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
-                    <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} />
+                    <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
                     <div>
                       {s !== 'paid' && (
                         <button onClick={() => openPayDialog(cp)}
                           className="text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors"
                           style={{ color: accentHex, borderColor: `${accentHex}40` }}>
-                          Označi
+                          {t('finance.payment.markPaid')}
                         </button>
                       )}
                     </div>
@@ -586,11 +590,11 @@ export default function FinancijePage() {
                 <div className="flex gap-2">
                   <button disabled={histPage === 0} onClick={() => setHistPage(p => p - 1)}
                     className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
-                    ← Prethodna
+                    {t('finance.table.prevPage')}
                   </button>
                   <button disabled={(histPage + 1) * HIST_PER_PAGE >= allHistory.length} onClick={() => setHistPage(p => p + 1)}
                     className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
-                    Sljedeća →
+                    {t('finance.table.nextPage')}
                   </button>
                 </div>
               </div>
@@ -608,7 +612,7 @@ export default function FinancijePage() {
                 <Check size={16} className="text-white" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-sm">Potvrdi plaćanje</h3>
+                <h3 className="text-white font-bold text-sm">{t('finance.payment.title')}</h3>
                 <p className="text-white/70 text-xs">{selectedCp.client_name} · {selectedCp.pkg_name}</p>
               </div>
               <button onClick={() => setShowPayDialog(false)} className="ml-auto text-white/60 hover:text-white text-xl leading-none">×</button>
@@ -616,22 +620,22 @@ export default function FinancijePage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1.5">Iznos (€)</label>
+                  <label className="text-xs font-medium text-gray-600 block mb-1.5">{t('finance.payment.amount')}</label>
                   <input type="number" value={payForm.amount} onChange={e => setPayForm({ ...payForm, amount: e.target.value })}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
                     style={{ '--tw-ring-color': accentHex } as any}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1.5">Datum plaćanja</label>
+                  <label className="text-xs font-medium text-gray-600 block mb-1.5">{t('finance.payment.date')}</label>
                   <input type="date" value={payForm.paid_at} onChange={e => setPayForm({ ...payForm, paid_at: e.target.value })}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1.5">Napomena (opcionalno)</label>
+                <label className="text-xs font-medium text-gray-600 block mb-1.5">{t('finance.payment.notes')}</label>
                 <input value={payForm.notes} onChange={e => setPayForm({ ...payForm, notes: e.target.value })}
-                  placeholder="Npr. gotovina, poseban dogovor..."
+                  placeholder={t('finance.payment.notesPlaceholder')}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
               </div>
               <div className="flex gap-2 pt-1">
@@ -639,10 +643,10 @@ export default function FinancijePage() {
                   className="flex-1 py-2.5 rounded-xl text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ backgroundColor: accentHex }}>
                   {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={14} />}
-                  {saving ? 'Sprema...' : 'Potvrdi plaćanje'}
+                  {saving ? t('finance.payment.saving') : t('finance.payment.save')}
                 </button>
                 <button onClick={() => setShowPayDialog(false)} className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">
-                  Odustani
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -652,3 +656,4 @@ export default function FinancijePage() {
     </div>
   )
 }
+

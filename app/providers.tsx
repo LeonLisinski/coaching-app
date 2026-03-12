@@ -20,3 +20,4 @@ export default function Providers({ locale, messages, children }: Props) {
     </NextIntlClientProvider>
   )
 }
+

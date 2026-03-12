@@ -296,3 +296,4 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
     </Dialog>
   )
 }
+

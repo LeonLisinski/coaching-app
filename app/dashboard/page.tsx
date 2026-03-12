@@ -11,14 +11,14 @@ import {
 } from 'recharts'
 import {
   Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
-  Clock, ArrowRight, MessageSquare,
+  Clock, ArrowRight, MessageSquare, Activity, ClipboardCheck, CreditCard,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
   teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
-  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+  orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -32,6 +32,15 @@ type ClientRow = {
   total_checkins: number
   checkin_rate: number
   status: 'submitted' | 'late' | 'neutral'
+}
+
+type ActivityItem = {
+  id: string
+  type: 'checkin' | 'message' | 'payment'
+  title: string
+  subtitle: string
+  time: string
+  clientId?: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -158,6 +167,8 @@ export default function DashboardPage() {
   const [clients, setClients]             = useState<ClientRow[]>([])
   const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; ocekivano: number; naplaceno: number }[]>([])
   const [progressPercent, setProgressPercent] = useState(0)
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
+  const [yearRevenue, setYearRevenue] = useState(0)
 
   const getMonthLabel = (d: Date) => d.toLocaleDateString(locale, { month: 'short' })
 
@@ -277,9 +288,99 @@ export default function DashboardPage() {
 
     const progress = expectedMonth > 0 ? Math.min(100, Math.round((collectedMonth / expectedMonth) * 100)) : 0
 
+    // Year-to-date revenue
+    const thisYear = now.getFullYear().toString()
+    let ytdRevenue = 0
+    packagesData?.forEach((cp: any) => {
+      ;(cp.payments as any[])?.forEach((p: any) => {
+        if (p.status === 'paid' && p.paid_at?.startsWith(thisYear)) ytdRevenue += p.amount || 0
+      })
+    })
+    setYearRevenue(ytdRevenue)
+
     setStats({ activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 })
     setMonthlyRevenue(Object.entries(monthly).map(([month, v]) => ({ month, ...v })))
     setProgressPercent(progress)
+
+    // ─── Recent activity ─────────────────────────────────────────────────────
+    // Build client name lookup from already-fetched rows
+    const clientNameMap: Record<string, string> = {}
+    rows.forEach(r => { clientNameMap[r.id] = r.full_name })
+
+    const sevenDaysAgo = new Date(now)
+    sevenDaysAgo.setDate(now.getDate() - 7)
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+
+    const formatRelTime = (ts: number) => {
+      const diffMs = now.getTime() - ts
+      const diffMins = Math.floor(diffMs / 60000)
+      const diffHours = Math.floor(diffMins / 60)
+      const diffDays = Math.floor(diffHours / 24)
+      if (diffMins < 2) return 'upravo sada'
+      if (diffMins < 60) return `prije ${diffMins}m`
+      if (diffHours < 24) return `prije ${diffHours}h`
+      if (diffDays === 1) return 'jučer'
+      return `prije ${diffDays}d`
+    }
+
+    // Reuse allCheckins already fetched — filter to last 7 days
+    const recentCi = (allCheckins || [])
+      .filter(c => c.date >= sevenDaysAgoStr)
+      .slice(0, 5)
+      .map((c, i) => ({
+        id: `checkin-${c.client_id}-${c.date}`,
+        type: 'checkin' as const,
+        title: clientNameMap[c.client_id] || 'Klijent',
+        subtitle: 'predao/la check-in',
+        time: '',
+        ts: new Date(c.date).getTime() - i, // offset to preserve order for same-day
+        clientId: c.client_id,
+      }))
+
+    // Recent messages received by trainer
+    const { data: recentMsgs } = await supabase
+      .from('messages')
+      .select('id, content, created_at, client_id')
+      .eq('trainer_id', user.id)
+      .neq('sender_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    const recentMsgActivities = (recentMsgs || []).map((m: any) => ({
+      id: `msg-${m.id}`,
+      type: 'message' as const,
+      title: clientNameMap[m.client_id] || 'Klijent',
+      subtitle: (m.content as string)?.slice(0, 50) || 'Poruka',
+      time: '',
+      ts: new Date(m.created_at).getTime(),
+      clientId: m.client_id as string,
+    }))
+
+    // Recent payments — join back to client_id via client_packages
+    const { data: recentPays } = await supabase
+      .from('payments')
+      .select('id, amount, paid_at, client_packages(client_id)')
+      .eq('status', 'paid')
+      .not('paid_at', 'is', null)
+      .order('paid_at', { ascending: false })
+      .limit(5)
+
+    const recentPayActivities = (recentPays || [])
+      .filter((p: any) => clientIds.includes(p.client_packages?.client_id))
+      .map((p: any) => ({
+        id: `pay-${p.id}`,
+        type: 'payment' as const,
+        title: clientNameMap[p.client_packages?.client_id] || 'Klijent',
+        subtitle: `uplata ${p.amount}€`,
+        time: '',
+        ts: new Date(p.paid_at).getTime(),
+        clientId: p.client_packages?.client_id as string,
+      }))
+
+    const all = [...recentCi, ...recentMsgActivities, ...recentPayActivities]
+    all.sort((a, b) => b.ts - a.ts)
+    setRecentActivity(all.slice(0, 8).map(a => ({ ...a, time: formatRelTime(a.ts) })))
+
     setLoading(false)
   }
 
@@ -325,10 +426,10 @@ export default function DashboardPage() {
         <StatCard icon={CheckCircle2}  label="Check-in ovaj tjedan"     value={stats.submitted}         color="emerald" sub={`${stats.late} kasni`} onClick={() => router.push('/dashboard/checkins')} />
         <StatCard icon={AlertCircle}   label="Kasni check-in"           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
         <StatCard icon={TrendingUp}    label="Prosj. redovitost"        value={`${stats.avgCheckinRate}%`} color="sky"  sub="check-in stopa" />
-        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} />
-        <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/clients')} />
+        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} onClick={() => router.push('/dashboard/financije')} />
+        <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/financije')} />
         <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
-        <StatCard icon={Clock}         label="Bez rasporeda"            value={stats.neutral}           color="sky"     sub="klijenata bez check-in dana" />
+        <StatCard icon={TrendingUp}    label="Prihod ove godine"        value={`${yearRevenue}€`}       color="emerald" sub={`od ${stats.expectedMonth}€ ovaj mj.`} onClick={() => router.push('/dashboard/financije')} />
       </div>
 
       {/* Charts + checkin list */}
@@ -393,6 +494,53 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Recent activity feed */}
+      {recentActivity.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
+                <Activity size={14} style={{ color: accentHex }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Nedavna aktivnost</p>
+                <p className="text-xs text-gray-400 mt-0.5">Zadnjih 7 dana</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1 max-h-[320px] overflow-y-auto pr-0.5">
+            {recentActivity.map((item, idx) => {
+              const icon = item.type === 'checkin'
+                ? <ClipboardCheck size={13} style={{ color: accentHex }} />
+                : item.type === 'message'
+                ? <MessageSquare size={13} className="text-sky-500" />
+                : <CreditCard size={13} className="text-emerald-500" />
+              const dot = item.type === 'checkin'
+                ? { backgroundColor: `${accentHex}20`, color: accentHex }
+                : item.type === 'message'
+                ? { backgroundColor: '#e0f2fe', color: '#0284c7' }
+                : { backgroundColor: '#d1fae5', color: '#059669' }
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                  onClick={() => item.clientId && router.push(`/dashboard/clients/${item.clientId}`)}
+                >
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={dot}>
+                    {icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-semibold text-gray-800">{item.title}</span>
+                    <span className="text-xs text-gray-400 ml-1.5">{item.subtitle}</span>
+                  </div>
+                  <span className="text-[11px] text-gray-400 tabular-nums shrink-0">{item.time}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Checkin status — all clients */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
@@ -421,3 +569,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+

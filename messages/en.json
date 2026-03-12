@@ -12,7 +12,23 @@
     "placeholderPassword": "••••••••",
     "submit": "Log in",
     "loading": "Logging in...",
-    "noAccount": "Don't have an account? Contact the administrator."
+    "noAccount": "Don't have an account? Contact the administrator.",
+    "headlineMain": "More progress,",
+    "headlinePre": "less",
+    "headlineAccent": "administration.",
+    "tagline": "Platform for professional trainers — clients, plans, check-ins and finances.",
+    "welcomeTitle": "Welcome back",
+    "welcomeSubtitle": "Sign in to access the UnitLift platform.",
+    "forgotPassword": "Forgot password?",
+    "secureLogin": "Secure login",
+    "gdpr": "GDPR compliant",
+    "noAccess": "No access? Contact the administrator.",
+    "features": {
+      "training": { "label": "Training & nutrition", "desc": "Plans, templates, macros and calories for every client." },
+      "checkin": { "label": "Check-in system", "desc": "Weekly progress, photos and graphs for every client." },
+      "chat": { "label": "Client chat", "desc": "Real-time messages with templates and notifications." },
+      "finance": { "label": "Financial overview", "desc": "Packages, payments and reports — all in one place." }
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -40,7 +56,17 @@
     "assign": "Assign",
     "create": "Create",
     "remove": "Remove",
-    "saveChanges": "Save changes"
+    "saveChanges": "Save changes",
+    "optional": "optional",
+    "months": {
+      "0": "Jan", "1": "Feb", "2": "Mar", "3": "Apr", "4": "May", "5": "Jun",
+      "6": "Jul", "7": "Aug", "8": "Sep", "9": "Oct", "10": "Nov", "11": "Dec"
+    },
+    "monthsFull": {
+      "0": "January", "1": "February", "2": "March", "3": "April",
+      "4": "May", "5": "June", "6": "July", "7": "August",
+      "8": "September", "9": "October", "10": "November", "11": "December"
+    }
   },
   "nav": {
     "overview": "Overview",
@@ -155,7 +181,13 @@
       "change": "Change photo",
       "remove": "Remove"
     },
+    "editProfile": "Edit profile",
     "saveProfile": "Save profile",
+    "noContactData": "No contact data. Click \"Edit profile\" to add.",
+    "addFirstPackage": "Add first package →",
+    "saveSettings": "Save settings",
+    "savingSettings": "Saving...",
+    "settingsSaved": "Saved",
     "security": {
       "changePassword": "Change password",
       "currentPassword": "Current password",
@@ -182,6 +214,7 @@
     "dialogs": {
       "add": {
         "title": "Add client",
+        "subtitle": "Add new client to the system",
         "fullName": "Full name",
         "email": "Email",
         "password": "Password",
@@ -201,7 +234,8 @@
       },
       "edit": {
         "title": "Edit client",
-        "submit": "Save changes"
+        "submit": "Save changes",
+        "savePlans": "Save plans"
       }
     },
     "detail": {
@@ -236,9 +270,19 @@
       "selectPlan": "Select plan...",
       "note": "Note (optional)...",
       "assign": "Assign",
+      "assigning": "Assigning...",
       "days": "{count, plural, one {# day} other {# days}}",
       "assignedOn": "Assigned on",
-      "removeConfirm": "Remove this training plan?"
+      "removeConfirm": "Remove this training plan?",
+      "labelSets": "Sets",
+      "labelRest": "Rest (s)",
+      "labelNotes": "Notes (optional)",
+      "addExercisePlaceholder": "+ Add exercise...",
+      "enduranceLabel": "Endurance",
+      "noteLabel": "Note",
+      "saveToDb": "Save customised plan to training library",
+      "saveToDbHint": "(creates a copy)",
+      "assignNotePlaceholder": "e.g. Start from next week"
     },
     "mealPlans": {
       "title": "Meal plans",
@@ -250,6 +294,9 @@
       "selectPlan": "Select plan...",
       "note": "Note (optional)...",
       "assign": "Assign",
+      "assigning": "Assigning...",
+      "noteLabel": "Note",
+      "assignNotePlaceholder": "e.g. Start from Monday",
       "assignedOn": "Assigned on",
       "removeConfirm": "Remove this meal plan?",
       "infoBannerBoth": "✓ Client has training and rest day plans set — the app will show the right plan automatically.",
@@ -289,7 +336,151 @@
       "paymentDate": "Payment date",
       "paymentNotesPlaceholder": "e.g. paid in cash...",
       "packageInPayment": "Package:",
-      "days": "{count, plural, one {# day} other {# days}}"
+      "days": "{count, plural, one {# day} other {# days}}",
+      "statusPaid": "Paid",
+      "statusUpcoming": "Due in {days}d",
+      "statusPending": "Pending",
+      "statusLate": "Late payment",
+      "collabFrom": "Collaboration from:",
+      "collabNotSet": "Not set",
+      "summaryInvoiced": "Total invoiced",
+      "summaryPaid": "Paid",
+      "summaryOwed": "Owed",
+      "activeLabel": "Active",
+      "pastLabel": "Previous",
+      "replaceTitle": "Replace package",
+      "currentPackage": "Current:",
+      "replaceStartLabel": "New package start",
+      "replaceStartNew": "From today",
+      "replaceStartNewSub": "Fresh start, new date",
+      "replaceStartKeep": "Same start",
+      "newPackageLabel": "New package",
+      "replacePricePlaceholder": "Leave empty for default",
+      "replaceExpiredNotice": "Current package will be marked as expired.",
+      "replaceBtn": "Replace package",
+      "deleteTitle": "Delete package",
+      "deleteConfirm": "Delete package \"{name}\"? The associated payment will be permanently deleted.",
+      "deleteBtn": "Delete",
+      "paymentTitle": "Mark payment",
+      "paymentPackageLabel": "Package:",
+      "confirmPayment": "Confirm payment",
+      "replaceTooltip": "Replace package",
+      "deleteTooltip": "Delete package",
+      "daysLeft": "{days} days left",
+      "daysOverdue": "{days} days overdue",
+      "paymentLabel": "Payment",
+      "paidAmount": "{amount} € paid",
+      "pendingAmount": "{amount} € pending",
+      "noPaymentRecord": "No payment record",
+      "markPaidBtn": "Mark paid",
+      "noteLabel": "Note"
+    },
+    "copy": {
+      "title": "Copy client",
+      "sourceLabel": "Copying from",
+      "stepInfo": "New client details",
+      "stepCopy": "What to copy",
+      "fullName": "Full name",
+      "fullNamePlaceholder": "John Doe",
+      "email": "Email",
+      "emailPlaceholder": "john@email.com",
+      "password": "Password",
+      "passwordPlaceholder": "Minimum 6 characters",
+      "gender": "Gender",
+      "genderMale": "Male",
+      "genderFemale": "Female",
+      "genderNA": "N/A",
+      "weight": "Weight (kg)",
+      "height": "Height (cm)",
+      "dob": "Date of birth",
+      "copyWorkout": "Training plan",
+      "copyMeal": "Meal plan",
+      "copyCheckin": "Check-in settings",
+      "copyPackage": "Payment package",
+      "noWorkout": "No training plan",
+      "noMeal": "No meal plan",
+      "noCheckin": "No check-in config",
+      "noPackage": "No active package",
+      "macroCalc": "Macro calculation",
+      "macroDesc": "Based on client metrics",
+      "goal": "Goal",
+      "goalLoss": "Weight loss",
+      "goalMaintain": "Maintenance",
+      "goalGain": "Muscle gain",
+      "activity": "Activity level",
+      "next": "Next →",
+      "back": "← Back",
+      "submit": "Copy client",
+      "submitting": "Copying...",
+      "notAvailable": "N/A",
+      "calculated": "Calculated",
+      "loading": "Loading data..."
+    },
+    "calculator": {
+      "title": "Calculators",
+      "tabs": {
+        "bmr": "BMR / TDEE",
+        "macros": "Macros",
+        "steps": "Steps"
+      },
+      "activity": {
+        "sedentary": "Sedentary (×1.2)",
+        "light": "Lightly active (×1.375)",
+        "moderate": "Moderately active (×1.55)",
+        "active": "Very active (×1.725)",
+        "very_active": "Extra active (×1.9)"
+      },
+      "goal": {
+        "loss": "Weight loss",
+        "maintain": "Maintenance",
+        "gain": "Muscle gain"
+      },
+      "bmrResult": "BMR (basal metabolic rate)",
+      "tdeeResult": "TDEE (total daily energy expenditure)",
+      "macrosTitle": "Recommended macros",
+      "stepsDesc": "Set a daily step goal for the client. Visible in the tracker and overview.",
+      "stepsLabel": "Daily step goal",
+      "saveSteps": "Save step goal",
+      "stepsPerDay": "steps / day",
+      "noData": "Enter client data (weight, height, age) for the calculator to work.",
+      "applyToClient": "Apply to client",
+      "saved": "✓ Applied!",
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "macroModePercent": "% split",
+      "macroModeGrams": "Grams",
+      "kcalDay": "kcal/day",
+      "gDay": "g/day",
+      "weightLabel": "Weight (kg)",
+      "heightLabel": "Height (cm)",
+      "ageLabel": "Age",
+      "genderLabel": "Gender",
+      "genderMale": "♂ Male",
+      "genderFemale": "♀ Female",
+      "activityLabel": "Activity level",
+      "caloricGoal": "Caloric goal (kcal/day)",
+      "tdeeFormula": "Mifflin-St Jeor formula",
+      "scenarioHint": "Click scenario → send to Macros tab",
+      "scenarioSelected": "Selected →Macros",
+      "fillData": "Enter weight, height and age",
+      "saveActivity": "Save activity level to client",
+      "savedLabel": "Saved",
+      "scenarios": {
+        "maintain": "Maintain",
+        "loss": "Loss (−500)",
+        "gain": "Gain (+300)"
+      },
+      "macroSplitLabel": "Macro split (%)",
+      "macroKcalLabel": "Calories (kcal)",
+      "applyPlan": "Apply to meal plan",
+      "appliedPlan": "✓ Applied to plan!",
+      "newPlan": "New plan",
+      "existingPlan": "Select existing",
+      "noActivePlan": "No active plan",
+      "activePlanLabel": "Active plan",
+      "distanceApprox": "≈ {km} km"
     },
     "history": {
       "tabNutrition": "Nutrition",
@@ -384,19 +575,30 @@
     "dialogs": {
       "exercise": {
         "addTitle": "Add exercise",
+        "addSubtitle": "New exercise for your library",
         "editTitle": "Edit exercise",
+        "forkNotice": "You are editing a default exercise. Your version will be created and the original will be hidden.",
         "name": "Name",
         "namePlaceholder": "e.g. Bench press",
+        "exerciseType": "Exercise type",
+        "strengthType": "Strength (sets × reps)",
+        "enduranceType": "Endurance (sets × min)",
+        "equipment": "Equipment",
+        "primaryMuscles": "Primary muscle groups",
+        "secondaryMuscles": "Secondary muscle groups",
         "category": "Category",
         "muscleGroup": "Muscle group",
         "muscleGroupPlaceholder": "e.g. Chest, triceps",
         "description": "Description",
-        "descriptionPlaceholder": "Exercise description...",
+        "descriptionPlaceholder": "Short technique description...",
+        "videoUrl": "Video URL",
+        "extraMetrics": "Additional metrics",
         "defaultMetrics": "Metrics (from profile)",
         "save": "Save exercise"
       },
       "template": {
         "addTitle": "New training",
+        "addSubtitle": "Add exercises and set parameters",
         "editTitle": "Edit training",
         "name": "Training name",
         "namePlaceholder": "e.g. Push day",
@@ -411,12 +613,20 @@
         "notes": "Notes",
         "save": "Save training",
         "noExercises": "Search and add exercises.",
+        "loadingExercises": "Loading exercises...",
+        "noResults": "No results for \"{search}\"",
+        "allAdded": "All exercises already added",
+        "createExercise": "Create exercise \"{search}\"",
+        "createNewExercise": "Create new exercise",
+        "exerciseCount": "Exercises ({count})",
+        "dragHint": "Drag to reorder",
         "removeExerciseTitle": "Remove exercise",
         "removeExerciseConfirm": "Are you sure you want to remove this exercise from the training?"
       },
       "plan": {
         "addTitle": "New plan",
         "editTitle": "Edit plan",
+        "editClientTitle": "Edit client plan",
         "name": "Plan name",
         "namePlaceholder": "e.g. PPL program",
         "description": "Description",
@@ -441,7 +651,12 @@
           "emptyDays": "Add training days.",
           "save": "Save plan",
           "noTemplate": "No template",
-          "addDayLabel": "Add day"
+          "addDayLabel": "Add day",
+          "selectTemplate": "Select template or add exercise below",
+          "loadingExercises": "Loading...",
+          "noResults": "No results{search}",
+          "noResultsFor": " for \"{search}\"",
+          "searchExercisePlaceholder": "Search and add exercise... (↑↓ Enter)"
         }
       }
     }
@@ -459,6 +674,8 @@
     "foodsTab": {
       "count": "{count, plural, one {# food} other {# foods}}",
       "add": "Add food",
+      "addFirst": "Add first food",
+      "noResults": "No results for search",
       "searchPlaceholder": "Search foods...",
       "per100g": "per 100g",
       "all": "All",
@@ -510,14 +727,19 @@
     "dialogs": {
       "food": {
         "addTitle": "Add food",
+        "addSubtitle": "New food for your library",
         "editTitle": "Edit food",
+        "editSubtitle": "Edit food data",
+        "forkNotice": "You are editing a default food. Your version will be created and the original will be hidden.",
         "name": "Name",
         "namePlaceholder": "e.g. Chicken breast",
         "category": "Category",
-        "calories": "Calories (kcal/100g)",
-        "protein": "Protein (g/100g)",
-        "carbs": "Carbs (g/100g)",
-        "fat": "Fat (g/100g)",
+        "per100gLabel": "Values per 100g of raw mass",
+        "calories": "Calories",
+        "protein": "Protein (g)",
+        "carbs": "Carbs (g)",
+        "fat": "Fat (g)",
+        "extraFields": "Additional data",
         "save": "Save food"
       },
       "recipe": {
@@ -565,7 +787,8 @@
       "subtitle": "Client check-in overview",
       "tabs": {
         "clients": "Clients",
-        "parameters": "Parameters"
+        "parameters": "Parameters",
+        "stats": "Statistics"
       }
     },
     "clientsTab": {
@@ -732,6 +955,22 @@
         "average": "Average",
         "maximum": "Maximum"
       }
+    },
+    "statsTab": {
+      "title": "Check-in statistics",
+      "totalSubmitted": "Total check-ins",
+      "onTime": "On time",
+      "late": "Late",
+      "avgWeight": "Avg. weight (kg)",
+      "submitted": "Submitted",
+      "allClients": "All clients",
+      "checkinsByDay": "Check-ins by day",
+      "checkinsByMonth": "Check-ins by month",
+      "noCheckins": "No check-in data.",
+      "loading": "Loading...",
+      "weightTrend": "Weight trend",
+      "clientStatusDist": "Client status distribution",
+      "count": "Count"
     }
   },
   "chat": {
@@ -745,6 +984,61 @@
       "startOfConversation": "Start of conversation",
       "messagePlaceholder": "Write a message...",
       "send": "Send"
+    }
+  },
+  "finance": {
+    "title": "Finance",
+    "subtitle": "Revenue overview, payments and statistics",
+    "loading": "Loading...",
+    "year": "Year",
+    "package": "Package",
+    "allPackages": "All packages",
+    "stats": {
+      "paidThisMonth": "Collected this month",
+      "outstanding": "Outstanding",
+      "paidThisYear": "Collected this year",
+      "activeClients": "Active clients",
+      "vsLastMonth": "vs last month"
+    },
+    "chart": {
+      "title": "Revenue by month",
+      "noData": "No data for selected period",
+      "label": "Revenue"
+    },
+    "status": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "late": "Late",
+      "upcomingDays": "In {days}d"
+    },
+    "table": {
+      "title": "Payment history",
+      "client": "Client",
+      "package": "Package",
+      "period": "Period",
+      "amount": "Amount",
+      "status": "Status",
+      "actions": "Actions",
+      "noData": "No data for selected filters.",
+      "prevPage": "← Previous",
+      "nextPage": "Next →",
+      "pageOf": "Page {page} / {total}"
+    },
+    "payment": {
+      "title": "Record payment",
+      "amount": "Amount (€)",
+      "date": "Payment date",
+      "notes": "Note (optional)",
+      "notesPlaceholder": "e.g. paid in cash...",
+      "save": "Save payment",
+      "saving": "Saving...",
+      "markPaid": "Mark as paid",
+      "markUnpaid": "Undo payment"
+    },
+    "popularity": {
+      "title": "Package popularity",
+      "noPackages": "No packages.",
+      "clients": "clients"
     }
   },
   "settings": {

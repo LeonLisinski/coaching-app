@@ -9,13 +9,16 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { X, UtensilsCrossed, Pencil } from 'lucide-react'
 import { Food, FOOD_CATEGORIES } from '../tabs/foods-tab'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useTranslations } from 'next-intl'
 
 type Props = { food: Food | null; open: boolean; onClose: () => void; onSuccess: () => void }
 
 export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props) {
-  if (!food) return null
-
+  const t = useTranslations('nutrition.dialogs.food')
+  const tCommon = useTranslations('common')
   const { settings, loading: settingsLoading } = useTrainerSettings()
+
+  if (!food) return null
 
   const [form, setForm] = useState({
     name: food.name,
@@ -88,7 +91,7 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
-        <DialogTitle className="sr-only">{isFork ? 'Prilagodi namirnicu' : 'Uredi namirnicu'}</DialogTitle>
+        <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
 
         {/* Orange header */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-400 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -96,8 +99,8 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
             {isFork ? <Pencil size={16} className="text-white" /> : <UtensilsCrossed size={16} className="text-white" />}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-white font-bold text-base">{isFork ? 'Prilagodi namirnicu' : 'Uredi namirnicu'}</h2>
-            <p className="text-orange-100/70 text-xs">{isFork ? 'Kreira se tvoja kopija ove namirnice' : 'Uredi podatke namirnice'}</p>
+            <h2 className="text-white font-bold text-base">{t('editTitle')}</h2>
+            <p className="text-orange-100/70 text-xs">{t('editSubtitle')}</p>
           </div>
           <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
             <X size={18} />
@@ -108,28 +111,28 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {isFork && (
             <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md border border-amber-100">
-              Uređuješ default namirnicu. Bit će kreirana tvoja verzija, a original će biti sakriven.
+              {t('forkNotice')}
             </p>
           )}
           <div className="space-y-2">
-            <Label>Naziv</Label>
+            <Label>{t('name')}</Label>
             <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div className="space-y-2">
-            <Label>Kategorija</Label>
+            <Label>{t('category')}</Label>
             <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
               className="w-full border rounded-md px-3 py-2 text-sm">
               {FOOD_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
 
-          <p className="text-xs text-gray-500">Vrijednosti na 100g <span className="font-medium text-gray-700">sirove mase</span></p>
+          <p className="text-xs text-gray-500">{t('per100gLabel')}</p>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { key: 'calories_per_100g', label: 'Kalorije' },
-              { key: 'protein_per_100g', label: 'Proteini (g)' },
-              { key: 'carbs_per_100g', label: 'Ugljik. (g)' },
-              { key: 'fat_per_100g', label: 'Masti (g)' },
+              { key: 'calories_per_100g', label: t('calories') },
+              { key: 'protein_per_100g', label: t('protein') },
+              { key: 'carbs_per_100g', label: t('carbs') },
+              { key: 'fat_per_100g', label: t('fat') },
             ].map(field => (
               <div key={field.key} className="space-y-2">
                 <Label>{field.label}</Label>
@@ -144,7 +147,7 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
           {!settingsLoading && activeFields.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Dodatni podaci <span className="text-gray-400 font-normal normal-case">(opcionalno)</span>
+                {t('extraFields')} <span className="text-gray-400 font-normal normal-case">({tCommon('optional')})</span>
               </p>
               <div className="grid grid-cols-3 gap-3">
                 {activeFields.map(field => (
@@ -163,9 +166,9 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
         </div>
 
         <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1">Odustani</Button>
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
           <Button type="submit" disabled={loading} className="flex-1 bg-orange-500 hover:bg-orange-600">
-            {loading ? 'Sprema...' : isFork ? 'Spremi kao moju' : 'Spremi promjene'}
+            {loading ? tCommon('saving') : t('save')}
           </Button>
         </div>
         </form>
@@ -173,3 +176,4 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
     </Dialog>
   )
 }
+

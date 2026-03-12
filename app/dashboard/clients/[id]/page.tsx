@@ -3,16 +3,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Pencil, Check, X, CreditCard, Settings, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2 } from 'lucide-react'
+import { ArrowLeft, Pencil, CreditCard, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2, LayoutDashboard } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 
 function dobDisplayToIso(display: string): string {
   const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
@@ -58,6 +55,7 @@ import ClientWorkoutPlans from '@/app/dashboard/clients/[id]/components/client-w
 import ClientMealPlans from '@/app/dashboard/clients/[id]/components/client-meal-plans'
 import ClientPackages from '@/app/dashboard/clients/[id]/components/client-packages'
 import ClientHistory from '@/app/dashboard/clients/[id]/components/client-history'
+import ClientOverview from '@/app/dashboard/clients/[id]/components/client-overview'
 import ClientCalculator from '@/app/dashboard/clients/[id]/components/client-calculator'
 import { useTranslations } from 'next-intl'
 
@@ -132,14 +130,7 @@ export default function ClientDetailPage() {
   const router = useRouter()
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [editForm, setEditForm] = useState<EditForm>({
-    full_name: '', goal: '', weight: '', height: '',
-    dob_display: '', date_of_birth: '',
-    start_date: '', start_display: '', gender: '',
-    activity_level: '', step_goal: '', notes: '',
-  })
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [activePackage, setActivePackage] = useState<ActivePackage | null>(null)
   const [showCheckinConfig, setShowCheckinConfig] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -189,65 +180,6 @@ export default function ClientDetailPage() {
     }
 
     setLoading(false)
-  }
-
-  const validActivityLevels = ['sedentary', 'light', 'moderate', 'active', 'very_active']
-  const startEdit = () => {
-    if (!client) return
-    setEditForm({
-      full_name: client.full_name,
-      goal: client.goal || '',
-      weight: client.weight?.toString() || '',
-      height: client.height?.toString() || '',
-      dob_display: isoToDisplay(client.date_of_birth),
-      date_of_birth: client.date_of_birth || '',
-      start_date: client.start_date || '',
-      start_display: isoToDisplay(client.start_date),
-      gender: (client.gender === 'M' || client.gender === 'F') ? client.gender : '',
-      activity_level: (validActivityLevels.includes(client.activity_level || '') ? client.activity_level : '') as ActivityLevel,
-      step_goal: client.step_goal?.toString() || '',
-      notes: client.notes || '',
-    })
-    setEditing(true)
-  }
-
-  const cancelEdit = () => setEditing(false)
-
-  const saveEdit = async () => {
-    if (!client) return
-    setSaving(true)
-
-    const { data: clientData } = await supabase
-      .from('clients')
-      .select('user_id')
-      .eq('id', client.id)
-      .single()
-
-    if (clientData && editForm.full_name) {
-      await supabase
-        .from('profiles')
-        .update({ full_name: editForm.full_name })
-        .eq('id', clientData.user_id)
-    }
-
-    await supabase
-      .from('clients')
-      .update({
-        goal: editForm.goal || null,
-        date_of_birth: editForm.date_of_birth || null,
-        weight: editForm.weight ? parseFloat(editForm.weight) : null,
-        height: editForm.height ? parseFloat(editForm.height) : null,
-        start_date: editForm.start_date || null,
-        gender: editForm.gender || null,
-        activity_level: editForm.activity_level || null,
-        step_goal: editForm.step_goal ? parseInt(editForm.step_goal) : null,
-        notes: editForm.notes || null,
-      })
-      .eq('id', client.id)
-
-    setSaving(false)
-    setEditing(false)
-    await fetchClient()
   }
 
   const deleteClient = async () => {
@@ -311,7 +243,7 @@ export default function ClientDetailPage() {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
-              onClick={startEdit}
+              onClick={() => setShowEditDialog(true)}
               className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
               title="Uredi podatke"
             >
@@ -330,144 +262,7 @@ export default function ClientDetailPage() {
 
       <Card>
         <CardContent className="py-4">
-          {editing ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Ime i prezime</Label>
-                  <Input
-                    value={editForm.full_name}
-                    onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Cilj</Label>
-                  <Input
-                    value={editForm.goal}
-                    onChange={e => setEditForm(f => ({ ...f, goal: e.target.value }))}
-                    placeholder="Mršavljenje, mišićna masa..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Težina (kg)</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={editForm.weight}
-                    onChange={e => setEditForm(f => ({ ...f, weight: e.target.value.replace(',', '.') }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Visina (cm)</Label>
-                  <Input
-                    type="text"
-                    inputMode="decimal"
-                    value={editForm.height}
-                    onChange={e => setEditForm(f => ({ ...f, height: e.target.value.replace(',', '.') }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Datum rođenja</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="dd/mm/yyyy"
-                    value={editForm.dob_display}
-                    maxLength={10}
-                    onChange={e => {
-                      const formatted = formatDobInput(e.target.value)
-                      const iso = dobDisplayToIso(formatted)
-                      setEditForm(f => ({ ...f, dob_display: formatted, date_of_birth: iso }))
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-gray-500">Datum početka</Label>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="dd/mm/yyyy"
-                    value={editForm.start_display}
-                    maxLength={10}
-                    onChange={e => {
-                      const formatted = formatDobInput(e.target.value)
-                      const iso = dobDisplayToIso(formatted)
-                      setEditForm(f => ({ ...f, start_display: formatted, start_date: iso || formatted }))
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-gray-500">Spol</Label>
-                <div className="flex gap-2">
-                  {(['M', 'F'] as const).map(g => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setEditForm(f => ({ ...f, gender: f.gender === g ? '' : g }))}
-                      className={`flex-1 py-2 rounded-md border text-sm font-medium transition-colors ${
-                        editForm.gender === g
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-input bg-background hover:bg-accent hover:text-accent-foreground'
-                      }`}
-                    >
-                      {g === 'M' ? '♂ Muško' : '♀ Žensko'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-gray-500">Razina aktivnosti</Label>
-                <div className="grid grid-cols-1 gap-1">
-                  {ACTIVITY_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setEditForm(f => ({ ...f, activity_level: f.activity_level === opt.value ? '' : opt.value }))}
-                      className={`flex items-center justify-between px-3 py-2 rounded-md border text-left text-sm transition-colors ${
-                        editForm.activity_level === opt.value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-input bg-background hover:bg-accent'
-                      }`}
-                    >
-                      <span className="font-medium">{opt.label}</span>
-                      <span className={`text-xs ${editForm.activity_level === opt.value ? 'opacity-80' : 'text-gray-400'}`}>{opt.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-gray-500">Dnevni cilj koraka</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="50000"
-                  step="500"
-                  placeholder="npr. 8000"
-                  value={editForm.step_goal}
-                  onChange={e => setEditForm(f => ({ ...f, step_goal: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-gray-500">Bilješke</Label>
-                <Textarea
-                  value={editForm.notes}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Veganska prehrana, ozljede, alergije..."
-                  rows={3}
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={cancelEdit}>
-                  <X size={14} className="mr-1" /> Odustani
-                </Button>
-                <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>
-                  <Check size={14} className="mr-1" /> {saving ? 'Sprema...' : 'Spremi'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="relative">
+          <div className="relative">
               <div className="absolute top-0 right-0">
                 <ClientCalculator
                   clientId={client.id}
@@ -520,15 +315,27 @@ export default function ClientDetailPage() {
                   <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{client.notes}</p>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
+      {/* Edit client dialog */}
+      {showEditDialog && (
+        <EditClientDialog
+          client={client}
+          open={showEditDialog}
+          onClose={() => setShowEditDialog(false)}
+          onSuccess={() => { fetchClient(); setShowEditDialog(false) }}
+        />
+      )}
+
       <div className="flex items-center justify-between">
-        <Tabs defaultValue="pracenje" className="flex-1">
+        <Tabs defaultValue="pregled" className="flex-1">
           <div className="flex items-center gap-2">
             <TabsList className="flex-wrap h-auto gap-1 bg-gray-100/80">
+              <TabsTrigger value="pregled" className="flex items-center gap-1.5">
+                <LayoutDashboard size={13} />Pregled
+              </TabsTrigger>
               <TabsTrigger value="pracenje" className="flex items-center gap-1.5">
                 <ActivitySquare size={13} />{t('tabs.pracenje')}
               </TabsTrigger>
@@ -560,6 +367,9 @@ export default function ClientDetailPage() {
             </button>
           </div>
 
+          <TabsContent value="pregled" className="mt-6">
+            <ClientOverview clientId={id as string} />
+          </TabsContent>
           <TabsContent value="pracenje" className="mt-6">
             <ClientHistory clientId={id as string} />
           </TabsContent>

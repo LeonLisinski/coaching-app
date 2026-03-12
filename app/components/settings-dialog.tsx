@@ -17,7 +17,7 @@ const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
   { key: 'amber',  label: 'Amber',   hex: '#d97706' },
   { key: 'orange', label: 'Narančasta', hex: '#ea580c' },
   { key: 'red',    label: 'Crvena',  hex: '#dc2626' },
-  { key: 'rose',   label: 'Roza',    hex: '#e11d48' },
+  { key: 'rose',   label: 'Roza',    hex: '#ec4899' },
   { key: 'slate',  label: 'Siva',    hex: '#475569' },
 ]
 
@@ -163,3 +163,4 @@ export default function SettingsDialog({ open, onClose }: Props) {
     </Dialog>
   )
 }
+

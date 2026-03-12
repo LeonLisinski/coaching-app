@@ -322,3 +322,4 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
     </div>
   )
 }
+

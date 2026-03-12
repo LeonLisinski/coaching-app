@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users } from 'lucide-react'
+import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
+import CopyClientDialog from '@/app/dashboard/clients/copy-client-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTranslations } from 'next-intl'
 
@@ -25,10 +26,13 @@ type Client = {
   notes: string | null
   activePackageName?: string | null
   activePackageColor?: string | null
+  checkin_day?: number | null
 }
 
+const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
+
 type Package = { id: string; name: string; color: string }
-type SortKey = 'name_asc' | 'name_desc' | 'date_asc' | 'date_desc' | 'weight_asc' | 'weight_desc' | 'age_asc' | 'age_desc'
+type SortKey = 'name_asc' | 'name_desc' | 'date_asc' | 'date_desc' | 'weight_asc' | 'weight_desc' | 'age_asc' | 'age_desc' | 'checkin_day_asc' | 'checkin_day_desc'
 
 function calcAge(dob: string): number {
   const today = new Date()
@@ -69,6 +73,7 @@ export default function ClientsPage() {
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
+  const [copyClient, setCopyClient] = useState<Client | null>(null)
   const router = useRouter()
 
   const noName = tDetail('noName')
@@ -100,34 +105,48 @@ export default function ClientsPage() {
       goal: c.goal, weight: c.weight, height: c.height,
       date_of_birth: c.date_of_birth, start_date: c.start_date,
       active: c.active, gender: c.gender, notes: c.notes,
+      checkin_day: null,
     }))
 
     setPackages(pkgData || [])
 
-    // Fetch active packages for all clients
-    if (rawClients.length > 0) {
-      const clientIds = rawClients.map(c => c.id)
-      const { data: cpData } = await supabase
+    if (rawClients.length === 0) {
+      setClients([])
+      setLoading(false)
+      return
+    }
+
+    const clientIds = rawClients.map(c => c.id)
+
+    // Fetch active packages + checkin config in parallel
+    const [{ data: cpData }, { data: ccData }] = await Promise.all([
+      supabase
         .from('client_packages')
         .select('client_id, packages(name, color)')
         .eq('status', 'active')
-        .in('client_id', clientIds)
+        .in('client_id', clientIds),
+      supabase
+        .from('checkin_config')
+        .select('client_id, checkin_day')
+        .in('client_id', clientIds),
+    ])
 
-      const pkgMap: Record<string, { name: string; color: string }> = {}
-      for (const cp of (cpData || [])) {
-        if (!pkgMap[cp.client_id]) {
-          pkgMap[cp.client_id] = cp.packages as any
-        }
-      }
-
-      setClients(rawClients.map(c => ({
-        ...c,
-        activePackageName: pkgMap[c.id]?.name || null,
-        activePackageColor: pkgMap[c.id]?.color || null,
-      })))
-    } else {
-      setClients(rawClients)
+    const pkgMap: Record<string, { name: string; color: string }> = {}
+    for (const cp of (cpData || [])) {
+      if (!pkgMap[cp.client_id]) pkgMap[cp.client_id] = cp.packages as any
     }
+
+    const checkinDayMap: Record<string, number | null> = {}
+    for (const cc of (ccData || [])) {
+      checkinDayMap[cc.client_id] = cc.checkin_day
+    }
+
+    setClients(rawClients.map(c => ({
+      ...c,
+      activePackageName: pkgMap[c.id]?.name || null,
+      activePackageColor: pkgMap[c.id]?.color || null,
+      checkin_day: checkinDayMap[c.id] ?? null,
+    })))
     setLoading(false)
   }
 
@@ -156,6 +175,7 @@ export default function ClientsPage() {
     date_desc: 'Datum (najnoviji)', date_asc: 'Datum (najstariji)',
     weight_desc: 'Težina ↓', weight_asc: 'Težina ↑',
     age_asc: 'Dob (mlađi)', age_desc: 'Dob (stariji)',
+    checkin_day_asc: 'Check-in dan ↑', checkin_day_desc: 'Check-in dan ↓',
   }
 
   const activeFilterCount = [
@@ -194,6 +214,8 @@ export default function ClientsPage() {
         case 'weight_desc': return (b.weight || 0) - (a.weight || 0)
         case 'age_asc': return (a.date_of_birth ? calcAge(a.date_of_birth) : 0) - (b.date_of_birth ? calcAge(b.date_of_birth) : 0)
         case 'age_desc': return (b.date_of_birth ? calcAge(b.date_of_birth) : 0) - (a.date_of_birth ? calcAge(a.date_of_birth) : 0)
+        case 'checkin_day_asc': return (a.checkin_day ?? 99) - (b.checkin_day ?? 99)
+        case 'checkin_day_desc': return (b.checkin_day ?? -1) - (a.checkin_day ?? -1)
         default: return 0
       }
     })
@@ -447,6 +469,7 @@ export default function ClientsPage() {
                       {client.height && <><span className="mx-1.5 text-gray-200">·</span><span>{client.height} cm</span></>}
                       {age !== null && <><span className="mx-1.5 text-gray-200">·</span><span>{age} god.</span></>}
                       {client.start_date && <><span className="mx-1.5 text-gray-200">·</span><span>od {new Date(client.start_date).toLocaleDateString('hr-HR')}</span></>}
+                      {client.checkin_day != null && <><span className="mx-1.5 text-gray-200">·</span><span>check-in: {DAY_NAMES[client.checkin_day]}</span></>}
                     </div>
                     {client.notes && (
                       <p className="text-[11px] text-gray-400 truncate max-w-[380px] italic" title={client.notes}>
@@ -460,6 +483,10 @@ export default function ClientsPage() {
                     <button type="button" onClick={() => router.push(`/dashboard/clients/${client.id}`)}
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 transition-colors group-hover:[color:var(--app-accent)]">
                       <ChevronRight size={15} />
+                    </button>
+                    <button type="button" title="Kopiraj plan" onClick={(e) => { e.stopPropagation(); setCopyClient(client) }}
+                      className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 transition-colors hover:[color:var(--app-accent)] hover:[background-color:var(--app-accent-muted)]">
+                      <Copy size={13} />
                     </button>
                     <button type="button" onClick={(e) => { e.stopPropagation(); setEditClient(client) }}
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 transition-colors hover:[color:var(--app-accent)] hover:[background-color:var(--app-accent-muted)]">
@@ -489,6 +516,16 @@ export default function ClientsPage() {
         onClose={() => setShowAdd(false)}
         onSuccess={fetchData}
       />
+
+      {copyClient && (
+        <CopyClientDialog
+          open={!!copyClient}
+          onClose={() => setCopyClient(null)}
+          onSuccess={() => { setCopyClient(null); fetchData() }}
+          sourceClientId={copyClient.id}
+          sourceClientName={copyClient.full_name}
+        />
+      )}
 
       {editClient && (
         <EditClientDialog
@@ -551,3 +588,4 @@ export default function ClientsPage() {
     </div>
   )
 }
+

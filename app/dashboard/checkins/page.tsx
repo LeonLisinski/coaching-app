@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'
 import ParametersTab from '@/app/dashboard/checkins/tabs/parameters-tab'
-import { ClipboardList, Settings2 } from 'lucide-react'
+import CheckinStatsTab from '@/app/dashboard/checkins/tabs/stats-tab'
+import { ClipboardList, Settings2, BarChart2 } from 'lucide-react'
 
 export default function CheckinsPage() {
   const t = useTranslations('checkins')
@@ -22,6 +23,10 @@ export default function CheckinsPage() {
             <ClipboardList size={13} />
             {t('page.tabs.clients')}
           </TabsTrigger>
+          <TabsTrigger value="stats" className="flex items-center gap-1.5">
+            <BarChart2 size={13} />
+            Statistike
+          </TabsTrigger>
           <TabsTrigger value="parameters" className="flex items-center gap-1.5">
             <Settings2 size={13} />
             {t('page.tabs.parameters')}
@@ -30,6 +35,9 @@ export default function CheckinsPage() {
         <TabsContent value="clients" className="mt-5">
           <ClientsCheckinTab />
         </TabsContent>
+        <TabsContent value="stats" className="mt-5">
+          <CheckinStatsTab />
+        </TabsContent>
         <TabsContent value="parameters" className="mt-5">
           <ParametersTab />
         </TabsContent>
@@ -37,3 +45,4 @@ export default function CheckinsPage() {
     </div>
   )
 }
+

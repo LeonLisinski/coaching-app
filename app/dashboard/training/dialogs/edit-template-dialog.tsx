@@ -360,12 +360,12 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                 {showDropdown && (
                   <div ref={dropdownRef} className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
                     {!exercisesLoaded ? (
-                      <p className="px-4 py-3 text-xs text-gray-400 text-center">Učitavanje vježbi...</p>
+                      <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
                     ) : (
                       <div className="overflow-y-auto max-h-44">
                         {filteredExercises.length === 0 ? (
                           <p className="px-4 py-3 text-xs text-gray-400 text-center">
-                            {search ? `Nema rezultata za "${search}"` : 'Sve vježbe su već dodane'}
+                            {search ? t('noResults', { search }) : t('allAdded')}
                           </p>
                         ) : filteredExercises.map((e, i) => {
                           const muscles = e.primary_muscles?.length ? e.primary_muscles : (e.muscle_group ? [e.muscle_group] : [])
@@ -402,7 +402,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                         className="w-full text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1.5 py-0.5 font-medium transition-colors"
                       >
                         <Plus size={12} />
-                        {search ? `Kreiraj vježbu "${search}"` : 'Kreiraj novu vježbu'}
+                        {search ? t('createExercise', { search }) : t('createNewExercise')}
                       </button>
                     </div>
                   </div>
@@ -414,10 +414,10 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-gray-600">
-                      Vježbe ({selected.length})
+                      {t('exerciseCount', { count: selected.length })}
                     </span>
                     <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                      <GripVertical size={11} /> Povuci za promjenu redoslijeda
+                      <GripVertical size={11} /> {t('dragHint')}
                     </span>
                   </div>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -480,3 +480,4 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
     </>
   )
 }
+

@@ -492,3 +492,4 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     </div>
   )
 }
+

@@ -789,8 +789,8 @@ export default function ClientMealPlans({ clientId }: Props) {
 
             {/* Napomena */}
             <div className="space-y-1.5">
-              <Label>Napomena <span className="text-gray-400 font-normal text-xs">(opcionalno)</span></Label>
-              <Input value={assignNotes} onChange={e => setAssignNotes(e.target.value)} placeholder="npr. Počni od ponedjeljka" />
+              <Label>{t('noteLabel')} <span className="text-gray-400 font-normal text-xs">({tCommon('optional')})</span></Label>
+              <Input value={assignNotes} onChange={e => setAssignNotes(e.target.value)} placeholder={t('assignNotePlaceholder')} />
             </div>
 
           </div>
@@ -799,9 +799,9 @@ export default function ClientMealPlans({ clientId }: Props) {
           {/* Sticky footer */}
           <div className="px-6 py-4 border-t bg-white shrink-0">
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">Odustani</Button>
+              <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">{tCommon('cancel')}</Button>
               <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1 bg-orange-500 hover:bg-orange-600">
-                {assigning ? 'Sprema...' : 'Dodijeli plan'}
+                {assigning ? t('assigning') : t('assign')}
               </Button>
             </div>
           </div>

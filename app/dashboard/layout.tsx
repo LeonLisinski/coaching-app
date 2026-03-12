@@ -16,6 +16,10 @@ import {
   Settings,
   Banknote,
   Search,
+  Bell,
+  ClipboardCheck,
+  CreditCard,
+  X,
 } from 'lucide-react'
 // Dumbbell kept for navItems training icon
 import { supabase } from '@/lib/supabase'
@@ -47,7 +51,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false)
   const [userInitials, setUserInitials] = useState('')
   const [userName, setUserName]         = useState('')
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showNotifs, setShowNotifs]     = useState(false)
+  const [notifCount, setNotifCount]     = useState(0)
+  const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
+  const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment'; href?: string; isNew?: boolean }[]>([])
 
   // Global: comma → period for decimal inputs
   useEffect(() => {
@@ -75,13 +84,107 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      supabase.from('profiles').select('full_name').eq('id', user.id).single().then(({ data }) => {
+      supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single().then(({ data }) => {
         const name = data?.full_name || user.email || ''
         setUserName(name)
         setUserInitials(name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?')
+        setUserAvatarUrl(data?.avatar_url || null)
       })
+      // Fetch notifications: unread messages + recent checkins
+      fetchNotifications(user.id)
     })
   }, [])
+
+  const fetchNotifications = async (userId: string) => {
+    const now = new Date()
+    const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7)
+    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0]
+
+    // Load previously seen IDs from localStorage
+    const stored = localStorage.getItem('notif_seen_ids')
+    const storedSeen: Set<string> = stored ? new Set(JSON.parse(stored)) : new Set()
+    setSeenIds(storedSeen)
+
+    const [{ data: msgs }, { data: checkins }] = await Promise.all([
+      supabase.from('messages')
+        .select('id, content, created_at, client_id, clients(profiles(full_name))')
+        .eq('trainer_id', userId).neq('sender_id', userId).eq('read', false)
+        .order('created_at', { ascending: false }).limit(30),
+      supabase.from('checkins')
+        .select('id, date, client_id, clients(profiles(full_name))')
+        .gte('date', sevenDaysAgoDate)
+        .order('date', { ascending: false }).limit(30),
+    ])
+
+    const formatTime = (dateStr: string) => {
+      const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'))
+      const diffMs = now.getTime() - d.getTime()
+      const diffH = Math.floor(diffMs / 3600000)
+      const diffD = Math.floor(diffH / 24)
+      if (diffH < 1) return 'upravo sada'
+      if (diffH < 24) return `prije ${diffH}h`
+      if (diffD === 1) return 'jučer'
+      return `prije ${diffD}d`
+    }
+
+    const notifs: typeof notifications = []
+
+    ;(msgs || []).forEach((m: any) => {
+      const name = m.clients?.profiles?.full_name || 'Klijent'
+      const id = `msg-${m.id}`
+      notifs.push({
+        id,
+        title: name,
+        subtitle: m.content?.slice(0, 55) || 'Nova poruka',
+        time: formatTime(m.created_at),
+        type: 'message',
+        href: `/dashboard/chat?clientId=${m.client_id}`,
+        isNew: !storedSeen.has(id),
+      })
+    })
+
+    ;(checkins || []).forEach((c: any) => {
+      const name = c.clients?.profiles?.full_name || 'Klijent'
+      const id = `ci-${c.id}`
+      notifs.push({
+        id,
+        title: name,
+        subtitle: 'predao/la check-in',
+        time: formatTime(c.date),
+        type: 'checkin',
+        href: `/dashboard/checkins/${c.client_id}`,
+        isNew: !storedSeen.has(id),
+      })
+    })
+
+    // Sort: new first, then by type
+    notifs.sort((a, b) => {
+      if (a.isNew && !b.isNew) return -1
+      if (!a.isNew && b.isNew) return 1
+      return 0
+    })
+
+    setNotifications(notifs)
+    setNotifCount(notifs.filter(n => n.isNew).length)
+  }
+
+  const markAllSeen = () => {
+    const allIds = notifications.map(n => n.id)
+    const newSeen = new Set([...seenIds, ...allIds])
+    setSeenIds(newSeen)
+    localStorage.setItem('notif_seen_ids', JSON.stringify([...newSeen]))
+    setNotifications(n => n.map(x => ({ ...x, isNew: false })))
+    setNotifCount(0)
+  }
+
+  const markOneSeen = (id: string) => {
+    if (seenIds.has(id)) return
+    const newSeen = new Set([...seenIds, id])
+    setSeenIds(newSeen)
+    localStorage.setItem('notif_seen_ids', JSON.stringify([...newSeen]))
+    setNotifications(n => n.map(x => x.id === id ? { ...x, isNew: false } : x))
+    setNotifCount(c => Math.max(0, c - 1))
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -104,15 +207,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo */}
         <div className={`relative z-10 flex items-center h-16 px-4 border-b border-white/5 ${collapsed ? 'justify-center' : 'gap-3'}`}>
-          {/* UL monogram mark */}
-          <div className="w-8 h-8 rounded-xl bg-app-accent flex items-center justify-center shrink-0 shadow-lg select-none"
+          {/* Icon mark — always shown */}
+          <div className="w-9 h-9 rounded-xl bg-app-accent flex items-center justify-center shrink-0 select-none"
             style={{ boxShadow: '0 2px 8px var(--app-accent-muted)' }}>
-            <span className="text-white font-black text-sm leading-none" style={{ letterSpacing: '-0.05em' }}>UL</span>
+            <UnitLiftLogo fill="white" tight={false} className="w-6 h-6" />
           </div>
+          {/* Name — only when expanded */}
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-white font-black text-sm leading-tight tracking-tight">{tApp('name')}</p>
-              <p className="text-white/35 text-[10px] leading-tight mt-0.5 font-medium tracking-wide uppercase">Coaching Platform</p>
+              <p className="text-white font-black text-sm leading-tight tracking-tight">UnitLift</p>
+              <p className="text-white/30 text-[9px] font-semibold tracking-widest uppercase mt-0.5">Coaching Platform</p>
             </div>
           )}
         </div>
@@ -151,14 +255,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Bottom: user + logout */}
         <div className="relative z-10 border-t border-white/5 p-2 space-y-1">
           {/* User avatar */}
-          {!collapsed && userName && (
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl">
-              <div className="w-7 h-7 rounded-lg bg-app-accent flex items-center justify-center shrink-0 opacity-80">
-                <span className="text-white text-xs font-bold">{userInitials}</span>
+          {userName && (
+            <div
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer hover:bg-white/5 transition-colors ${collapsed ? 'justify-center' : ''}`}
+              onClick={() => router.push('/dashboard/profile')}
+              title={collapsed ? userName : undefined}
+            >
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+                style={!userAvatarUrl ? { backgroundColor: 'color-mix(in srgb, var(--app-accent) 70%, transparent)' } : undefined}>
+                {userAvatarUrl
+                  ? <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+                  : <span className="text-white text-xs font-bold">{userInitials}</span>
+                }
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white/80 text-xs font-medium truncate">{userName}</p>
-              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-white/80 text-xs font-medium truncate">{userName}</p>
+                  <p className="text-white/35 text-[10px]">Moj profil</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -195,7 +310,90 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <LocaleSwitcher />
+            {/* <LocaleSwitcher /> */}
+            {/* Notification bell */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifs(v => !v)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors relative"
+                title="Obavijesti"
+              >
+                <Bell size={16} />
+                {notifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none"
+                    style={{ backgroundColor: 'var(--app-accent)' }}>
+                    {notifCount > 9 ? '9+' : notifCount}
+                  </span>
+                )}
+              </button>
+              {/* Notification dropdown */}
+              {showNotifs && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
+                  <div className="absolute right-0 top-10 z-50 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[480px]">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900">Obavijesti</p>
+                        {notifCount > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: 'var(--app-accent)' }}>
+                            {notifCount}
+                          </span>
+                        )}
+                      </div>
+                      {notifCount > 0 && (
+                        <button onClick={markAllSeen} className="text-[11px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
+                          Označi sve pročitanim
+                        </button>
+                      )}
+                    </div>
+                    {/* Scrollable list */}
+                    <div className="flex-1 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-8">Nema obavijesti</p>
+                      ) : (
+                        notifications.map(n => {
+                          const isMsg = n.type === 'message'
+                          const isCi  = n.type === 'checkin'
+                          const iconEl = isMsg
+                            ? <MessageSquare size={12} className="text-sky-500" />
+                            : isCi
+                            ? <ClipboardCheck size={12} style={{ color: 'var(--app-accent)' }} />
+                            : <CreditCard size={12} className="text-emerald-500" />
+                          const iconBg = isMsg ? '#e0f2fe' : isCi ? 'var(--app-accent-muted)' : '#d1fae5'
+                          return (
+                            <button key={n.id}
+                              className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${n.isNew ? 'bg-blue-50/40 hover:bg-blue-50/60' : 'hover:bg-gray-50'}`}
+                              onClick={() => { markOneSeen(n.id); if (n.href) router.push(n.href); setShowNotifs(false) }}>
+                              <div className="relative mt-0.5 shrink-0">
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: iconBg }}>
+                                  {iconEl}
+                                </div>
+                                {n.isNew && (
+                                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-white" style={{ backgroundColor: 'var(--app-accent)' }} />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs ${n.isNew ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'}`}>{n.title}</p>
+                                <p className="text-xs text-gray-500 truncate">{n.subtitle}</p>
+                              </div>
+                              <span className="text-[10px] text-gray-400 shrink-0 mt-0.5 whitespace-nowrap">{n.time}</span>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                    {/* Footer */}
+                    <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/40 shrink-0">
+                      <button className="text-xs font-medium w-full text-center transition-colors" style={{ color: 'var(--app-accent)' }}
+                        onClick={() => { router.push('/dashboard/chat'); setShowNotifs(false) }}>
+                        Idi na poruke →
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={() => setShowSettings(true)}
               className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -215,3 +413,4 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </div>
   )
 }
+

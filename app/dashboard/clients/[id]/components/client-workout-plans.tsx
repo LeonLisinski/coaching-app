@@ -33,7 +33,7 @@ import { useAppTheme } from '@/app/contexts/app-theme'
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
   teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
-  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+  orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
@@ -125,6 +125,7 @@ function DayAccordion({ days }: { days: any[] }) {
 }
 
 export default function ClientWorkoutPlans({ clientId }: Props) {
+  const t = useTranslations('clients.workoutPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
   const { accent } = useAppTheme()
@@ -591,7 +592,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                                   key={ex.exercise_id} ex={ex} index={exIdx}
                                   onUpdate={(field, val) => updateAssignEx(dayIdx, ex.exercise_id, field, val)}
                                   onRemove={() => removeAssignEx(dayIdx, ex.exercise_id)}
-                                  labelSets="Serije" labelRest="Odmor (s)" labelNotes="Bilješka (opcionalno)"
+                                  labelSets={t('labelSets')} labelRest={t('labelRest')} labelNotes={t('labelNotes')}
                                 />
                               ))}
                             </div>
@@ -605,7 +606,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                             onChange={e => setAssignExSearch(prev => ({ ...prev, [dayIdx]: e.target.value }))}
                             onFocus={() => { if (assignBlurTimers.current[dayIdx]) clearTimeout(assignBlurTimers.current[dayIdx]); setAssignSearchFocused(prev => ({ ...prev, [dayIdx]: true })) }}
                             onBlur={() => { assignBlurTimers.current[dayIdx] = setTimeout(() => setAssignSearchFocused(prev => ({ ...prev, [dayIdx]: false })), 150) }}
-                            placeholder="+ Dodaj vježbu..."
+                            placeholder={t('addExercisePlaceholder')}
                             className="h-8 text-sm border-dashed"
                           />
                           {!!(assignSearchFocused[dayIdx] || assignExSearch[dayIdx]) && (
@@ -624,7 +625,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm border-b last:border-0">
                                     <span>{e.name}</span>
                                     <div className="flex items-center gap-1">
-                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>}
+                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t('enduranceLabel')}</span>}
                                       <Badge variant="outline" className="text-xs">{e.category}</Badge>
                                     </div>
                                   </button>
@@ -643,12 +644,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
             {/* Notes */}
             <div className="space-y-1.5">
               <Label>
-                Napomena <span className="text-gray-400 font-normal text-xs">(opcionalno)</span>
+                {t('noteLabel')} <span className="text-gray-400 font-normal text-xs">({tCommon('optional')})</span>
               </Label>
               <Input
                 value={assignNotes}
                 onChange={e => setAssignNotes(e.target.value)}
-                placeholder="npr. Počni od sljedećeg tjedna"
+                placeholder={t('assignNotePlaceholder')}
               />
             </div>
           </div>
@@ -663,15 +664,15 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                 onChange={e => setSaveToDb(e.target.checked)}
                 className="rounded border-gray-300 text-gray-900 w-4 h-4"
               />
-              <span className="text-sm text-gray-700">Spremi prilagođeni plan u bazu treninga</span>
-              <span className="text-xs text-gray-400">(kreira kopiju)</span>
+              <span className="text-sm text-gray-700">{t('saveToDb')}</span>
+              <span className="text-xs text-gray-400">{t('saveToDbHint')}</span>
             </label>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">
-                Odustani
+                {tCommon('cancel')}
               </Button>
               <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1">
-                {assigning ? 'Sprema...' : 'Dodijeli plan'}
+                {assigning ? t('assigning') : t('assign')}
               </Button>
             </div>
           </div>

@@ -13,7 +13,7 @@ import { useAppTheme } from '@/app/contexts/app-theme'
 const ACCENT_HEX_MAP: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
   teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
-  orange: '#ea580c', red: '#dc2626', rose: '#e11d48', slate: '#475569',
+  orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
 type Parameter = {
@@ -393,3 +393,4 @@ export default function ParametersTab() {
     </div>
   )
 }
+

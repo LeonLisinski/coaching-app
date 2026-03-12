@@ -230,7 +230,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
           <DialogTitle className="sr-only">
-            {isClientEdit ? `Uredi plan klijenta — ${plan.name}` : t('editTitle')}
+            {isClientEdit ? `${t('editClientTitle')} — ${plan.name}` : t('editTitle')}
           </DialogTitle>
 
           {/* Colored header */}
@@ -240,7 +240,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-white font-bold text-base">
-                {isClientEdit ? `Uredi plan klijenta` : t('editTitle')}
+                {isClientEdit ? t('editClientTitle') : t('editTitle')}
               </h2>
               <p className="text-indigo-100/70 text-xs truncate">{plan.name}</p>
             </div>
@@ -363,7 +363,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
                         {day.exercises.length === 0 && (
                           <p className="text-xs text-gray-400 text-center py-2">
-                            {day.mode === 'template' ? 'Odaberi predložak ili dodaj vježbu ispod' : t('form.emptyDays')}
+                            {day.mode === 'template' ? t('form.selectTemplate') : t('form.emptyDays')}
                           </p>
                         )}
 
@@ -380,7 +380,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                               onFocus={() => { if (blurTimers.current[index]) clearTimeout(blurTimers.current[index]); setSearchFocused(prev => ({ ...prev, [index]: true })) }}
                               onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
-                              placeholder="Pretraži i dodaj vježbu... (↑↓ Enter)"
+                              placeholder={t('form.searchExercisePlaceholder')}
                               className="h-8 text-sm pl-8 border-dashed focus:border-solid focus:border-indigo-300"
                             />
                           </div>
@@ -388,7 +388,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                             <div className="border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48" onWheel={e => e.stopPropagation()}>
                               {getFilteredExercisesForDay(index).length === 0 ? (
                                 <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
-                                  {exercises.length === 0 ? 'Učitavanje...' : `Nema rezultata${exerciseSearch[index] ? ` za "${exerciseSearch[index]}"` : ''}`}
+                                  {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
                                 </p>
                               ) : getFilteredExercisesForDay(index).map((e, ei) => (
                                 <button key={e.id} type="button"
@@ -445,3 +445,4 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     </>
   )
 }
+

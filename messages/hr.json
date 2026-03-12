@@ -12,7 +12,23 @@
     "placeholderPassword": "••••••••",
     "submit": "Prijavi se",
     "loading": "Prijava...",
-    "noAccount": "Nemaš račun? Kontaktiraj administratora."
+    "noAccount": "Nemaš račun? Kontaktiraj administratora.",
+    "headlineMain": "Više napretka,",
+    "headlinePre": "manje",
+    "headlineAccent": "administracije.",
+    "tagline": "Platforma za profesionalne trenere — klijenti, planovi, check-ini i financije.",
+    "welcomeTitle": "Dobrodošli natrag",
+    "welcomeSubtitle": "Prijavite se za pristup UnitLift platformi.",
+    "forgotPassword": "Zaboravljena lozinka?",
+    "secureLogin": "Sigurna prijava",
+    "gdpr": "GDPR usklađeno",
+    "noAccess": "Nemaš pristup? Kontaktiraj administratora.",
+    "features": {
+      "training": { "label": "Trening & prehrana", "desc": "Planovi, predlošci, makrosi i kalorije za svakog klijenta." },
+      "checkin": { "label": "Check-in sustav", "desc": "Tjedni napredak, fotografije i grafikoni za svakog klijenta." },
+      "chat": { "label": "Chat s klijentima", "desc": "Poruke u stvarnom vremenu s predlošcima i obavijestima." },
+      "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji — sve na jednom ekranu." }
+    }
   },
   "common": {
     "loading": "Učitavanje...",
@@ -40,7 +56,17 @@
     "assign": "Dodijeli",
     "create": "Kreiraj",
     "remove": "Ukloni",
-    "saveChanges": "Spremi promjene"
+    "saveChanges": "Spremi promjene",
+    "optional": "opcionalno",
+    "months": {
+      "0": "Sij", "1": "Velj", "2": "Ožu", "3": "Tra", "4": "Svi", "5": "Lip",
+      "6": "Srp", "7": "Kol", "8": "Ruj", "9": "Lis", "10": "Stu", "11": "Pro"
+    },
+    "monthsFull": {
+      "0": "Siječanj", "1": "Veljača", "2": "Ožujak", "3": "Travanj",
+      "4": "Svibanj", "5": "Lipanj", "6": "Srpanj", "7": "Kolovoz",
+      "8": "Rujan", "9": "Listopad", "10": "Studeni", "11": "Prosinac"
+    }
   },
   "nav": {
     "overview": "Pregled",
@@ -155,7 +181,13 @@
       "change": "Promijeni sliku",
       "remove": "Ukloni"
     },
+    "editProfile": "Uredi profil",
     "saveProfile": "Spremi profil",
+    "noContactData": "Nema kontakt podataka. Klikni \"Uredi profil\" za dodavanje.",
+    "addFirstPackage": "Dodaj prvi paket →",
+    "saveSettings": "Spremi postavke",
+    "savingSettings": "Sprema...",
+    "settingsSaved": "Spremljeno",
     "security": {
       "changePassword": "Promijeni lozinku",
       "currentPassword": "Trenutna lozinka",
@@ -182,6 +214,7 @@
     "dialogs": {
       "add": {
         "title": "Dodaj klijenta",
+        "subtitle": "Dodaj novog klijenta u sustav",
         "fullName": "Ime i prezime",
         "email": "Email",
         "password": "Lozinka",
@@ -201,7 +234,8 @@
       },
       "edit": {
         "title": "Uredi klijenta",
-        "submit": "Spremi promjene"
+        "submit": "Spremi promjene",
+        "savePlans": "Spremi planove"
       }
     },
     "detail": {
@@ -236,9 +270,19 @@
       "selectPlan": "Odaberi plan...",
       "note": "Napomena (opcionalno)...",
       "assign": "Dodijeli",
+      "assigning": "Dodjeljuje...",
       "days": "{count, plural, one {# dan} other {# dana}}",
       "assignedOn": "Dodijeljeno",
-      "removeConfirm": "Ukloniti ovaj plan treninga?"
+      "removeConfirm": "Ukloniti ovaj plan treninga?",
+      "labelSets": "Serije",
+      "labelRest": "Odmor (s)",
+      "labelNotes": "Bilješka (opcionalno)",
+      "addExercisePlaceholder": "+ Dodaj vježbu...",
+      "enduranceLabel": "Izdržljivost",
+      "noteLabel": "Napomena",
+      "saveToDb": "Spremi prilagođeni plan u bazu treninga",
+      "saveToDbHint": "(kreira kopiju)",
+      "assignNotePlaceholder": "npr. Počni od sljedećeg tjedna"
     },
     "mealPlans": {
       "title": "Planovi prehrane",
@@ -250,6 +294,9 @@
       "selectPlan": "Odaberi plan...",
       "note": "Napomena (opcionalno)...",
       "assign": "Dodijeli",
+      "assigning": "Dodjeljuje...",
+      "noteLabel": "Napomena",
+      "assignNotePlaceholder": "npr. Počni od ponedjeljka",
       "assignedOn": "Dodijeljeno",
       "removeConfirm": "Ukloniti ovaj plan prehrane?",
       "infoBannerBoth": "✓ Klijent ima postavljene planove za dane treninga i odmora — app će automatski prikazati pravi plan.",
@@ -289,7 +336,151 @@
       "paymentDate": "Datum plaćanja",
       "paymentNotesPlaceholder": "Npr. plaćeno gotovinom...",
       "packageInPayment": "Paket:",
-      "days": "{count, plural, one {# dan} other {# dana}}"
+      "days": "{count, plural, one {# dan} other {# dana}}",
+      "statusPaid": "Plaćeno",
+      "statusUpcoming": "Dospijeva za {days}d",
+      "statusPending": "Na čekanju",
+      "statusLate": "Kasni s plaćanjem",
+      "collabFrom": "Suradnja od:",
+      "collabNotSet": "Nije postavljeno",
+      "summaryInvoiced": "Ukupno fakturirano",
+      "summaryPaid": "Plaćeno",
+      "summaryOwed": "Duguje",
+      "activeLabel": "Aktivan",
+      "pastLabel": "Prethodni",
+      "replaceTitle": "Zamijeni paket",
+      "currentPackage": "Trenutni:",
+      "replaceStartLabel": "Početak novog paketa",
+      "replaceStartNew": "Od danas",
+      "replaceStartNewSub": "Svježi start, novi datum",
+      "replaceStartKeep": "Isti početak",
+      "newPackageLabel": "Novi paket",
+      "replacePricePlaceholder": "Ostavi prazno za zadanu",
+      "replaceExpiredNotice": "Trenutni paket će biti označen kao istekao.",
+      "replaceBtn": "Zamijeni paket",
+      "deleteTitle": "Obriši paket",
+      "deleteConfirm": "Obrisati paket \"{name}\"? Plaćanje vezano uz njega bit će trajno obrisano.",
+      "deleteBtn": "Obriši",
+      "paymentTitle": "Označi plaćanje",
+      "paymentPackageLabel": "Paket:",
+      "confirmPayment": "Potvrdi plaćanje",
+      "replaceTooltip": "Zamijeni paket",
+      "deleteTooltip": "Obriši paket",
+      "daysLeft": "{days} dana ostalo",
+      "daysOverdue": "{days} dana prekoračeno",
+      "paymentLabel": "Plaćanje",
+      "paidAmount": "{amount} € plaćeno",
+      "pendingAmount": "{amount} € na čekanju",
+      "noPaymentRecord": "Nema zapisa o plaćanju",
+      "markPaidBtn": "Označi plaćeno",
+      "noteLabel": "Napomena"
+    },
+    "copy": {
+      "title": "Kopiraj klijenta",
+      "sourceLabel": "Kopira se od",
+      "stepInfo": "Podaci novog klijenta",
+      "stepCopy": "Što kopirati",
+      "fullName": "Ime i prezime",
+      "fullNamePlaceholder": "Ivan Horvat",
+      "email": "Email",
+      "emailPlaceholder": "ivan@email.com",
+      "password": "Lozinka",
+      "passwordPlaceholder": "Minimalno 6 znakova",
+      "gender": "Spol",
+      "genderMale": "Muško",
+      "genderFemale": "Žensko",
+      "genderNA": "N/A",
+      "weight": "Težina (kg)",
+      "height": "Visina (cm)",
+      "dob": "Datum rođenja",
+      "copyWorkout": "Plan treninga",
+      "copyMeal": "Plan prehrane",
+      "copyCheckin": "Check-in postavke",
+      "copyPackage": "Paket plaćanja",
+      "noWorkout": "Nema plana treninga",
+      "noMeal": "Nema plana prehrane",
+      "noCheckin": "Nema check-in konfiguracije",
+      "noPackage": "Nema aktivnog paketa",
+      "macroCalc": "Izračun makrosa",
+      "macroDesc": "Na temelju metrika klijenta",
+      "goal": "Cilj",
+      "goalLoss": "Mršavljenje",
+      "goalMaintain": "Održavanje",
+      "goalGain": "Dobitak mase",
+      "activity": "Razina aktivnosti",
+      "next": "Dalje →",
+      "back": "← Natrag",
+      "submit": "Kopiraj klijenta",
+      "submitting": "Kopiranje...",
+      "notAvailable": "N/A",
+      "calculated": "Izračunato",
+      "loading": "Učitavanje podataka..."
+    },
+    "calculator": {
+      "title": "Kalkulatori",
+      "tabs": {
+        "bmr": "BMR / TDEE",
+        "macros": "Makrosi",
+        "steps": "Koraci"
+      },
+      "activity": {
+        "sedentary": "Sjedilački (×1.2)",
+        "light": "Lagano aktivan (×1.375)",
+        "moderate": "Umjereno aktivan (×1.55)",
+        "active": "Jako aktivan (×1.725)",
+        "very_active": "Izuzetno aktivan (×1.9)"
+      },
+      "goal": {
+        "loss": "Mršavljenje",
+        "maintain": "Održavanje",
+        "gain": "Dobitak mase"
+      },
+      "bmrResult": "BMR (bazalni metabolizam)",
+      "tdeeResult": "TDEE (ukupna potrošnja)",
+      "macrosTitle": "Preporučeni makrosi",
+      "stepsDesc": "Postavi dnevni cilj hodanja klijentu. Vidljivo u pratilici i pregledu.",
+      "stepsLabel": "Dnevni cilj koraka",
+      "saveSteps": "Spremi cilj koraka",
+      "stepsPerDay": "koraka / dan",
+      "noData": "Unesi podatke klijenta (težina, visina, dob) da bi kalkulator radio.",
+      "applyToClient": "Primijeni na klijenta",
+      "saved": "✓ Primijenjeno!",
+      "calories": "Kalorije",
+      "protein": "Proteini",
+      "carbs": "Ugljikohidrati",
+      "fat": "Masti",
+      "macroModePercent": "% raspodjela",
+      "macroModeGrams": "Grami",
+      "kcalDay": "kcal/dan",
+      "gDay": "g/dan",
+      "weightLabel": "Težina (kg)",
+      "heightLabel": "Visina (cm)",
+      "ageLabel": "Godine",
+      "genderLabel": "Spol",
+      "genderMale": "♂ Muško",
+      "genderFemale": "♀ Žensko",
+      "activityLabel": "Razina aktivnosti",
+      "caloricGoal": "Kalorijski cilj (kcal/dan)",
+      "tdeeFormula": "Formula Mifflin-St Jeor",
+      "scenarioHint": "Klikni scenarij → pošalji u Makrosi tab",
+      "scenarioSelected": "Odabrano →Makrosi",
+      "fillData": "Upiši težinu, visinu i godine",
+      "saveActivity": "Spremi razinu aktivnosti na klijenta",
+      "savedLabel": "Spremljeno",
+      "scenarios": {
+        "maintain": "Maintain",
+        "loss": "Gubitak (−500)",
+        "gain": "Dobivanje (+300)"
+      },
+      "macroSplitLabel": "Raspodjela makrosa (%)",
+      "macroKcalLabel": "Kalorije (kcal)",
+      "applyPlan": "Primijeni na plan prehrane",
+      "appliedPlan": "✓ Primijenjeno na plan!",
+      "newPlan": "Novi plan",
+      "existingPlan": "Odaberi postojeći",
+      "noActivePlan": "Nema aktivnog plana",
+      "activePlanLabel": "Aktivni plan",
+      "distanceApprox": "≈ {km} km"
     },
     "history": {
       "tabNutrition": "Prehrana",
@@ -384,19 +575,30 @@
     "dialogs": {
       "exercise": {
         "addTitle": "Dodaj vježbu",
+        "addSubtitle": "Nova vježba u tvoju biblioteku",
         "editTitle": "Uredi vježbu",
+        "forkNotice": "Uređuješ default vježbu. Bit će kreirana tvoja verzija, a original će biti sakriven.",
         "name": "Naziv",
         "namePlaceholder": "npr. Bench press",
+        "exerciseType": "Tip vježbe",
+        "strengthType": "Snaga (serije × ponav.)",
+        "enduranceType": "Izdržljivost (serije × min)",
+        "equipment": "Oprema",
+        "primaryMuscles": "Primarne mišićne grupe",
+        "secondaryMuscles": "Sekundarne mišićne grupe",
         "category": "Kategorija",
         "muscleGroup": "Mišićna skupina",
         "muscleGroupPlaceholder": "npr. Prsa, triceps",
         "description": "Opis",
-        "descriptionPlaceholder": "Opis vježbe...",
+        "descriptionPlaceholder": "Kratki opis tehnike izvedbe...",
+        "videoUrl": "Video URL",
+        "extraMetrics": "Dodatne metrike",
         "defaultMetrics": "Metrike (iz profila)",
         "save": "Spremi vježbu"
       },
       "template": {
         "addTitle": "Novi trening",
+        "addSubtitle": "Dodaj vježbe i podesi parametre",
         "editTitle": "Uredi trening",
         "name": "Naziv treninga",
         "namePlaceholder": "npr. Push dan",
@@ -411,12 +613,20 @@
         "notes": "Bilješka",
         "save": "Spremi trening",
         "noExercises": "Pretraži i dodaj vježbe.",
+        "loadingExercises": "Učitavanje vježbi...",
+        "noResults": "Nema rezultata za \"{search}\"",
+        "allAdded": "Sve vježbe su već dodane",
+        "createExercise": "Kreiraj vježbu \"{search}\"",
+        "createNewExercise": "Kreiraj novu vježbu",
+        "exerciseCount": "Vježbe ({count})",
+        "dragHint": "Povuci za promjenu redoslijeda",
         "removeExerciseTitle": "Ukloni vježbu",
         "removeExerciseConfirm": "Sigurno želiš ukloniti ovu vježbu iz treninga?"
       },
       "plan": {
         "addTitle": "Novi plan",
         "editTitle": "Uredi plan",
+        "editClientTitle": "Uredi plan klijenta",
         "name": "Naziv plana",
         "namePlaceholder": "npr. PPL program",
         "description": "Opis",
@@ -441,7 +651,12 @@
           "emptyDays": "Dodaj dane treninga.",
           "save": "Spremi plan",
           "noTemplate": "Bez predloška",
-          "addDayLabel": "Dodaj dan"
+          "addDayLabel": "Dodaj dan",
+          "selectTemplate": "Odaberi predložak ili dodaj vježbu ispod",
+          "loadingExercises": "Učitavanje...",
+          "noResults": "Nema rezultata{search}",
+          "noResultsFor": " za \"{search}\"",
+          "searchExercisePlaceholder": "Pretraži i dodaj vježbu... (↑↓ Enter)"
         }
       }
     }
@@ -459,6 +674,8 @@
     "foodsTab": {
       "count": "{count, plural, one {# namirnica} other {# namirnica}}",
       "add": "Dodaj namirnicu",
+      "addFirst": "Dodaj prvu namirnicu",
+      "noResults": "Nema rezultata za pretragu",
       "searchPlaceholder": "Pretraži namirnice...",
       "per100g": "na 100g",
       "all": "Sve",
@@ -510,14 +727,19 @@
     "dialogs": {
       "food": {
         "addTitle": "Dodaj namirnicu",
+        "addSubtitle": "Nova namirnica u tvoju biblioteku",
         "editTitle": "Uredi namirnicu",
+        "editSubtitle": "Uredi podatke namirnice",
+        "forkNotice": "Uređuješ default namirnicu. Bit će kreirana tvoja verzija, a original će biti sakriven.",
         "name": "Naziv",
         "namePlaceholder": "npr. Piletina, prsa",
         "category": "Kategorija",
-        "calories": "Kalorije (kcal/100g)",
-        "protein": "Proteini (g/100g)",
-        "carbs": "Ugljikohidrati (g/100g)",
-        "fat": "Masti (g/100g)",
+        "per100gLabel": "Vrijednosti na 100g sirove mase",
+        "calories": "Kalorije",
+        "protein": "Proteini (g)",
+        "carbs": "Ugljik. (g)",
+        "fat": "Masti (g)",
+        "extraFields": "Dodatni podaci",
         "save": "Spremi namirnicu"
       },
       "recipe": {
@@ -565,7 +787,8 @@
       "subtitle": "Pregled check-ina klijenata",
       "tabs": {
         "clients": "Klijenti",
-        "parameters": "Parametri"
+        "parameters": "Parametri",
+        "stats": "Statistike"
       }
     },
     "clientsTab": {
@@ -732,6 +955,22 @@
         "average": "Prosjek",
         "maximum": "Maximum"
       }
+    },
+    "statsTab": {
+      "title": "Statistike check-ina",
+      "totalSubmitted": "Ukupno check-ina",
+      "onTime": "Na vrijeme",
+      "late": "Kasni",
+      "avgWeight": "Prosj. težina (kg)",
+      "submitted": "Predano",
+      "allClients": "Svi klijenti",
+      "checkinsByDay": "Check-ini po danu",
+      "checkinsByMonth": "Check-ini po mjesecu",
+      "noCheckins": "Nema check-in podataka.",
+      "loading": "Učitavanje...",
+      "weightTrend": "Trend težine",
+      "clientStatusDist": "Raspodjela statusa klijenata",
+      "count": "Broj"
     }
   },
   "chat": {
@@ -745,6 +984,61 @@
       "startOfConversation": "Početak razgovora",
       "messagePlaceholder": "Napiši poruku...",
       "send": "Pošalji"
+    }
+  },
+  "finance": {
+    "title": "Financije",
+    "subtitle": "Pregled prihoda, plaćanja i statistika",
+    "loading": "Učitavanje...",
+    "year": "Godina",
+    "package": "Paket",
+    "allPackages": "Svi paketi",
+    "stats": {
+      "paidThisMonth": "Naplaćeno ovaj mj.",
+      "outstanding": "Neplaćeno",
+      "paidThisYear": "Naplaćeno ova god.",
+      "activeClients": "Aktivnih klijenata",
+      "vsLastMonth": "vs prošli mj."
+    },
+    "chart": {
+      "title": "Prihod po mjesecima",
+      "noData": "Nema podataka za odabrani period",
+      "label": "Prihod"
+    },
+    "status": {
+      "paid": "Plaćeno",
+      "pending": "Na čekanju",
+      "late": "Kasni",
+      "upcomingDays": "Za {days}d"
+    },
+    "table": {
+      "title": "Povijest plaćanja",
+      "client": "Klijent",
+      "package": "Paket",
+      "period": "Period",
+      "amount": "Iznos",
+      "status": "Status",
+      "actions": "Akcije",
+      "noData": "Nema podataka za odabrane filtere.",
+      "prevPage": "← Prethodna",
+      "nextPage": "Sljedeća →",
+      "pageOf": "Stranica {page} / {total}"
+    },
+    "payment": {
+      "title": "Zabilježi plaćanje",
+      "amount": "Iznos (€)",
+      "date": "Datum plaćanja",
+      "notes": "Bilješka (opcionalno)",
+      "notesPlaceholder": "Npr. plaćeno gotovinom...",
+      "save": "Spremi plaćanje",
+      "saving": "Sprema...",
+      "markPaid": "Označi plaćeno",
+      "markUnpaid": "Poništi plaćanje"
+    },
+    "popularity": {
+      "title": "Popularnost paketa",
+      "noPackages": "Nema paketa.",
+      "clients": "klijenata"
     }
   },
   "settings": {

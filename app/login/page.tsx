@@ -3,15 +3,11 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Eye, EyeOff, Users, Dumbbell, UtensilsCrossed, BarChart2, Shield, Lock } from 'lucide-react'
+import { Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, TrendingUp, Dumbbell } from 'lucide-react'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 
-const FEATURES = [
-  { icon: Users,           text: 'Upravljanje klijentima i napretkom' },
-  { icon: Dumbbell,        text: 'Trening planovi s drag & drop editorom' },
-  { icon: UtensilsCrossed, text: 'Prehrana, makrosi i recepti' },
-  { icon: BarChart2,       text: 'Financije, paketi i izvještaji' },
-]
+const FEATURE_ICONS = [Dumbbell, CheckCircle2, MessageSquare, TrendingUp] as const
+const FEATURE_KEYS = ['training', 'checkin', 'chat', 'finance'] as const
 
 export default function LoginPage() {
   const t = useTranslations('login')
@@ -29,197 +25,203 @@ export default function LoginPage() {
     else window.location.href = '/dashboard'
   }
 
+  const focusInput = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = 'var(--app-accent)'
+    e.currentTarget.style.boxShadow   = '0 0 0 3px var(--app-accent-muted)'
+  }
+  const blurInput = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = ''
+    e.currentTarget.style.boxShadow   = ''
+  }
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex">
 
-      {/* ── Left panel: always dark, accent color as glow ── */}
-      <div
-        className="hidden lg:flex lg:w-[38%] flex-col justify-between px-10 py-10 relative overflow-hidden"
-        style={{ backgroundColor: '#0d0818' }}
-      >
-        {/* Accent glow blobs — purely decorative, always readable text */}
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full opacity-25 blur-3xl pointer-events-none"
-          style={{ backgroundColor: 'var(--app-accent)' }} />
-        <div className="absolute bottom-0 left-0 w-64 h-64 -translate-x-1/3 translate-y-1/3 rounded-full opacity-15 blur-2xl pointer-events-none"
-          style={{ backgroundColor: 'var(--app-accent)' }} />
-        <div className="absolute top-1/2 right-0 w-40 h-40 opacity-10 blur-xl pointer-events-none"
-          style={{ backgroundColor: 'var(--app-accent)' }} />
+      {/* ── LEFT: dark branding panel ── */}
+      <div className="hidden lg:flex lg:w-[42%] flex-col relative overflow-hidden select-none"
+        style={{ background: 'linear-gradient(160deg, #0d0920 0%, #120b28 60%, #0a0614 100%)' }}>
 
-        {/* Top: compact brand mark */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center select-none border"
-            style={{ backgroundColor: 'var(--app-accent)', borderColor: 'var(--app-accent-hover)' }}>
-            <span className="text-white font-black text-sm leading-none" style={{ letterSpacing: '-0.05em' }}>UL</span>
-          </div>
-          <div>
-            <p className="text-white font-black text-sm leading-none tracking-tight">UnitLift</p>
-            <p className="text-white/40 text-[10px] mt-0.5 tracking-wide uppercase font-medium">Coaching Platform</p>
-          </div>
+        {/* Glow blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-25 blur-3xl"
+            style={{ backgroundColor: 'var(--app-accent)' }} />
+          <div className="absolute bottom-0 -left-24 w-[350px] h-[350px] rounded-full opacity-10 blur-3xl"
+            style={{ backgroundColor: 'var(--app-accent)' }} />
+          <svg className="absolute inset-0 w-full h-full opacity-[0.035]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="lg" width="48" height="48" patternUnits="userSpaceOnUse">
+                <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" strokeWidth="0.6"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#lg)" />
+          </svg>
         </div>
 
-        {/* Middle: large wordmark + hero text */}
-        <div className="relative z-10 space-y-7">
-          {/* Full wordmark shown large — this is where it looks great */}
-          <UnitLiftLogo fill="white" className="w-44 opacity-90" tight={true} />
+        {/* Content — vertically centered */}
+        <div className="relative z-10 flex flex-col justify-between h-full px-12 py-12">
 
-          <div>
-            <h1 className="text-2xl font-bold text-white leading-snug">
-              Upravljanje klijentima,<br />
-              planovima i napretkom<br />
-              na jednom mjestu.
-            </h1>
-            <p className="text-white/50 text-sm mt-3 leading-relaxed">
-              Jednostavan pristup UnitLift platformi za osobne trenere.
-            </p>
+          {/* Top: brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: 'var(--app-accent)' }}>
+              <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-white font-black text-sm tracking-tight leading-none">UnitLift</p>
+              <p className="text-white/30 text-[9px] tracking-[0.2em] uppercase mt-0.5">Coaching Platform</p>
+            </div>
           </div>
 
-          {/* Feature bullets */}
-          <div className="space-y-2.5">
-            {FEATURES.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2.5">
-                <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 30%, transparent)' }}>
-                  <Icon size={10} className="text-white/80" />
-                </div>
-                <p className="text-white/65 text-xs leading-tight">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+          {/* Center: headline + features */}
+          <div className="space-y-10">
+            <div>
+              <h1 className="text-[2.6rem] font-black text-white leading-[1.1] tracking-tight">
+                {t('headlineMain')}<br />
+                {t('headlinePre')}{' '}
+                <span className="relative">
+                  <span style={{ color: 'var(--app-accent)' }}>{t('headlineAccent')}</span>
+                </span>
+              </h1>
+              <p className="text-white/40 text-sm mt-5 leading-relaxed max-w-[300px]">
+                {t('tagline')}
+              </p>
+            </div>
 
-        {/* Footer */}
-        <div className="relative z-10">
-          <p className="text-white/20 text-[11px]">© 2026 UnitLift · unitlift.com</p>
+            {/* Divider */}
+            <div className="border-t border-white/[0.07]" />
+
+            {/* Features */}
+            <div className="space-y-5">
+              {FEATURE_KEYS.map((key, i) => {
+                const Icon = FEATURE_ICONS[i]
+                return (
+                  <div key={key} className="flex items-start gap-4">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <Icon size={16} style={{ color: 'var(--app-accent)' }} />
+                    </div>
+                    <div className="pt-0.5">
+                      <p className="text-white text-sm font-semibold leading-tight">{t(`features.${key}.label`)}</p>
+                      <p className="text-white/40 text-xs mt-1 leading-relaxed">{t(`features.${key}.desc`)}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Bottom: footer */}
+          <p className="text-white/15 text-[11px]">© 2026 UnitLift · unitlift.com</p>
         </div>
       </div>
 
-      {/* ── Right panel: form ── */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      {/* ── RIGHT: login form ── */}
+      <div className="flex-1 flex flex-col bg-white">
 
-        {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white">
+        {/* Mobile header */}
+        <header className="lg:hidden flex items-center px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center select-none"
-              style={{ backgroundColor: 'var(--app-accent)' }}>
-              <span className="text-white font-black text-sm leading-none" style={{ letterSpacing: '-0.05em' }}>UL</span>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent)' }}>
+              <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
             </div>
-            <span className="font-black text-sm tracking-tight text-gray-900">UnitLift</span>
+            <span className="font-black text-sm text-gray-900">UnitLift</span>
           </div>
         </header>
 
-        {/* Form area */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-[460px]">
+        {/* Centered form area */}
+        <div className="flex-1 flex items-center justify-center px-8 py-16">
+          <div className="w-full max-w-[400px] space-y-8">
 
-            {/* Desktop heading */}
-            <div className="hidden lg:block mb-8">
-              <div className="flex items-center gap-2.5 mb-6">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center select-none shadow-md"
+            {/* Heading */}
+            <div>
+              {/* Logo — desktop only */}
+              <div className="hidden lg:flex items-center gap-2.5 mb-8">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: 'var(--app-accent)' }}>
-                  <span className="text-white font-black text-base leading-none" style={{ letterSpacing: '-0.05em' }}>UL</span>
+                  <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
                 </div>
-                <span className="font-black text-sm tracking-tight text-gray-400 uppercase">UnitLift</span>
+                <span className="font-black text-sm text-gray-800 tracking-tight">UnitLift</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Dobrodošli natrag</h2>
-              <p className="text-gray-500 text-sm mt-1.5">Prijavite se za pristup UnitLift platformi.</p>
+              <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{t('welcomeTitle')}</h2>
+              <p className="text-gray-400 text-sm mt-2">{t('welcomeSubtitle')}</p>
             </div>
 
-            {/* Mobile heading */}
-            <div className="lg:hidden text-center mb-8">
-              <h2 className="text-xl font-bold text-gray-900">Dobrodošli natrag</h2>
-              <p className="text-gray-500 text-sm mt-1">{t('subtitle')}</p>
-            </div>
+            {/* Form */}
+            <form onSubmit={handleLogin} className="space-y-5">
 
-            {/* Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-              <form onSubmit={handleLogin} className="space-y-5">
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
+                <input
+                  id="email" type="email" value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder={t('placeholderEmail')}
+                  required
+                  onFocus={focusInput} onBlur={blurInput}
+                  className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-300 bg-gray-50/60 focus:bg-white"
+                />
+              </div>
 
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
+              {/* Password */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700">{t('password')}</label>
+                  <button type="button" className="text-xs font-medium transition-opacity hover:opacity-70"
+                    style={{ color: 'var(--app-accent)' }}>
+                    {t('forgotPassword')}
+                  </button>
+                </div>
+                <div className="relative">
                   <input
-                    id="email" type="email" value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder={t('placeholderEmail')}
+                    id="password" type={showPwd ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
                     required
-                    className="w-full h-11 px-4 rounded-xl border border-gray-300 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 bg-white"
-                    onFocus={e => { e.currentTarget.style.borderColor = 'var(--app-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--app-accent-muted)' }}
-                    onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
+                    onFocus={focusInput} onBlur={blurInput}
+                    className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-300 bg-gray-50/60 focus:bg-white"
                   />
-                </div>
-
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="block text-sm font-semibold text-gray-700">{t('password')}</label>
-                    <button type="button" className="text-xs font-medium transition-opacity hover:opacity-70"
-                      style={{ color: 'var(--app-accent)' }}>
-                      Zaboravljena lozinka?
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      id="password" type={showPwd ? 'text' : 'password'} value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder={t('placeholderPassword')}
-                      required
-                      className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-300 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 bg-white"
-                      onFocus={e => { e.currentTarget.style.borderColor = 'var(--app-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--app-accent-muted)' }}
-                      onBlur={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = 'none' }}
-                    />
-                    <button type="button" onClick={() => setShowPwd(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1">
-                      {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Error */}
-                {error && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5">
-                    <span className="text-red-500 text-xs mt-0.5 shrink-0">⚠</span>
-                    <p className="text-red-600 text-xs leading-relaxed">{error}</p>
-                  </div>
-                )}
-
-                {/* Submit */}
-                <button
-                  type="submit" disabled={loading}
-                  className="w-full h-11 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 mt-1"
-                  style={{ backgroundColor: 'var(--app-accent)' }}
-                  onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
-                  onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}
-                >
-                  {loading ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      {t('loading')}
-                    </>
-                  ) : (
-                    'Prijava'
-                  )}
-                </button>
-              </form>
-
-              {/* Trust badges */}
-              <div className="mt-6 pt-5 border-t border-gray-100">
-                <div className="flex items-center gap-6 justify-center">
-                  {[
-                    { icon: Lock,   label: 'Sigurna prijava' },
-                    { icon: Shield, label: 'GDPR usklađeno' },
-                  ].map(({ icon: Icon, label }) => (
-                    <div key={label} className="flex items-center gap-1.5 text-gray-400">
-                      <Icon size={12} />
-                      <span className="text-xs">{label}</span>
-                    </div>
-                  ))}
+                  <button type="button" onClick={() => setShowPwd(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1">
+                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+                  <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
+                  <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                </div>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit" disabled={loading}
+                className="w-full h-11 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--app-accent)' }}
+                onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                onMouseLeave={e => (e.currentTarget.style.filter = '')}
+              >
+                {loading ? (
+                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{t('loading')}</>
+                ) : t('submit')}
+              </button>
+            </form>
+
+            {/* Trust */}
+            <div className="flex items-center gap-6 justify-center pt-2">
+              {([{ icon: Lock, key: 'secureLogin' }, { icon: Shield, key: 'gdpr' }] as const).map(({ icon: Icon, key }) => (
+                <div key={key} className="flex items-center gap-1.5 text-gray-300">
+                  <Icon size={11} />
+                  <span className="text-xs">{t(key)}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Footer note */}
-            <p className="text-center text-xs text-gray-400 mt-5">
-              Nemaš pristup? Kontaktiraj administratora.
+            {/* Footer */}
+            <p className="text-center text-xs text-gray-300">
+              {t('noAccess')}
             </p>
           </div>
         </div>

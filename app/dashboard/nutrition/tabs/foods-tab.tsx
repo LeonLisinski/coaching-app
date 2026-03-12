@@ -10,6 +10,7 @@ import EditFoodDialog from '../dialogs/edit-food-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useDraggable } from '@dnd-kit/core'
+import { useTranslations } from 'next-intl'
 
 export type Food = {
   id: string
@@ -65,6 +66,8 @@ export default function FoodsTab({
   refreshKey?: number
   onFoodCreated?: () => void
 }) {
+  const t = useTranslations('nutrition.foodsTab')
+  const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
 
   const [foods, setFoods] = useState<Food[]>([])
@@ -156,7 +159,7 @@ export default function FoodsTab({
             <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </Button>
           <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-orange-500 hover:bg-orange-600">
-            <Plus size={12} /> Dodaj
+            <Plus size={12} /> {t('add')}
           </Button>
         </div>
       </div>
@@ -258,10 +261,10 @@ export default function FoodsTab({
           <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mx-auto mb-2">
             <UtensilsCrossed size={20} className="text-orange-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : 'Nema namirnica'}</p>
+          <p className="text-gray-400 text-sm">{search ? t('noResults') : t('noFoods')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-orange-600 hover:text-orange-800 font-medium flex items-center gap-1 mx-auto">
-              <Plus size={11} /> Dodaj prvu namirnicu
+              <Plus size={11} /> {t('addFirst')}
             </button>
           )}
         </div>
@@ -351,3 +354,4 @@ export default function FoodsTab({
     </div>
   )
 }
+

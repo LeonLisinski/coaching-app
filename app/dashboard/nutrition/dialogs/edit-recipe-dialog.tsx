@@ -269,3 +269,4 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
     </Dialog>
   )
 }
+

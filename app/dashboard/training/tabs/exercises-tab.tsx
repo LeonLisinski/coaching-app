@@ -404,3 +404,4 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
     </div>
   )
 }
+

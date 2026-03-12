@@ -4,7 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Send } from 'lucide-react'
+import { Send, Zap } from 'lucide-react'
+
+const QUICK_TEMPLATES = [
+  { label: 'Podsjetnik check-in', text: 'Ne zaboravi predati check-in ovaj tjedan! 💪' },
+  { label: 'Bravo na napretku', text: 'Odlično si napredovao/la — nastavi tako! 🎉' },
+  { label: 'Kako se osjećaš?', text: 'Kako se osjećaš nakon posljednjeg treninga?' },
+  { label: 'Trening sutra', text: 'Podsjetnik: trening sutra — ne zaboravi se zagrijati! 🔥' },
+  { label: 'Provjera prehrane', text: 'Javi mi kako ide s prehranom ovaj tjedan.' },
+  { label: 'Motivacija', text: 'Svaki korak naprijed je napredak. Nastavi raditi, rezultati dolaze! 💯' },
+]
 
 type Props = {
   clientId: string
@@ -49,8 +58,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
+  const templatesRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     initChat()
@@ -60,6 +71,18 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Close templates panel on outside click
+  useEffect(() => {
+    if (!showTemplates) return
+    const handler = (e: MouseEvent) => {
+      if (templatesRef.current && !templatesRef.current.contains(e.target as Node)) {
+        setShowTemplates(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showTemplates])
 
   const initChat = async () => {
     setLoading(true)
@@ -219,7 +242,39 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
       {/* Input */}
       <div className="flex-shrink-0 px-4 py-3 border-t bg-white">
-        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 transition-colors focus-within:bg-white" style={{ '--focus-border': accentHex } as any}>
+        {/* Quick templates panel */}
+        {showTemplates && (
+          <div ref={templatesRef} className="mb-2 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden shadow-sm">
+            <div className="px-3 py-2 border-b border-gray-100">
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Brze poruke</span>
+            </div>
+            <div className="flex flex-col">
+              {QUICK_TEMPLATES.map(tpl => (
+                <button
+                  key={tpl.label}
+                  onClick={() => { setInput(tpl.text); setShowTemplates(false) }}
+                  className="text-left px-3 py-2 hover:bg-white transition-colors group border-b border-gray-100 last:border-0"
+                >
+                  <span className="text-[11px] font-semibold block" style={{ color: accentHex }}>{tpl.label}</span>
+                  <span className="text-xs text-gray-500 leading-tight">{tpl.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5 transition-colors focus-within:bg-white">
+          {/* Templates toggle */}
+          <button
+            onClick={() => setShowTemplates(v => !v)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 mb-0.5"
+            style={showTemplates
+              ? { backgroundColor: `${accentHex}20`, color: accentHex }
+              : { color: '#9ca3af' }
+            }
+            title="Brze poruke"
+          >
+            <Zap size={14} />
+          </button>
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -246,3 +301,4 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     </div>
   )
 }
+

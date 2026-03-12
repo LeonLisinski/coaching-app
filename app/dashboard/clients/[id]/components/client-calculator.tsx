@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Calculator, Check } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 type Gender = 'M' | 'F'
@@ -21,13 +22,6 @@ const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   very_active: 1.9,
 }
 
-const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  sedentary:   'Sjedilački (×1.2)',
-  light:       'Lagano aktivan (×1.375)',
-  moderate:    'Umjereno aktivan (×1.55)',
-  active:      'Jako aktivan (×1.725)',
-  very_active: 'Izuzetno aktivan (×1.9)',
-}
 
 const DEFAULT_MACRO_SPLITS: Record<Goal, { p: number; c: number; f: number }> = {
   loss:     { p: 35, c: 40, f: 25 },
@@ -70,6 +64,15 @@ type Props = {
 type Tab = 'tdee' | 'macros' | 'steps'
 
 export default function ClientCalculator({ clientId, client, onSaved }: Props) {
+  const t = useTranslations('clients.calculator')
+  const tCommon = useTranslations('common')
+  const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+    sedentary:   t('activity.sedentary'),
+    light:       t('activity.light'),
+    moderate:    t('activity.moderate'),
+    active:      t('activity.active'),
+    very_active: t('activity.very_active'),
+  }
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('tdee')
   const [saved, setSaved] = useState<Tab | null>(null)
@@ -256,9 +259,9 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'tdee',  label: 'BMR / TDEE' },
-    { key: 'macros', label: 'Makrosi' },
-    { key: 'steps', label: 'Koraci' },
+    { key: 'tdee',  label: t('tabs.bmr') },
+    { key: 'macros', label: t('tabs.macros') },
+    { key: 'steps', label: t('tabs.steps') },
   ]
 
   return (
@@ -276,7 +279,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Calculator size={16} /> Kalkulatori
+              <Calculator size={16} /> {t('title')}
             </DialogTitle>
           </DialogHeader>
 
@@ -301,24 +304,24 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Težina (kg)</Label>
+                  <Label className="text-xs">{t('weightLabel')}</Label>
                   <Input type="text" inputMode="decimal" value={tdeeForm.weight}
                     onChange={e => setTdeeForm(f => ({ ...f, weight: e.target.value.replace(',', '.') }))} className="h-8" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Visina (cm)</Label>
+                  <Label className="text-xs">{t('heightLabel')}</Label>
                   <Input type="text" inputMode="decimal" value={tdeeForm.height}
                     onChange={e => setTdeeForm(f => ({ ...f, height: e.target.value.replace(',', '.') }))} className="h-8" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Godine</Label>
+                  <Label className="text-xs">{t('ageLabel')}</Label>
                   <Input type="number" min="10" max="100" value={tdeeForm.age}
                     onChange={e => setTdeeForm(f => ({ ...f, age: e.target.value }))} className="h-8" />
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Spol</Label>
+                <Label className="text-xs">{t('genderLabel')}</Label>
                 <div className="flex gap-2">
                   {(['M', 'F'] as Gender[]).map(g => (
                     <button key={g} type="button"
@@ -326,14 +329,14 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       className={`flex-1 py-1.5 rounded-md border text-sm font-medium transition-colors ${
                         tdeeForm.gender === g ? 'bg-primary text-primary-foreground border-primary' : 'border-input bg-background hover:bg-accent'
                       }`}>
-                      {g === 'M' ? '♂ Muško' : '♀ Žensko'}
+                      {g === 'M' ? t('genderMale') : t('genderFemale')}
                     </button>
                   ))}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs">Razina aktivnosti</Label>
+                <Label className="text-xs">{t('activityLabel')}</Label>
                 <div className="space-y-1">
                   {(Object.entries(ACTIVITY_LABELS) as [ActivityLevel, string][]).map(([val, lbl]) => (
                     <button key={val} type="button"
@@ -351,47 +354,48 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
               {canCalc && bmr && tdee ? (
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">BMR (bazalni metabolizam)</span>
+                    <span className="text-sm text-gray-500">{t('bmrResult')}</span>
                     <span className="font-bold text-lg">{bmr} kcal</span>
                   </div>
                   <div className="h-px bg-gray-200" />
                   <div className="space-y-1.5">
                     {([
-                      { label: 'Maintain',        kcal: tdee,       goal: 'maintain' as Goal, cls: 'text-emerald-600', activeCls: 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200' },
-                      { label: 'Gubitak (−500)',   kcal: tdee - 500, goal: 'loss'     as Goal, cls: 'text-blue-600',   activeCls: 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' },
-                      { label: 'Dobivanje (+300)', kcal: tdee + 300, goal: 'gain'     as Goal, cls: 'text-orange-600', activeCls: 'bg-orange-50 border-orange-300 ring-1 ring-orange-200' },
+                      { labelKey: 'scenarios.maintain', kcal: tdee,       goal: 'maintain' as Goal, cls: 'text-emerald-600', activeCls: 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200' },
+                      { labelKey: 'scenarios.loss',     kcal: tdee - 500, goal: 'loss'     as Goal, cls: 'text-blue-600',   activeCls: 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' },
+                      { labelKey: 'scenarios.gain',     kcal: tdee + 300, goal: 'gain'     as Goal, cls: 'text-orange-600', activeCls: 'bg-orange-50 border-orange-300 ring-1 ring-orange-200' },
                     ]).map(row => {
+                      const rowLabel = t(row.labelKey as any)
                       const isSelected = selectedScenario?.goal === row.goal
                       return (
                         <button
-                          key={row.label}
+                          key={row.labelKey}
                           type="button"
-                          onClick={() => pickScenario({ label: row.label, kcal: row.kcal, goal: row.goal })}
+                          onClick={() => pickScenario({ label: rowLabel, kcal: row.kcal, goal: row.goal })}
                           className={`w-full flex justify-between items-center px-3 py-2 rounded-lg border transition-all ${
                             isSelected ? row.activeCls : 'border-transparent hover:bg-white hover:border-gray-200'
                           }`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">{row.label}</span>
-                            {isSelected && <span className="text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 font-medium">Odabrano →Makrosi</span>}
+                            <span className="text-xs text-gray-500">{rowLabel}</span>
+                            {isSelected && <span className="text-[10px] bg-gray-200 text-gray-600 rounded-full px-1.5 py-0.5 font-medium">{t('scenarioSelected')}</span>}
                           </div>
                           <span className={`font-semibold ${row.cls}`}>{round(row.kcal)} kcal</span>
                         </button>
                       )
                     })}
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center pt-1">Klikni scenarij da ga pošalješ u Makrosi tab</p>
+                  <p className="text-[10px] text-gray-400 text-center pt-1">{t('scenarioHint')}</p>
                   <div className="h-px bg-gray-200" />
-                  <p className="text-xs text-gray-400 text-center">Formula Mifflin-St Jeor</p>
+                  <p className="text-xs text-gray-400 text-center">{t('tdeeFormula')}</p>
                 </div>
               ) : (
                 <div className="bg-gray-50 rounded-xl p-4 text-center text-sm text-gray-400">
-                  Upiši težinu, visinu i godine
+                  {t('fillData')}
                 </div>
               )}
 
               <Button size="sm" className="w-full" onClick={saveTdee} disabled={!canCalc}>
-                {saved === 'tdee' ? <><Check size={14} className="mr-1" /> Spremljeno</> : 'Spremi razinu aktivnosti na klijenta'}
+                {saved === 'tdee' ? <><Check size={14} className="mr-1" /> {t('savedLabel')}</> : t('saveActivity')}
               </Button>
             </div>
           )}
@@ -401,7 +405,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
             <div className="space-y-4">
               {/* Kcal source — shows selected scenario or manual input */}
               <div className="space-y-1.5">
-                <Label className="text-xs">Kalorijski cilj (kcal/dan)</Label>
+                <Label className="text-xs">{t('caloricGoal')}</Label>
                 {selectedScenario ? (
                   <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
                     <div>
@@ -616,7 +620,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                           </div>
                           <button type="button" onClick={() => setPlanCreateMode(null)}
                             className="w-full text-xs text-gray-400 hover:text-gray-600 pt-1">
-                            Odustani
+                            {tCommon('cancel')}
                           </button>
                         </div>
                       )}
@@ -671,9 +675,9 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
           {/* ── STEPS TAB ── */}
           {tab === 'steps' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-500">Postavi dnevni cilj hodanja klijentu. Vidljivo u pratilici i pregledu.</p>
+              <p className="text-sm text-gray-500">{t('stepsDesc')}</p>
               <div className="space-y-1">
-                <Label>Dnevni cilj koraka</Label>
+                <Label>{t('stepsLabel')}</Label>
                 <Input
                   type="number" min="0" max="50000" step="500"
                   value={stepGoal}
@@ -694,12 +698,12 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
               {stepGoal && (
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
                   <p className="text-3xl font-bold text-gray-900">{parseInt(stepGoal).toLocaleString('hr-HR')}</p>
-                  <p className="text-sm text-gray-400 mt-1">koraka / dan</p>
+                  <p className="text-sm text-gray-400 mt-1">{t('stepsPerDay')}</p>
                   <p className="text-xs text-gray-400 mt-0.5">≈ {round(parseInt(stepGoal) * 0.0007, 1)} km</p>
                 </div>
               )}
               <Button size="sm" className="w-full" onClick={saveSteps} disabled={!stepGoal}>
-                {saved === 'steps' ? <><Check size={14} className="mr-1" /> Spremljeno</> : 'Spremi cilj koraka'}
+                {saved === 'steps' ? <><Check size={14} className="mr-1" /> {t('savedLabel')}</> : t('saveSteps')}
               </Button>
             </div>
           )}

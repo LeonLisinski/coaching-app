@@ -47,3 +47,4 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useAppTheme = () => useContext(AppThemeContext)
+
