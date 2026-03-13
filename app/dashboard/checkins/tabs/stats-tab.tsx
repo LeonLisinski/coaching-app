@@ -17,15 +17,25 @@ const ACCENT_HEX: Record<string, string> = {
   orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function getStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  let daysAgo = (today.getDay() - checkinDay + 7) % 7
-  if (daysAgo === 0) daysAgo = 7
+  const rawDaysBack = (today.getDay() - checkinDay + 7) % 7
+
+  if (rawDaysBack === 0) {
+    if (!lastCheckin) return 'neutral'
+    return lastCheckin >= isoDate(today) ? 'submitted' : 'neutral'
+  }
+
   const expected = new Date(today)
-  expected.setDate(today.getDate() - daysAgo)
-  const expectedStr = expected.toISOString().slice(0, 10)
-  if (!lastCheckin) return 'late'
+  expected.setDate(today.getDate() - rawDaysBack)
+  const expectedStr = isoDate(expected)
+
+  if (!lastCheckin) return 'neutral'
   return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 

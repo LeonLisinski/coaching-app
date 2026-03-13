@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 import { supabase } from '@/lib/supabase'
 import {
   DndContext, DragOverlay, pointerWithin,
@@ -31,6 +32,7 @@ export default function TrainingPage() {
   const [exerciseRefreshKey, setExerciseRefreshKey] = useState(0)
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
+  const [mobileTab, setMobileTab] = usePersistedTab('training_tab', 'exercises')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -241,7 +243,7 @@ export default function TrainingPage() {
 
         {/* Mobile/tablet: tabs */}
         <div className="xl:hidden">
-          <Tabs defaultValue="exercises">
+          <Tabs value={mobileTab} onValueChange={setMobileTab}>
             <TabsList>
               <TabsTrigger value="exercises">{t('tabs.exercises')}</TabsTrigger>
               <TabsTrigger value="templates">{t('tabs.templates')}</TabsTrigger>

@@ -20,6 +20,9 @@ import {
   ClipboardCheck,
   CreditCard,
   X,
+  Plus,
+  UserPlus,
+  ClipboardList,
 } from 'lucide-react'
 // Dumbbell kept for navItems training icon
 import { supabase } from '@/lib/supabase'
@@ -30,6 +33,7 @@ import LocaleSwitcher from '@/components/locale-switcher'
 import SettingsDialog from '@/app/components/settings-dialog'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import GlobalSearch from '@/app/components/global-search'
+import { TabStateProvider } from '@/app/contexts/tab-state'
 
 const navItems = [
   { href: '/dashboard',             labelKey: 'overview',  icon: LayoutDashboard, color: 'text-violet-400' },
@@ -49,14 +53,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router   = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  // Track last visited client/chat so nav items bring you back
+  const [lastClientHref, setLastClientHref] = useState('/dashboard/clients')
+  const [lastChatHref, setLastChatHref]     = useState('/dashboard/chat')
   const [userInitials, setUserInitials] = useState('')
   const [userName, setUserName]         = useState('')
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifs, setShowNotifs]     = useState(false)
+  const [showFab, setShowFab]           = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
   const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
   const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment'; href?: string; isNew?: boolean }[]>([])
+
+  // Update last-visited client / chat whenever the pathname changes
+  useEffect(() => {
+    // Client detail page: /dashboard/clients/[id]
+    const clientMatch = pathname.match(/^\/dashboard\/clients\/([^/]+)$/)
+    if (clientMatch) {
+      const id = clientMatch[1]
+      localStorage.setItem('last_client_id', id)
+      setLastClientHref(`/dashboard/clients/${id}`)
+    } else {
+      const storedId = localStorage.getItem('last_client_id')
+      setLastClientHref(storedId ? `/dashboard/clients/${storedId}` : '/dashboard/clients')
+    }
+
+    // Chat: restore last conversation via ?clientId= param
+    const storedChatId = localStorage.getItem('last_chat_client_id')
+    setLastChatHref(storedChatId ? `/dashboard/chat?clientId=${storedChatId}` : '/dashboard/chat')
+  }, [pathname])
 
   // Global: comma → period for decimal inputs
   useEffect(() => {
@@ -194,6 +220,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isChat = pathname.startsWith('/dashboard/chat')
 
   return (
+    <TabStateProvider>
     <div className="flex h-screen bg-background">
 
       {/* ── SIDEBAR ── */}
@@ -226,10 +253,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {navItems.map(({ href, labelKey, icon: Icon, color }) => {
             const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
             const label    = tNav(labelKey as any)
+            // If already in this section → always go to section root (reset)
+            // If coming from another section → smart restore (last client / last chat)
+            const alreadyInSection = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
+            const effectiveHref = alreadyInSection                       ? href
+                                : labelKey === 'clients'                 ? lastClientHref
+                                : labelKey === 'chat'                    ? lastChatHref
+                                : href
             return (
               <Link
                 key={href}
-                href={href}
+                href={effectiveHref}
                 title={collapsed ? label : undefined}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${collapsed ? 'justify-center' : ''} ${isActive ? 'shadow-sm' : 'hover:bg-white/5 text-white/50 hover:text-white/80'}`}
                 style={isActive ? { backgroundColor: 'color-mix(in srgb, var(--app-accent) 22%, transparent)' } : {}}
@@ -406,11 +440,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
         <GlobalSearch />
 
+        {/* Global FAB */}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+          {showFab && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowFab(false)} />
+              <div className="relative z-50 flex flex-col items-end gap-1.5 mb-1">
+                {([
+                  { label: 'Novi klijent',     icon: UserPlus,     href: '/dashboard/clients?action=add',     color: '#3b82f6' },
+                  { label: 'Novi plan treninga', icon: Dumbbell,   href: '/dashboard/training?action=addPlan', color: '#8b5cf6' },
+                  { label: 'Novi check-in',    icon: ClipboardList, href: '/dashboard/checkins?action=add',   color: '#10b981' },
+                ] as const).map(({ label, icon: Icon, href, color }) => (
+                  <button
+                    key={label}
+                    onClick={() => { router.push(href); setShowFab(false) }}
+                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
+                    style={{ backgroundColor: color }}
+                  >
+                    <Icon size={14} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <button
+            onClick={() => setShowFab(v => !v)}
+            className="w-12 h-12 rounded-2xl text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+            style={{ backgroundColor: 'var(--app-accent)' }}
+            title="Brzo dodavanje"
+          >
+            <Plus size={22} className={`transition-transform duration-200 ${showFab ? 'rotate-45' : ''}`} />
+          </button>
+        </div>
+
         <main className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'overflow-auto p-8'}`}>
           {children}
         </main>
       </div>
     </div>
+    </TabStateProvider>
   )
 }
 

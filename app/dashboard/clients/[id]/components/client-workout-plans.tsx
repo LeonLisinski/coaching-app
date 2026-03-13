@@ -12,6 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -528,6 +529,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       >
         <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0" showCloseButton={false}>
           <DialogTitle className="sr-only">Dodijeli plan klijentu</DialogTitle>
+          <DialogDescription className="sr-only">Dodijeli plan klijentu</DialogDescription>
 
           {/* Gradient header */}
           <div className="px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg" style={{ background: `linear-gradient(135deg, ${accentHex}ee, ${accentHex}cc)` }}>

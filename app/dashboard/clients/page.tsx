@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 import CopyClientDialog from '@/app/dashboard/clients/copy-client-dialog'
@@ -26,7 +26,15 @@ type Client = {
   notes: string | null
   activePackageName?: string | null
   activePackageColor?: string | null
+  packageEndDate?: string | null
+  packageDaysLeft?: number | null
   checkin_day?: number | null
+}
+
+function calcPackageDaysLeft(endDate: string | null | undefined): number | null {
+  if (!endDate) return null
+  const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return diff
 }
 
 const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
@@ -74,11 +82,22 @@ export default function ClientsPage() {
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
   const [copyClient, setCopyClient] = useState<Client | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const clickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const noName = tDetail('noName')
 
   useEffect(() => { fetchData() }, [])
+
+  // Auto-open add dialog when ?action=add is in URL
+  useEffect(() => {
+    if (searchParams.get('action') === 'add') {
+      setShowAdd(true)
+      router.replace('/dashboard/clients')
+    }
+  }, [searchParams])
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -122,7 +141,7 @@ export default function ClientsPage() {
     const [{ data: cpData }, { data: ccData }] = await Promise.all([
       supabase
         .from('client_packages')
-        .select('client_id, packages(name, color)')
+        .select('client_id, end_date, packages(name, color)')
         .eq('status', 'active')
         .in('client_id', clientIds),
       supabase
@@ -131,9 +150,9 @@ export default function ClientsPage() {
         .in('client_id', clientIds),
     ])
 
-    const pkgMap: Record<string, { name: string; color: string }> = {}
+    const pkgMap: Record<string, { name: string; color: string; end_date: string }> = {}
     for (const cp of (cpData || [])) {
-      if (!pkgMap[cp.client_id]) pkgMap[cp.client_id] = cp.packages as any
+      if (!pkgMap[cp.client_id]) pkgMap[cp.client_id] = { ...(cp.packages as any), end_date: cp.end_date }
     }
 
     const checkinDayMap: Record<string, number | null> = {}
@@ -141,12 +160,18 @@ export default function ClientsPage() {
       checkinDayMap[cc.client_id] = cc.checkin_day
     }
 
-    setClients(rawClients.map(c => ({
-      ...c,
-      activePackageName: pkgMap[c.id]?.name || null,
-      activePackageColor: pkgMap[c.id]?.color || null,
-      checkin_day: checkinDayMap[c.id] ?? null,
-    })))
+    setClients(rawClients.map(c => {
+      const pkg = pkgMap[c.id]
+      const daysLeft = pkg?.end_date ? calcPackageDaysLeft(pkg.end_date) : null
+      return {
+        ...c,
+        activePackageName: pkg?.name || null,
+        activePackageColor: pkg?.color || null,
+        packageEndDate: pkg?.end_date || null,
+        packageDaysLeft: daysLeft,
+        checkin_day: checkinDayMap[c.id] ?? null,
+      }
+    }))
     setLoading(false)
   }
 
@@ -428,18 +453,42 @@ export default function ClientsPage() {
         <div className="grid grid-cols-1 gap-2">
           {filtered.map((client) => {
             const age = client.date_of_birth ? calcAge(client.date_of_birth) : null
+            const isExpanded = expandedId === client.id
+            const daysLeft = client.packageDaysLeft
+            const expiryUrgent = daysLeft !== null && daysLeft <= 7
+            const expiryExpired = daysLeft !== null && daysLeft <= 0
+
             return (
-              <div
-                key={client.id}
-                className={`border rounded-xl px-4 py-3 bg-white hover:shadow-sm hover:border-violet-200 transition-all cursor-default select-none group ${
-                  !client.active ? 'opacity-55' : 'border-gray-100'
-                }`}
-                onDoubleClick={() => router.push(`/dashboard/clients/${client.id}`)}
-              >
-                <div className="flex items-center gap-3">
+              <div key={client.id} className={`border rounded-xl bg-white transition-all select-none group ${
+                !client.active ? 'opacity-55' : ''
+              } ${isExpanded ? 'border-violet-200 shadow-sm' : 'border-gray-100 hover:shadow-sm hover:border-violet-200'}`}>
+                {/* Main row */}
+                <div
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer"
+                  onClick={() => {
+                    if (clickTimers.current[client.id]) return
+                    clickTimers.current[client.id] = setTimeout(() => {
+                      delete clickTimers.current[client.id]
+                      setExpandedId(isExpanded ? null : client.id)
+                    }, 220)
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault()
+                    if (clickTimers.current[client.id]) {
+                      clearTimeout(clickTimers.current[client.id])
+                      delete clickTimers.current[client.id]
+                    }
+                    router.push(`/dashboard/clients/${client.id}`)
+                  }}
+                >
                   {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-xl ${avatarStyle(client.gender)} flex items-center justify-center shrink-0`}>
+                  <div className={`w-10 h-10 rounded-xl ${avatarStyle(client.gender)} flex items-center justify-center shrink-0 relative`}>
                     <span className="text-white text-xs font-bold">{getInitials(client.full_name)}</span>
+                    {expiryUrgent && (
+                      <span className={`absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-white flex items-center justify-center ${expiryExpired ? 'bg-red-500' : 'bg-amber-400'}`}>
+                        <AlertTriangle size={7} className="text-white" />
+                      </span>
+                    )}
                   </div>
 
                   {/* Info */}
@@ -461,6 +510,16 @@ export default function ClientsPage() {
                           {client.activePackageName}
                         </span>
                       )}
+                      {expiryExpired && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600 border border-red-200">
+                          Paket istekao
+                        </span>
+                      )}
+                      {!expiryExpired && expiryUrgent && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          Istječe za {daysLeft}d
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center text-[11px] text-gray-400 flex-wrap gap-0">
                       <span>{client.email}</span>
@@ -480,9 +539,9 @@ export default function ClientsPage() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-0.5 shrink-0">
-                    <button type="button" onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setExpandedId(isExpanded ? null : client.id) }}
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 transition-colors group-hover:[color:var(--app-accent)]">
-                      <ChevronRight size={15} />
+                      {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                     </button>
                     <button type="button" title="Kopiraj plan" onClick={(e) => { e.stopPropagation(); setCopyClient(client) }}
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 transition-colors hover:[color:var(--app-accent)] hover:[background-color:var(--app-accent-muted)]">
@@ -505,6 +564,63 @@ export default function ClientsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Quick actions panel */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/60 rounded-b-xl">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      {/* Tab shortcuts */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {([
+                          { label: 'Pregled',   tab: 'pregled',   icon: LayoutDashboard,  color: '#7c3aed' },
+                          { label: 'Trening',   tab: 'treninzi',  icon: Dumbbell,         color: '#4f46e5' },
+                          { label: 'Prehrana',  tab: 'prehrana',  icon: UtensilsCrossed,  color: '#ea580c' },
+                          { label: 'Check-in',  tab: 'checkin',   icon: ClipboardList,    color: '#0d9488' },
+                          { label: 'Paketi',    tab: 'paketi',    icon: Package,          color: '#059669' },
+                        ] as const).map(({ label, tab, icon: Icon, color }) => (
+                          <button
+                            key={tab}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${client.id}?tab=${tab}`) }}
+                            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-300 hover:shadow-sm transition-all font-medium"
+                          >
+                            <Icon size={12} style={{ color }} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Package status */}
+                      <div className="flex items-center gap-2">
+                        {client.activePackageName && client.packageEndDate && (
+                          <span className={`text-[11px] px-2.5 py-1 rounded-lg font-medium border ${
+                            expiryExpired
+                              ? 'bg-red-50 text-red-600 border-red-200'
+                              : expiryUrgent
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {expiryExpired
+                              ? `Paket istekao ${Math.abs(daysLeft!)}d`
+                              : `Paket istječe ${new Date(client.packageEndDate).toLocaleDateString('hr-HR')}`
+                            }
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${client.id}`) }}
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-colors"
+                          style={{ backgroundColor: 'var(--app-accent)' }}
+                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
+                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}
+                        >
+                          Otvori profil
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}

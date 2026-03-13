@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { X, BookOpen } from 'lucide-react'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
@@ -139,6 +139,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">Dodaj recept</DialogTitle>
+        <DialogDescription className="sr-only">Dodaj recept</DialogDescription>
 
         {/* Rose header */}
         <div className="bg-gradient-to-r from-rose-500 to-pink-400 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -262,4 +263,5 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     </Dialog>
   )
 }
+
 

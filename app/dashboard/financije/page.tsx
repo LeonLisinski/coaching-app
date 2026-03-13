@@ -134,6 +134,7 @@ export default function FinancijePage() {
   const [payForm, setPayForm] = useState({ amount: '', paid_at: new Date().toISOString().split('T')[0], notes: '' })
   const [saving, setSaving] = useState(false)
   const [histPage, setHistPage] = useState(0)
+  const [justMarkedId, setJustMarkedId] = useState<string | null>(null)
   const HIST_PER_PAGE = 10
 
   useEffect(() => { fetchData() }, [])
@@ -341,6 +342,24 @@ export default function FinancijePage() {
     setSelectedCp(cp)
     setPayForm({ amount: cp.price.toString(), paid_at: new Date().toISOString().split('T')[0], notes: '' })
     setShowPayDialog(true)
+  }
+
+  const inlineMarkPaid = async (cp: ClientPackage) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    const payment = cp.payments?.[0]
+    if (payment) {
+      await supabase.from('payments').update({ status: 'paid', amount: cp.price, paid_at: today }).eq('id', payment.id)
+    } else {
+      await supabase.from('payments').insert({
+        trainer_id: user.id, client_id: cp.client_id, client_package_id: cp.id,
+        amount: cp.price, paid_at: today, status: 'paid',
+      })
+    }
+    setJustMarkedId(cp.id)
+    setTimeout(() => setJustMarkedId(null), 3000)
+    fetchData()
   }
 
   if (loading) return (
@@ -566,7 +585,21 @@ export default function FinancijePage() {
                     </span>
                     <span className="text-xs text-gray-500">{fmtDate(cp.start_date)}</span>
                     <span className="text-xs text-gray-500">{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
-                    <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
+                    {justMarkedId === cp.id ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <Check size={10} /> Plaćeno ✓
+                      </span>
+                    ) : s !== 'paid' ? (
+                      <button
+                        title="Klikni za označi kao plaćeno"
+                        onClick={() => inlineMarkPaid(cp)}
+                        className="cursor-pointer transition-all hover:scale-105"
+                      >
+                        <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
+                      </button>
+                    ) : (
+                      <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
+                    )}
                     <div>
                       {s !== 'paid' && (
                         <button onClick={() => openPayDialog(cp)}

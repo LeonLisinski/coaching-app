@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -12,6 +13,7 @@ import {
 import {
   Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
   Clock, ArrowRight, MessageSquare, Activity, ClipboardCheck, CreditCard,
+  CalendarDays, Package, Sun, Globe, ChevronRight, Check, AlertTriangle,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
@@ -45,20 +47,27 @@ type ActivityItem = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function getCheckinStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  let daysBack = (today.getDay() - checkinDay + 7) % 7
-  // If today IS the checkin day, give grace until end of day — look back 7 days
-  if (daysBack === 0) daysBack = 7
+  const rawDaysBack = (today.getDay() - checkinDay + 7) % 7
+
+  // Today IS the check-in day — neutral until submitted today
+  if (rawDaysBack === 0) {
+    if (!lastCheckin) return 'neutral'
+    return lastCheckin >= isoDate(today) ? 'submitted' : 'neutral'
+  }
+
+  // Check-in day was rawDaysBack days ago — did they submit since then?
   const expected = new Date(today)
-  expected.setDate(today.getDate() - daysBack)
-  // Use date-string comparison to avoid timezone issues
-  const yyyy = expected.getFullYear()
-  const mm   = String(expected.getMonth() + 1).padStart(2, '0')
-  const dd   = String(expected.getDate()).padStart(2, '0')
-  const expectedStr = `${yyyy}-${mm}-${dd}`
-  if (!lastCheckin) return 'late'
+  expected.setDate(today.getDate() - rawDaysBack)
+  const expectedStr = isoDate(expected)
+
+  if (!lastCheckin) return 'neutral'  // no check-ins yet → neutral, not kasni
   return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 
@@ -159,6 +168,9 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true)
   const [trainerName, setTrainerName] = useState('')
+  const [dashView, setDashView] = usePersistedTab('dashboard_view', 'global') as [string, (v: string) => void]
+  const [todayCheckinClients, setTodayCheckinClients] = useState<{ id: string; full_name: string; submitted: boolean }[]>([])
+  const [expiringPackages, setExpiringPackages] = useState<{ id: string; client_name: string; pkg_name: string; end_date: string; days_left: number; client_id: string }[]>([])
   const [stats, setStats] = useState({
     activeClients: 0, submitted: 0, late: 0, neutral: 0,
     expectedMonth: 0, collectedMonth: 0, latePayments: 0,
@@ -185,11 +197,20 @@ export default function DashboardPage() {
     // Clients
     const { data: clientsData } = await supabase
       .from('clients')
-      .select(`id, start_date, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
+      .select(`id, start_date, profiles!clients_user_id_fkey(full_name)`)
       .eq('trainer_id', user.id)
       .eq('active', true)
 
     const clientIds = clientsData?.map(c => c.id) || []
+
+    // Checkin config — separate query (more reliable than join)
+    const { data: checkinConfigs } = await supabase
+      .from('checkin_config')
+      .select('client_id, checkin_day')
+      .in('client_id', clientIds)
+
+    const checkinDayMap: Record<string, number> = {}
+    checkinConfigs?.forEach(cfg => { checkinDayMap[cfg.client_id] = cfg.checkin_day })
 
     // Checkins
     const { data: allCheckins } = await supabase
@@ -206,7 +227,7 @@ export default function DashboardPage() {
 
     // Build client rows
     const rows: ClientRow[] = (clientsData || []).map((c: any) => {
-      const checkinDay  = c.checkin_config?.[0]?.checkin_day ?? null
+      const checkinDay  = checkinDayMap[c.id] ?? null
       const lastCheckin = lastCheckinMap[c.id] || null
       const total       = checkinCountMap[c.id] || 0
       const rate        = getCheckinRate(total, c.start_date)
@@ -235,6 +256,14 @@ export default function DashboardPage() {
     })
     setClients(rows)
 
+    // Today widget — clients with check-in day = today
+    const todayDay = new Date().getDay()
+    const todayStr = isoDate(new Date())
+    const todayClients = rows
+      .filter(r => r.checkin_day === todayDay)
+      .map(r => ({ id: r.id, full_name: r.full_name, submitted: !!(r.last_checkin && r.last_checkin >= todayStr) }))
+    setTodayCheckinClients(todayClients)
+
     // Unread messages
     const { count: unread } = await supabase
       .from('messages')
@@ -251,7 +280,7 @@ export default function DashboardPage() {
     // Fetch all packages (not just active) to include historical payments in charts
     const { data: packagesData } = await supabase
       .from('client_packages')
-      .select(`id, price, status, start_date, end_date, payments(*)`)
+      .select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`)
       .eq('trainer_id', user.id)
 
     let expectedMonth = 0, collectedMonth = 0, latePayments = 0
@@ -287,6 +316,26 @@ export default function DashboardPage() {
     })
 
     const progress = expectedMonth > 0 ? Math.min(100, Math.round((collectedMonth / expectedMonth) * 100)) : 0
+
+    // Expiring packages (within 7 days, active, not paid)
+    const clientNameMapForPkg: Record<string, string> = {}
+    rows.forEach(r => { clientNameMapForPkg[r.id] = r.full_name })
+    const expiring = (packagesData || [])
+      .filter((cp: any) => {
+        if (cp.status !== 'active') return false
+        const dl = Math.ceil((new Date(cp.end_date).getTime() - Date.now()) / 86400000)
+        return dl >= 0 && dl <= 7
+      })
+      .map((cp: any) => ({
+        id: cp.id,
+        client_id: cp.client_id,
+        client_name: clientNameMapForPkg[cp.client_id] || '—',
+        pkg_name: (cp.packages as any)?.name || '—',
+        end_date: cp.end_date,
+        days_left: Math.ceil((new Date(cp.end_date).getTime() - Date.now()) / 86400000),
+      }))
+      .sort((a: any, b: any) => a.days_left - b.days_left)
+    setExpiringPackages(expiring)
 
     // Year-to-date revenue
     const thisYear = now.getFullYear().toString()
@@ -411,17 +460,181 @@ export default function DashboardPage() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             {greeting}{trainerName ? `, ${trainerName}` : ''} 👋
           </h1>
           <p className="text-gray-400 text-sm mt-0.5 capitalize">{dateStr}</p>
         </div>
+        {/* View toggle */}
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <button
+            onClick={() => setDashView('today')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${dashView === 'today' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Sun size={13} /> Danas
+          </button>
+          <button
+            onClick={() => setDashView('global')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${dashView === 'global' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Globe size={13} /> Globalno
+          </button>
+        </div>
       </div>
 
+      {/* ── TODAY VIEW ── */}
+      {dashView === 'today' && (() => {
+        const todayDayName = ['nedjelja','ponedjeljak','utorak','srijeda','četvrtak','petak','subota'][new Date().getDay()]
+        const submittedCount = todayCheckinClients.filter(c => c.submitted).length
+        const waitingCount   = todayCheckinClients.filter(c => !c.submitted).length
+        return (
+          <div className="space-y-5">
+
+            {/* Mini stat row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Check-ini danas', value: todayCheckinClients.length, icon: CalendarDays, color: accentHex, bg: `${accentHex}12` },
+                { label: 'Predano', value: submittedCount, icon: Check, color: '#16a34a', bg: '#dcfce7' },
+                { label: 'Čeka', value: waitingCount, icon: Clock, color: '#d97706', bg: '#fef3c7' },
+                { label: 'Paketi ističu', value: expiringPackages.length, icon: AlertTriangle, color: expiringPackages.length > 0 ? '#dc2626' : '#9ca3af', bg: expiringPackages.length > 0 ? '#fee2e2' : '#f9fafb' },
+              ].map(s => (
+                <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.bg }}>
+                    <s.icon size={16} style={{ color: s.color }} />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-gray-900 leading-none">{s.value}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{s.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Check-ins today */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
+                    <CalendarDays size={15} style={{ color: accentHex }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">Check-ini danas</p>
+                    <p className="text-xs text-gray-400 capitalize">{todayDayName}</p>
+                  </div>
+                  {todayCheckinClients.length > 0 && (
+                    <button onClick={() => router.push('/dashboard/checkins')}
+                      className="flex items-center gap-1 text-xs font-medium transition-colors"
+                      style={{ color: accentHex }}>
+                      Svi <ChevronRight size={12} />
+                    </button>
+                  )}
+                </div>
+                {todayCheckinClients.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-5">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}10` }}>
+                      <CalendarDays size={22} style={{ color: accentHex, opacity: 0.4 }} />
+                    </div>
+                    <p className="text-sm font-medium text-gray-500">Nema check-ina danas</p>
+                    <p className="text-xs text-gray-400 mt-1">Klijenti s check-inom u {todayDayName}</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {todayCheckinClients.map(c => (
+                      <div
+                        key={c.id}
+                        onClick={() => router.push(`/dashboard/clients/${c.id}?tab=checkin`)}
+                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors group"
+                      >
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}15` }}>
+                          <span className="text-xs font-bold" style={{ color: accentHex }}>
+                            {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="flex-1 text-sm font-medium text-gray-800">{c.full_name}</span>
+                        {c.submitted ? (
+                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <Check size={10} /> Predano
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                            <Clock size={10} /> Čeka
+                          </span>
+                        )}
+                        <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors ml-1" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Expiring packages */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
+                  <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
+                    <Package size={15} className="text-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900">Paketi ističu</p>
+                    <p className="text-xs text-gray-400">≤ 7 dana do isteka</p>
+                  </div>
+                  {expiringPackages.length > 0 && (
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      {expiringPackages.length}
+                    </span>
+                  )}
+                </div>
+                {expiringPackages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center px-5">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+                      <Package size={22} className="text-amber-300" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-500">Nema paketa koji ističu</p>
+                    <p className="text-xs text-gray-400 mt-1">Svi paketi su aktivni ovaj tjedan</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {expiringPackages.map(pkg => {
+                      const urgent = pkg.days_left <= 2
+                      return (
+                        <div
+                          key={pkg.id}
+                          onClick={() => router.push(`/dashboard/clients/${pkg.client_id}?tab=paketi`)}
+                          className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors group"
+                        >
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${urgent ? 'bg-red-50' : 'bg-amber-50'}`}>
+                            <span className={`text-xs font-bold ${urgent ? 'text-red-500' : 'text-amber-600'}`}>
+                              {pkg.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{pkg.client_name}</p>
+                            <p className="text-xs text-gray-400 truncate">{pkg.pkg_name}</p>
+                          </div>
+                          <div className="flex flex-col items-end shrink-0 gap-0.5">
+                            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+                              pkg.days_left === 0 ? 'bg-red-50 text-red-600 border-red-100' :
+                              urgent ? 'bg-red-50 text-red-600 border-red-100' :
+                              'bg-amber-50 text-amber-700 border-amber-100'
+                            }`}>
+                              {pkg.days_left === 0 ? 'Danas istječe!' : `${pkg.days_left}d`}
+                            </span>
+                          </div>
+                          <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Stat cards — 2 rows × 4 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${dashView === 'today' ? 'hidden' : ''}`}>
         <StatCard icon={Users}         label="Aktivni klijenti"         value={stats.activeClients}     color="accent"  onClick={() => router.push('/dashboard/clients')} />
         <StatCard icon={CheckCircle2}  label="Check-in ovaj tjedan"     value={stats.submitted}         color="emerald" sub={`${stats.late} kasni`} onClick={() => router.push('/dashboard/checkins')} />
         <StatCard icon={AlertCircle}   label="Kasni check-in"           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
@@ -433,7 +646,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts + checkin list */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-5 ${dashView === 'today' ? 'hidden' : ''}`}>
 
         {/* Revenue bar chart */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -495,7 +708,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent activity feed */}
-      {recentActivity.length > 0 && (
+      {dashView === 'global' && recentActivity.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -541,8 +754,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Checkin status — all clients */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+      {/* Checkin status — all clients (global view only) */}
+      {dashView === 'global' && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <p className="text-sm font-semibold text-gray-900">Status check-ina</p>
@@ -564,7 +777,7 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
     </div>
   )

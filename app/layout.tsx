@@ -15,10 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UnitLift",
-  description: "UnitLift — coaching platform",
+  title: "UnitLift — Coaching Platform",
+  description: "UnitLift is a coaching platform for personal trainers to manage clients, check-ins, workout plans, nutrition, chat, and progress tracking in one place.",
   icons: {
     icon: '/favicon.svg',
+  },
+  openGraph: {
+    title: "UnitLift App — Coaching Platform for Personal Trainers",
+    description: "A coaching platform for personal trainers to manage clients, check-ins, workouts, nutrition, chat, and progress tracking in one place.",
+    type: "website",
   },
 };
 

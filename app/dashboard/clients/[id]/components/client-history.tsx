@@ -57,7 +57,7 @@ export default function ClientHistory({ clientId }: Props) {
   const fetchStatic = async () => {
     const [{ data: w }, { data: cfg }] = await Promise.all([
       supabase.from('workout_logs').select('id, date, day_name, exercises').eq('client_id', clientId).order('date', { ascending: false }).limit(120),
-      supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).single(),
+      supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
     ])
     if (w) setWorkouts(w)
     if (cfg?.checkin_day != null) setCheckinDay(cfg.checkin_day)

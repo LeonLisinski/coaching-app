@@ -113,7 +113,7 @@ export default function ProfilePage() {
     const [{ data: pd }, { data: pkgs }, { data: tp }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('packages').select('*').eq('trainer_id', user.id).order('created_at'),
-      supabase.from('trainer_profiles').select('nutrition_fields, exercise_fields, social_visibility').eq('id', user.id).single(),
+      supabase.from('trainer_profiles').select('*').eq('id', user.id).maybeSingle(),
     ])
     if (pd) {
       setProfile(pd)

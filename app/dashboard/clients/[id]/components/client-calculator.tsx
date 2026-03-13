@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Calculator, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -281,6 +281,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
             <DialogTitle className="flex items-center gap-2">
               <Calculator size={16} /> {t('title')}
             </DialogTitle>
+            <DialogDescription className="sr-only">{t('title')}</DialogDescription>
           </DialogHeader>
 
           {/* Tab bar */}

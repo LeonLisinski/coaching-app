@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Copy, X, Check, ChevronDown, ChevronUp, Dumbbell, UtensilsCrossed, ClipboardCheck, Zap, CreditCard } from 'lucide-react'
@@ -276,6 +276,7 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
         {/* Header */}
         <div className="px-6 py-4 shrink-0 flex items-center gap-3"
@@ -487,3 +488,4 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
     </Dialog>
   )
 }
+

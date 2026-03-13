@@ -35,11 +35,21 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
 
-  // Auto-select client from URL param (e.g. from reminder button)
+  // Auto-select client from URL param or last stored chat
   useEffect(() => {
     const preselect = searchParams.get('clientId')
-    if (preselect) setSelectedClientId(preselect)
+    if (preselect) {
+      setSelectedClientId(preselect)
+    } else {
+      const stored = localStorage.getItem('last_chat_client_id')
+      if (stored) setSelectedClientId(stored)
+    }
   }, [searchParams])
+
+  // Persist selected chat so sidebar "Chat" link brings you back here
+  useEffect(() => {
+    if (selectedClientId) localStorage.setItem('last_chat_client_id', selectedClientId)
+  }, [selectedClientId])
 
   useEffect(() => {
     fetchClients()

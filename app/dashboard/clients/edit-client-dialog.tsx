@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTranslations } from 'next-intl'
 import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -82,6 +82,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     weight: client.weight?.toString() || '',
     height: client.height?.toString() || '',
     start_date: client.start_date || '',
+    start_date_display: isoToDisplay(client.start_date),
     gender: (client.gender === 'M' || client.gender === 'F') ? client.gender as 'M' | 'F' : '' as '' | 'M' | 'F',
     activity_level: (validActivityLevels.includes(client.activity_level || '') ? client.activity_level : '') as ActivityLevel,
     notes: client.notes || '',
@@ -124,7 +125,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
           height:         data.height?.toString() || '',
           dob_display:    isoToDisplay(data.date_of_birth),
           date_of_birth:  data.date_of_birth || '',
-          start_date:     data.start_date || '',
+          start_date:         data.start_date || '',
+          start_date_display: isoToDisplay(data.start_date),
           gender:         (data.gender === 'M' || data.gender === 'F') ? data.gender : '',
           activity_level: (vAL.includes(data.activity_level || '') ? data.activity_level : '') as ActivityLevel,
           notes:          data.notes || '',
@@ -287,6 +289,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
         {/* Header with gradient */}
         <div className="px-6 py-4 shrink-0 flex items-center gap-3"
@@ -390,11 +393,11 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                 <div className="space-y-2">
                   <Label>{tAdd('startDate')}</Label>
                   <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy"
-                    value={isoToDisplay(form.start_date) || form.start_date}
+                    value={form.start_date_display}
                     onChange={e => {
                       const formatted = formatDobInput(e.target.value)
                       const iso = dobDisplayToIso(formatted)
-                      setForm(f => ({ ...f, start_date: iso || '' }))
+                      setForm(f => ({ ...f, start_date_display: formatted, start_date: iso || '' }))
                     }}
                     maxLength={10} onFocus={inputFocus} onBlur={inputBlur} />
                 </div>
@@ -572,3 +575,4 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     </Dialog>
   )
 }
+

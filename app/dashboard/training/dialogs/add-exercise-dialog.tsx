@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { X, Dumbbell } from 'lucide-react'
 import { EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
@@ -97,6 +97,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('addTitle')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('addTitle')}</DialogDescription>
 
         {/* Colored header */}
         <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -205,4 +206,5 @@ export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
     </Dialog>
   )
 }
+
 

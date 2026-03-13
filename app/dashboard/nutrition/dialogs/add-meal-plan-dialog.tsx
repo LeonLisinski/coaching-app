@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
@@ -182,6 +182,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogTitle className="sr-only">Dodaj plan prehrane</DialogTitle>
+        <DialogDescription className="sr-only">Dodaj plan prehrane</DialogDescription>
 
         {/* Purple header */}
         <div className="bg-gradient-to-r from-purple-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -296,4 +297,5 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
     </Dialog>
   )
 }
+
 

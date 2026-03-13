@@ -59,32 +59,26 @@ export default function ClientOverview({ clientId }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setTrainerId(user.id)
 
-    // Weight: try checkin_entries first (numeric parameters matching common weight names)
-    const { data: paramDefs } = await supabase
-      .from('checkin_parameters')
-      .select('id, name, type')
+    // Weight: read directly from checkins.values JSON (no separate entries table needed)
+    const { data: recentCheckins } = await supabase
+      .from('checkins')
+      .select('id, date, values')
       .eq('client_id', clientId)
-      .eq('type', 'number')
+      .order('date', { ascending: false })
+      .limit(12)
 
-    // Pick the param whose name best matches weight-related keywords
-    const weightKeywords = ['težin', 'tjelesn', 'masa', 'weight', 'kg']
-    const weightParam = (paramDefs || []).find(p =>
-      weightKeywords.some(kw => p.name?.toLowerCase().includes(kw))
-    ) || (paramDefs || [])[0] // fallback: first numeric param
-
-    if (weightParam) {
-      const { data: entries } = await supabase
-        .from('checkin_entries')
-        .select('value, checkin_id, checkins(date)')
-        .eq('parameter_id', weightParam.id)
-        .order('checkin_id', { ascending: false })
-        .limit(12)
-      const pts = (entries || [])
-        .filter((e: any) => e.value && !isNaN(parseFloat(e.value)) && e.checkins?.date)
-        .map((e: any) => ({ date: e.checkins.date, w: parseFloat(e.value) }))
-        .reverse()
-      if (pts.length > 0) setWeightData(pts)
-    }
+    const weightKeys = ['težina', 'tezina', 'weight', 'masa', 'tjelesna_masa', 'tjelesna masa', 'body_weight']
+    const pts = (recentCheckins || [])
+      .map((c: any) => {
+        const vals = c.values || {}
+        // Try known keys, then find first numeric value in the object
+        const raw = weightKeys.map(k => vals[k]).find(v => v != null && !isNaN(parseFloat(v)))
+          ?? Object.values(vals).find((v: any) => v != null && !isNaN(parseFloat(v)) && parseFloat(v) > 20 && parseFloat(v) < 300)
+        return raw != null ? { date: c.date, w: parseFloat(raw) } : null
+      })
+      .filter(Boolean)
+      .reverse() as { date: string; w: number }[]
+    if (pts.length > 0) setWeightData(pts)
 
     // Last check-in
     const { data: lastCi } = await supabase
@@ -93,7 +87,7 @@ export default function ClientOverview({ clientId }: Props) {
       .eq('client_id', clientId)
       .order('date', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
     if (lastCi) setLastCheckin(lastCi)
 
     // Active workout plan

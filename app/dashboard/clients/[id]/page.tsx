@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Pencil, CreditCard, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2, LayoutDashboard } from 'lucide-react'
+import { ArrowLeft, Pencil, CreditCard, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2, LayoutDashboard, GitCommitHorizontal } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 
@@ -57,6 +58,7 @@ import ClientPackages from '@/app/dashboard/clients/[id]/components/client-packa
 import ClientHistory from '@/app/dashboard/clients/[id]/components/client-history'
 import ClientOverview from '@/app/dashboard/clients/[id]/components/client-overview'
 import ClientCalculator from '@/app/dashboard/clients/[id]/components/client-calculator'
+import ClientTimeline from '@/app/dashboard/clients/[id]/components/client-timeline'
 import { useTranslations } from 'next-intl'
 
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
@@ -128,6 +130,12 @@ export default function ClientDetailPage() {
 
   const { id } = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const urlTab = searchParams.get('tab')
+  // Per-client persistence; URL param overrides storage (for quick-action deep links)
+  const [activeTab, setActiveTab] = usePersistedTab(`client_tab_${id as string}`, 'pregled')
+  // URL ?tab=xxx takes priority over stored value (e.g. quick-action links)
+  useEffect(() => { if (urlTab) setActiveTab(urlTab) }, [urlTab])
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -212,7 +220,7 @@ export default function ClientDetailPage() {
       <div className={`rounded-2xl overflow-hidden border ${headerBorder} shadow-sm`}>
         <div className={`bg-gradient-to-r ${headerGradient} px-6 py-5 flex items-center gap-4`}>
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/dashboard/clients')}
             className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0"
           >
             <ArrowLeft size={15} className="text-white" />
@@ -330,7 +338,7 @@ export default function ClientDetailPage() {
       )}
 
       <div className="flex items-center justify-between">
-        <Tabs defaultValue="pregled" className="flex-1">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="flex items-center gap-2">
             <TabsList className="flex-wrap h-auto gap-1 bg-gray-100/80">
               <TabsTrigger value="pregled" className="flex items-center gap-1.5">
@@ -356,6 +364,9 @@ export default function ClientDetailPage() {
               </TabsTrigger>
               <TabsTrigger value="paketi" className="flex items-center gap-1.5">
                 <Package size={13} />{t('tabs.packages')}
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="flex items-center gap-1.5">
+                <GitCommitHorizontal size={13} />Timeline
               </TabsTrigger>
             </TabsList>
             <button
@@ -390,6 +401,9 @@ export default function ClientDetailPage() {
           </TabsContent>
           <TabsContent value="paketi" className="mt-6">
             <ClientPackages clientId={id as string} />
+          </TabsContent>
+          <TabsContent value="timeline" className="mt-6">
+            <ClientTimeline clientId={id as string} />
           </TabsContent>
         </Tabs>
       </div>

@@ -24,25 +24,34 @@ type ClientCheckin = {
   status: 'submitted' | 'late' | 'neutral'
 }
 
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function getStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
-  let daysAgo = (today.getDay() - checkinDay + 7) % 7
-  if (daysAgo === 0) daysAgo = 7
+  const rawDaysBack = (today.getDay() - checkinDay + 7) % 7
+
+  // Today IS the check-in day — still time to submit, show neutral unless already submitted today
+  if (rawDaysBack === 0) {
+    if (!lastCheckin) return 'neutral'
+    return lastCheckin >= isoDate(today) ? 'submitted' : 'neutral'
+  }
+
+  // Check-in day was rawDaysBack days ago — check if submitted since then
   const expected = new Date(today)
-  expected.setDate(today.getDate() - daysAgo)
-  const yyyy = expected.getFullYear()
-  const mm   = String(expected.getMonth() + 1).padStart(2, '0')
-  const dd   = String(expected.getDate()).padStart(2, '0')
-  const expectedStr = `${yyyy}-${mm}-${dd}`
-  if (!lastCheckin) return 'late'
+  expected.setDate(today.getDate() - rawDaysBack)
+  const expectedStr = isoDate(expected)
+
+  if (!lastCheckin) return 'neutral'  // no check-ins yet → neutral, not kasni
   return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 
 const STATUS_CONFIG = {
   submitted: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Predano' },
   late:      { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-600 border-red-200',             label: 'Kasni' },
-  neutral:   { dot: 'bg-gray-300',   badge: 'bg-gray-50 text-gray-400 border-gray-200',           label: 'Bez konfiguracije' },
+  neutral:   { dot: 'bg-gray-300',   badge: 'bg-gray-50 text-gray-400 border-gray-200',           label: 'Na čekanju' },
 }
 
 const DAY_NAMES_SHORT = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']

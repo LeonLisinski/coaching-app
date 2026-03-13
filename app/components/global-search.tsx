@@ -72,12 +72,12 @@ export default function GlobalSearch() {
           .limit(100),
         supabase
           .from('exercises')
-          .select('id, name, primary_muscle_group')
+          .select('id, name, category, primary_muscles')
           .ilike('name', `%${q}%`)
           .limit(5),
         supabase
           .from('foods')
-          .select('id, name, calories')
+          .select('id, name, calories_per_100g')
           .ilike('name', `%${q}%`)
           .limit(5),
       ])
@@ -95,12 +95,14 @@ export default function GlobalSearch() {
           r.push({ id: c.id, type: 'client', title: p?.full_name || 'Nepoznat', subtitle: p?.email, href: `/dashboard/clients/${c.id}` })
         })
 
-      exercises?.forEach(e => {
-        r.push({ id: e.id, type: 'exercise', title: e.name, subtitle: e.primary_muscle_group || undefined, href: '/dashboard/training' })
+      exercises?.forEach((e: any) => {
+        const muscles = Array.isArray(e.primary_muscles) && e.primary_muscles.length > 0
+          ? e.primary_muscles[0] : e.category || undefined
+        r.push({ id: e.id, type: 'exercise', title: e.name, subtitle: muscles, href: '/dashboard/training' })
       })
 
-      foods?.forEach(f => {
-        r.push({ id: f.id, type: 'food', title: f.name, subtitle: f.calories ? `${f.calories} kcal` : undefined, href: '/dashboard/nutrition' })
+      foods?.forEach((f: any) => {
+        r.push({ id: f.id, type: 'food', title: f.name, subtitle: f.calories_per_100g ? `${f.calories_per_100g} kcal/100g` : undefined, href: '/dashboard/nutrition' })
       })
 
       setResults(r)

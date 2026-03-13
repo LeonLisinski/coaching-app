@@ -156,6 +156,7 @@ export default function LoginPage() {
                   id="email" type="email" value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder={t('placeholderEmail')}
+                  autoComplete="email"
                   required
                   onFocus={focusInput} onBlur={blurInput}
                   className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-300 bg-gray-50/60 focus:bg-white"
@@ -176,6 +177,7 @@ export default function LoginPage() {
                     id="password" type={showPwd ? 'text' : 'password'} value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    autoComplete="current-password"
                     required
                     onFocus={focusInput} onBlur={blurInput}
                     className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-300 bg-gray-50/60 focus:bg-white"

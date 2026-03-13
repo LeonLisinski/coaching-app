@@ -73,7 +73,7 @@ export default function CheckinHistory({ clientId }: Props) {
     const [{ data: paramsData }, { data: checkinsData }, { data: configData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
       supabase.from('checkins').select('id, date, values, photo_urls, trainer_comment').eq('client_id', clientId).order('date', { ascending: false }),
-      supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).single(),
+      supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date'),
     ])
 

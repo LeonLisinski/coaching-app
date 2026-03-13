@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { X, Dumbbell, Pencil } from 'lucide-react'
 import { Exercise, EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
 import { useTranslations } from 'next-intl'
@@ -111,6 +111,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
         {/* Colored header */}
         <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -210,4 +211,5 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     </Dialog>
   )
 }
+
 

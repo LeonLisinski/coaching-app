@@ -42,13 +42,16 @@ export default function CheckinGraphs({ clientId }: Props) {
     if (!user) return
     const [{ data: paramsData }, { data: checkinsData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('checkins').select('date, values').eq('client_id', clientId).order('date'),
+      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date'),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date'),
     ])
     if (paramsData) setParams(paramsData)
+
+    // Merge checkins.values + daily_logs into a single date-keyed map
     const merged: Record<string, Record<string, any>> = {}
     dailyData?.forEach(d => { merged[d.date] = { ...merged[d.date], ...d.values } })
     checkinsData?.forEach(c => { merged[c.date] = { ...merged[c.date], ...c.values } })
+
     setDataPoints(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b)).map(([date, values]) => ({ date, values })))
     setLoading(false)
   }

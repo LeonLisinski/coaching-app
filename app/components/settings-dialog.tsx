@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
 import { Settings, Mail, Globe, Check, Palette } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -38,6 +38,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-md p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
         {/* Header */}
         <div

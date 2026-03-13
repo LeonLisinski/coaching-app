@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Plus, CreditCard, ChevronDown, ChevronUp, Check, Clock, AlertTriangle, RefreshCw, Trash2, Calendar, Pencil } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useTranslations } from 'next-intl'
@@ -38,6 +38,23 @@ function durationLabel(days: number): string {
   return m === 1 ? '1 mj.' : `${m} mj.`
 }
 function today() { return new Date().toISOString().split('T')[0] }
+// dd/mm/yyyy ↔ yyyy-mm-dd helpers
+function isoToDisp(iso: string | null): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
+function dispToIso(disp: string): string {
+  const m = disp.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+}
+function fmtDateInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`
+}
+function todayDisp() { return isoToDisp(today()) }
 
 function PaymentStatusBadge({ status, daysLeftVal }: { status: 'paid' | 'upcoming' | 'pending' | 'late'; daysLeftVal?: number }) {
   const t = useTranslations('clients.packages')
@@ -69,7 +86,7 @@ export default function ClientPackages({ clientId }: Props) {
 
   // Assign dialog (only when no active package)
   const [showAssignDialog, setShowAssignDialog] = useState(false)
-  const [assignForm, setAssignForm]             = useState({ package_id: '', start_date: today(), price: '', notes: '' })
+  const [assignForm, setAssignForm]             = useState({ package_id: '', start_date: today(), start_disp: todayDisp(), price: '', notes: '' })
 
   // Replace dialog (when active package exists)
   const [showReplaceDialog, setShowReplaceDialog] = useState(false)
@@ -80,7 +97,12 @@ export default function ClientPackages({ clientId }: Props) {
   // Payment dialog
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [selectedCp, setSelectedCp]             = useState<ClientPackage | null>(null)
-  const [paymentForm, setPaymentForm]           = useState({ amount: '', paid_at: today(), notes: '' })
+  const [paymentForm, setPaymentForm]           = useState({ amount: '', paid_at: today(), paid_at_disp: todayDisp(), notes: '' })
+
+  // Edit dates dialog
+  const [showEditDatesDialog, setShowEditDatesDialog] = useState(false)
+  const [editDatesCp, setEditDatesCp]           = useState<ClientPackage | null>(null)
+  const [editDatesForm, setEditDatesForm]       = useState({ start_date: '', end_date: '', start_disp: '', end_disp: '' })
 
   // Confirm delete
   const [confirmDeleteCp, setConfirmDeleteCp]   = useState<ClientPackage | null>(null)
@@ -141,7 +163,7 @@ export default function ClientPackages({ clientId }: Props) {
       await supabase.from('payments').insert({ trainer_id: trainerId, client_id: clientId, client_package_id: cpData.id, amount: cpData.price, status: 'pending' })
     }
     setShowAssignDialog(false)
-    setAssignForm({ package_id: '', start_date: today(), price: '', notes: '' })
+    setAssignForm({ package_id: '', start_date: today(), start_disp: todayDisp(), price: '', notes: '' })
     fetchData()
   }
 
@@ -203,13 +225,32 @@ export default function ClientPackages({ clientId }: Props) {
 
   const openPayment = (cp: ClientPackage) => {
     setSelectedCp(cp)
-    setPaymentForm({ amount: cp.price.toString(), paid_at: today(), notes: '' })
+    setPaymentForm({ amount: cp.price.toString(), paid_at: today(), paid_at_disp: todayDisp(), notes: '' })
     setShowPaymentDialog(true)
   }
 
+  const openEditDates = (cp: ClientPackage) => {
+    setEditDatesCp(cp)
+    setEditDatesForm({ start_date: cp.start_date, end_date: cp.end_date, start_disp: isoToDisp(cp.start_date), end_disp: isoToDisp(cp.end_date) })
+    setShowEditDatesDialog(true)
+  }
+
+  const savePackageDates = async () => {
+    if (!editDatesCp) return
+    await supabase.from('client_packages').update({
+      start_date: editDatesForm.start_date,
+      end_date:   editDatesForm.end_date,
+    }).eq('id', editDatesCp.id)
+    setShowEditDatesDialog(false)
+    setEditDatesCp(null)
+    fetchData()
+  }
+
   const saveCollabStart = async () => {
-    await supabase.from('clients').update({ start_date: collabStartDraft || null }).eq('id', clientId)
-    setCollabStart(collabStartDraft || null)
+    const iso = dispToIso(collabStartDraft)
+    const val = iso || null
+    await supabase.from('clients').update({ start_date: val }).eq('id', clientId)
+    setCollabStart(val)
     setEditingCollabStart(false)
   }
 
@@ -232,7 +273,10 @@ export default function ClientPackages({ clientId }: Props) {
         {editingCollabStart ? (
           <div className="flex items-center gap-2 flex-1">
             <span className="text-xs text-gray-500 shrink-0">{t('collabFrom')}</span>
-            <Input type="date" value={collabStartDraft} onChange={e => setCollabStartDraft(e.target.value)} className="h-6 text-xs flex-1 max-w-[160px]" />
+            <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+              value={collabStartDraft}
+              onChange={e => setCollabStartDraft(fmtDateInput(e.target.value))}
+              className="h-6 text-xs flex-1 max-w-[160px]" />
             <Button size="sm" className="h-6 text-xs px-2" onClick={saveCollabStart}>{tCommon('save')}</Button>
             <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => setEditingCollabStart(false)}>{tCommon('cancel')}</Button>
           </div>
@@ -240,7 +284,7 @@ export default function ClientPackages({ clientId }: Props) {
           <div className="flex items-center gap-2 flex-1">
             <span className="text-xs text-gray-500">{t('collabFrom')}</span>
             <span className="text-xs font-medium text-gray-700">{collabStart ? fmtDate(collabStart) : t('collabNotSet')}</span>
-            <button onClick={() => { setCollabStartDraft(collabStart ?? ''); setEditingCollabStart(true) }}
+            <button onClick={() => { setCollabStartDraft(isoToDisp(collabStart)); setEditingCollabStart(true) }}
               className="text-gray-400 hover:text-gray-600 ml-auto">
               <Pencil size={12} />
             </button>
@@ -291,6 +335,7 @@ export default function ClientPackages({ clientId }: Props) {
                   onPay={() => openPayment(cp)}
                   onReplace={() => openReplaceDialog(cp)}
                   onDelete={() => setConfirmDeleteCp(cp)}
+                  onEditDates={() => openEditDates(cp)}
                   showReplaceBtn
                 />
               ))}
@@ -310,6 +355,7 @@ export default function ClientPackages({ clientId }: Props) {
                   onPay={() => openPayment(cp)}
                   onReplace={() => {}}
                   onDelete={() => setConfirmDeleteCp(cp)}
+                  onEditDates={() => openEditDates(cp)}
                   showReplaceBtn={false}
                 />
               ))}
@@ -321,7 +367,7 @@ export default function ClientPackages({ clientId }: Props) {
       {/* Assign dialog (no active package) */}
       <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('assignPackage')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('assignPackage')}</DialogTitle><DialogDescription className="sr-only">{t('assignPackage')}</DialogDescription></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
               <Label className="text-xs">{t('packageLabel')}</Label>
@@ -342,7 +388,13 @@ export default function ClientPackages({ clientId }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">{t('startDate')}</Label>
-                <Input type="date" value={assignForm.start_date} onChange={e => setAssignForm({ ...assignForm, start_date: e.target.value })} className="h-8 text-sm" />
+                <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  value={assignForm.start_disp}
+                  onChange={e => {
+                    const disp = fmtDateInput(e.target.value)
+                    setAssignForm({ ...assignForm, start_disp: disp, start_date: dispToIso(disp) || assignForm.start_date })
+                  }}
+                  className="h-8 text-sm" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t('price')}</Label>
@@ -368,6 +420,7 @@ export default function ClientPackages({ clientId }: Props) {
             <DialogTitle className="flex items-center gap-2">
               <RefreshCw size={16} className="text-gray-500" /> {t('replaceTitle')}
             </DialogTitle>
+            <DialogDescription className="sr-only">{t('replaceTitle')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {activeCpForReplace && (
@@ -433,6 +486,58 @@ export default function ClientPackages({ clientId }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Edit dates dialog */}
+      <Dialog open={showEditDatesDialog} onOpenChange={setShowEditDatesDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil size={15} className="text-gray-500" /> Uredi datume paketa
+            </DialogTitle>
+            <DialogDescription className="sr-only">Uredi datume paketa</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {editDatesCp && (
+              <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                Paket: <span className="font-medium text-gray-700">{editDatesCp.packages?.name}</span>
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">{t('startDate')}</Label>
+                <Input
+                  type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  value={editDatesForm.start_disp}
+                  onChange={e => {
+                    const disp = fmtDateInput(e.target.value)
+                    setEditDatesForm(f => ({ ...f, start_disp: disp, start_date: dispToIso(disp) || f.start_date }))
+                  }}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Datum isteka</Label>
+                <Input
+                  type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  value={editDatesForm.end_disp}
+                  onChange={e => {
+                    const disp = fmtDateInput(e.target.value)
+                    setEditDatesForm(f => ({ ...f, end_disp: disp, end_date: dispToIso(disp) || f.end_date }))
+                  }}
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-400">Možeš slobodno postaviti oba datuma neovisno o trajanju paketa.</p>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={savePackageDates} disabled={!editDatesForm.start_date || !editDatesForm.end_date}>
+                <Check size={13} className="mr-1" /> {tCommon('save')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowEditDatesDialog(false)}>{tCommon('cancel')}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirm delete dialog */}
       <ConfirmDialog
         open={confirmDeleteCp !== null}
@@ -447,7 +552,7 @@ export default function ClientPackages({ clientId }: Props) {
       {/* Payment dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{t('paymentTitle')}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('paymentTitle')}</DialogTitle><DialogDescription className="sr-only">{t('paymentTitle')}</DialogDescription></DialogHeader>
           <div className="space-y-3 pt-2">
             <p className="text-sm text-gray-500">
               {t('paymentPackageLabel')} <span className="font-medium text-gray-800">{selectedCp?.packages?.name}</span>
@@ -460,7 +565,13 @@ export default function ClientPackages({ clientId }: Props) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t('paymentDate')}</Label>
-                <Input type="date" value={paymentForm.paid_at} onChange={e => setPaymentForm({ ...paymentForm, paid_at: e.target.value })} className="h-8 text-sm" />
+                <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  value={paymentForm.paid_at_disp}
+                  onChange={e => {
+                    const disp = fmtDateInput(e.target.value)
+                    setPaymentForm({ ...paymentForm, paid_at_disp: disp, paid_at: dispToIso(disp) || paymentForm.paid_at })
+                  }}
+                  className="h-8 text-sm" />
               </div>
             </div>
             <div className="space-y-1">
@@ -478,10 +589,10 @@ export default function ClientPackages({ clientId }: Props) {
   )
 }
 
-function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDelete, showReplaceBtn }: {
+function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDelete, onEditDates, showReplaceBtn }: {
   cp: ClientPackage; expanded: boolean; onToggle: () => void
   payStatus: 'paid' | 'upcoming' | 'pending' | 'late'; onPay: () => void
-  onReplace: () => void; onDelete: () => void; showReplaceBtn: boolean
+  onReplace: () => void; onDelete: () => void; onEditDates: () => void; showReplaceBtn: boolean
 }) {
   const t = useTranslations('clients.packages')
   const tCommon = useTranslations('common')
@@ -512,6 +623,10 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDe
                 <RefreshCw size={12} />
               </button>
             )}
+            <button onClick={onEditDates} title="Uredi datume"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors">
+              <Pencil size={12} />
+            </button>
             <button onClick={onDelete} title={t('deleteTooltip')}
               className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
               <Trash2 size={12} />

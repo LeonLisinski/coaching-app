@@ -6,9 +6,11 @@ import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'
 import ParametersTab from '@/app/dashboard/checkins/tabs/parameters-tab'
 import CheckinStatsTab from '@/app/dashboard/checkins/tabs/stats-tab'
 import { ClipboardList, Settings2, BarChart2 } from 'lucide-react'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 
 export default function CheckinsPage() {
   const t = useTranslations('checkins')
+  const [activeTab, setActiveTab] = usePersistedTab('checkins_tab', 'clients')
 
   return (
     <div className="space-y-5">
@@ -17,7 +19,7 @@ export default function CheckinsPage() {
         <p className="text-gray-500">{t('page.subtitle')}</p>
       </div>
 
-      <Tabs defaultValue="clients">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-gray-100/80">
           <TabsTrigger value="clients" className="flex items-center gap-1.5">
             <ClipboardList size={13} />

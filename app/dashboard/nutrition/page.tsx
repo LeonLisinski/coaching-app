@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 import {
   DndContext, DragOverlay, pointerWithin,
   useSensor, useSensors, PointerSensor,
@@ -28,6 +29,7 @@ export default function NutritionPage() {
   const [foodRefreshKey, setFoodRefreshKey] = useState(0)
   const [recipeRefreshKey, setRecipeRefreshKey] = useState(0)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
+  const [mobileTab, setMobileTab] = usePersistedTab('nutrition_tab', 'foods')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -239,7 +241,7 @@ export default function NutritionPage() {
 
         {/* Mobile/tablet: tabs */}
         <div className="xl:hidden">
-          <Tabs defaultValue="foods">
+          <Tabs value={mobileTab} onValueChange={setMobileTab}>
             <TabsList>
               <TabsTrigger value="foods">Namirnice</TabsTrigger>
               <TabsTrigger value="recipes">Recepti</TabsTrigger>

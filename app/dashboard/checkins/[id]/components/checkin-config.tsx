@@ -46,7 +46,7 @@ export default function CheckinConfig({ clientId }: Props) {
       .from('checkin_config')
       .select('*')
       .eq('client_id', clientId)
-      .single()
+      .maybeSingle()
 
     if (data) {
       setConfigId(data.id)

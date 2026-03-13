@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { X, UtensilsCrossed, Pencil } from 'lucide-react'
 import { Food, FOOD_CATEGORIES } from '../tabs/foods-tab'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
@@ -92,6 +92,7 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
         {/* Orange header */}
         <div className="bg-gradient-to-r from-orange-500 to-amber-400 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -176,4 +177,5 @@ export default function EditFoodDialog({ food, open, onClose, onSuccess }: Props
     </Dialog>
   )
 }
+
 

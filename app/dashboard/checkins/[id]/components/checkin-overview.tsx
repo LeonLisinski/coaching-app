@@ -55,7 +55,7 @@ export default function CheckinOverview({ clientId }: Props) {
   const fetchConfig = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setTrainerId(user.id)
-    const { data } = await supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).single()
+    const { data } = await supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle()
     if (data?.checkin_day != null) setCheckinDay(data.checkin_day)
   }
 

@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, Check, ChevronRight, CreditCard } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -64,6 +64,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const [goal, setGoal]                 = useState('')
   const [dob_display, setDobDisplay]    = useState('')
   const [date_of_birth, setDob]         = useState('')
+  const [start_date_display, setStartDateDisplay] = useState('')
+  const [start_date, setStartDate]      = useState('')
   const [weight, setWeight]             = useState('')
   const [height, setHeight]             = useState('')
   const [activity_level, setActivity]   = useState<ActivityLevel>('')
@@ -83,7 +85,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     if (open) {
       setStep('account'); setError('')
       setFullName(''); setEmail(''); setPassword(''); setGender('')
-      setGoal(''); setDobDisplay(''); setDob(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
+      setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
       setSelectedWorkout(''); setSelectedMeal(''); setSelectedPackage(''); setCheckinDay(null)
     }
   }, [open])
@@ -159,6 +161,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
     const newClientId = result.client_id
     if (newClientId) {
+      // Set start_date if provided
+      if (start_date) {
+        await supabase.from('clients').update({ start_date }).eq('id', newClientId)
+      }
       // Assign training plan
       if (selectedWorkout) {
         await supabase.from('client_workout_plans').insert({
@@ -243,6 +249,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
         {/* Header */}
         <div className="px-6 py-4 shrink-0 flex items-center gap-3"
@@ -351,6 +358,17 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
                     value={dob_display}
                     onChange={e => { const f = formatDobInput(e.target.value); setDobDisplay(f); setDob(dobToIso(f)) }}
+                    onFocus={inputFocus} onBlur={inputBlur} />
+                </div>
+              </div>
+
+              {/* Datum početka suradnje */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-600">{t('startDate')}</Label>
+                  <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                    value={start_date_display}
+                    onChange={e => { const f = formatDobInput(e.target.value); setStartDateDisplay(f); setStartDate(dobToIso(f)) }}
                     onFocus={inputFocus} onBlur={inputBlur} />
                 </div>
               </div>
@@ -525,3 +543,4 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     </Dialog>
   )
 }
+
