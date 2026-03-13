@@ -455,8 +455,8 @@ export default function ClientsPage() {
             const age = client.date_of_birth ? calcAge(client.date_of_birth) : null
             const isExpanded = expandedId === client.id
             const daysLeft = client.packageDaysLeft
-            const expiryUrgent = daysLeft !== null && daysLeft <= 7
-            const expiryExpired = daysLeft !== null && daysLeft <= 0
+            const expiryUrgent = daysLeft != null && daysLeft <= 7
+            const expiryExpired = daysLeft != null && daysLeft <= 0
 
             return (
               <div key={client.id} className={`border rounded-xl bg-white transition-all select-none group ${
