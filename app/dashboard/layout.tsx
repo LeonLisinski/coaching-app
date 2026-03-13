@@ -53,9 +53,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router   = useRouter()
   const [collapsed, setCollapsed] = useState(false)
-  // Track last visited client/chat so nav items bring you back
-  const [lastClientHref, setLastClientHref] = useState('/dashboard/clients')
-  const [lastChatHref, setLastChatHref]     = useState('/dashboard/chat')
+  // Track last visited client/chat/checkin so nav items bring you back
+  const [lastClientHref, setLastClientHref]   = useState('/dashboard/clients')
+  const [lastChatHref, setLastChatHref]       = useState('/dashboard/chat')
+  const [lastCheckinHref, setLastCheckinHref] = useState('/dashboard/checkins')
   const [userInitials, setUserInitials] = useState('')
   const [userName, setUserName]         = useState('')
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
@@ -66,7 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
   const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment'; href?: string; isNew?: boolean }[]>([])
 
-  // Update last-visited client / chat whenever the pathname changes
+  // Update last-visited client / chat / checkin whenever the pathname changes
   useEffect(() => {
     // Client detail page: /dashboard/clients/[id]
     const clientMatch = pathname.match(/^\/dashboard\/clients\/([^/]+)$/)
@@ -77,6 +78,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       const storedId = localStorage.getItem('last_client_id')
       setLastClientHref(storedId ? `/dashboard/clients/${storedId}` : '/dashboard/clients')
+    }
+
+    // Checkin detail page: /dashboard/checkins/[id]
+    const checkinMatch = pathname.match(/^\/dashboard\/checkins\/([^/]+)$/)
+    if (checkinMatch) {
+      const id = checkinMatch[1]
+      localStorage.setItem('last_checkin_client_id', id)
+      setLastCheckinHref(`/dashboard/checkins/${id}`)
+    } else {
+      const storedId = localStorage.getItem('last_checkin_client_id')
+      setLastCheckinHref(storedId ? `/dashboard/checkins/${storedId}` : '/dashboard/checkins')
     }
 
     // Chat: restore last conversation via ?clientId= param
@@ -259,6 +271,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const effectiveHref = alreadyInSection                       ? href
                                 : labelKey === 'clients'                 ? lastClientHref
                                 : labelKey === 'chat'                    ? lastChatHref
+                                : labelKey === 'checkins'                ? lastCheckinHref
                                 : href
             return (
               <Link

@@ -134,15 +134,37 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     setSending(true)
     const content = input.trim()
     setInput('')
-    const { error } = await supabase.from('messages').insert({
+
+    // Optimistic update — show message immediately without waiting for real-time subscription
+    const tempId = `temp-${Date.now()}`
+    const optimistic: Message = {
+      id: tempId,
+      content,
+      sender_id: userIdRef.current,
+      trainer_id: userIdRef.current,
+      client_id: clientId,
+      created_at: new Date().toISOString(),
+      read: false,
+    }
+    setMessages(prev => [...prev, optimistic])
+
+    const { data: inserted, error } = await supabase.from('messages').insert({
       trainer_id: userIdRef.current,
       client_id: clientId,
       sender_id: userIdRef.current,
       content,
       read: false,
-    })
-    if (error) { console.error('Send error:', error.message); setInput(content) }
-    else onMessageSent()
+    }).select().single()
+
+    if (error) {
+      console.error('Send error:', error.message)
+      setInput(content)
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+    } else {
+      // Replace optimistic placeholder with real row from DB
+      setMessages(prev => prev.map(m => m.id === tempId ? inserted : m))
+      onMessageSent()
+    }
     setSending(false)
   }
 
