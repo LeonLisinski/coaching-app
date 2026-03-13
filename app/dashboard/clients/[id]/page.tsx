@@ -1,6 +1,6 @@
 'use client'
-
-import { useEffect, useState } from 'react'
+export const dynamic = 'force-dynamic'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { usePersistedTab } from '@/app/contexts/tab-state'
@@ -124,7 +124,7 @@ function formatDate(dateStr: string | null) {
   return d.toLocaleDateString('hr-HR')
 }
 
-export default function ClientDetailPage() {
+function ClientDetailPageContent() {
   const t = useTranslations('clients.detail')
   const tCommon = useTranslations('common')
 
@@ -459,5 +459,13 @@ export default function ClientDetailPage() {
         destructive
       />
     </div>
+  )
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClientDetailPageContent />
+    </Suspense>
   )
 }

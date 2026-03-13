@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -23,7 +23,7 @@ type Client = {
   unread: number
 }
 
-export default function ChatPage() {
+function ChatPageContent() {
   const t = useTranslations('chat')
   const searchParams = useSearchParams()
   const tCommon = useTranslations('common')
@@ -253,5 +253,13 @@ export default function ChatPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatPageContent />
+    </Suspense>
   )
 }

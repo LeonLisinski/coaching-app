@@ -1,5 +1,5 @@
 'use client'
-
+export const dynamic = 'force-dynamic'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'

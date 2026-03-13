@@ -1,6 +1,6 @@
 'use client'
-
-import { useEffect, useRef, useState } from 'react'
+export const dynamic = 'force-dynamic'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +60,7 @@ function avatarStyle(gender: string | null): string {
   return 'bg-gradient-to-br from-gray-400 to-gray-500'
 }
 
-export default function ClientsPage() {
+function ClientsPageContent() {
   const t = useTranslations('clients.page')
   const tCommon = useTranslations('common')
   const tDetail = useTranslations('clients.detail')
@@ -702,6 +702,14 @@ export default function ClientsPage() {
         destructive
       />
     </div>
+  )
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClientsPageContent />
+    </Suspense>
   )
 }
 

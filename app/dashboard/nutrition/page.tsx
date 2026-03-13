@@ -1,5 +1,5 @@
 'use client'
-
+export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { usePersistedTab } from '@/app/contexts/tab-state'
