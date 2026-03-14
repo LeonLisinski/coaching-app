@@ -307,6 +307,13 @@ export default function ClientMealPlans({ clientId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [editingPlanTypeId, setEditingPlanTypeId] = useState<string | null>(null)
 
+  // Conflict: another plan of the same type is already active
+  const [activateConflict, setActivateConflict] = useState<{
+    existingName: string
+    typeLabel: string
+    execute: () => Promise<void>
+  } | null>(null)
+
   useEffect(() => { fetchData() }, [clientId])
 
   const fetchData = async () => {
@@ -396,47 +403,81 @@ export default function ClientMealPlans({ clientId }: Props) {
     fat: acc.fat + (m.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
-  const assignPlan = async () => {
-    if (!selectedPlanId) return
-    setAssigning(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    if (assignPlanType !== 'default') {
-      await supabase.from('client_meal_plans')
-        .update({ active: false })
-        .eq('client_id', clientId)
-        .eq('plan_type', assignPlanType)
-        .eq('active', true)
+  // Deactivate conflicting plan of same type, then run action
+  const deactivateSameTypeAndRun = async (
+    planType: string,
+    exceptId: string | null,
+    action: () => Promise<void>
+  ) => {
+    const conflict = assignedPlans.find(
+      p => p.active && p.plan_type === planType && p.id !== exceptId
+    )
+    if (conflict) {
+      await supabase.from('client_meal_plans').update({ active: false }).eq('id', conflict.id)
     }
-
-    await supabase.from('client_meal_plans').insert({
-      trainer_id: user.id,
-      client_id: clientId,
-      meal_plan_id: selectedPlanId,
-      meals: assignMeals,
-      calories_target: assignTargets.calories ? parseInt(assignTargets.calories) : null,
-      protein_target: assignTargets.protein ? parseInt(assignTargets.protein) : null,
-      carbs_target: assignTargets.carbs ? parseInt(assignTargets.carbs) : null,
-      fat_target: assignTargets.fat ? parseInt(assignTargets.fat) : null,
-      notes: assignNotes || null,
-      active: true,
-      plan_type: assignPlanType,
-    })
-
-    setAssigning(false)
-    setShowAssignDialog(false)
-    setSelectedPlanId('')
-    setAssignMeals([])
-    setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' })
-    setAssignPlanType('default')
-    setAssignNotes('')
+    await action()
     fetchData()
   }
 
+  const assignPlan = async () => {
+    if (!selectedPlanId) return
+
+    const conflicting = assignedPlans.find(p => p.active && p.plan_type === assignPlanType)
+    const doInsert = async () => {
+      setAssigning(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('client_meal_plans').insert({
+        trainer_id: user.id, client_id: clientId,
+        meal_plan_id: selectedPlanId, meals: assignMeals,
+        calories_target: assignTargets.calories ? parseInt(assignTargets.calories) : null,
+        protein_target:  assignTargets.protein  ? parseInt(assignTargets.protein)  : null,
+        carbs_target:    assignTargets.carbs     ? parseInt(assignTargets.carbs)    : null,
+        fat_target:      assignTargets.fat       ? parseInt(assignTargets.fat)       : null,
+        notes: assignNotes || null, active: true, plan_type: assignPlanType,
+      })
+      setAssigning(false)
+      setShowAssignDialog(false)
+      setSelectedPlanId(''); setAssignMeals([])
+      setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' })
+      setAssignPlanType('default'); setAssignNotes('')
+    }
+
+    if (conflicting) {
+      setActivateConflict({
+        existingName: conflicting.meal_plan.name,
+        typeLabel: PLAN_TYPE_LABELS[assignPlanType]?.label ?? assignPlanType,
+        execute: () => deactivateSameTypeAndRun(assignPlanType, null, doInsert),
+      })
+    } else {
+      await doInsert()
+      fetchData()
+    }
+  }
+
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('client_meal_plans').update({ active: !current }).eq('id', id)
-    setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: !current } : p))
+    // Deactivating — always allowed
+    if (current) {
+      await supabase.from('client_meal_plans').update({ active: false }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: false } : p))
+      return
+    }
+    // Activating — check same-type conflict
+    const thisPlan  = assignedPlans.find(p => p.id === id)
+    const planType  = thisPlan?.plan_type ?? 'default'
+    const conflicting = assignedPlans.find(p => p.active && p.id !== id && p.plan_type === planType)
+    if (conflicting) {
+      setActivateConflict({
+        existingName: conflicting.meal_plan.name,
+        typeLabel: PLAN_TYPE_LABELS[planType]?.label ?? planType,
+        execute: () => deactivateSameTypeAndRun(planType, id, async () => {
+          await supabase.from('client_meal_plans').update({ active: true }).eq('id', id)
+        }),
+      })
+    } else {
+      await supabase.from('client_meal_plans').update({ active: true }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: true } : p))
+    }
   }
 
   const changePlanType = async (id: string, newType: 'default' | 'training_day' | 'rest_day') => {
@@ -822,20 +863,32 @@ export default function ClientMealPlans({ clientId }: Props) {
             .from('meal_plans').select('id, meals, calories_target, protein_target, carbs_target, fat_target')
             .eq('trainer_id', user.id)
             .order('created_at', { ascending: false }).limit(1).single()
-          if (latestPlan) {
+          if (!latestPlan) { setShowCreateNew(false); return }
+
+          const conflicting = assignedPlans.find(p => p.active && p.plan_type === 'default')
+          const doInsert = async () => {
             await supabase.from('client_meal_plans').insert({
               trainer_id: user.id, client_id: clientId,
-              meal_plan_id: latestPlan.id,
-              meals: latestPlan.meals || [],
+              meal_plan_id: latestPlan.id, meals: latestPlan.meals || [],
               calories_target: latestPlan.calories_target,
-              protein_target: latestPlan.protein_target,
-              carbs_target: latestPlan.carbs_target,
-              fat_target: latestPlan.fat_target,
+              protein_target:  latestPlan.protein_target,
+              carbs_target:    latestPlan.carbs_target,
+              fat_target:      latestPlan.fat_target,
               active: true, plan_type: 'default',
             })
+            setShowCreateNew(false)
           }
-          setShowCreateNew(false)
-          fetchData()
+
+          if (conflicting) {
+            setActivateConflict({
+              existingName: conflicting.meal_plan.name,
+              typeLabel: PLAN_TYPE_LABELS['default']?.label ?? 'Standardni',
+              execute: () => deactivateSameTypeAndRun('default', null, doInsert),
+            })
+          } else {
+            await doInsert()
+            fetchData()
+          }
         }}
       />
 
@@ -865,6 +918,20 @@ export default function ClientMealPlans({ clientId }: Props) {
         onCancel={() => setConfirmDelete(null)}
         confirmLabel={tCommon('remove')}
         destructive
+      />
+
+      {/* Conflict: same plan-type already active */}
+      <ConfirmDialog
+        open={activateConflict !== null}
+        title="Zamjena aktivnog plana"
+        description={`Plan "${activateConflict?.existingName}" je trenutno aktivan kao ${activateConflict?.typeLabel}. Želiš li ga deaktivirati i aktivirati novi plan?`}
+        onConfirm={async () => {
+          if (activateConflict) await activateConflict.execute()
+          setActivateConflict(null)
+        }}
+        onCancel={() => setActivateConflict(null)}
+        confirmLabel="Da, zamijeni"
+        cancelLabel="Odustani"
       />
     </div>
   )

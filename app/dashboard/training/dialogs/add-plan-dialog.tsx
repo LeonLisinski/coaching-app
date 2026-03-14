@@ -56,14 +56,26 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({})
   const [searchFocused, setSearchFocused] = useState<Record<number, boolean>>({})
   const [dropdownKbIndex, setDropdownKbIndex] = useState<Record<number, number>>({})
-  const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
-  const searchRefs = useRef<Record<number, HTMLInputElement | null>>({})
-  const daysEndRef = useRef<HTMLDivElement>(null)
+  const blurTimers    = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+  const searchRefs    = useRef<Record<number, HTMLInputElement | null>>({})
+  const dropdownRefs  = useRef<Record<number, HTMLDivElement | null>>({})
+  const daysEndRef    = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  // Scroll highlighted dropdown item into view when navigating with arrow keys
+  useEffect(() => {
+    for (const [dayIdx, kbIdx] of Object.entries(dropdownKbIndex)) {
+      if (kbIdx < 0) continue
+      const dropdown = dropdownRefs.current[Number(dayIdx)]
+      if (!dropdown) continue
+      const item = dropdown.querySelector(`[data-kb-item="${kbIdx}"]`) as HTMLElement | null
+      item?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [dropdownKbIndex])
 
   const toggleDay      = (i: number) => setExpandedDays(prev => ({ ...prev, [i]: !(prev[i] ?? true) }))
   const isDayExpanded  = (i: number) => expandedDays[i] ?? true
@@ -176,7 +188,11 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
     }))
     setExerciseSearch(prev => ({ ...prev, [dayIndex]: '' }))
     // keep searchFocused=true so dropdown stays open for adding more exercises
-    setTimeout(() => searchRefs.current[dayIndex]?.focus(), 0)
+    setTimeout(() => {
+      searchRefs.current[dayIndex]?.focus()
+      // Scroll to show the search input (and the newly added exercise just above it)
+      searchRefs.current[dayIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 50)
   }
 
   const updateExercise = (dayIndex: number, exerciseId: string, field: string, value: any) =>
@@ -361,13 +377,18 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                             />
                           </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
-                            <div className="border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48" onWheel={e => e.stopPropagation()}>
+                            <div
+                              ref={el => { dropdownRefs.current[index] = el }}
+                              className="border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
+                              onWheel={e => e.stopPropagation()}
+                            >
                               {getFilteredExercisesForDay(index).length === 0 ? (
                                 <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
                                   {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
                                 </p>
                               ) : getFilteredExercisesForDay(index).map((e, ei) => (
                                 <button key={e.id} type="button"
+                                  data-kb-item={ei}
                                   onMouseDown={ev => ev.preventDefault()}
                                   onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
                                   onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}

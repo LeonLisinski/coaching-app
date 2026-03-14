@@ -16,18 +16,18 @@
     "headlineMain": "Više napretka,",
     "headlinePre": "manje",
     "headlineAccent": "administracije.",
-    "tagline": "Platforma za profesionalne trenere — klijenti, planovi, check-ini i financije.",
-    "welcomeTitle": "Dobrodošli natrag",
-    "welcomeSubtitle": "Prijavite se za pristup UnitLift platformi.",
+    "tagline": "Sve što trener treba — na jednom ekranu.",
+    "welcomeTitle": "Prijava u sustav",
+    "welcomeSubtitle": "Unesite podatke za pristup UnitLift platformi.",
     "forgotPassword": "Zaboravljena lozinka?",
     "secureLogin": "Sigurna prijava",
     "gdpr": "GDPR usklađeno",
     "noAccess": "Nemaš pristup? Kontaktiraj administratora.",
     "features": {
-      "training": { "label": "Trening & prehrana", "desc": "Planovi, predlošci, makrosi i kalorije za svakog klijenta." },
-      "checkin": { "label": "Check-in sustav", "desc": "Tjedni napredak, fotografije i grafikoni za svakog klijenta." },
-      "chat": { "label": "Chat s klijentima", "desc": "Poruke u stvarnom vremenu s predlošcima i obavijestima." },
-      "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji — sve na jednom ekranu." }
+      "training": { "label": "Trening & prehrana", "desc": "Planovi i makrosi personalizirani za svakog klijenta." },
+      "checkin": { "label": "Check-in sustav", "desc": "Tjedni napredak s grafikonima i fotografijama." },
+      "chat": { "label": "Chat s klijentima", "desc": "Poruke u stvarnom vremenu i brzi predlošci." },
+      "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji na jednom ekranu." }
     }
   },
   "common": {

@@ -72,10 +72,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Client detail page: /dashboard/clients/[id]
     const clientMatch = pathname.match(/^\/dashboard\/clients\/([^/]+)$/)
     if (clientMatch) {
+      // Entering a client detail — save so we can restore later
       const id = clientMatch[1]
       localStorage.setItem('last_client_id', id)
       setLastClientHref(`/dashboard/clients/${id}`)
+    } else if (pathname === '/dashboard/clients') {
+      // Explicitly on the client LIST — forget the last detail so nav returns here
+      localStorage.removeItem('last_client_id')
+      setLastClientHref('/dashboard/clients')
     } else {
+      // Different section — restore last detail if we have one
       const storedId = localStorage.getItem('last_client_id')
       setLastClientHref(storedId ? `/dashboard/clients/${storedId}` : '/dashboard/clients')
     }
@@ -83,10 +89,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Checkin detail page: /dashboard/checkins/[id]
     const checkinMatch = pathname.match(/^\/dashboard\/checkins\/([^/]+)$/)
     if (checkinMatch) {
+      // Entering a checkin detail — save so we can restore later
       const id = checkinMatch[1]
       localStorage.setItem('last_checkin_client_id', id)
       setLastCheckinHref(`/dashboard/checkins/${id}`)
+    } else if (pathname === '/dashboard/checkins') {
+      // Explicitly on the checkin LIST — forget the last detail
+      localStorage.removeItem('last_checkin_client_id')
+      setLastCheckinHref('/dashboard/checkins')
     } else {
+      // Different section — restore last detail if we have one
       const storedId = localStorage.getItem('last_checkin_client_id')
       setLastCheckinHref(storedId ? `/dashboard/checkins/${storedId}` : '/dashboard/checkins')
     }
@@ -265,10 +277,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {navItems.map(({ href, labelKey, icon: Icon, color }) => {
             const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
             const label    = tNav(labelKey as any)
-            // If already in this section → always go to section root (reset)
-            // If coming from another section → smart restore (last client / last chat)
-            const alreadyInSection = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
-            const effectiveHref = alreadyInSection                       ? href
+            // If on a DETAIL page of this section (e.g. /dashboard/checkins/[id]) → reset to root
+            // If on the section ROOT or a different section → restore last visited detail (if any)
+            const isOnSectionDetailPage = href !== '/dashboard' && pathname.startsWith(href + '/')
+            const effectiveHref = isOnSectionDetailPage                  ? href
                                 : labelKey === 'clients'                 ? lastClientHref
                                 : labelKey === 'chat'                    ? lastChatHref
                                 : labelKey === 'checkins'                ? lastCheckinHref

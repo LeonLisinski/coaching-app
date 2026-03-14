@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
+import { usePersistedTab } from '@/app/contexts/tab-state'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ArrowLeft, ClipboardList, History, BarChart2, Settings2 } from 'lucide-react'
@@ -36,6 +37,7 @@ export default function ClientCheckinPage() {
 
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = usePersistedTab(`checkin_tab_${id as string}`, 'overview')
 
   useEffect(() => {
     fetchClient()
@@ -81,7 +83,7 @@ export default function ClientCheckinPage() {
       <div className="rounded-2xl overflow-hidden shadow-sm">
         <div className="px-6 py-5 flex items-center gap-4" style={{ background: headerGrad }}>
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/dashboard/checkins')}
             className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0"
           >
             <ArrowLeft size={15} className="text-white" />
@@ -98,7 +100,7 @@ export default function ClientCheckinPage() {
         )
       })()}
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-gray-100/80">
           <TabsTrigger value="overview" className="flex items-center gap-1.5">
             <ClipboardList size={13} />

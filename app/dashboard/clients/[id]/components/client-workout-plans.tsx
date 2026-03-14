@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddPlanDialog from '@/app/dashboard/training/dialogs/add-plan-dialog'
@@ -155,6 +155,23 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [editTarget, setEditTarget] = useState<AssignedPlan | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [planExpanded, setPlanExpanded] = useState<Record<string, boolean>>({})
+
+  // Conflict: trying to activate a plan while another is already active
+  const [activateConflict, setActivateConflict] = useState<{
+    existingName: string
+    execute: () => Promise<void>
+  } | null>(null)
+
+  // Initialise expanded state once plans load: active = open, inactive = closed
+  useEffect(() => {
+    if (!assignedPlans.length) return
+    setPlanExpanded(prev => {
+      const next = { ...prev }
+      assignedPlans.forEach(p => { if (!(p.id in next)) next[p.id] = p.active })
+      return next
+    })
+  }, [assignedPlans])
 
   useEffect(() => { fetchData() }, [clientId])
 
@@ -162,7 +179,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: assigned }, { data: available }, { data: exercises }] = await Promise.all([
+    const [{ data: assigned }, { data: available }, { data: trainerEx }, { data: defaultEx }] = await Promise.all([
       supabase
         .from('client_workout_plans')
         .select(`id, active, assigned_at, notes, days, workout_plan:workout_plans(id, name, description, days)`)
@@ -179,7 +196,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         .select('id, name, category, exercise_type, primary_muscles, secondary_muscles')
         .eq('trainer_id', user.id)
         .order('name'),
+      supabase
+        .from('exercises')
+        .select('id, name, category, exercise_type, primary_muscles, secondary_muscles')
+        .eq('is_default', true)
+        .order('name'),
     ])
+    // Merge trainer exercises + defaults; trainer overrides default if same id
+    const exercises = [...(defaultEx || []), ...(trainerEx || [])]
 
     if (assigned) setAssignedPlans(assigned as any)
     if (available) setAvailablePlans(available)
@@ -242,52 +266,93 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     }))
   }
 
+  // Deactivate all other plans for this client, then run the provided action
+  const deactivateOthersAndRun = async (exceptId: string | null, action: () => Promise<void>) => {
+    const others = assignedPlans.filter(p => p.active && p.id !== exceptId)
+    for (const p of others) {
+      await supabase.from('client_workout_plans').update({ active: false }).eq('id', p.id)
+    }
+    await action()
+    fetchData()
+  }
+
   const assignPlan = async () => {
     if (!selectedPlanId) return
-    setAssigning(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
 
-    if (saveToDb) {
-      const planName = availablePlans.find(p => p.id === selectedPlanId)?.name || 'Plan'
-      await supabase.from('workout_plans').insert({
-        trainer_id: user.id,
-        name: `${planName} (kopija)`,
-        days: assignDays,
+    const currentActive = assignedPlans.find(p => p.active)
+    const doInsert = async () => {
+      setAssigning(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      if (saveToDb) {
+        const planName = availablePlans.find(p => p.id === selectedPlanId)?.name || 'Plan'
+        await supabase.from('workout_plans').insert({ trainer_id: user.id, name: `${planName} (kopija)`, days: assignDays })
+      }
+      await supabase.from('client_workout_plans').insert({
+        trainer_id: user.id, client_id: clientId,
+        workout_plan_id: selectedPlanId, days: assignDays,
+        notes: assignNotes || null, active: true,
       })
+      setAssigning(false)
+      setShowAssignDialog(false)
+      setSelectedPlanId(''); setAssignDays([]); setAssignNotes(''); setSaveToDb(false)
     }
 
-    await supabase.from('client_workout_plans').insert({
-      trainer_id: user.id,
-      client_id: clientId,
-      workout_plan_id: selectedPlanId,
-      days: assignDays,
-      notes: assignNotes || null,
-      active: true,
-    })
-    setAssigning(false)
-    setShowAssignDialog(false)
-    setSelectedPlanId('')
-    setAssignDays([])
-    setAssignNotes('')
-    setSaveToDb(false)
-    fetchData()
+    if (currentActive) {
+      setActivateConflict({
+        existingName: currentActive.workout_plan.name,
+        execute: () => deactivateOthersAndRun(null, doInsert),
+      })
+    } else {
+      await doInsert()
+      fetchData()
+    }
   }
 
   const handleNewPlanCreated = async (planId: string, days: any[]) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('client_workout_plans').insert({
-      trainer_id: user.id, client_id: clientId,
-      workout_plan_id: planId, days: days || [], active: true,
-    })
-    setShowCreateDialog(false)
-    fetchData()
+
+    const currentActive = assignedPlans.find(p => p.active)
+    const doInsert = async () => {
+      await supabase.from('client_workout_plans').insert({
+        trainer_id: user.id, client_id: clientId,
+        workout_plan_id: planId, days: days || [], active: true,
+      })
+      setShowCreateDialog(false)
+    }
+
+    if (currentActive) {
+      setActivateConflict({
+        existingName: currentActive.workout_plan.name,
+        execute: () => deactivateOthersAndRun(null, doInsert),
+      })
+    } else {
+      await doInsert()
+      fetchData()
+    }
   }
 
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('client_workout_plans').update({ active: !current }).eq('id', id)
-    setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: !current } : p))
+    // Deactivating — always allowed
+    if (current) {
+      await supabase.from('client_workout_plans').update({ active: false }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: false } : p))
+      return
+    }
+    // Activating — check if another plan is already active
+    const currentActive = assignedPlans.find(p => p.active && p.id !== id)
+    if (currentActive) {
+      setActivateConflict({
+        existingName: currentActive.workout_plan.name,
+        execute: () => deactivateOthersAndRun(id, async () => {
+          await supabase.from('client_workout_plans').update({ active: true }).eq('id', id)
+        }),
+      })
+    } else {
+      await supabase.from('client_workout_plans').update({ active: true }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: true } : p))
+    }
   }
 
   const deletePlan = async (id: string) => {
@@ -329,111 +394,250 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         </Card>
       )}
 
-      {/* Plan cards */}
-      {assignedPlans.map(assigned => {
-        const days = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
-        const isPersonalized = !!(assigned.days?.length)
-        const totalExercises = days.reduce((sum: number, d: any) => sum + (d.exercises?.length || 0), 0)
+      {/* Plan cards — each with inline per-plan analysis */}
+      {(() => {
+        const exerciseMap = new Map(allExercises.map(e => [e.id, e]))
+        return [...assignedPlans].sort((a, b) => Number(b.active) - Number(a.active)).map(assigned => {
+          const days = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
+          const isPersonalized = !!(assigned.days?.length)
+          const isOpen = planExpanded[assigned.id] ?? assigned.active
 
-        return (
-          <Card
-            key={assigned.id}
-            className={`hover:shadow-sm transition-shadow cursor-pointer ${!assigned.active ? 'opacity-60' : ''}`}
-            onDoubleClick={() => setEditTarget(assigned)}
-          >
-            <CardContent className="py-0">
+          // Compute per-plan stats
+          const setsByDay: Array<{ name: string; sets: number }> = []
+          const muscleMap: Record<string, { primary: number; secondary: number }> = {}
+          days.forEach((day: any, idx: number) => {
+            let daySets = 0
+            ;(day.exercises || []).forEach((ex: any) => {
+              const info = exerciseMap.get(ex.exercise_id)
+              const sets = Number(ex.sets) || 0
+              daySets += sets
+              ;(info?.primary_muscles?.length ? info.primary_muscles : (info?.category ? [info.category] : [])).forEach((m: string) => {
+                if (!muscleMap[m]) muscleMap[m] = { primary: 0, secondary: 0 }
+                muscleMap[m].primary += sets
+              })
+              ;(info?.secondary_muscles || []).forEach((m: string) => {
+                if (!muscleMap[m]) muscleMap[m] = { primary: 0, secondary: 0 }
+                muscleMap[m].secondary += sets
+              })
+            })
+            setsByDay.push({ name: day.name || `Dan ${idx + 1}`, sets: daySets })
+          })
+          const muscleData = Object.entries(muscleMap)
+            .map(([name, { primary, secondary }]) => ({ name, primary, secondary }))
+            .sort((a, b) => (b.primary + b.secondary) - (a.primary + a.secondary))
+          const totalSets      = setsByDay.reduce((s, d) => s + d.sets, 0)
+          const totalExercises = days.reduce((sum: number, d: any) => sum + (d.exercises?.length || 0), 0)
+          const maxSets        = Math.max(...setsByDay.map(d => d.sets), 1)
+          const muscleChartH   = Math.max(120, muscleData.length * 32 + 16)
+          const dayChartH      = Math.max(100, setsByDay.length * 32 + 16)
+          const hasAnalysis    = totalSets > 0
 
-              {/* Plan header */}
-              <div className="py-4 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 min-w-0">
-                  <span className={`mt-[5px] w-2 h-2 rounded-full shrink-0 ${assigned.active ? 'bg-emerald-400' : 'bg-gray-300'}`} />
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{assigned.workout_plan.name}</span>
-                      {isPersonalized && (
-                        <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
-                          Personalizirano
-                        </Badge>
-                      )}
+          return (
+            <Card key={assigned.id} className={`transition-shadow ${!assigned.active ? 'opacity-70' : ''}`}>
+              <CardContent className="py-0">
+
+                {/* ── Header — click = expand/collapse ── */}
+                <div
+                  className="py-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
+                  onClick={() => setPlanExpanded(prev => ({ ...prev, [assigned.id]: !isOpen }))}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {isOpen
+                      ? <ChevronUp size={13} className="text-gray-400 shrink-0" />
+                      : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${assigned.active ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm">{assigned.workout_plan.name}</span>
+                        {isPersonalized && (
+                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
+                            Personalizirano
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {days.length} dana · {totalExercises} vježbi · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                        {assigned.notes && <> · {assigned.notes}</>}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {days.length} {days.length === 1 ? 'dan' : days.length < 5 ? 'dana' : 'dana'} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
-                      {assigned.notes && <> · {assigned.notes}</>}
-                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm"
+                      onClick={() => toggleActive(assigned.id, assigned.active)}
+                      className={`text-xs h-7 px-3 rounded-full border ${
+                        assigned.active
+                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                          : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      }`}>
+                      {assigned.active ? 'Aktivan' : 'Neaktivan'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditTarget(assigned)}>
+                      <Pencil size={14} />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(assigned.id)}>
+                      <Trash2 size={14} className="text-red-400" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
-                    className={`text-xs h-7 px-3 rounded-full border ${
-                      assigned.active
-                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                        : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {assigned.active ? 'Aktivan' : 'Neaktivan'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}
-                  >
-                    <Pencil size={14} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={e => { e.stopPropagation(); setConfirmDeleteId(assigned.id) }}
-                  >
-                    <Trash2 size={14} className="text-red-400" />
-                  </Button>
-                  </div>
-              </div>
+                {/* ── Expandable body ── */}
+                {isOpen && (
+                  <>
+                    {/* Days accordion */}
+                    {days.length > 0 && <DayAccordion days={days} />}
 
-              {/* Days — collapsible accordion */}
-              {days.length > 0 && (
-                <DayAccordion days={days} />
-              )}
+                    {/* Per-plan analysis */}
+                    {hasAnalysis && (
+                      <div className="border-t border-gray-50 bg-gradient-to-br from-slate-50/70 to-white px-4 pt-4 pb-5 rounded-b-xl">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: `${accentHex}18` }}>
+                            <BarChart2 size={11} style={{ color: accentHex }} />
+                          </div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Analiza opterećenja</p>
+                        </div>
 
-            </CardContent>
-          </Card>
-        )
-      })}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Left: mini stats + sets per day */}
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-2">
+                              {[
+                                { label: 'Dana',    value: days.length },
+                                { label: 'Vježbi',  value: totalExercises },
+                                { label: 'Serija',  value: totalSets },
+                              ].map(({ label, value }) => (
+                                <div key={label} className="rounded-lg px-2 py-2 text-center" style={{ backgroundColor: `${accentHex}0d` }}>
+                                  <p className="text-base font-black" style={{ color: accentHex }}>{value}</p>
+                                  <p className="text-[10px] text-gray-400 font-medium">{label}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <ResponsiveContainer width="100%" height={dayChartH}>
+                              <BarChart data={setsByDay} layout="vertical" margin={{ top: 0, right: 36, left: 4, bottom: 0 }} barCategoryGap="28%">
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                                <XAxis type="number" domain={[0, maxSets + 2]} tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10 }} cursor={{ fill: `${accentHex}0a` } as any} />
+                                <Bar dataKey="sets" fill={accentHex} fillOpacity={0.9} radius={[0, 6, 6, 0]}>
+                                  <LabelList dataKey="sets" position="right" style={{ fontSize: 11, fontWeight: 600, fill: accentHex }} />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
 
-      {/* ── MUSCLE GROUP GRAPHS ── */}
-      {assignedPlans.length > 0 && (() => {
+                          {/* Right: muscle groups stacked */}
+                          {muscleData.length > 0 && (
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Grupe mišića</p>
+                                <div className="flex items-center gap-3">
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                    <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex }} />
+                                    Primarni
+                                  </span>
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                    <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.3 }} />
+                                    Sekundarni
+                                  </span>
+                                </div>
+                              </div>
+                              <ResponsiveContainer width="100%" height={muscleChartH}>
+                                <BarChart data={muscleData} layout="vertical" margin={{ top: 0, right: 40, left: 4, bottom: 0 }} barCategoryGap="28%">
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                                  <XAxis type="number" tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
+                                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                                  <Tooltip
+                                    content={({ active, payload, label }: any) => {
+                                      if (!active || !payload?.length) return null
+                                      const pri = payload.find((p: any) => p.dataKey === 'primary')?.value ?? 0
+                                      const sec = payload.find((p: any) => p.dataKey === 'secondary')?.value ?? 0
+                                      return (
+                                        <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs space-y-0.5">
+                                          <p className="font-bold text-gray-800 mb-1">{label}</p>
+                                          {pri > 0 && <p style={{ color: accentHex }} className="font-semibold">Primarni: {pri} ser.</p>}
+                                          {sec > 0 && <p style={{ color: accentHex, opacity: 0.6 }} className="font-semibold">Sekundarni: {sec} ser.</p>}
+                                        </div>
+                                      )
+                                    }}
+                                    cursor={{ fill: `${accentHex}0a` } as any}
+                                  />
+                                  <Bar dataKey="primary" stackId="m" fill={accentHex} fillOpacity={0.9} radius={[0, 0, 0, 0]}>
+                                    <LabelList content={({ x, y, width, height, value, index }: any) => {
+                                      const sec = muscleData[index]?.secondary ?? 0
+                                      if (sec > 0) return null
+                                      return value > 0 ? <text x={Number(x)+Number(width)+6} y={Number(y)+Number(height)/2} dominantBaseline="middle" fill={accentHex} fontSize={11} fontWeight={600}>{value}</text> : null
+                                    }} />
+                                  </Bar>
+                                  <Bar dataKey="secondary" stackId="m" fill={accentHex} fillOpacity={0.28} radius={[0, 5, 5, 0]}>
+                                    <LabelList content={({ x, y, width, height, value, index }: any) => {
+                                      const pri = muscleData[index]?.primary ?? 0
+                                      const total = pri + (value ?? 0)
+                                      return total > 0 && Number(width) > 0 ? <text x={Number(x)+Number(width)+6} y={Number(y)+Number(height)/2} dominantBaseline="middle" fill="#9ca3af" fontSize={11} fontWeight={600}>{total}</text> : null
+                                    }} />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })
+      })()}
+
+      {/* ── (analysis now lives inside each plan card) ── */}
+      {false && (() => {
         const exerciseMap = new Map(allExercises.map(e => [e.id, e]))
         const activeDays = assignedPlans
           .filter(p => p.active)
           .flatMap(p => (p.days?.length ? p.days : p.workout_plan.days || []))
 
-        const setsByCategory: Record<string, number> = {}
+        // Sets per training day
         const setsByDay: Array<{ name: string; sets: number }> = []
-        const setsByPrimary: Record<string, number> = {}
+        // Muscle groups: primary in full color, secondary in faded
+        const muscleMap: Record<string, { primary: number; secondary: number }> = {}
 
         activeDays.forEach((day: any, idx: number) => {
           let daySets = 0
           ;(day.exercises || []).forEach((ex: any) => {
             const info = exerciseMap.get(ex.exercise_id)
-            const sets = ex.sets || 0
-            setsByCategory[info?.category || 'Ostalo'] = (setsByCategory[info?.category || 'Ostalo'] || 0) + sets
+            const sets = Number(ex.sets) || 0
             daySets += sets
-            ;(info?.primary_muscles || []).forEach((m: string) => {
-              setsByPrimary[m] = (setsByPrimary[m] || 0) + sets
+            ;(info?.primary_muscles?.length ? info.primary_muscles : (info?.category ? [info.category] : [])).forEach((m: string) => {
+              if (!muscleMap[m]) muscleMap[m] = { primary: 0, secondary: 0 }
+              muscleMap[m].primary += sets
+            })
+            ;(info?.secondary_muscles || []).forEach((m: string) => {
+              if (!muscleMap[m]) muscleMap[m] = { primary: 0, secondary: 0 }
+              muscleMap[m].secondary += sets
             })
           })
           setsByDay.push({ name: day.name || `Dan ${idx + 1}`, sets: daySets })
         })
 
-        const categoryData = Object.entries(setsByCategory).sort((a, b) => b[1] - a[1]).map(([name, sets]) => ({ name, sets }))
-        const primaryData  = Object.entries(setsByPrimary).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name, sets]) => ({ name, sets }))
+        const muscleData = Object.entries(muscleMap)
+          .map(([name, { primary, secondary }]) => ({ name, primary, secondary }))
+          .sort((a, b) => (b.primary + b.secondary) - (a.primary + a.secondary))
 
-        const PALETTE = [accentHex,'#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#3b82f6','#8b5cf6']
+        const MuscleTooltip = ({ active, payload, label }: any) => {
+          if (!active || !payload?.length) return null
+          const primary   = payload.find((p: any) => p.dataKey === 'primary')?.value ?? 0
+          const secondary = payload.find((p: any) => p.dataKey === 'secondary')?.value ?? 0
+          return (
+            <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs space-y-0.5">
+              <p className="font-bold text-gray-800 mb-1">{label}</p>
+              {primary > 0 && <p style={{ color: accentHex }} className="font-semibold">Primarni: {primary} ser.</p>}
+              {secondary > 0 && <p style={{ color: accentHex, opacity: 0.55 }} className="font-semibold">Sekundarni: {secondary} ser.</p>}
+            </div>
+          )
+        }
 
-        const CustomTooltip = ({ active, payload, label }: any) => {
+        const DayTooltip = ({ active, payload, label }: any) => {
           if (!active || !payload?.length) return null
           return (
             <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs">
@@ -443,7 +647,17 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
           )
         }
 
-        if (categoryData.length === 0 && setsByDay.every(d => d.sets === 0)) return null
+        if (muscleData.length === 0 && setsByDay.every(d => d.sets === 0)) return null
+
+        // Summary stats
+        const totalSets      = setsByDay.reduce((s, d) => s + d.sets, 0)
+        const totalExercises = activeDays.reduce((s: number, d: any) => s + (d.exercises?.length || 0), 0)
+        const totalDays      = activeDays.length
+        const maxSets        = Math.max(...setsByDay.map(d => d.sets), 1)
+
+        // Dynamic height for muscle chart and day chart
+        const muscleChartH = Math.max(160, muscleData.length * 34 + 20)
+        const dayChartH    = Math.max(140, setsByDay.length * 34 + 20)
 
         return (
           <div className="mt-4 rounded-2xl border border-gray-100 bg-gradient-to-br from-slate-50 to-white p-5 space-y-5">
@@ -454,61 +668,93 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-gray-800">Analiza opterećenja</h3>
-                <p className="text-[11px] text-gray-400">Aktivni planovi · serije po kategoriji</p>
+                <p className="text-[11px] text-gray-400">Aktivni planovi · serije po grupi mišića</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Sets per training day */}
+              {/* Left: summary stats + horizontal sets-per-day */}
               {setsByDay.some(d => d.sets > 0) && (
-                <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Serije po treningu</p>
-                  <ResponsiveContainer width="100%" height={170}>
-                    <BarChart data={setsByDay} margin={{ top: 16, right: 4, left: -22, bottom: 0 }} barCategoryGap="30%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: `${accentHex}12`, radius: 6 } as any} />
-                      <Bar dataKey="sets" radius={[6, 6, 3, 3]} fill={accentHex} fillOpacity={0.9}>
-                        <LabelList dataKey="sets" position="top" style={{ fontSize: 11, fill: accentHex, fontWeight: 600 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-4 flex flex-col gap-4">
+                  {/* Mini stats row */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Dana', value: totalDays },
+                      { label: 'Vježbi', value: totalExercises },
+                      { label: 'Serija', value: totalSets },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-lg px-3 py-2 text-center" style={{ backgroundColor: `${accentHex}0d` }}>
+                        <p className="text-lg font-black" style={{ color: accentHex }}>{value}</p>
+                        <p className="text-[10px] text-gray-400 font-medium mt-0.5">{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Horizontal bar chart — serije po danu */}
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Serije po treningu</p>
+                    <ResponsiveContainer width="100%" height={dayChartH}>
+                      <BarChart data={setsByDay} layout="vertical" margin={{ top: 0, right: 40, left: 4, bottom: 0 }} barCategoryGap="28%">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+                        <XAxis type="number" domain={[0, maxSets + 2]} tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                        <Tooltip content={<DayTooltip />} cursor={{ fill: `${accentHex}0a` } as any} />
+                        <Bar dataKey="sets" fill={accentHex} fillOpacity={0.9} radius={[0, 6, 6, 0]}>
+                          <LabelList dataKey="sets" position="right" style={{ fontSize: 11, fontWeight: 600, fill: accentHex }} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               )}
 
-              {/* Sets per muscle category — horizontal */}
-              {categoryData.length > 0 && (
+              {/* Muscle groups — stacked horizontal: primary (full) + secondary (faded) */}
+              {muscleData.length > 0 && (
                 <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-4">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Grupe mišića</p>
-                  <ResponsiveContainer width="100%" height={170}>
-                    <BarChart data={categoryData} layout="vertical" margin={{ top: 0, right: 36, left: 4, bottom: 0 }} barCategoryGap="25%">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Grupe mišića</p>
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex }} />
+                        Primarni
+                      </span>
+                      <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.3 }} />
+                        Sekundarni
+                      </span>
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={muscleChartH}>
+                    <BarChart data={muscleData} layout="vertical" margin={{ top: 0, right: 40, left: 4, bottom: 0 }} barCategoryGap="28%">
                       <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={72} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: `${accentHex}12` } as any} />
-                      <Bar dataKey="sets" radius={[0, 6, 6, 0]}>
-                        <LabelList dataKey="sets" position="right" style={{ fontSize: 11, fontWeight: 600, fill: '#6b7280' }} />
-                        {categoryData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} fillOpacity={0.85} />)}
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                      <Tooltip content={<MuscleTooltip />} cursor={{ fill: `${accentHex}0a` } as any} />
+                      {/* Primary — full accent color */}
+                      <Bar dataKey="primary" stackId="m" fill={accentHex} fillOpacity={0.9} radius={[0, 0, 0, 0]}>
+                        <LabelList
+                          content={({ x, y, width, height, value, index }: any) => {
+                            const sec = muscleData[index]?.secondary ?? 0
+                            if (sec > 0) return null // label only when no secondary
+                            return value > 0 ? (
+                              <text x={Number(x) + Number(width) + 6} y={Number(y) + Number(height) / 2} dominantBaseline="middle"
+                                fill={accentHex} fontSize={11} fontWeight={600}>{value}</text>
+                            ) : null
+                          }}
+                        />
                       </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Primary muscles */}
-              {primaryData.length > 0 && (
-                <div className="rounded-xl bg-white border border-gray-100 shadow-sm p-4 md:col-span-2">
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Primarni mišići</p>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <BarChart data={primaryData} margin={{ top: 16, right: 4, left: -22, bottom: 0 }} barCategoryGap="28%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: `${accentHex}12`, radius: 6 } as any} />
-                      <Bar dataKey="sets" radius={[6, 6, 3, 3]}>
-                        <LabelList dataKey="sets" position="top" style={{ fontSize: 11, fontWeight: 600, fill: '#6b7280' }} />
-                        {primaryData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} fillOpacity={0.85} />)}
+                      {/* Secondary — same color, heavily faded */}
+                      <Bar dataKey="secondary" stackId="m" fill={accentHex} fillOpacity={0.28} radius={[0, 5, 5, 0]}>
+                        <LabelList
+                          content={({ x, y, width, height, value, index }: any) => {
+                            const pri = muscleData[index]?.primary ?? 0
+                            const total = pri + (value ?? 0)
+                            return total > 0 && Number(width) > 0 ? (
+                              <text x={Number(x) + Number(width) + 6} y={Number(y) + Number(height) / 2} dominantBaseline="middle"
+                                fill="#9ca3af" fontSize={11} fontWeight={600}>{total}</text>
+                            ) : null
+                          }}
+                        />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -713,6 +959,20 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         onCancel={() => setConfirmDeleteId(null)}
         confirmLabel="Ukloni"
         destructive
+      />
+
+      {/* Conflict: another plan is already active */}
+      <ConfirmDialog
+        open={activateConflict !== null}
+        title="Zamjena aktivnog plana"
+        description={`Plan "${activateConflict?.existingName}" je trenutno aktivan. Želiš li ga deaktivirati i aktivirati novi plan?`}
+        onConfirm={async () => {
+          if (activateConflict) await activateConflict.execute()
+          setActivateConflict(null)
+        }}
+        onCancel={() => setActivateConflict(null)}
+        confirmLabel="Da, zamijeni"
+        cancelLabel="Odustani"
       />
     </div>
   )
