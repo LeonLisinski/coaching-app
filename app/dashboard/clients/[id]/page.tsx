@@ -1,5 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
+import MobileClientDetail from '@/app/dashboard/clients/[id]/mobile-client-detail'
 import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -340,7 +341,7 @@ function ClientDetailPageContent() {
       <div className="flex items-center justify-between">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="flex items-center gap-2">
-            <TabsList className="flex-wrap h-auto gap-1 bg-gray-100/80">
+            <TabsList className="flex-nowrap overflow-x-auto sm:flex-wrap h-auto gap-1 bg-gray-100/80 scrollbar-hide">
               <TabsTrigger value="pregled" className="flex items-center gap-1.5">
                 <LayoutDashboard size={13} />Pregled
               </TabsTrigger>
@@ -464,8 +465,13 @@ function ClientDetailPageContent() {
 
 export default function ClientDetailPage() {
   return (
-    <Suspense fallback={null}>
-      <ClientDetailPageContent />
-    </Suspense>
+    <>
+      <div className="hidden lg:block">
+        <Suspense fallback={null}>
+          <ClientDetailPageContent />
+        </Suspense>
+      </div>
+      <div className="lg:hidden"><MobileClientDetail /></div>
+    </>
   )
 }

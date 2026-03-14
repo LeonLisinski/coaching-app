@@ -19,12 +19,8 @@ import {
   Bell,
   ClipboardCheck,
   CreditCard,
-  X,
-  Plus,
   UserPlus,
-  ClipboardList,
 } from 'lucide-react'
-// Dumbbell kept for navItems training icon
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -34,6 +30,7 @@ import SettingsDialog from '@/app/components/settings-dialog'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import GlobalSearch from '@/app/components/global-search'
 import { TabStateProvider } from '@/app/contexts/tab-state'
+import MobileBottomNav from '@/app/components/mobile-bottom-nav'
 
 const navItems = [
   { href: '/dashboard',             labelKey: 'overview',  icon: LayoutDashboard, color: 'text-violet-400' },
@@ -62,7 +59,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifs, setShowNotifs]     = useState(false)
-  const [showFab, setShowFab]           = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
   const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
   const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment'; href?: string; isNew?: boolean }[]>([])
@@ -247,8 +243,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <TabStateProvider>
     <div className="flex h-screen bg-background">
 
-      {/* ── SIDEBAR ── */}
-      <aside className={`${collapsed ? 'w-[68px]' : 'w-60'} flex flex-col shrink-0 transition-all duration-200 relative`} style={{ backgroundColor: '#0f0f14' }}>
+      {/* ── SIDEBAR — hidden on mobile, visible on lg+ ── */}
+      <aside className={`${collapsed ? 'w-[68px]' : 'w-60'} hidden lg:flex flex-col shrink-0 transition-all duration-200 relative`} style={{ backgroundColor: '#0f0f14' }}>
 
         {/* Accent-tinted gradient overlay */}
         <div
@@ -346,10 +342,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        {/* Collapse toggle */}
+        {/* Collapse toggle — desktop only */}
         <button
           onClick={() => setCollapsed(v => !v)}
-          className="absolute -right-3 top-[72px] z-20 w-6 h-6 rounded-full bg-[#1e1e2a] border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all shadow-md"
+          className="absolute -right-3 top-[72px] z-20 w-6 h-6 rounded-full bg-[#1e1e2a] border border-white/10 hidden lg:flex items-center justify-center text-white/40 hover:text-white hover:border-white/20 transition-all shadow-md"
         >
           {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
         </button>
@@ -357,15 +353,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── MAIN ── */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <header className="shrink-0 bg-white border-b border-gray-100 z-40 flex items-center h-12 px-6 gap-3">
+        <header className="shrink-0 bg-white border-b border-gray-100 z-40 flex items-center h-12 px-4 lg:px-6 gap-3">
+          {/* Mobile logo — only shown when sidebar is hidden */}
+          <div className="lg:hidden flex items-center gap-2 shrink-0">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: 'var(--app-accent)' }}>
+              <UnitLiftLogo fill="white" tight={false} className="w-4 h-4" />
+            </div>
+            <span className="font-black text-sm text-gray-900 tracking-tight">UnitLift</span>
+          </div>
           {/* Search trigger */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
-            className="flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs min-w-[180px]"
+            className="flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs flex-1 lg:flex-none lg:min-w-[180px]"
           >
             <Search size={13} />
             <span className="flex-1 text-left">Pretraži...</span>
-            <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 font-mono leading-none">⌘K</kbd>
+            <kbd className="hidden lg:block text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 font-mono leading-none">⌘K</kbd>
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
@@ -465,44 +469,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
         <GlobalSearch />
 
-        {/* Global FAB */}
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-          {showFab && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowFab(false)} />
-              <div className="relative z-50 flex flex-col items-end gap-1.5 mb-1">
-                {([
-                  { label: 'Novi klijent',     icon: UserPlus,     href: '/dashboard/clients?action=add',     color: '#3b82f6' },
-                  { label: 'Novi plan treninga', icon: Dumbbell,   href: '/dashboard/training?action=addPlan', color: '#8b5cf6' },
-                  { label: 'Novi check-in',    icon: ClipboardList, href: '/dashboard/checkins?action=add',   color: '#10b981' },
-                ] as const).map(({ label, icon: Icon, href, color }) => (
-                  <button
-                    key={label}
-                    onClick={() => { router.push(href); setShowFab(false) }}
-                    className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                    style={{ backgroundColor: color }}
-                  >
-                    <Icon size={14} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+        {/* Global FAB — sits above mobile bottom nav */}
+        <div className="fixed bottom-[72px] lg:bottom-6 right-4 lg:right-6 z-40">
           <button
-            onClick={() => setShowFab(v => !v)}
+            onClick={() => router.push('/dashboard/clients?action=add')}
             className="w-12 h-12 rounded-2xl text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
             style={{ backgroundColor: 'var(--app-accent)' }}
-            title="Brzo dodavanje"
+            title="Novi klijent"
           >
-            <Plus size={22} className={`transition-transform duration-200 ${showFab ? 'rotate-45' : ''}`} />
+            <UserPlus size={20} />
           </button>
         </div>
 
-        <main className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'overflow-auto p-8'}`}>
+        <main className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden pb-14 lg:pb-0' : 'overflow-auto p-4 lg:p-8 pb-20 lg:pb-8'}`}>
           {children}
         </main>
       </div>
+
+      {/* ── MOBILE BOTTOM NAV ── */}
+      <MobileBottomNav
+        lastClientHref={lastClientHref}
+        lastCheckinHref={lastCheckinHref}
+        lastChatHref={lastChatHref}
+        notifCount={notifCount}
+        userName={userName}
+        userInitials={userInitials}
+        onLogout={handleLogout}
+      />
     </div>
     </TabStateProvider>
   )

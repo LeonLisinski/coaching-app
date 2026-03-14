@@ -1,5 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
+import MobileClientsView from '@/app/dashboard/clients/mobile-clients-view'
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -707,9 +708,14 @@ function ClientsPageContent() {
 
 export default function ClientsPage() {
   return (
-    <Suspense fallback={null}>
-      <ClientsPageContent />
-    </Suspense>
+    <>
+      <div className="hidden lg:block">
+        <Suspense fallback={null}>
+          <ClientsPageContent />
+        </Suspense>
+      </div>
+      <div className="lg:hidden"><MobileClientsView /></div>
+    </>
   )
 }
 

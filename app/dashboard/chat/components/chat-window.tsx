@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Send, Zap } from 'lucide-react'
+import { Send, Zap, ArrowLeft } from 'lucide-react'
 
 const QUICK_TEMPLATES = [
   { label: 'Podsjetnik check-in', text: 'Ne zaboravi predati check-in ovaj tjedan! 💪' },
@@ -20,6 +20,7 @@ type Props = {
   clientName: string
   accentHex?: string
   onMessageSent: () => void
+  onBack?: () => void
 }
 
 type Message = {
@@ -50,7 +51,7 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   )
 }
 
-export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed', onMessageSent }: Props) {
+export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed', onMessageSent, onBack }: Props) {
   const t = useTranslations('chat')
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -192,7 +193,15 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors -ml-1 shrink-0 lg:hidden"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
         <Avatar name={clientName} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900 truncate">{clientName}</p>

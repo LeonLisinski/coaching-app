@@ -133,8 +133,8 @@ function ChatPageContent() {
 
   return (
     <div className="flex h-full overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-white">
-      {/* Sidebar */}
-      <div className="w-72 border-r flex flex-col flex-shrink-0">
+      {/* Sidebar — full screen on mobile when no chat selected, fixed width on desktop */}
+      <div className={`${selectedClientId ? 'hidden lg:flex' : 'flex'} w-full lg:w-72 border-r flex-col flex-shrink-0`}>
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b" style={{ background: `linear-gradient(135deg, ${accentHex}12, ${accentHex}06)` }}>
           <div className="flex items-center gap-2 mb-3">
@@ -223,14 +223,15 @@ function ChatPageContent() {
         </div>
       </div>
 
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: `${accentHex}04` }}>
+      {/* Chat area — hidden on mobile when no chat selected */}
+      <div className={`${!selectedClientId ? 'hidden lg:flex' : 'flex'} flex-1 flex-col overflow-hidden`} style={{ backgroundColor: `${accentHex}04` }}>
         {selectedClientId ? (
           <ChatWindow
             clientId={selectedClientId}
             clientName={clients.find(c => c.id === selectedClientId)?.full_name || ''}
             accentHex={accentHex}
             onMessageSent={fetchClients}
+            onBack={() => setSelectedClientId(null)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">

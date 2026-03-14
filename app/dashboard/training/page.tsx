@@ -1,4 +1,5 @@
 'use client'
+import MobileUnavailable from '@/app/components/mobile-unavailable'
 export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -24,7 +25,7 @@ type ActiveDrag = {
   payload: any
 }
 
-export default function TrainingPage() {
+function TrainingPageContent() {
   const t = useTranslations('training.page')
 
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
@@ -262,6 +263,15 @@ export default function TrainingPage() {
         </div>
       </div>
     </DndContext>
+  )
+}
+
+export default function TrainingPage() {
+  return (
+    <>
+      <div className="hidden lg:block"><TrainingPageContent /></div>
+      <div className="lg:hidden"><MobileUnavailable title="Upravljanje treninzima" /></div>
+    </>
   )
 }
 

@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
+import MobileDashboard from '@/app/dashboard/mobile-dashboard'
 import { useEffect, useState } from 'react'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import { useTranslations, useLocale } from 'next-intl'
@@ -159,7 +160,7 @@ function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => voi
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const t      = useTranslations('dashboard')
   const locale = useLocale()
   const router = useRouter()
@@ -450,7 +451,7 @@ export default function DashboardPage() {
   if (loading) return (
     <div className="space-y-6 animate-pulse">
       <div className="h-8 w-64 bg-gray-100 rounded-lg" />
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl" />)}
       </div>
     </div>
@@ -783,3 +784,11 @@ export default function DashboardPage() {
   )
 }
 
+export default function DashboardPage() {
+  return (
+    <>
+      <div className="hidden lg:block"><DashboardPageContent /></div>
+      <div className="lg:hidden"><MobileDashboard /></div>
+    </>
+  )
+}

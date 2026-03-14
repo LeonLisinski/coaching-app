@@ -1,5 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
+import MobileCheckinsView from '@/app/dashboard/checkins/mobile-checkins-view'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'
@@ -8,7 +9,7 @@ import CheckinStatsTab from '@/app/dashboard/checkins/tabs/stats-tab'
 import { ClipboardList, Settings2, BarChart2 } from 'lucide-react'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 
-export default function CheckinsPage() {
+function CheckinsPageContent() {
   const t = useTranslations('checkins')
   const [activeTab, setActiveTab] = usePersistedTab('checkins_tab', 'clients')
 
@@ -48,3 +49,11 @@ export default function CheckinsPage() {
   )
 }
 
+export default function CheckinsPage() {
+  return (
+    <>
+      <div className="hidden lg:block"><CheckinsPageContent /></div>
+      <div className="lg:hidden"><MobileCheckinsView /></div>
+    </>
+  )
+}

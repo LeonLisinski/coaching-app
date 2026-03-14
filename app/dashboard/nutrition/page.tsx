@@ -1,4 +1,5 @@
 'use client'
+import MobileUnavailable from '@/app/components/mobile-unavailable'
 export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -23,7 +24,7 @@ type ActiveDrag = {
   payload: any
 }
 
-export default function NutritionPage() {
+function NutritionPageContent() {
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
   const [activeType, setActiveType] = useState<'food' | 'recipe' | null>(null)
   const [foodRefreshKey, setFoodRefreshKey] = useState(0)
@@ -263,3 +264,11 @@ export default function NutritionPage() {
   )
 }
 
+export default function NutritionPage() {
+  return (
+    <>
+      <div className="hidden lg:block"><NutritionPageContent /></div>
+      <div className="lg:hidden"><MobileUnavailable title="Upravljanje prehranom" /></div>
+    </>
+  )
+}

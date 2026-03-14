@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
+import MobileFinanceView from '@/app/dashboard/financije/mobile-finance-view'
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
@@ -116,7 +117,7 @@ function StatusBadge({ status, daysLeftVal, t }: { status: string; daysLeftVal?:
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function FinancijePage() {
+function FinancijePageContent() {
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const tRaw = useTranslations()
@@ -690,3 +691,11 @@ export default function FinancijePage() {
   )
 }
 
+export default function FinancijePage() {
+  return (
+    <>
+      <div className="hidden lg:block"><FinancijePageContent /></div>
+      <div className="lg:hidden"><MobileFinanceView /></div>
+    </>
+  )
+}
