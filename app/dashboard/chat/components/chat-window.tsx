@@ -65,38 +65,45 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const templatesRef = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
 
-  // On mobile: become a fixed full-screen overlay that tracks the visual viewport.
-  // This ensures the header and input stay visible when the iOS keyboard opens,
-  // regardless of any page scroll the browser might trigger.
+  // On mobile: become a fixed overlay anchored just below the dashboard header.
+  // This keeps the client name/back-arrow visible, and the input stays above the
+  // keyboard when it opens (we track visualViewport height for that).
   useEffect(() => {
     const el = outerRef.current
     if (!el || window.innerWidth >= 1024) return
-
-    const vv = (window as any).visualViewport
-    if (!vv) {
-      // Fallback: just go fixed full screen
-      el.style.position = 'fixed'
-      el.style.top = '0'
-      el.style.left = '0'
-      el.style.right = '0'
-      el.style.bottom = '0'
-      return
-    }
 
     el.style.position = 'fixed'
     el.style.left = '0'
     el.style.right = '0'
 
-    const update = () => {
-      el.style.top = `${vv.offsetTop}px`
-      el.style.height = `${vv.height}px`
+    // The dashboard header already has the safe-area-inset-top baked in via
+    // .mobile-accent-header CSS. Using getBoundingClientRect().bottom gives us
+    // the exact pixel where the header ends, so the chat sits right below it.
+    const getHeaderBottom = (): number => {
+      const header = document.querySelector('header.mobile-accent-header') as HTMLElement | null
+      return header ? header.getBoundingClientRect().bottom : 0
     }
+
+    const vv = (window as any).visualViewport
+
+    const update = () => {
+      const headerBottom = getHeaderBottom()
+      const viewportHeight = vv ? vv.height : window.innerHeight
+      el.style.top = `${headerBottom}px`
+      el.style.height = `${Math.max(0, viewportHeight - headerBottom)}px`
+    }
+
     update()
-    vv.addEventListener('resize', update)
-    vv.addEventListener('scroll', update)
+    if (vv) {
+      vv.addEventListener('resize', update)
+      vv.addEventListener('scroll', update)
+    }
+
     return () => {
-      vv.removeEventListener('resize', update)
-      vv.removeEventListener('scroll', update)
+      if (vv) {
+        vv.removeEventListener('resize', update)
+        vv.removeEventListener('scroll', update)
+      }
       el.style.position = ''
       el.style.top = ''
       el.style.left = ''
