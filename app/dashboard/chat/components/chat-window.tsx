@@ -60,9 +60,26 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [keyboardOffset, setKeyboardOffset] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
+
+  // Track virtual keyboard height via visualViewport (iOS PWA fix)
+  useEffect(() => {
+    const vv = (window as any).visualViewport
+    if (!vv) return
+    const update = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setKeyboardOffset(offset)
+    }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
 
   useEffect(() => {
     initChat()
@@ -125,6 +142,21 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
         if (msg.client_id === clientId && msg.trainer_id === uid) {
           setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
           markAsRead(uid)
+
+          // Send push if tab is hidden (app in background)
+          if (msg.sender_id !== uid && document.visibilityState === 'hidden') {
+            fetch('/api/push/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                trainer_id: uid,
+                title: `💬 ${clientName}`,
+                body: msg.content?.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content,
+                url: '/dashboard/chat',
+                tag: `message-${clientId}`,
+              }),
+            }).catch(() => {})
+          }
         }
       })
       .subscribe()
@@ -191,7 +223,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }, {} as Record<string, Message[]>)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={keyboardOffset > 0 ? { marginBottom: `${keyboardOffset}px` } : undefined}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
         {onBack && (
@@ -312,7 +344,6 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             onKeyDown={handleKeyDown}
             placeholder={t('window.messagePlaceholder')}
             disabled={sending}
-            autoFocus
             rows={1}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 resize-none max-h-24 overflow-y-auto leading-relaxed"
             style={{ minHeight: '1.5rem' }}

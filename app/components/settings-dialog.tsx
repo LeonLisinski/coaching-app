@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 
 const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
   { key: 'violet', label: 'Violet',  hex: '#7c3aed' },
@@ -33,6 +34,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const t = useTranslations('settings')
   const { accent, setAccent } = useAppTheme()
   const [tab, setTab] = useState<Tab>('theme')
+  const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
 
   // PWA install prompt
   const [installPrompt, setInstallPrompt] = useState<any>(null)
@@ -191,6 +193,72 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 )}
               </div>
             </>
+          )}
+
+          {/* Push Notifications */}
+          {tab === 'theme' && (
+            <div className="pt-1 border-t border-gray-100">
+              <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                <Bell size={14} className="text-gray-500" />
+                Push notifikacije
+              </p>
+
+              {pushState === 'loading' && (
+                <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                  <p className="text-xs text-gray-400">Provjera...</p>
+                </div>
+              )}
+
+              {pushState === 'unsupported' && (
+                <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                  <p className="text-xs text-gray-500">Push notifikacije nisu podržane u ovom pregledniku.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Dodaj app na početni zaslon za podršku.</p>
+                </div>
+              )}
+
+              {pushState === 'denied' && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100">
+                  <BellOff size={14} className="text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-red-700">Notifikacije su blokirane</p>
+                    <p className="text-xs text-red-500 mt-0.5">Odobri ih u postavkama preglednika/telefona.</p>
+                  </div>
+                </div>
+              )}
+
+              {pushState === 'prompt' && (
+                <button
+                  onClick={pushSubscribe}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-light)] transition-colors group text-left"
+                >
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--app-accent-light)] group-hover:bg-[var(--app-accent)] transition-colors shrink-0">
+                    <Bell size={14} className="text-[var(--app-accent)] group-hover:text-white transition-colors" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Uključi notifikacije</p>
+                    <p className="text-xs text-gray-400">Poruke klijenata, check-ini i plaćanja</p>
+                  </div>
+                </button>
+              )}
+
+              {pushState === 'subscribed' && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
+                    <BellRing size={14} className="text-green-500 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-green-700">Notifikacije su uključene ✓</p>
+                      <p className="text-xs text-green-600 mt-0.5">Dobivat ćeš obavijesti za poruke i check-ine</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={pushUnsubscribe}
+                    className="w-full text-xs text-gray-400 hover:text-red-500 transition-colors text-center py-1"
+                  >
+                    Isključi notifikacije
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {tab === 'contact' && (

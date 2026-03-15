@@ -470,7 +470,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <GlobalSearch />
 
         {/* Global FAB — hidden on mobile chat to avoid overlapping the send bar */}
-        <div className={`fixed bottom-[72px] lg:bottom-6 right-4 lg:right-6 z-40 ${isChat ? 'hidden lg:flex' : ''}`}>
+        <div
+          className={`fixed lg:bottom-6 right-4 lg:right-6 z-40 ${isChat ? 'hidden lg:flex' : ''}`}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
+        >
           <button
             onClick={() => router.push('/dashboard/clients?action=add')}
             className="w-12 h-12 rounded-2xl text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
@@ -482,7 +485,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <main
-          className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden pb-14 lg:pb-0' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 pb-24 lg:pb-8'}`}
+          className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden lg:pb-0' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 pb-24 lg:pb-8'}`}
+          style={isChat ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom) + 2px)' } : undefined}
           style={!isChat ? { WebkitOverflowScrolling: 'touch' } : undefined}
         >
           {children}
