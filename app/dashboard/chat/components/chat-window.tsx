@@ -224,8 +224,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
   return (
     <div className="flex flex-col h-full" style={keyboardOffset > 0 ? { marginBottom: `${keyboardOffset}px` } : undefined}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
+      {/* Header — sticky so keyboard can't push it off screen */}
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm sticky top-0 z-10">
         {onBack && (
           <button
             onClick={onBack}
