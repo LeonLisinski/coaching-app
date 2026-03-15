@@ -208,13 +208,14 @@ export default function ProfilePage() {
 
       {/* ── Hero header ── */}
       <div className="rounded-2xl overflow-hidden shadow-sm border border-white/20">
-        <div className="px-6 py-6 flex items-center gap-5"
+        <div className="px-4 sm:px-6 py-5 flex items-start gap-4"
           style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accentHex} 70%, #0f0a1e), color-mix(in srgb, ${accentHex} 50%, #0f0a1e))` }}>
+          {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 border border-white/30 overflow-hidden flex items-center justify-center shadow-sm">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 border border-white/30 overflow-hidden flex items-center justify-center shadow-sm">
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                : <span className="text-2xl font-bold text-white">{initials}</span>
+                : <span className="text-xl sm:text-2xl font-bold text-white">{initials}</span>
               }
             </div>
             <label className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors border border-gray-200">
@@ -222,30 +223,42 @@ export default function ProfilePage() {
               <input type="file" accept="image/*" onChange={uploadAvatar} className="hidden" />
             </label>
           </div>
+
+          {/* Info */}
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-white leading-tight">{form.full_name || '—'}</h1>
-            <p className="text-white/60 text-sm mt-0.5">{profile?.email}</p>
-            <div className="flex flex-wrap gap-3 mt-2">
-              {form.instagram && <span className="flex items-center gap-1 text-xs text-white/70"><Instagram size={10} />@{form.instagram.replace('@', '')}</span>}
-              {form.facebook  && <span className="flex items-center gap-1 text-xs text-white/70"><Facebook size={10} />{form.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>}
-              {form.tiktok    && <span className="flex items-center gap-1 text-xs text-white/70"><AtSign size={10} />@{form.tiktok.replace('@', '')}</span>}
-              {form.phone     && <span className="flex items-center gap-1 text-xs text-white/70"><Phone size={10} />{form.phone}</span>}
-              {form.website   && <span className="flex items-center gap-1 text-xs text-white/70"><Globe size={10} />{form.website.replace(/^https?:\/\//, '')}</span>}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-white leading-tight truncate">{form.full_name || '—'}</h1>
+                <p className="text-white/60 text-xs sm:text-sm mt-0.5 truncate">{profile?.email}</p>
+              </div>
+              {/* Edit button — icon only on mobile, text on sm+ */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {profile?.avatar_url && (
+                  <button onClick={async () => { await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile!.id); fetchData() }}
+                    className="hidden sm:block text-xs text-white/50 hover:text-white/80 transition-colors">
+                    {t('avatar.remove')}
+                  </button>
+                )}
+                <button onClick={() => setEditMode(v => !v)}
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl font-semibold transition-colors"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white' }}>
+                  {editMode
+                    ? <><X size={11} /> <span className="hidden sm:inline">{tCommon('cancel')}</span></>
+                    : <><Pencil size={11} /> <span className="hidden sm:inline">{t('editProfile')}</span></>
+                  }
+                </button>
+              </div>
             </div>
-            {form.bio && <p className="text-xs text-white/55 mt-1.5 leading-relaxed max-w-lg">{form.bio}</p>}
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {profile?.avatar_url && (
-              <button onClick={async () => { await supabase.from('profiles').update({ avatar_url: null }).eq('id', profile!.id); fetchData() }}
-                className="text-xs text-white/50 hover:text-white/80 transition-colors">
-                {t('avatar.remove')}
-              </button>
-            )}
-            <button onClick={() => setEditMode(v => !v)}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-semibold transition-colors"
-              style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: 'white' }}>
-              {editMode ? <><X size={11} /> {tCommon('cancel')}</> : <><Pencil size={11} /> {t('editProfile')}</>}
-            </button>
+
+            {/* Social links — compact on mobile, never break mid-item */}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+              {form.instagram && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Instagram size={9} />@{form.instagram.replace('@', '')}</span>}
+              {form.facebook  && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Facebook size={9} />{form.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>}
+              {form.tiktok    && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><AtSign size={9} />@{form.tiktok.replace('@', '')}</span>}
+              {form.phone     && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Phone size={9} />{form.phone}</span>}
+              {form.website   && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Globe size={9} />{form.website.replace(/^https?:\/\//, '')}</span>}
+            </div>
+            {form.bio && <p className="text-[11px] text-white/55 mt-1.5 leading-relaxed line-clamp-2 sm:line-clamp-none">{form.bio}</p>}
           </div>
         </div>
       </div>

@@ -247,7 +247,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -299,11 +299,11 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-600">{t('email')} <span className="text-rose-400">*</span></Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="new-password" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-600">{t('password')} <span className="text-rose-400">*</span></Label>
-                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
+                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="new-password" />
                 </div>
               </div>
 

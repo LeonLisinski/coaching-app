@@ -1,6 +1,6 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, TrendingUp, Dumbbell, Loader2 } from 'lucide-react'
@@ -16,6 +16,20 @@ export default function LoginPage() {
   const [showPwd, setShowPwd]   = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+  const [checking, setChecking] = useState(true)
+
+  // On PWA launch the middleware may redirect here because the cookie expired,
+  // but localStorage may still hold a valid (or refreshable) session.
+  // Detect that client-side and silently redirect back to dashboard.
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        window.location.replace('/dashboard')
+      } else {
+        setChecking(false)
+      }
+    })
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +48,14 @@ export default function LoginPage() {
     e.currentTarget.style.borderColor = ''
     e.currentTarget.style.boxShadow   = ''
     e.currentTarget.style.backgroundColor = ''
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f7f8fb]">
+        <Loader2 size={28} className="animate-spin text-gray-300" />
+      </div>
+    )
   }
 
   return (

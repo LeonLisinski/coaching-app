@@ -289,3 +289,47 @@
     display: none;
   }
 }
+
+/* ── Mobile accent header ── */
+@media (max-width: 1023px) {
+  .mobile-accent-header {
+    background: linear-gradient(135deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 65%, #0b0018)) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  .mobile-accent-header .hdr-logo-bg {
+    background: rgba(255, 255, 255, 0.18) !important;
+  }
+  .mobile-accent-header .hdr-logo-text {
+    color: white !important;
+  }
+  .mobile-accent-header .hdr-search {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+  .mobile-accent-header .hdr-search span {
+    color: rgba(255, 255, 255, 0.6) !important;
+  }
+  .mobile-accent-header .hdr-icon {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+  .mobile-accent-header .hdr-icon:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: white !important;
+  }
+  .mobile-accent-header .hdr-badge {
+    background: white !important;
+    color: var(--app-accent) !important;
+  }
+}
+
+/* ── Mobile content: subtle accent tint at top ── */
+@media (max-width: 1023px) {
+  .mobile-tinted-bg {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--app-accent) 8%, #f0f4f8) 0px,
+      #f9fafb 100px
+    ) !important;
+  }
+}

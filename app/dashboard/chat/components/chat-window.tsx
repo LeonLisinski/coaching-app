@@ -327,7 +327,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <Send size={13} />
           </button>
         </div>
-        <p className="text-[10px] text-gray-400 text-center mt-1.5">Enter za slanje · Shift+Enter za novi red</p>
+        <p className="hidden lg:block text-[10px] text-gray-400 text-center mt-1.5">Enter za slanje · Shift+Enter za novi red</p>
       </div>
     </div>
   )

@@ -21,13 +21,20 @@ export const metadata: Metadata = {
   title: "UnitLift — Coaching Platform",
   description: "UnitLift is a coaching platform for personal trainers to manage clients, check-ins, workout plans, nutrition, chat, and progress tracking in one place.",
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/favicon.svg',
+    shortcut: '/favicon.svg',
   },
+  manifest: '/site.webmanifest',
   openGraph: {
-    title: "UnitLift App — Coaching Platform for Personal Trainers",
+    title: "UnitLift — Coaching Platform",
     description: "A coaching platform for personal trainers to manage clients, check-ins, workouts, nutrition, chat, and progress tracking in one place.",
     type: "website",
+    images: [{ url: '/favicon.svg' }],
   },
+  themeColor: '#7c3aed',
 };
 
 export default async function RootLayout({
@@ -40,6 +47,15 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="theme-color" content="#7c3aed" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="UnitLift" />
+      </head>
       <body
         className={`${roboto.variable} ${robotoMono.variable} font-sans antialiased`}
         suppressHydrationWarning

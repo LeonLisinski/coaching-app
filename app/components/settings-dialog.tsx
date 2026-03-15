@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
@@ -34,9 +34,32 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const { accent, setAccent } = useAppTheme()
   const [tab, setTab] = useState<Tab>('theme')
 
+  // PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<any>(null)
+  const [installed, setInstalled] = useState(false)
+
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any)?.MSStream
+  const isAndroid = /Android/.test(ua)
+
+  useEffect(() => {
+    if (window.matchMedia('(display-mode: standalone)').matches) setInstalled(true)
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setInstalled(true)
+    setInstallPrompt(null)
+  }
+
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -118,6 +141,55 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 </p>
               </div>
 
+              {/* Add to Home Screen */}
+              <div className="pt-1 border-t border-gray-100">
+                <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                  <Smartphone size={14} className="text-gray-500" />
+                  Dodaj na ekran
+                </p>
+
+                {installed ? (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
+                    <Check size={14} className="text-green-500 shrink-0" />
+                    <p className="text-xs text-green-700">App je već instalirana na tvom uređaju.</p>
+                  </div>
+                ) : installPrompt ? (
+                  <button
+                    onClick={handleInstall}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-200 hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-light)] transition-colors group text-left"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-[var(--app-accent-light)] group-hover:bg-[var(--app-accent)] transition-colors shrink-0">
+                      <Download size={14} className="text-[var(--app-accent)] group-hover:text-white transition-colors" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">Instaliraj aplikaciju</p>
+                      <p className="text-xs text-gray-400">Dodaj UnitLift na početni ekran</p>
+                    </div>
+                  </button>
+                ) : isIOS ? (
+                  <div className="px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 space-y-2">
+                    <p className="text-xs font-medium text-blue-800">Upute za iPhone / iPad:</p>
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                      <span className="text-amber-500 text-sm leading-none mt-0.5">⚠</span>
+                      <p className="text-xs text-amber-700">Radi <strong>samo u Safariju</strong>. Ako koristiš Chrome, otvori ovu stranicu u Safariju.</p>
+                    </div>
+                    <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                      <li>Otvori stranicu u <strong>Safariju</strong></li>
+                      <li>Pritisni <Share size={11} className="inline mb-0.5" /> <strong>Dijeli</strong> gumb (donji bar)</li>
+                      <li>Odaberi <strong>"Dodaj na početni zaslon"</strong></li>
+                    </ol>
+                  </div>
+                ) : isAndroid ? (
+                  <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
+                    <p className="text-xs font-medium text-gray-700">Upute za Android:</p>
+                    <p className="text-xs text-gray-500">U Chromeu pritisni ⋮ izbornik → <strong>"Dodaj na početni ekran"</strong></p>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                    <p className="text-xs text-gray-500">Otvori ovu stranicu na mobitelu za instalaciju.</p>
+                  </div>
+                )}
+              </div>
             </>
           )}
 

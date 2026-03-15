@@ -241,7 +241,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <TabStateProvider>
-    <div className="flex h-screen bg-background">
+    <div className="flex bg-background" style={{ height: '100dvh' }}>
 
       {/* ── SIDEBAR — hidden on mobile, visible on lg+ ── */}
       <aside className={`${collapsed ? 'w-[68px]' : 'w-60'} hidden lg:flex flex-col shrink-0 transition-all duration-200 relative`} style={{ backgroundColor: '#0f0f14' }}>
@@ -253,7 +253,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
 
         {/* Logo */}
-        <div className={`relative z-10 flex items-center h-16 px-4 border-b border-white/5 ${collapsed ? 'justify-center' : 'gap-3'}`}>
+        <Link href="/dashboard" className={`relative z-10 flex items-center h-16 px-4 border-b border-white/5 hover:opacity-90 transition-opacity ${collapsed ? 'justify-center' : 'gap-3'}`}>
           {/* Icon mark — always shown */}
           <div className="w-9 h-9 rounded-xl bg-app-accent flex items-center justify-center shrink-0 select-none"
             style={{ boxShadow: '0 2px 8px var(--app-accent-muted)' }}>
@@ -266,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p className="text-white/30 text-[9px] font-semibold tracking-widest uppercase mt-0.5">Coaching Platform</p>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Nav items */}
         <nav className="relative z-10 flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
@@ -353,19 +353,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── MAIN ── */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <header className="shrink-0 bg-white border-b border-gray-100 z-40 flex items-center h-12 px-4 lg:px-6 gap-3">
+        <header className="mobile-accent-header shrink-0 bg-white border-b border-gray-100 z-40 flex items-center h-12 px-4 lg:px-6 gap-3">
           {/* Mobile logo — only shown when sidebar is hidden */}
-          <div className="lg:hidden flex items-center gap-2 shrink-0">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+          <Link href="/dashboard" className="lg:hidden flex items-center gap-2 shrink-0">
+            <div className="hdr-logo-bg w-7 h-7 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: 'var(--app-accent)' }}>
               <UnitLiftLogo fill="white" tight={false} className="w-4 h-4" />
             </div>
-            <span className="font-black text-sm text-gray-900 tracking-tight">UnitLift</span>
-          </div>
+            <span className="hdr-logo-text font-black text-sm text-gray-900 tracking-tight">UnitLift</span>
+          </Link>
           {/* Search trigger */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
-            className="flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs flex-1 lg:flex-none lg:min-w-[180px]"
+            className="hdr-search flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs flex-1 lg:flex-none lg:min-w-[180px]"
           >
             <Search size={13} />
             <span className="flex-1 text-left">Pretraži...</span>
@@ -378,12 +378,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="relative">
               <button
                 onClick={() => setShowNotifs(v => !v)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors relative"
+                className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors relative"
                 title="Obavijesti"
               >
                 <Bell size={16} />
                 {notifCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none"
+                  <span className="hdr-badge absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none"
                     style={{ backgroundColor: 'var(--app-accent)' }}>
                     {notifCount > 9 ? '9+' : notifCount}
                   </span>
@@ -393,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {showNotifs && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowNotifs(false)} />
-                  <div className="absolute right-0 top-10 z-50 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[480px]">
+                  <div className="fixed top-12 right-2 z-50 w-80 max-w-[calc(100vw-1rem)] bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[480px]">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
                       <div className="flex items-center gap-2">
@@ -459,7 +459,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
               title="Postavke"
             >
               <Settings size={16} />
@@ -469,8 +469,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
         <GlobalSearch />
 
-        {/* Global FAB — sits above mobile bottom nav */}
-        <div className="fixed bottom-[72px] lg:bottom-6 right-4 lg:right-6 z-40">
+        {/* Global FAB — hidden on mobile chat to avoid overlapping the send bar */}
+        <div className={`fixed bottom-[72px] lg:bottom-6 right-4 lg:right-6 z-40 ${isChat ? 'hidden lg:flex' : ''}`}>
           <button
             onClick={() => router.push('/dashboard/clients?action=add')}
             className="w-12 h-12 rounded-2xl text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
@@ -481,7 +481,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
         </div>
 
-        <main className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden pb-14 lg:pb-0' : 'overflow-auto p-4 lg:p-8 pb-20 lg:pb-8'}`}>
+        <main
+          className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden pb-14 lg:pb-0' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 pb-20 lg:pb-8'}`}
+          style={!isChat ? { WebkitOverflowScrolling: 'touch' } : undefined}
+        >
           {children}
         </main>
       </div>
