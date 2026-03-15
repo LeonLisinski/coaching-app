@@ -60,24 +60,48 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
-  const [keyboardOffset, setKeyboardOffset] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
+  const outerRef = useRef<HTMLDivElement>(null)
 
-  // Track virtual keyboard height via visualViewport (iOS PWA fix)
+  // On mobile: become a fixed full-screen overlay that tracks the visual viewport.
+  // This ensures the header and input stay visible when the iOS keyboard opens,
+  // regardless of any page scroll the browser might trigger.
   useEffect(() => {
+    const el = outerRef.current
+    if (!el || window.innerWidth >= 1024) return
+
     const vv = (window as any).visualViewport
-    if (!vv) return
-    const update = () => {
-      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      setKeyboardOffset(offset)
+    if (!vv) {
+      // Fallback: just go fixed full screen
+      el.style.position = 'fixed'
+      el.style.top = '0'
+      el.style.left = '0'
+      el.style.right = '0'
+      el.style.bottom = '0'
+      return
     }
+
+    el.style.position = 'fixed'
+    el.style.left = '0'
+    el.style.right = '0'
+
+    const update = () => {
+      el.style.top = `${vv.offsetTop}px`
+      el.style.height = `${vv.height}px`
+    }
+    update()
     vv.addEventListener('resize', update)
     vv.addEventListener('scroll', update)
     return () => {
       vv.removeEventListener('resize', update)
       vv.removeEventListener('scroll', update)
+      el.style.position = ''
+      el.style.top = ''
+      el.style.left = ''
+      el.style.right = ''
+      el.style.height = ''
     }
   }, [])
 
@@ -223,9 +247,9 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }, {} as Record<string, Message[]>)
 
   return (
-    <div className="flex flex-col h-full" style={keyboardOffset > 0 ? { marginBottom: `${keyboardOffset}px` } : undefined}>
-      {/* Header — sticky so keyboard can't push it off screen */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm sticky top-0 z-10">
+    <div ref={outerRef} className="flex flex-col h-full bg-white z-[60] lg:z-auto">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
         {onBack && (
           <button
             onClick={onBack}

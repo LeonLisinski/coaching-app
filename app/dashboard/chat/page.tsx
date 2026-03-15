@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Search, MessageCircle } from 'lucide-react'
 import ChatWindow from './components/chat-window'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useActiveChat } from '@/app/contexts/active-chat'
 import { useSearchParams } from 'next/navigation'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -30,6 +31,7 @@ function ChatPageContent() {
   const locale = useLocale()
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const { setInActiveChat } = useActiveChat()
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -46,10 +48,16 @@ function ChatPageContent() {
     }
   }, [searchParams])
 
-  // Persist selected chat so sidebar "Chat" link brings you back here
+  // Persist selected chat + signal layout to hide tabs
   useEffect(() => {
-    if (selectedClientId) localStorage.setItem('last_chat_client_id', selectedClientId)
-  }, [selectedClientId])
+    if (selectedClientId) {
+      localStorage.setItem('last_chat_client_id', selectedClientId)
+      setInActiveChat(true)
+    } else {
+      setInActiveChat(false)
+    }
+    return () => setInActiveChat(false)
+  }, [selectedClientId, setInActiveChat])
 
   useEffect(() => {
     fetchClients()
@@ -220,6 +228,8 @@ function ChatPageContent() {
               })}
             </div>
           )}
+          {/* Spacer so last item isn't hidden behind mobile tab bar */}
+          {!selectedClientId && <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom))' }} />}
         </div>
       </div>
 

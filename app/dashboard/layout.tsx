@@ -31,6 +31,7 @@ import UnitLiftLogo from '@/app/components/unitlift-logo'
 import GlobalSearch from '@/app/components/global-search'
 import { TabStateProvider } from '@/app/contexts/tab-state'
 import MobileBottomNav from '@/app/components/mobile-bottom-nav'
+import { useActiveChat } from '@/app/contexts/active-chat'
 
 const navItems = [
   { href: '/dashboard',             labelKey: 'overview',  icon: LayoutDashboard, color: 'text-violet-400' },
@@ -238,6 +239,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const isChat = pathname.startsWith('/dashboard/chat')
+  const { inActiveChat } = useActiveChat()
 
   return (
     <TabStateProvider>
@@ -469,9 +471,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
         <GlobalSearch />
 
-        {/* Global FAB — hidden on mobile chat to avoid overlapping the send bar */}
+        {/* Global FAB — hidden on mobile when in active chat */}
         <div
-          className={`fixed lg:bottom-6 right-4 lg:right-6 z-40 ${isChat ? 'hidden lg:flex' : ''}`}
+          className={`fixed lg:bottom-6 right-4 lg:right-6 z-40 ${inActiveChat ? 'hidden lg:flex' : ''}`}
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
         >
           <button
@@ -488,15 +490,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 lg:pb-8'}`}
           style={isChat
             ? undefined
-            : { WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom) + 8px)' }
+            : { WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom))' }
           }
         >
           {children}
         </main>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV — hidden in chat ── */}
-      {!isChat && (
+      {/* ── MOBILE BOTTOM NAV — hidden only when inside an active client chat ── */}
+      {!inActiveChat && (
         <MobileBottomNav
           lastClientHref={lastClientHref}
           lastCheckinHref={lastCheckinHref}
