@@ -54,7 +54,7 @@ export default function MobileBottomNav({
       {/* ── BOTTOM BAR ── */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-100"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}
       >
         <div className="flex items-stretch justify-around h-14">
           {primaryItems.map(({ href, effectiveHref, labelKey, icon: Icon }) => {

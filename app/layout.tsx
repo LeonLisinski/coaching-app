@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Roboto, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
@@ -16,6 +16,10 @@ const robotoMono = Roboto_Mono({
   subsets: ["latin"],
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  themeColor: '#7c3aed',
+}
 
 export const metadata: Metadata = {
   title: "UnitLift — Coaching Platform",
@@ -37,7 +41,6 @@ export const metadata: Metadata = {
     type: "website",
     images: [{ url: '/favicon.svg' }],
   },
-  themeColor: '#7c3aed',
 };
 
 export default async function RootLayout({
@@ -54,7 +57,7 @@ export default async function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
-        <meta name="theme-color" content="#7c3aed" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="UnitLift" />
@@ -70,4 +73,3 @@ export default async function RootLayout({
     </html>
   );
 }
-
