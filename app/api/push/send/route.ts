@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   const { trainer_id, title, body, url, tag } = await req.json()
   if (!trainer_id) return NextResponse.json({ error: 'Missing trainer_id' }, { status: 400 })
 
-  // Use service role to look up subscriptions (bypasses RLS)
-  const supabase = createServerClient(
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   const { data: subs } = await supabase
