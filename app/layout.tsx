@@ -19,6 +19,9 @@ const robotoMono = Roboto_Mono({
 
 export const viewport: Viewport = {
   themeColor: '#7c3aed',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export const metadata: Metadata = {

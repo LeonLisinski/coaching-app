@@ -64,11 +64,11 @@ export default function MobileDashboard() {
     if (!user) return
 
     const { data: profile } = await supabase
-      .from('trainer_profiles')
+      .from('profiles')
       .select('full_name')
       .eq('id', user.id)
       .maybeSingle()
-    setTrainerName(profile?.full_name || user.email?.split('@')[0] || 'Trener')
+    setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'Trener')
 
     const [{ data: clients }, { data: payments }] = await Promise.all([
       supabase.from('clients')
