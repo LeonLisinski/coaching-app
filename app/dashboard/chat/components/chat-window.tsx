@@ -65,9 +65,9 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const templatesRef = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
 
-  // On mobile: become a fixed overlay anchored just below the dashboard header.
-  // This keeps the client name/back-arrow visible, and the input stays above the
-  // keyboard when it opens (we track visualViewport height for that).
+  // On mobile: fixed full-screen overlay that starts just below the status bar /
+  // Dynamic Island (env(safe-area-inset-top)) and shrinks to stay above the keyboard.
+  // Using CSS env() directly for `top` means it adapts to every iPhone model automatically.
   useEffect(() => {
     const el = outerRef.current
     if (!el || window.innerWidth >= 1024) return
@@ -75,22 +75,25 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     el.style.position = 'fixed'
     el.style.left = '0'
     el.style.right = '0'
+    // CSS env() works in inline styles — adapts to notch, Dynamic Island, future designs
+    el.style.top = 'env(safe-area-inset-top, 0px)'
 
-    // The dashboard header already has the safe-area-inset-top baked in via
-    // .mobile-accent-header CSS. Using getBoundingClientRect().bottom gives us
-    // the exact pixel where the header ends, so the chat sits right below it.
-    const getHeaderBottom = (): number => {
-      const header = document.querySelector('header.mobile-accent-header') as HTMLElement | null
-      return header ? header.getBoundingClientRect().bottom : 0
-    }
+    // Measure the safe-area-inset-top pixel value so we can subtract it from vv.height
+    const probe = document.createElement('div')
+    probe.style.position = 'fixed'
+    probe.style.top = '0'
+    probe.style.height = 'env(safe-area-inset-top, 0px)'
+    probe.style.visibility = 'hidden'
+    probe.style.pointerEvents = 'none'
+    document.body.appendChild(probe)
+    const sat = probe.getBoundingClientRect().height
+    document.body.removeChild(probe)
 
     const vv = (window as any).visualViewport
 
     const update = () => {
-      const headerBottom = getHeaderBottom()
       const viewportHeight = vv ? vv.height : window.innerHeight
-      el.style.top = `${headerBottom}px`
-      el.style.height = `${Math.max(0, viewportHeight - headerBottom)}px`
+      el.style.height = `${Math.max(0, viewportHeight - sat)}px`
     }
 
     update()
@@ -255,8 +258,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
   return (
     <div ref={outerRef} className="flex flex-col h-full bg-white z-[60] lg:z-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm">
+      {/* Header — py-3.5 + small extra top padding so content isn't flush with the safe area */}
+      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm" style={{ paddingTop: '14px' }}>
         {onBack && (
           <button
             onClick={onBack}
