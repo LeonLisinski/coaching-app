@@ -486,8 +486,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <main
           className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden lg:pb-0' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 pb-24 lg:pb-8'}`}
-          style={isChat ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom) + 2px)' } : undefined}
-          style={!isChat ? { WebkitOverflowScrolling: 'touch' } : undefined}
+          style={isChat
+            ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom) + 2px)' }
+            : { WebkitOverflowScrolling: 'touch' }
+          }
         >
           {children}
         </main>
