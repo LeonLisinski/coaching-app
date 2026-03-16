@@ -65,7 +65,6 @@ const EXERCISE_FIELD_OPTIONS = [
   { key: 'rir',      label: 'RIR',      desc: 'Reps In Reserve' },
   { key: 'rpe',      label: 'RPE',      desc: 'Rate of Perceived Exertion' },
   { key: 'tempo',    label: 'Tempo',    desc: 'Brzina izvođenja (npr. 3-1-2)' },
-  { key: 'rest',     label: 'Pauza',    desc: 'Odmor između serija (s)' },
   { key: 'duration', label: 'Trajanje', desc: 'Trajanje vježbe (min)' },
   { key: 'distance', label: 'Distanca', desc: 'Prijeđena distanca (km/m)' },
 ]

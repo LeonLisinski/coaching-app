@@ -111,7 +111,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }, [clientId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    bottomRef.current?.scrollIntoView({ behavior: 'instant' })
   }, [messages])
 
   // Close templates panel on outside click
@@ -379,6 +379,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              // Wait for keyboard to finish opening before scrolling
+              setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 300)
+            }}
             placeholder={t('window.messagePlaceholder')}
             // Never disable textarea — disabling blurs it and closes the iOS keyboard
             rows={1}

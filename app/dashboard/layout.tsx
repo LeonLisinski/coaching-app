@@ -239,6 +239,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const isChat = pathname.startsWith('/dashboard/chat')
+  const isFixedLayout = isChat || pathname === '/dashboard/training' || pathname === '/dashboard/nutrition'
   const { inActiveChat } = useActiveChat()
 
   return (
@@ -492,8 +493,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <main
-          className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 lg:pb-8'}`}
-          style={isChat
+          className={`flex-1 min-h-0 ${isFixedLayout ? 'flex flex-col overflow-hidden' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 lg:pb-8'}`}
+          style={isFixedLayout
             ? undefined
             : { WebkitOverflowScrolling: 'touch', paddingBottom: '3.5rem' }
           }

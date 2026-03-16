@@ -98,6 +98,8 @@ export default function ClientPackages({ clientId }: Props) {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [selectedCp, setSelectedCp]             = useState<ClientPackage | null>(null)
   const [paymentForm, setPaymentForm]           = useState({ amount: '', paid_at: today(), paid_at_disp: todayDisp(), notes: '' })
+  const [autoRenew, setAutoRenew]               = useState(false)
+  const [savingPayment, setSavingPayment]        = useState(false)
 
   // Edit dates dialog
   const [showEditDatesDialog, setShowEditDatesDialog] = useState(false)
@@ -178,7 +180,9 @@ export default function ClientPackages({ clientId }: Props) {
     if (!trainerId || !replaceForm.package_id || !activeCpForReplace) return
     const pkg = availablePackages.find(p => p.id === replaceForm.package_id)
     if (!pkg) return
-    const startDate = replaceMode === 'keep_start' ? activeCpForReplace.start_date : today()
+    // new_start uses end_date of current package (not today), so billing cycles stay aligned
+    // even if client paid late
+    const startDate = replaceMode === 'keep_start' ? activeCpForReplace.start_date : activeCpForReplace.end_date
     const start = new Date(startDate)
     const end   = addMonths(start, Math.round(pkg.duration_days / 30))
 
@@ -210,22 +214,65 @@ export default function ClientPackages({ clientId }: Props) {
   }
 
   const markAsPaid = async () => {
-    if (!selectedCp) return
+    if (!selectedCp || !trainerId || savingPayment) return
     const payment = selectedCp.payments?.[0]
     if (!payment) return
+    setSavingPayment(true)
+
     await supabase.from('payments').update({
       status: 'paid',
       amount: parseFloat(paymentForm.amount) || selectedCp.price,
       paid_at: paymentForm.paid_at,
       notes: paymentForm.notes || null,
     }).eq('id', payment.id)
+
+    // Auto-renew: expire current package and create next period from end_date
+    if (autoRenew) {
+      const pkg = selectedCp.packages
+      const newStart = new Date(selectedCp.end_date)
+      const newEnd = addMonths(newStart, Math.round(pkg.duration_days / 30))
+
+      // Expire the current package so only the new one is 'active'
+      await supabase.from('client_packages').update({ status: 'expired' }).eq('id', selectedCp.id)
+
+      const { data: newCp } = await supabase.from('client_packages').insert({
+        trainer_id: trainerId,
+        client_id: clientId,
+        package_id: selectedCp.package_id,
+        start_date: newStart.toISOString().split('T')[0],
+        end_date: newEnd.toISOString().split('T')[0],
+        price: parseFloat(paymentForm.amount) || selectedCp.price,
+        status: 'active',
+      }).select().single()
+      if (newCp) {
+        await supabase.from('payments').insert({
+          trainer_id: trainerId,
+          client_id: clientId,
+          client_package_id: newCp.id,
+          amount: newCp.price,
+          status: 'pending',
+        })
+      }
+    }
+
     setShowPaymentDialog(false)
+    setAutoRenew(false)
+    setSavingPayment(false)
+    fetchData()
+  }
+
+  const markAsUnpaid = async (cp: ClientPackage) => {
+    const payment = cp.payments?.[0]
+    if (!payment) return
+    await supabase.from('payments').update({ status: 'pending', paid_at: null }).eq('id', payment.id)
     fetchData()
   }
 
   const openPayment = (cp: ClientPackage) => {
     setSelectedCp(cp)
     setPaymentForm({ amount: cp.price.toString(), paid_at: today(), paid_at_disp: todayDisp(), notes: '' })
+    // Pre-check auto-renew if the package end date has passed (client is active, next period needed)
+    setAutoRenew(cp.status === 'active' && cp.end_date <= today())
     setShowPaymentDialog(true)
   }
 
@@ -333,6 +380,7 @@ export default function ClientPackages({ clientId }: Props) {
                   onToggle={() => toggleExpand(cp.id)}
                   payStatus={getPaymentStatus(cp)}
                   onPay={() => openPayment(cp)}
+                  onMarkUnpaid={() => markAsUnpaid(cp)}
                   onReplace={() => openReplaceDialog(cp)}
                   onDelete={() => setConfirmDeleteCp(cp)}
                   onEditDates={() => openEditDates(cp)}
@@ -353,6 +401,7 @@ export default function ClientPackages({ clientId }: Props) {
                   onToggle={() => toggleExpand(cp.id)}
                   payStatus={getPaymentStatus(cp)}
                   onPay={() => openPayment(cp)}
+                  onMarkUnpaid={() => markAsUnpaid(cp)}
                   onReplace={() => {}}
                   onDelete={() => setConfirmDeleteCp(cp)}
                   onEditDates={() => openEditDates(cp)}
@@ -435,7 +484,7 @@ export default function ClientPackages({ clientId }: Props) {
               <Label className="text-xs">{t('replaceStartLabel')}</Label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { val: 'new_start' as const, label: t('replaceStartNew'), sub: t('replaceStartNewSub') },
+                  { val: 'new_start' as const, label: t('replaceStartNew'), sub: activeCpForReplace ? `Od ${fmtDate(activeCpForReplace.end_date)}` : t('replaceStartNewSub') },
                   { val: 'keep_start' as const, label: t('replaceStartKeep'), sub: activeCpForReplace ? `${t('collabFrom')} ${fmtDate(activeCpForReplace.start_date)}` : '' },
                 ].map(opt => (
                   <button key={opt.val} onClick={() => setReplaceMode(opt.val)}
@@ -578,9 +627,55 @@ export default function ClientPackages({ clientId }: Props) {
               <Label className="text-xs">{t('notesOptional')}</Label>
               <Input value={paymentForm.notes} onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })} className="h-8 text-sm" placeholder={t('paymentNotesPlaceholder')} />
             </div>
+
+            {/* Late payment notice */}
+            {selectedCp && paymentForm.paid_at > selectedCp.end_date && (
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700">
+                  <span className="font-semibold">Kasno plaćanje.</span> Plaćanje je stiglo {Math.abs(daysLeft(selectedCp.end_date))} {Math.abs(daysLeft(selectedCp.end_date)) === 1 ? 'dan' : 'dana'} nakon isteka.
+                </p>
+              </div>
+            )}
+
+            {/* Auto-renew option */}
+            {selectedCp && (
+              <button
+                type="button"
+                onClick={() => setAutoRenew(v => !v)}
+                className={`w-full flex items-start gap-3 rounded-xl border-2 p-3 text-left transition-all ${
+                  autoRenew ? 'border-[var(--app-accent)] bg-[var(--app-accent-muted)]' : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className={`w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                  autoRenew ? 'border-[var(--app-accent)] bg-[var(--app-accent)]' : 'border-gray-300'
+                }`}>
+                  {autoRenew && <Check size={10} className="text-white" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-800">Kreiraj sljedeće razdoblje</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Automatski dodaj{' '}
+                    <span className="font-medium text-gray-700">{selectedCp.packages?.name}</span>{' '}
+                    od{' '}
+                    <span className="font-medium text-gray-700">{fmtDate(selectedCp.end_date)}</span>
+                    {' '}→{' '}
+                    <span className="font-medium text-gray-700">
+                      {fmtDate(addMonths(new Date(selectedCp.end_date), Math.round(selectedCp.packages.duration_days / 30)).toISOString().split('T')[0])}
+                    </span>
+                  </p>
+                </div>
+              </button>
+            )}
+
             <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={markAsPaid}><Check size={13} className="mr-1" /> {t('confirmPayment')}</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowPaymentDialog(false)}>{tCommon('cancel')}</Button>
+              <Button size="sm" onClick={markAsPaid} disabled={savingPayment}>
+                {savingPayment
+                  ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-1" />
+                  : <Check size={13} className="mr-1" />}
+                {t('confirmPayment')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowPaymentDialog(false); setAutoRenew(false) }}>{tCommon('cancel')}</Button>
             </div>
           </div>
         </DialogContent>
@@ -589,9 +684,9 @@ export default function ClientPackages({ clientId }: Props) {
   )
 }
 
-function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDelete, onEditDates, showReplaceBtn }: {
+function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onMarkUnpaid, onReplace, onDelete, onEditDates, showReplaceBtn }: {
   cp: ClientPackage; expanded: boolean; onToggle: () => void
-  payStatus: 'paid' | 'upcoming' | 'pending' | 'late'; onPay: () => void
+  payStatus: 'paid' | 'upcoming' | 'pending' | 'late'; onPay: () => void; onMarkUnpaid: () => void
   onReplace: () => void; onDelete: () => void; onEditDates: () => void; showReplaceBtn: boolean
 }) {
   const t = useTranslations('clients.packages')
@@ -642,9 +737,13 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDe
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>{fmtDate(cp.start_date)} – {fmtDate(cp.end_date)}</span>
           {cp.status === 'active' && (
-            <span className={left >= 0 ? 'text-gray-400' : 'text-red-500 font-medium'}>
-              {left >= 0 ? t('daysLeft', { days: left }) : t('daysOverdue', { days: Math.abs(left) })}
-            </span>
+            left >= 0 ? (
+              <span className="text-gray-400">{t('daysLeft', { days: left })}</span>
+            ) : payStatus === 'paid' ? (
+              <span className="text-gray-400">Isteklo</span>
+            ) : (
+              <span className="text-red-500 font-medium">{t('daysOverdue', { days: Math.abs(left) })}</span>
+            )
           )}
         </div>
 
@@ -658,8 +757,8 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDe
         {expanded && (
           <div className="pt-2 space-y-3 border-t border-gray-50 mt-1">
             {/* Payment detail */}
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center gap-2 justify-between">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-gray-400 mb-0.5">{t('paymentLabel')}</p>
                 {payment ? (
                   <div>
@@ -675,9 +774,13 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onReplace, onDe
                   <p className="text-sm text-gray-400">{t('noPaymentRecord')}</p>
                 )}
               </div>
-              {payStatus !== 'paid' && (
-                <Button size="sm" variant="outline" onClick={onPay} className="h-7 text-xs gap-1">
+              {payStatus !== 'paid' ? (
+                <Button size="sm" variant="outline" onClick={onPay} className="h-7 text-xs gap-1 shrink-0">
                   <CreditCard size={11} /> {t('markPaidBtn')}
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={onMarkUnpaid} className="h-7 text-xs gap-1 shrink-0 text-amber-600 border-amber-200 hover:bg-amber-50">
+                  <AlertTriangle size={11} /> Neplaćeno
                 </Button>
               )}
             </div>

@@ -595,7 +595,7 @@ function DashboardPageContent() {
                     <p className="text-xs text-gray-400 mt-1">Svi paketi su aktivni ovaj tjedan</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-gray-50 max-h-[416px] overflow-y-auto">
                     {expiringPackages.map(pkg => {
                       const urgent = pkg.days_left <= 2
                       return (
@@ -772,10 +772,12 @@ function DashboardPageContent() {
         {clients.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">{t('noUpcomingCheckins')}</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 divide-y divide-gray-50 sm:divide-y-0">
-            {clients.map(c => (
-              <CheckinRow key={c.id} client={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
-            ))}
+          <div className="max-h-[240px] overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 divide-y divide-gray-50 sm:divide-y-0">
+              {clients.map(c => (
+                <CheckinRow key={c.id} client={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
+              ))}
+            </div>
           </div>
         )}
       </div>}

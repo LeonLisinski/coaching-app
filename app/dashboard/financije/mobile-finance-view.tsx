@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Banknote, CheckCircle2, Clock } from 'lucide-react'
+import { Banknote, CheckCircle2, Clock, Trash2, RotateCcw, Check, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -26,6 +26,7 @@ type PackageItem = {
   endDate: string
   isPaid: boolean
   paidAmount: number
+  paymentId: string | null
   clientName: string
   clientGender: string | null
   packageName: string | null
@@ -38,6 +39,8 @@ export default function MobileFinanceView() {
   const [items, setItems] = useState<PackageItem[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'unpaid' | 'all'>('unpaid')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [actionItem, setActionItem] = useState<PackageItem | null>(null)
 
   useEffect(() => { fetchData() }, [])
 
@@ -75,12 +78,44 @@ export default function MobileFinanceView() {
         endDate: cp.end_date,
         isPaid,
         paidAmount: isPaid ? (payment?.amount || cp.price || 0) : 0,
+        paymentId: payment?.id || null,
         clientName: clientMap[cp.client_id]?.name || '—',
         clientGender: clientMap[cp.client_id]?.gender || null,
         packageName: pkgMap[cp.package_id] || null,
       }
     }))
     setLoading(false)
+  }
+
+  const markPaid = async (item: PackageItem) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    if (item.paymentId) {
+      await supabase.from('payments').update({ status: 'paid', paid_at: today, amount: item.price }).eq('id', item.paymentId)
+    } else {
+      await supabase.from('payments').insert({
+        trainer_id: user.id, client_id: undefined, client_package_id: item.id,
+        amount: item.price, paid_at: today, status: 'paid',
+      })
+    }
+    setActionItem(null)
+    fetchData()
+  }
+
+  const markUnpaid = async (item: PackageItem) => {
+    if (!item.paymentId) return
+    await supabase.from('payments').update({ status: 'pending', paid_at: null }).eq('id', item.paymentId)
+    setActionItem(null)
+    fetchData()
+  }
+
+  const deletePkg = async (id: string) => {
+    await supabase.from('payments').delete().eq('client_package_id', id)
+    await supabase.from('client_packages').delete().eq('id', id)
+    setConfirmDeleteId(null)
+    setActionItem(null)
+    fetchData()
   }
 
   const paid   = items.filter(p => p.isPaid)
@@ -171,7 +206,8 @@ export default function MobileFinanceView() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-50">
             {displayed.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3.5">
+              <button key={p.id} onClick={() => setActionItem(p)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50/60 transition-colors">
                 <div className={`w-10 h-10 rounded-xl ${avatarCls(p.clientGender)} flex items-center justify-center shrink-0`}>
                   <span className="text-white text-xs font-bold">{getInitials(p.clientName)}</span>
                 </div>
@@ -188,8 +224,82 @@ export default function MobileFinanceView() {
                     {p.isPaid ? 'Plaćeno' : 'Na čekanju'}
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom action sheet */}
+      {actionItem && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setActionItem(null)}>
+          <div className="w-full bg-white rounded-t-3xl shadow-2xl pb-safe" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-4" />
+            <div className="px-5 pb-2">
+              <p className="font-bold text-gray-900 text-sm">{actionItem.clientName}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {actionItem.packageName} · {actionItem.price.toLocaleString('hr-HR')} €
+              </p>
+
+              {/* Late payment note */}
+              {!actionItem.isPaid && actionItem.endDate < new Date().toISOString().split('T')[0] && (
+                <div className="flex items-start gap-2 mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+                  <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-600">
+                    Kasno plaćanje — sljedeće razdoblje treba početi od{' '}
+                    <span className="font-bold">{new Date(actionItem.endDate).toLocaleDateString('hr-HR')}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-4 pb-6 pt-2 space-y-2">
+              {!actionItem.isPaid ? (
+                <button onClick={() => markPaid(actionItem)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm"
+                  style={{ backgroundColor: accentHex }}>
+                  <Check size={16} /> Označi kao plaćeno
+                </button>
+              ) : (
+                <button onClick={() => markUnpaid(actionItem)}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 font-semibold text-sm">
+                  <RotateCcw size={16} /> Označi kao neplaćeno
+                </button>
+              )}
+              <button onClick={() => { setConfirmDeleteId(actionItem.id); setActionItem(null) }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-red-50 border border-red-100 text-red-600 font-semibold text-sm">
+                <Trash2 size={16} /> Obriši zapis
+              </button>
+              <button onClick={() => setActionItem(null)}
+                className="w-full py-3.5 rounded-2xl bg-gray-100 text-gray-600 font-semibold text-sm">
+                Odustani
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-xs w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={20} className="text-red-500" />
+            </div>
+            <h3 className="text-center text-sm font-bold text-gray-900">Obriši zapis?</h3>
+            <p className="text-center text-xs text-gray-500 mt-1.5 mb-5">
+              Trajno briše paket i sve uplate. Ne može se poništiti.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => deletePkg(confirmDeleteId)}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm">
+                Obriši
+              </button>
+              <button onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm">
+                Odustani
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -153,26 +153,26 @@ function NutritionPageContent() {
         )}
       </DragOverlay>
 
-      <div className="space-y-4">
-        <div>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-4 lg:p-8 gap-3">
+        <div className="shrink-0">
           <h1 className="text-2xl font-bold">Prehrana</h1>
           <p className="text-gray-500">Namirnice, recepti i planovi prehrane</p>
         </div>
 
         {/* Hint bar while dragging */}
         {activeDrag?.type === 'food' && (
-          <div className="bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
+          <div className="shrink-0 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
             🥗 Ispusti namirnicu na recept da je dodaš (100g — možeš urediti u receptu)
           </div>
         )}
         {activeDrag?.type === 'recipe' && (
-          <div className="bg-purple-50 border border-purple-200 text-purple-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
+          <div className="shrink-0 bg-purple-50 border border-purple-200 text-purple-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
             📋 Ispusti recept na plan prehrane da ga dodaš kao obrok
           </div>
         )}
 
         {/* Desktop: 3 panels always visible side by side */}
-        <div className="hidden xl:grid xl:grid-cols-3 xl:gap-5" style={{ height: 'calc(100vh - 175px)' }}>
+        <div className="hidden xl:grid xl:grid-cols-3 xl:gap-5 flex-1 min-h-0">
 
           {/* Namirnice */}
           <div className="flex flex-col min-h-0 rounded-2xl shadow-sm overflow-hidden border border-orange-200">
@@ -241,7 +241,7 @@ function NutritionPageContent() {
         </div>
 
         {/* Mobile/tablet: tabs */}
-        <div className="xl:hidden">
+        <div className="xl:hidden flex-1 min-h-0 overflow-y-auto">
           <Tabs value={mobileTab} onValueChange={setMobileTab}>
             <TabsList>
               <TabsTrigger value="foods">Namirnice</TabsTrigger>
@@ -267,7 +267,7 @@ function NutritionPageContent() {
 export default function NutritionPage() {
   return (
     <>
-      <div className="hidden lg:block"><NutritionPageContent /></div>
+      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><NutritionPageContent /></div>
       <div className="lg:hidden"><MobileUnavailable title="Upravljanje prehranom" /></div>
     </>
   )

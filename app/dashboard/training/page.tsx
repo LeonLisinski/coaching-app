@@ -147,15 +147,15 @@ function TrainingPageContent() {
         )}
       </DragOverlay>
 
-      <div className="space-y-4">
-        <div>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-4 lg:p-8 gap-3">
+        <div className="shrink-0">
           <h1 className="text-2xl font-bold">{t('title')}</h1>
           <p className="text-gray-500">{t('subtitle')}</p>
         </div>
 
         {/* Hint bar while dragging */}
         {activeDrag && (
-          <div className={`border rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2 ${
+          <div className={`shrink-0 border rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2 ${
             activeDrag.type === 'exercise'
               ? 'bg-blue-50 border-blue-200 text-blue-700'
               : 'bg-indigo-50 border-indigo-200 text-indigo-700'
@@ -168,7 +168,7 @@ function TrainingPageContent() {
         )}
 
         {/* Desktop: 3 panels always visible side by side */}
-        <div className="hidden xl:grid xl:grid-cols-3 xl:gap-5" style={{ height: 'calc(100vh - 175px)' }}>
+        <div className="hidden xl:grid xl:grid-cols-3 xl:gap-5 flex-1 min-h-0">
 
           {/* Vježbe */}
           <div className="flex flex-col min-h-0 rounded-2xl shadow-sm overflow-hidden border border-emerald-200">
@@ -243,7 +243,7 @@ function TrainingPageContent() {
         </div>
 
         {/* Mobile/tablet: tabs */}
-        <div className="xl:hidden">
+        <div className="xl:hidden flex-1 min-h-0 overflow-y-auto">
           <Tabs value={mobileTab} onValueChange={setMobileTab}>
             <TabsList>
               <TabsTrigger value="exercises">{t('tabs.exercises')}</TabsTrigger>
@@ -269,7 +269,7 @@ function TrainingPageContent() {
 export default function TrainingPage() {
   return (
     <>
-      <div className="hidden lg:block"><TrainingPageContent /></div>
+      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><TrainingPageContent /></div>
       <div className="lg:hidden"><MobileUnavailable title="Upravljanje treninzima" /></div>
     </>
   )

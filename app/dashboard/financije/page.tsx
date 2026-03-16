@@ -11,7 +11,7 @@ import {
 import {
   Banknote, TrendingUp, AlertTriangle, Package,
   Check, Clock, ArrowUpRight, ArrowDownRight,
-  Calendar, Filter,
+  Calendar, Filter, Trash2, RotateCcw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -136,6 +136,7 @@ function FinancijePageContent() {
   const [saving, setSaving] = useState(false)
   const [histPage, setHistPage] = useState(0)
   const [justMarkedId, setJustMarkedId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const HIST_PER_PAGE = 10
 
   useEffect(() => { fetchData() }, [])
@@ -363,6 +364,20 @@ function FinancijePageContent() {
     fetchData()
   }
 
+  const markUnpaid = async (cp: ClientPackage) => {
+    const payment = cp.payments?.[0]
+    if (!payment) return
+    await supabase.from('payments').update({ status: 'pending', paid_at: null }).eq('id', payment.id)
+    fetchData()
+  }
+
+  const deletePkg = async (cpId: string) => {
+    await supabase.from('payments').delete().eq('client_package_id', cpId)
+    await supabase.from('client_packages').delete().eq('id', cpId)
+    setConfirmDeleteId(null)
+    fetchData()
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-[var(--app-accent)] animate-spin" />
@@ -503,8 +518,8 @@ function FinancijePageContent() {
             </div>
             <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))}</p>
           </div>
-          <div className="divide-y divide-gray-50">
-            {pendingList.slice(0, 8).map(cp => {
+          <div className="divide-y divide-gray-50 max-h-[448px] overflow-y-auto">
+            {pendingList.map(cp => {
               const s = getPayStatus(cp)
               const left = daysLeft(cp.end_date)
               return (
@@ -523,7 +538,7 @@ function FinancijePageContent() {
                       <p className="text-xs text-gray-400">{fmtDate(cp.end_date)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-semibold text-gray-800">{fmtEur(cp.price)}</p>
                       <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
@@ -534,6 +549,13 @@ function FinancijePageContent() {
                       style={{ backgroundColor: accentHex }}
                     >
                       <Check size={11} /> {t('finance.payment.markPaid')}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(cp.id)}
+                      title="Obriši"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
@@ -558,7 +580,7 @@ function FinancijePageContent() {
         ) : (
           <>
             {/* Header row */}
-            <div className="hidden md:grid grid-cols-[1.2fr_1.2fr_80px_100px_100px_120px_80px] gap-2 px-5 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50/60">
+            <div className="hidden md:grid grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] gap-x-2 px-5 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50/60">
               <span>{t('finance.table.client')}</span><span>{t('finance.table.package')}</span><span>{t('finance.table.amount')}</span>
               <span>{t('common.date')}</span><span>{t('finance.status.paid')}</span><span>{t('finance.table.status')}</span><span></span>
             </div>
@@ -568,7 +590,7 @@ function FinancijePageContent() {
                 const s = getPayStatus(cp)
                 const left = daysLeft(cp.end_date)
                 return (
-                  <div key={cp.id} className="px-5 py-3 grid md:grid-cols-[1.2fr_1.2fr_80px_100px_100px_120px_80px] grid-cols-1 gap-2 items-center hover:bg-gray-50/40 transition-colors">
+                  <div key={cp.id} className="px-5 py-3 grid md:grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] grid-cols-1 gap-x-2 items-center hover:bg-gray-50/40 transition-colors">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
                         cp.client_gender === 'F' ? 'bg-rose-400' : cp.client_gender === 'M' ? 'bg-sky-500' : 'bg-gray-400'
@@ -601,14 +623,26 @@ function FinancijePageContent() {
                     ) : (
                       <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
                     )}
-                    <div>
-                      {s !== 'paid' && (
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {s !== 'paid' ? (
                         <button onClick={() => openPayDialog(cp)}
-                          className="text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors"
+                          className="text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap"
                           style={{ color: accentHex, borderColor: `${accentHex}40` }}>
                           {t('finance.payment.markPaid')}
                         </button>
+                      ) : (
+                        <button onClick={() => markUnpaid(cp)}
+                          title="Označi kao neplaćeno"
+                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-colors whitespace-nowrap">
+                          <RotateCcw size={11} /> Neplaćeno
+                        </button>
                       )}
+                      <button
+                        onClick={() => setConfirmDeleteId(cp.id)}
+                        title="Obriši"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </div>
                 )
@@ -672,6 +706,20 @@ function FinancijePageContent() {
                   placeholder={t('finance.payment.notesPlaceholder')}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" />
               </div>
+              {/* Late payment notice */}
+              {selectedCp && payForm.paid_at > selectedCp.end_date && (
+                <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
+                  <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700">Kasno plaćanje</p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      Sljedeće fakturno razdoblje treba početi od{' '}
+                      <span className="font-bold">{fmtDate(selectedCp.end_date)}</span>, a ne od danas.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2 pt-1">
                 <button onClick={markPaid} disabled={saving}
                   className="flex-1 py-2.5 rounded-xl text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2"
@@ -683,6 +731,33 @@ function FinancijePageContent() {
                   {t('common.cancel')}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-xs w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-2">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={20} className="text-red-500" />
+              </div>
+              <h3 className="text-center text-sm font-bold text-gray-900">Obriši zapis?</h3>
+              <p className="text-center text-xs text-gray-500 mt-1.5">
+                Ovo će trajno obrisati paket i sve vezane uplate. Radnja se ne može poništiti.
+              </p>
+            </div>
+            <div className="flex gap-2 p-4">
+              <button onClick={() => deletePkg(confirmDeleteId)}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-colors">
+                Obriši
+              </button>
+              <button onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">
+                Odustani
+              </button>
             </div>
           </div>
         </div>
