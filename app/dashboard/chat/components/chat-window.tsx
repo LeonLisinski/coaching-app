@@ -64,54 +64,41 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // On mobile: fixed full-screen overlay that starts just below the status bar /
-  // Dynamic Island (env(safe-area-inset-top)) and shrinks to stay above the keyboard.
-  // Using CSS env() directly for `top` means it adapts to every iPhone model automatically.
+  // On mobile: fixed overlay covering the full screen (top:0 → covers safe area too).
+  // The gradient header inside has padding-top:env(safe-area-inset-top) so content
+  // sits below the Dynamic Island / notch on every iPhone.
+  // When keyboard opens, we adjust `bottom` = keyboard height so the input stays visible.
   useEffect(() => {
     const el = outerRef.current
     if (!el || window.innerWidth >= 1024) return
 
     el.style.position = 'fixed'
+    el.style.top = '0'
     el.style.left = '0'
     el.style.right = '0'
-    // CSS env() works in inline styles — adapts to notch, Dynamic Island, future designs
-    el.style.top = 'env(safe-area-inset-top, 0px)'
-
-    // Measure the safe-area-inset-top pixel value so we can subtract it from vv.height
-    const probe = document.createElement('div')
-    probe.style.position = 'fixed'
-    probe.style.top = '0'
-    probe.style.height = 'env(safe-area-inset-top, 0px)'
-    probe.style.visibility = 'hidden'
-    probe.style.pointerEvents = 'none'
-    document.body.appendChild(probe)
-    const sat = probe.getBoundingClientRect().height
-    document.body.removeChild(probe)
+    el.style.bottom = '0'
 
     const vv = (window as any).visualViewport
+    if (!vv) return
 
     const update = () => {
-      const viewportHeight = vv ? vv.height : window.innerHeight
-      el.style.height = `${Math.max(0, viewportHeight - sat)}px`
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      el.style.bottom = `${kb}px`
     }
-
     update()
-    if (vv) {
-      vv.addEventListener('resize', update)
-      vv.addEventListener('scroll', update)
-    }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
 
     return () => {
-      if (vv) {
-        vv.removeEventListener('resize', update)
-        vv.removeEventListener('scroll', update)
-      }
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
       el.style.position = ''
       el.style.top = ''
       el.style.left = ''
       el.style.right = ''
-      el.style.height = ''
+      el.style.bottom = ''
     }
   }, [])
 
@@ -228,11 +215,12 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       setInput(content)
       setMessages(prev => prev.filter(m => m.id !== tempId))
     } else {
-      // Replace optimistic placeholder with real row from DB
       setMessages(prev => prev.map(m => m.id === tempId ? inserted : m))
       onMessageSent()
     }
     setSending(false)
+    // Keep keyboard open on mobile after sending
+    textareaRef.current?.focus()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -258,22 +246,31 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
   return (
     <div ref={outerRef} className="flex flex-col h-full bg-white z-[60] lg:z-auto">
-      {/* Header — py-3.5 + small extra top padding so content isn't flush with the safe area */}
-      <div className="flex items-center gap-3 px-4 py-3.5 border-b bg-white flex-shrink-0 shadow-sm" style={{ paddingTop: '14px' }}>
+      {/* Gradient header — covers safe area on mobile (top:0 overlay), matches app style */}
+      <div
+        className="flex items-center gap-3 px-4 flex-shrink-0 lg:border-b lg:bg-white lg:shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${accentHex}, color-mix(in srgb, ${accentHex} 55%, #0b0018))`,
+          paddingTop: 'max(14px, env(safe-area-inset-top, 14px))',
+          paddingBottom: '14px',
+        }}
+      >
         {onBack && (
           <button
             onClick={onBack}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors -ml-1 shrink-0 lg:hidden"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-white/80 hover:bg-white/15 transition-colors -ml-1 shrink-0 lg:hidden"
           >
             <ArrowLeft size={18} />
           </button>
         )}
-        <Avatar name={clientName} />
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-semibold flex-shrink-0 text-sm bg-white/20 text-white`}>
+          {clientName.charAt(0).toUpperCase()}
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-900 truncate">{clientName}</p>
+          <p className="text-sm font-bold text-white truncate">{clientName}</p>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-            <p className="text-xs text-gray-400">Klijent</p>
+            <p className="text-xs text-white/70">Klijent</p>
           </div>
         </div>
       </div>
@@ -373,6 +370,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <Zap size={14} />
           </button>
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
