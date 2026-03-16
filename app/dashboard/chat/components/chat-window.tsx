@@ -188,9 +188,13 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
   const sendMessage = async () => {
     if (!input.trim() || !userIdRef.current || sending) return
-    setSending(true)
     const content = input.trim()
     setInput('')
+    setSending(true)
+    // Schedule focus BEFORE the first await — iOS PWA only allows programmatic
+    // keyboard retention when triggered synchronously from a user interaction.
+    // After an await, iOS blocks focus() calls and dismisses the keyboard.
+    requestAnimationFrame(() => textareaRef.current?.focus())
 
     // Optimistic update — show message immediately without waiting for real-time subscription
     const tempId = `temp-${Date.now()}`
@@ -222,8 +226,6 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       onMessageSent()
     }
     setSending(false)
-    // Keep keyboard open on mobile after sending
-    textareaRef.current?.focus()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
