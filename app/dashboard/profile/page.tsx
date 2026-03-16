@@ -10,6 +10,7 @@ import {
   X, Mail, FileText, AtSign, Package, Facebook, Eye, EyeOff,
 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import AvatarCropDialog from '@/components/ui/avatar-crop-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 function addMonths(date: Date, months: number): Date {
@@ -104,6 +105,8 @@ export default function ProfilePage() {
   const [savingSettings, setSavingSettings]   = useState(false)
   const [settingsSaved, setSettingsSaved]     = useState(false)
 
+  const [cropFile, setCropFile] = useState<File | null>(null)
+
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
@@ -154,13 +157,18 @@ export default function ProfilePage() {
     )
   }
 
-  const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !profile) return
+    if (!file) return
     e.target.value = ''
-    const ext = file.name.split('.').pop()
-    const fileName = `${profile.id}-${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true })
+    setCropFile(file)
+  }
+
+  const handleCropConfirm = async (blob: Blob) => {
+    if (!profile) return
+    setCropFile(null)
+    const fileName = `${profile.id}-${Date.now()}.jpg`
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { upsert: true, contentType: 'image/jpeg' })
     if (uploadError) { alert('Greška pri uploadu slike: ' + uploadError.message); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
@@ -217,7 +225,7 @@ export default function ProfilePage() {
           <div className="relative flex-shrink-0">
             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/20 border border-white/30 overflow-hidden flex items-center justify-center shadow-sm">
               {profile?.avatar_url
-                ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ? <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover object-top" />
                 : <span className="text-xl sm:text-2xl font-bold text-white">{initials}</span>
               }
             </div>
@@ -557,6 +565,13 @@ export default function ProfilePage() {
         onCancel={() => setConfirmDelete(null)}
         confirmLabel={tPkg('delete')}
         destructive
+      />
+
+      <AvatarCropDialog
+        file={cropFile}
+        onConfirm={handleCropConfirm}
+        onClose={() => setCropFile(null)}
+        accentColor={accentHex}
       />
     </div>
   )

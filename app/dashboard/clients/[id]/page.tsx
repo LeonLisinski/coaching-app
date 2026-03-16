@@ -176,7 +176,7 @@ function ClientDetailPageContent() {
       .eq('status', 'active')
       .order('start_date', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (pkgData) {
       setActivePackage({

@@ -14,7 +14,7 @@ type Props = {
 
 export default function Providers({ locale, messages, children }: Props) {
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="Europe/Zagreb">
       <AppThemeProvider>
         <ActiveChatProvider>
           {children}

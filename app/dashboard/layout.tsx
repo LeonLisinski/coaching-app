@@ -322,7 +322,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
                 style={!userAvatarUrl ? { backgroundColor: 'color-mix(in srgb, var(--app-accent) 70%, transparent)' } : undefined}>
                 {userAvatarUrl
-                  ? <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+                  ? <img src={userAvatarUrl} alt={userName} className="w-full h-full object-cover object-top" />
                   : <span className="text-white text-xs font-bold">{userInitials}</span>
                 }
               </div>

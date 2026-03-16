@@ -18,15 +18,15 @@ export default function LoginPage() {
   const [error, setError]       = useState('')
   const [checking, setChecking] = useState(true)
 
-  // On PWA launch the middleware may redirect here because the cookie expired,
-  // but localStorage may still hold a valid (or refreshable) session.
-  // Detect that client-side and silently redirect back to dashboard.
+  // Validate session server-side using getUser() (not getSession which only reads localStorage).
+  // If valid, redirect to dashboard. If stale/expired, show login form.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      if (user && !error) {
         window.location.replace('/dashboard')
       } else {
-        setChecking(false)
+        // Clear any stale local session to prevent redirect loops
+        supabase.auth.signOut({ scope: 'local' }).finally(() => setChecking(false))
       }
     })
   }, [])
