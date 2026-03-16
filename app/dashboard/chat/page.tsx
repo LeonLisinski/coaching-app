@@ -54,6 +54,9 @@ function ChatPageContent() {
       localStorage.setItem('last_chat_client_id', selectedClientId)
       setInActiveChat(true)
     } else {
+      // User explicitly returned to the chat list — forget the last chat so
+      // the tab nav returns to the list next time instead of auto-opening it
+      localStorage.removeItem('last_chat_client_id')
       setInActiveChat(false)
     }
     return () => setInActiveChat(false)
@@ -229,7 +232,7 @@ function ChatPageContent() {
             </div>
           )}
           {/* Spacer so last item isn't hidden behind mobile tab bar */}
-          {!selectedClientId && <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />}
+          {!selectedClientId && <div className="lg:hidden h-14" />}
         </div>
       </div>
 

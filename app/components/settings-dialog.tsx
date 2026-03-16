@@ -266,7 +266,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
               <p className="text-sm text-gray-500">{t('contactDesc')}</p>
 
               <a
-                href="mailto:info@unitlift.com"
+                href="mailto:support@unitlift.com"
                 className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-light)] transition-colors group"
               >
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50 group-hover:bg-[var(--app-accent)] transition-colors">
@@ -274,12 +274,12 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">Email</p>
-                  <p className="text-xs text-gray-500">info@unitlift.com</p>
+                  <p className="text-xs text-gray-500">support@unitlift.com</p>
                 </div>
               </a>
 
               <a
-                href="https://unitlift.com"
+                href="https://app.unitlift.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-light)] transition-colors group"
@@ -289,7 +289,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">{t('website')}</p>
-                  <p className="text-xs text-gray-500">unitlift.com</p>
+                  <p className="text-xs text-gray-500">app.unitlift.com</p>
                 </div>
               </a>
 

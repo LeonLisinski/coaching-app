@@ -451,7 +451,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {/* Footer */}
                     <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/40 shrink-0">
                       <button className="text-xs font-medium w-full text-center transition-colors" style={{ color: 'var(--app-accent)' }}
-                        onClick={() => { router.push('/dashboard/chat'); setShowNotifs(false) }}>
+                        onClick={() => {
+                          // Clear last chat so we land on the list, not the last conversation
+                          localStorage.removeItem('last_chat_client_id')
+                          router.push('/dashboard/chat')
+                          setShowNotifs(false)
+                        }}>
                         Idi na poruke →
                       </button>
                     </div>
@@ -490,7 +495,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           className={`flex-1 min-h-0 ${isChat ? 'flex flex-col overflow-hidden' : 'mobile-tinted-bg overflow-auto p-4 lg:p-8 lg:pb-8'}`}
           style={isChat
             ? undefined
-            : { WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }
+            : { WebkitOverflowScrolling: 'touch', paddingBottom: '3.5rem' }
           }
         >
           {children}

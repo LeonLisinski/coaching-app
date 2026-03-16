@@ -205,8 +205,9 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     }
 
     setLoading(false)
-    onSuccess()
     onClose()
+    // Small delay so Supabase has time to commit before parent re-fetches
+    setTimeout(onSuccess, 250)
   }
 
   const STEPS: { key: Step; label: string }[] = [
@@ -507,11 +508,13 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             </div>
           )}
 
-          {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mt-4">{error}</p>}
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-gray-100 flex gap-3 bg-white">
+        <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
+          {/* Error always visible regardless of active step */}
+          {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
+          <div className="flex gap-3">
           {step !== 'account' ? (
             <button type="button" onClick={() => setStep(step === 'plans' ? 'profile' : 'account')}
               className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
@@ -538,6 +541,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 : t('submit')}
             </button>
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

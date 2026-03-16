@@ -52,10 +52,8 @@ export default function MobileBottomNav({
   return (
     <>
       {/* ── BOTTOM BAR ── */}
-      {/* Nav sits ABOVE the home indicator zone; a sibling white div fills that zone below */}
       <nav
-        className="fixed left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-100"
-        style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-100"
       >
         <div className="flex items-center justify-around h-14">
           {primaryItems.map(({ href, effectiveHref, labelKey, icon: Icon }) => {
@@ -90,13 +88,6 @@ export default function MobileBottomNav({
           </button>
         </div>
       </nav>
-
-      {/* White fill for the home indicator zone — same bg as nav, prevents grayish system bg showing */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white lg:hidden"
-        style={{ height: 'env(safe-area-inset-bottom, 0px)', zIndex: 49 }}
-        aria-hidden="true"
-      />
 
       {/* ── MORE DRAWER ── */}
       {showMore && (

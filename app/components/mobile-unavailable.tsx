@@ -13,11 +13,14 @@ export default function MobileUnavailable({ title = 'Ova sekcija' }: { title?: s
           Za kreiranje planova, konfiguraciju i napredne postavke koristi desktop verziju.
         </p>
       </div>
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 border border-gray-100">
-        <span className="text-xs text-gray-400 font-medium">unitlift.com</span>
+      <a
+        href="https://app.unitlift.com"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 border border-gray-100 hover:border-gray-200 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-xs font-semibold" style={{ color: 'var(--app-accent)' }}>app.unitlift.com</span>
         <span className="text-gray-300">·</span>
         <span className="text-xs text-gray-400">Otvori na računalu</span>
-      </div>
+      </a>
     </div>
   )
 }
