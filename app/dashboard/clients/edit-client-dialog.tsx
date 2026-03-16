@@ -210,6 +210,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     }
 
     const { error } = await supabase.from('clients').update({
+      full_name: form.full_name,
       goal: form.goal || null,
       date_of_birth: form.date_of_birth || null,
       weight: form.weight ? parseFloat(form.weight) : null,

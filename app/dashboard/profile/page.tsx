@@ -157,10 +157,14 @@ export default function ProfilePage() {
   const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !profile) return
-    const fileName = `${profile.id}.${file.name.split('.').pop()}`
-    await supabase.storage.from('avatars').upload(fileName, file, { upsert: true })
+    e.target.value = ''
+    const ext = file.name.split('.').pop()
+    const fileName = `${profile.id}-${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true })
+    if (uploadError) { alert('Greška pri uploadu slike: ' + uploadError.message); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
-    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
+    const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
+    if (updateError) { alert('Greška pri spremanju slike: ' + updateError.message); return }
     fetchData()
   }
 
