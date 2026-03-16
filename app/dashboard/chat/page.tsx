@@ -229,7 +229,7 @@ function ChatPageContent() {
             </div>
           )}
           {/* Spacer so last item isn't hidden behind mobile tab bar */}
-          {!selectedClientId && <div className="lg:hidden" style={{ height: 'calc(3rem + max(8px, env(safe-area-inset-bottom, 8px)))' }} />}
+          {!selectedClientId && <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />}
         </div>
       </div>
 
