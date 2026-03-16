@@ -248,7 +248,6 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }, {} as Record<string, Message[]>)
 
   return (
-    {/* h-full only on desktop — on mobile JS sets top/bottom, h-full conflicts with that */}
     <div ref={outerRef} className="flex flex-col bg-white z-[60] lg:z-auto lg:h-full">
       {/* Gradient header — covers safe area on mobile (top:0 overlay), matches app style */}
       <div
