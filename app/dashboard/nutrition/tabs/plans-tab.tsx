@@ -9,6 +9,7 @@ import { Plus, Search, Pencil, Trash2, CalendarDays, SlidersHorizontal, ChevronD
 import AddMealPlanDialog from '../dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '../dialogs/edit-meal-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 type MealPlan = {
   id: string
@@ -24,13 +25,28 @@ type MealPlan = {
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
 
 function DroppablePlanCard({
-  plan, activeType, onEdit, onDelete,
+  plan, activeType, onEdit, onDelete, activeExtraFields, foodExtrasMap,
 }: {
   plan: MealPlan
   activeType?: 'food' | 'recipe' | null
   onEdit: () => void
   onDelete: () => void
+  activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
+  foodExtrasMap: Map<string, Record<string, number>>
 }) {
+  const getMealExtra = (m: any, key: string): number => {
+    // Prefer stored extras (new plans), else recompute from current food data
+    if (m.extras?.[key] != null) return m.extras[key] as number
+    return ((m.custom_ingredients || []) as any[]).reduce((s: number, ing: any) => {
+      const foodExtras = foodExtrasMap.get(ing.food_id)
+      if (foodExtras?.[key] != null) return s + (foodExtras[key] as number) * ((ing.grams || 100) / 100)
+      return s + ((ing.extras?.[key] as number) || 0)
+    }, 0)
+  }
+  const planExtras = activeExtraFields.reduce((acc, f) => {
+    acc[f.key] = (plan.meals || []).reduce((sum, m) => sum + getMealExtra(m, f.key), 0)
+    return acc
+  }, {} as Record<string, number>)
   const { setNodeRef, isOver } = useDroppable({
     id: `plan-drop::${plan.id}`,
     data: { type: 'plan-drop', planId: plan.id },
@@ -57,6 +73,15 @@ function DroppablePlanCard({
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate text-gray-800">{plan.name}</p>
+          {activeExtraFields.length > 0 && (
+            <div className="flex gap-2 flex-wrap mt-0.5">
+              {activeExtraFields.map(f => {
+                const val = planExtras[f.key]
+                if (!val) return null
+                return <span key={f.key} className="text-[10px] text-gray-400">{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
+              })}
+            </div>
+          )}
           <p className="text-[10px] text-gray-300 mt-0.5">dvoklik za uređivanje</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
@@ -85,7 +110,11 @@ function DroppablePlanCard({
 type Props = { activeType?: 'food' | 'recipe' | null; refreshKey?: number }
 
 export default function PlansTab({ activeType, refreshKey }: Props) {
+  const { settings } = useTrainerSettings()
+  const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
+
   const [plans, setPlans] = useState<MealPlan[]>([])
+  const [foodExtrasMap, setFoodExtrasMap] = useState<Map<string, Record<string, number>>>(new Map())
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>('date_desc')
   const [showFilters, setShowFilters] = useState(false)
@@ -99,11 +128,17 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
   const fetchPlans = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase
-      .from('meal_plans')
-      .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals, created_at')
-      .eq('trainer_id', user.id)
-      .eq('is_template', true)
+    const [{ data }, { data: foods }] = await Promise.all([
+      supabase
+        .from('meal_plans')
+        .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals, created_at')
+        .eq('trainer_id', user.id)
+        .eq('is_template', true),
+      supabase.from('foods').select('id, extras'),
+    ])
+    const map = new Map<string, Record<string, number>>()
+    ;(foods || []).forEach((f: any) => { if (f.extras) map.set(f.id, f.extras) })
+    setFoodExtrasMap(map)
     if (data) setPlans(data)
     setLoading(false)
   }
@@ -219,6 +254,8 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
               activeType={activeType}
               onEdit={() => setEditPlan(plan)}
               onDelete={() => setConfirmDelete(plan.id)}
+              activeExtraFields={activeExtraFields}
+              foodExtrasMap={foodExtrasMap}
             />
           ))}
         </div>

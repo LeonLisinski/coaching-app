@@ -39,11 +39,11 @@ export const metadata: Metadata = {
     shortcut: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
-  openGraph: {
+    openGraph: {
     title: "UnitLift — Coaching Platform",
     description: "A coaching platform for personal trainers to manage clients, check-ins, workouts, nutrition, chat, and progress tracking in one place.",
     type: "website",
-    images: [{ url: '/favicon.svg' }],
+    images: [{ url: '/icon-512.png', width: 512, height: 512 }],
   },
 };
 
@@ -59,6 +59,8 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+        <link rel="shortcut icon" href="/icon-192.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />

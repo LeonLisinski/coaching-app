@@ -128,6 +128,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
       trainer_id: user.id, name, description: description || null, ingredients,
       total_calories: totals.calories, total_protein: totals.protein,
       total_carbs: totals.carbs, total_fat: totals.fat,
+      total_extras: extraTotals,
     })
 
     if (error) { setError(error.message); setLoading(false); return }

@@ -26,6 +26,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
 import { useTranslations, useLocale } from 'next-intl'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
@@ -57,6 +58,7 @@ type AssignedPlan = {
   protein_target: number | null
   carbs_target: number | null
   fat_target: number | null
+  extras_targets: Record<string, number | null> | null
   meal_plan: MealPlan
 }
 
@@ -170,12 +172,14 @@ const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
 
 const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
 
-function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget, fatTarget }: {
+function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget, fatTarget, activeExtraFields, extrasTargets }: {
   meals: any[]
   caloriesTarget: number | null
   proteinTarget: number | null
   carbsTarget: number | null
   fatTarget: number | null
+  activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
+  extrasTargets?: Record<string, number | null> | null
 }) {
   const totals = meals.reduce((acc, m) => ({
     calories: acc.calories + (m.calories || 0),
@@ -193,39 +197,69 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
     { label: 'Masti',    val: Math.round(totals.fat),      target: fatTarget,      unit: 'g' },
   ]
 
+  const getMealExtra = (m: any, key: string): number => {
+    if (m.extras?.[key] != null) return m.extras[key] as number
+    return ((m.custom_ingredients || []) as any[]).reduce(
+      (s: number, ing: any) => s + ((ing.extras?.[key] as number) || 0), 0
+    )
+  }
+  const extraTotals = activeExtraFields.reduce((acc, f) => {
+    acc[f.key] = meals.reduce((sum, m) => sum + getMealExtra(m, f.key), 0)
+    return acc
+  }, {} as Record<string, number>)
+
+  const visibleExtras = activeExtraFields.filter(f => extraTotals[f.key] > 0)
+
   return (
-    <div className="px-3 pt-2.5 pb-3 border-t border-gray-100 bg-gray-50/60 grid grid-cols-4 gap-3">
-      {items.map(item => {
-        const pct    = item.target ? Math.min((item.val / item.target) * 100, 110) : null
-        const over   = item.target != null && item.val > item.target
-        const barPct = pct != null ? Math.min(pct, 100) : null
-        const barColor = pct == null ? 'bg-gray-300'
-          : over             ? 'bg-red-400'
-          : pct >= 90        ? 'bg-emerald-500'
-          :                    'bg-amber-400'
-        return (
-          <div key={item.label}>
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.label}</span>
-              <span className={`text-[10px] font-semibold tabular-nums ${over ? 'text-red-500' : 'text-gray-700'}`}>
-                {item.val}{item.unit}
-                {item.target != null && <span className="text-gray-400 font-normal">/{item.target}{item.unit}</span>}
-              </span>
-            </div>
-            {barPct != null && (
-              <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-                  style={{ width: `${barPct}%` }} />
+    <div className="px-3 pt-2.5 pb-3 border-t border-gray-100 bg-gray-50/60">
+      <div className="grid grid-cols-4 gap-3">
+        {items.map(item => {
+          const pct    = item.target ? Math.min((item.val / item.target) * 100, 110) : null
+          const over   = item.target != null && item.val > item.target
+          const barPct = pct != null ? Math.min(pct, 100) : null
+          const barColor = pct == null ? 'bg-gray-300'
+            : over             ? 'bg-red-400'
+            : pct >= 90        ? 'bg-emerald-500'
+            :                    'bg-amber-400'
+          return (
+            <div key={item.label}>
+              <div className="flex items-baseline justify-between mb-1">
+                <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.label}</span>
+                <span className={`text-[10px] font-semibold tabular-nums ${over ? 'text-red-500' : 'text-gray-700'}`}>
+                  {item.val}{item.unit}
+                  {item.target != null && <span className="text-gray-400 font-normal">/{item.target}{item.unit}</span>}
+                </span>
               </div>
-            )}
-          </div>
-        )
-      })}
+              {barPct != null && (
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                    style={{ width: `${barPct}%` }} />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {visibleExtras.length > 0 && (
+        <div className="flex gap-3 flex-wrap mt-2 pt-2 border-t border-gray-100">
+          {visibleExtras.map(f => {
+            const tgtVal = extrasTargets?.[f.key] ?? null
+            const actual = Math.round(extraTotals[f.key] * 10) / 10
+            const over = tgtVal != null && actual > tgtVal
+            return (
+              <span key={f.key} className="text-[10px] text-gray-400">
+                {f.label}: <span className={`font-medium ${over ? 'text-red-500' : 'text-gray-700'}`}>{actual}{f.unit}</span>
+                {tgtVal != null && <span className={`${over ? 'text-red-400' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
 
-function MealAccordion({ meals }: { meals: any[] }) {
+function MealAccordion({ meals, activeExtraFields }: { meals: any[]; activeExtraFields: typeof NUTRITION_FIELD_OPTIONS }) {
   const [openMeals, setOpenMeals] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenMeals(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
 
@@ -252,10 +286,21 @@ function MealAccordion({ meals }: { meals: any[] }) {
                 <span className="text-sm text-gray-800">{meal.recipe_name || meal.meal_type}</span>
                 {meal.recipe_name && <span className="text-xs text-gray-400 ml-1.5">{meal.meal_type}</span>}
               </div>
-              <span className="text-xs text-gray-400 tabular-nums shrink-0">
-                {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
-                {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
-              </span>
+              <div className="text-right shrink-0">
+                <div className="text-xs text-gray-400 tabular-nums">
+                  {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
+                  {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
+                </div>
+                {activeExtraFields.length > 0 && meal.extras && (
+                  <div className="flex gap-1.5 justify-end flex-wrap">
+                    {activeExtraFields.map(f => {
+                      const val = meal.extras?.[f.key]
+                      if (!val) return null
+                      return <span key={f.key} className="text-[10px] text-gray-300">{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
+                    })}
+                  </div>
+                )}
+              </div>
             </button>
             {hasIngredients && isOpen && (
               <div className="pb-2 px-3">
@@ -278,6 +323,8 @@ export default function ClientMealPlans({ clientId }: Props) {
   const t = useTranslations('clients.mealPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+  const { settings } = useTrainerSettings()
+  const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
   const PLAN_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
     default:      { label: t('planTypeDefault'),     ...PLAN_TYPE_COLORS.default },
@@ -320,13 +367,13 @@ export default function ClientMealPlans({ clientId }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: assigned }, { data: available }, { data: recipes }] = await Promise.all([
+    const [{ data: assigned }, { data: available }, { data: recipes }, { data: allFoods }] = await Promise.all([
       supabase
         .from('client_meal_plans')
         .select(`
           id, active, assigned_at, notes, plan_type, meals,
-          calories_target, protein_target, carbs_target, fat_target,
-          meal_plan:meal_plans (id, name, calories_target, protein_target, carbs_target, fat_target, meals)
+          calories_target, protein_target, carbs_target, fat_target, extras_targets,
+          meal_plan:meal_plans (id, name, calories_target, protein_target, carbs_target, fat_target, meals, extras_targets)
         `)
         .eq('client_id', clientId)
         .order('assigned_at', { ascending: false }),
@@ -338,12 +385,57 @@ export default function ClientMealPlans({ clientId }: Props) {
         .order('name'),
       supabase
         .from('recipes')
-        .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients')
-        .eq('trainer_id', user.id)
-        .order('name'),
+        .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients'),
+      supabase
+        .from('foods')
+        .select('id, extras'),
     ])
 
-    if (assigned) setAssignedPlans(assigned as any)
+    // Build food extras map from current (up-to-date) food data
+    const foodExtrasMap = new Map<string, Record<string, number>>()
+    ;(allFoods || []).forEach((f: any) => {
+      if (f.extras) foodExtrasMap.set(f.id, f.extras)
+    })
+
+    // Recompute extras for every meal's ingredients from current food data
+    const recomputeMealExtras = (meals: any[] | null) => {
+      if (!meals) return meals
+      return meals.map((meal: any) => {
+        const ings: any[] = meal.custom_ingredients || []
+        if (ings.length === 0) return meal
+        const updatedIngs = ings.map((ing: any) => {
+          const foodExtras = foodExtrasMap.get(ing.food_id)
+          if (!foodExtras) return ing
+          const ratio = (ing.grams || 100) / 100
+          const extras: Record<string, number> = {}
+          Object.entries(foodExtras).forEach(([k, v]) => {
+            if (v != null) extras[k] = (v as number) * ratio
+          })
+          return { ...ing, extras }
+        })
+        const mealExtras: Record<string, number> = {}
+        updatedIngs.forEach((ing: any) => {
+          if (ing.extras) {
+            Object.entries(ing.extras).forEach(([k, v]) => {
+              mealExtras[k] = (mealExtras[k] || 0) + (v as number)
+            })
+          }
+        })
+        return { ...meal, custom_ingredients: updatedIngs, extras: mealExtras }
+      })
+    }
+
+    if (assigned) {
+      const enriched = (assigned as any[]).map(p => ({
+        ...p,
+        meals: recomputeMealExtras(p.meals),
+        meal_plan: p.meal_plan ? {
+          ...p.meal_plan,
+          meals: recomputeMealExtras(p.meal_plan.meals),
+        } : p.meal_plan,
+      }))
+      setAssignedPlans(enriched as any)
+    }
     if (available) setAvailablePlans(available)
     if (recipes) setAvailableRecipes(recipes)
     setLoading(false)
@@ -553,6 +645,7 @@ export default function ClientMealPlans({ clientId }: Props) {
             const protein = assigned.protein_target ?? assigned.meal_plan.protein_target
             const carbs = assigned.carbs_target ?? assigned.meal_plan.carbs_target
             const fat = assigned.fat_target ?? assigned.meal_plan.fat_target
+            const extrasTargets = assigned.extras_targets ?? (assigned.meal_plan as any).extras_targets ?? null
 
             return (
               <Card
@@ -628,11 +721,13 @@ export default function ClientMealPlans({ clientId }: Props) {
                       proteinTarget={protein}
                       carbsTarget={carbs}
                       fatTarget={fat}
+                      activeExtraFields={activeExtraFields}
+                      extrasTargets={extrasTargets}
                     />
                   )}
 
                   {/* Meals list — collapsible ingredients */}
-                  {meals.length > 0 && <MealAccordion meals={meals} />}
+                  {meals.length > 0 && <MealAccordion meals={meals} activeExtraFields={activeExtraFields} />}
                 </CardContent>
               </Card>
             )

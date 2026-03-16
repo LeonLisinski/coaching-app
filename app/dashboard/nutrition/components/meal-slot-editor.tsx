@@ -84,6 +84,7 @@ type MealSlot = {
   fat: number
   custom_ingredients?: Ingredient[]
   save_as_recipe?: boolean
+  extras?: Record<string, number>
 }
 
 type Props = {
@@ -146,6 +147,14 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     setSearch('')
   }, [index])
 
+  const calcExtras = (ings: Ingredient[]) => {
+    const extras: Record<string, number> = {}
+    nutritionFields.forEach(key => {
+      extras[key] = ings.reduce((sum, i) => sum + ((i.extras?.[key] as number) || 0), 0)
+    })
+    return extras
+  }
+
   // Kad se odabere recept, učitaj njegove sastojke kao editable kopiju
   const handleSelectRecipe = (recipeId: string) => {
     if (!recipeId || recipeId === 'none') {
@@ -171,6 +180,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       carbs: totals.carbs,
       fat: totals.fat,
       custom_ingredients: ings,
+      extras: calcExtras(ings),
     })
   }
 
@@ -212,16 +222,22 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       carbs: totals.carbs,
       fat: totals.fat,
       custom_ingredients: newIngs,
+      extras: calcExtras(newIngs),
     })
   }
 
   // Custom mode — dodaj sastojak
   const addIngredient = (food: Food) => {
     if (ingredients.find(i => i.food_id === food.id)) return
+    const extras: Record<string, number> = {}
+    if (food.extras) {
+      Object.entries(food.extras).forEach(([k, v]) => { if (v != null) extras[k] = v as number })
+    }
     const newIngs = [...ingredients, {
       food_id: food.id, name: food.name, grams: 100,
       calories: food.calories_per_100g, protein: food.protein_per_100g,
       carbs: food.carbs_per_100g, fat: food.fat_per_100g,
+      extras,
     }]
     setIngredients(newIngs)
     setSearch('')
@@ -247,12 +263,17 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       if (i.food_id !== food_id) return i
       if (!food) return i
       const ratio = grams / 100
+      const extras: Record<string, number> = {}
+      if (food.extras) {
+        Object.entries(food.extras).forEach(([k, v]) => { if (v != null) extras[k] = (v as number) * ratio })
+      }
       return {
         ...i, grams,
         calories: food.calories_per_100g * ratio,
         protein:  food.protein_per_100g  * ratio,
         carbs:    food.carbs_per_100g    * ratio,
         fat:      food.fat_per_100g      * ratio,
+        extras,
       }
     })
     setIngredients(newIngs)
@@ -272,6 +293,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       calories: totals.calories, protein: totals.protein,
       carbs: totals.carbs, fat: totals.fat,
       custom_ingredients: ings, save_as_recipe: save,
+      extras: calcExtras(ings),
     })
   }
 
@@ -279,6 +301,56 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     f.name.toLowerCase().includes(search.toLowerCase()) &&
     !ingredients.find(i => i.food_id === f.id)
   )
+
+  const filteredRecipeFoods = foods.filter(f =>
+    f.name.toLowerCase().includes(search.toLowerCase()) &&
+    !recipeIngredients.find(i => i.food_id === f.id)
+  )
+
+  const removeRecipeIngredient = (food_id: string) => {
+    const newIngs = recipeIngredients.filter(i => i.food_id !== food_id)
+    setRecipeIngredients(newIngs)
+    const totals = calcTotals(newIngs)
+    onChange(index, '_custom', {
+      recipe_id: meal.recipe_id,
+      recipe_name: meal.recipe_name,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+      custom_ingredients: newIngs,
+      extras: calcExtras(newIngs),
+    })
+  }
+
+  const addRecipeIngredient = (food: Food) => {
+    if (recipeIngredients.find(i => i.food_id === food.id)) return
+    const extras: Record<string, number> = {}
+    if (food.extras) {
+      Object.entries(food.extras).forEach(([k, v]) => { if (v != null) extras[k] = v as number })
+    }
+    const newIng: Ingredient = {
+      food_id: food.id, name: food.name, grams: 100,
+      calories: food.calories_per_100g, protein: food.protein_per_100g,
+      carbs: food.carbs_per_100g, fat: food.fat_per_100g,
+      extras,
+    }
+    const newIngs = [...recipeIngredients, newIng]
+    setRecipeIngredients(newIngs)
+    setSearch('')
+    setDropdownIndex(-1)
+    const totals = calcTotals(newIngs)
+    onChange(index, '_custom', {
+      recipe_id: meal.recipe_id,
+      recipe_name: meal.recipe_name,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+      custom_ingredients: newIngs,
+      extras: calcExtras(newIngs),
+    })
+  }
 
   // Extra nutrition fields za prikaz
   const extraNutritionFields = NUTRITION_FIELD_OPTIONS.filter((f: any) => nutritionFields.includes(f.key))
@@ -370,7 +442,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             </SelectContent>
           </Select>
 
-          {/* Editable sastojci recepta */}
+          {/* Editable sastojci recepta — grame + add + remove */}
           {recipeIngredients.length > 0 && (
             <div className="space-y-1">
               <button
@@ -379,7 +451,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                 className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                Uredi gramature ({recipeIngredients.length} sastojaka)
+                Uredi namirnice ({recipeIngredients.length})
+                <span className="text-gray-300 ml-1">· ne utječe na originalni recept</span>
               </button>
               {showIngredients && (
                 <div className="space-y-1 pt-1">
@@ -388,9 +461,46 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                       <span className="flex-1 text-gray-700">{ing.name}</span>
                       <GramInput value={ing.grams} onChange={v => updateRecipeIngredientGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
                       <span className="text-gray-400">g</span>
-                      <span className="text-gray-400 w-16 text-right">{Math.round(ing.calories)} kcal</span>
+                      <span className="text-gray-400 w-14 text-right">{Math.round(ing.calories)} kcal</span>
+                      <button type="button" onClick={() => removeRecipeIngredient(ing.food_id)}>
+                        <X size={11} className="text-gray-300 hover:text-red-500" />
+                      </button>
                     </div>
                   ))}
+                  {/* Dodaj namirnicu u recept (lokalna kopija) */}
+                  <div className="relative pt-1">
+                    <Input
+                      value={search}
+                      onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
+                      onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setSearchFocused(true) }}
+                      onBlur={() => { blurTimer.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
+                      onKeyDown={handleSearchKeyDown}
+                      placeholder="Dodaj namirnicu..."
+                      className="h-7 text-xs"
+                    />
+                    {showDropdown && (
+                      <div className="border rounded-md bg-white shadow-sm overflow-hidden absolute z-10 w-full" onWheel={e => e.stopPropagation()}>
+                        <div className="overflow-y-auto max-h-36">
+                          {filteredRecipeFoods.length === 0 ? (
+                            <p className="px-3 py-2 text-xs text-gray-400 text-center">
+                              {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
+                            </p>
+                          ) : filteredRecipeFoods.slice(0, 20).map((f, i) => (
+                            <button key={f.id} type="button"
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => { addRecipeIngredient(f); setSearchFocused(false) }}
+                              onMouseEnter={() => setDropdownIndex(i)}
+                              className={`w-full text-left px-3 py-2 text-xs flex justify-between border-b border-gray-50 last:border-0 transition-colors ${
+                                dropdownIndex === i ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                              }`}>
+                              <span className="font-medium">{f.name}</span>
+                              <span className="text-gray-400">{f.calories_per_100g} kcal/100g</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

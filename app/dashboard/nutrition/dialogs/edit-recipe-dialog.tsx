@@ -137,6 +137,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
       name, description: description || null, ingredients,
       total_calories: totals.calories, total_protein: totals.protein,
       total_carbs: totals.carbs, total_fat: totals.fat,
+      total_extras: extraTotals,
     }).eq('id', recipe.id)
 
     if (error) { setError(error.message); setLoading(false); return }

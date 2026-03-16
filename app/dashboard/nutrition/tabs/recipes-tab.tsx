@@ -9,6 +9,7 @@ import AddRecipeDialog from '../dialogs/add-recipe-dialog'
 import EditRecipeDialog from '../dialogs/edit-recipe-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 type Recipe = {
   id: string
@@ -18,6 +19,7 @@ type Recipe = {
   total_protein: number
   total_carbs: number
   total_fat: number
+  total_extras?: Record<string, number>
   ingredients: any[]
   created_at: string
 }
@@ -30,11 +32,13 @@ function RecipeCard({
   activeType,
   onEdit,
   onDelete,
+  activeExtraFields,
 }: {
   recipe: Recipe
   activeType?: 'food' | 'recipe' | null
   onEdit: () => void
   onDelete: () => void
+  activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
 }) {
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `recipe-drop::${recipe.id}`,
@@ -117,11 +121,16 @@ function RecipeCard({
       {/* Macro summary + ingredient chips */}
       {!isActive && (
         <div className={`mt-1.5 ml-8 ${isActive ? 'opacity-0' : ''}`}>
-          <div className="flex gap-2.5 text-[10px] text-gray-400 mb-1">
+          <div className="flex gap-2.5 text-[10px] text-gray-400 mb-1 flex-wrap">
             <span>🔥 {Math.round(recipe.total_calories)} kcal</span>
             <span>🥩 {Math.round(recipe.total_protein)}g</span>
             <span>🍞 {Math.round(recipe.total_carbs)}g</span>
             <span>🫒 {Math.round(recipe.total_fat)}g</span>
+            {activeExtraFields.map(f => {
+              const val = recipe.total_extras?.[f.key]
+              if (val == null || val === 0) return null
+              return <span key={f.key}>{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
+            })}
           </div>
           {recipe.ingredients?.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -151,6 +160,9 @@ export default function RecipesTab({
   activeType?: 'food' | 'recipe' | null
   onFoodCreated?: () => void
 }) {
+  const { settings } = useTrainerSettings()
+  const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
+
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>('date_desc')
@@ -292,6 +304,7 @@ export default function RecipesTab({
               activeType={activeType}
               onEdit={() => setEditRecipe(recipe)}
               onDelete={() => setConfirmDelete(recipe.id)}
+              activeExtraFields={activeExtraFields}
             />
           ))}
         </div>

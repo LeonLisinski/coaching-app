@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { useTrainerSettings } from '@/hooks/use-trainer-settings'
+import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
 import { Plus, X, CalendarDays } from 'lucide-react'
@@ -58,6 +58,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
   const [name, setName]       = useState('')
   const [planType, setPlanType] = useState<PlanType>('default')
   const [targets, setTargets] = useState({ calories: '', protein: '', carbs: '', fat: '' })
+  const [extrasTargets, setExtrasTargets] = useState<Record<string, string>>({})
   const [meals, setMeals]     = useState<MealSlot[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [foods, setFoods]     = useState<Food[]>([])
@@ -142,6 +143,19 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
     carbs: acc.carbs + (m.carbs || 0),          fat: acc.fat + (m.fat || 0),
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
+  const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
+  const getMealExtra = (m: any, key: string): number => {
+    if (m.extras?.[key] != null) return m.extras[key] as number
+    return ((m.custom_ingredients || []) as any[]).reduce(
+      (s: number, ing: any) => s + ((ing.extras?.[key] as number) || 0), 0
+    )
+  }
+  const extraTotals = activeExtraFields.reduce((acc, f) => {
+    acc[f.key] = meals.reduce((sum, m) => sum + getMealExtra(m, f.key), 0)
+    return acc
+  }, {} as Record<string, number>)
+  const visibleExtras = activeExtraFields.filter(f => extraTotals[f.key] > 0)
+
   const tgt = {
     calories: targets.calories ? parseInt(targets.calories) : null,
     protein:  targets.protein  ? parseInt(targets.protein)  : null,
@@ -166,16 +180,22 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
       return meal
     }))
 
+    const extrasTgt: Record<string, number | null> = {}
+    activeExtraFields.forEach(f => {
+      extrasTgt[f.key] = extrasTargets[f.key] ? parseFloat(extrasTargets[f.key]) : null
+    })
+
     const { error } = await supabase.from('meal_plans').insert({
       trainer_id: user.id, name, plan_type: planType,
       calories_target: tgt.calories, protein_target: tgt.protein, carbs_target: tgt.carbs, fat_target: tgt.fat,
+      extras_targets: extrasTgt,
       meals: processedMeals,
       is_template: isTemplate,
     })
 
     if (error) { setError(error.message); setLoading(false); return }
     setLoading(false); onSuccess(); onClose()
-    setName(''); setPlanType('default'); setTargets({ calories: '', protein: '', carbs: '', fat: '' }); setMeals([])
+    setName(''); setPlanType('default'); setTargets({ calories: '', protein: '', carbs: '', fat: '' }); setExtrasTargets({}); setMeals([])
   }
 
   return (
@@ -237,6 +257,14 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                     className="h-8 text-sm" placeholder={f.placeholder} />
                 </div>
               ))}
+              {activeExtraFields.map(f => (
+                <div key={f.key} className="space-y-1">
+                  <Label className="text-xs">{f.label} ({f.unit})</Label>
+                  <Input type="number" value={extrasTargets[f.key] ?? ''} onKeyDown={decimalKeyDown}
+                    onChange={e => setExtrasTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    className="h-8 text-sm" placeholder="—" />
+                </div>
+              ))}
             </div>
 
             <div className="space-y-3">
@@ -283,6 +311,21 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                   )}
                 </div>
               ))}
+            </div>
+          )}
+          {visibleExtras.length > 0 && meals.length > 0 && (
+            <div className="flex gap-3 flex-wrap px-1">
+              {visibleExtras.map(f => {
+                const tgtVal = extrasTargets[f.key] ? parseFloat(extrasTargets[f.key]) : null
+                const actual = Math.round(extraTotals[f.key] * 10) / 10
+                const over = tgtVal != null && actual > tgtVal
+                return (
+                  <span key={f.key} className="text-xs text-gray-400">
+                    {f.label}: <span className={`font-medium ${over ? 'text-red-500' : 'text-gray-700'}`}>{actual}{f.unit}</span>
+                    {tgtVal != null && <span className={`text-[10px] ${over ? 'text-red-400' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
+                  </span>
+                )
+              })}
             </div>
           )}
           {error && <p className="text-red-500 text-sm">{error}</p>}
