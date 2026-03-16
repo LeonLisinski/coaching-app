@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Plus, Search, MessageSquare, X, ChevronRight, Users } from 'lucide-react'
-import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
+import { Search, MessageSquare, X, ChevronRight, Users } from 'lucide-react'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 type CheckinStatus = 'submitted' | 'late' | 'neutral'
@@ -62,7 +61,6 @@ export default function MobileClientsView() {
   const [clients, setClients]   = useState<MobileClient[]>([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
-  const [showAdd, setShowAdd]   = useState(false)
   const [filter, setFilter]     = useState<'all' | 'late'>('all')
 
   useEffect(() => { fetchData() }, [])
@@ -243,20 +241,6 @@ export default function MobileClientsView() {
         </div>
       )}
 
-      {/* FAB add client */}
-      <button
-        onClick={() => setShowAdd(true)}
-        className="fixed bottom-[76px] right-4 z-30 w-13 h-13 rounded-2xl text-white shadow-xl flex items-center justify-center"
-        style={{ backgroundColor: 'var(--app-accent)', width: 52, height: 52 }}
-      >
-        <Plus size={22} />
-      </button>
-
-      <AddClientDialog
-        open={showAdd}
-        onClose={() => setShowAdd(false)}
-        onSuccess={() => { setShowAdd(false); fetchData() }}
-      />
     </div>
   )
 }

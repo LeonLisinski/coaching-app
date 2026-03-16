@@ -139,7 +139,10 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col" style={{ backgroundColor: '#f7f8fb' }}>
 
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center px-6 py-4 bg-white border-b border-gray-100">
+        <header
+          className="lg:hidden flex items-center px-6 bg-white border-b border-gray-100"
+          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))', paddingBottom: '1rem' }}
+        >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent)' }}>
               <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
