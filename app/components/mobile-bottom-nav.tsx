@@ -54,7 +54,7 @@ export default function MobileBottomNav({
       {/* ── BOTTOM BAR ── */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-100"
-        style={{ paddingBottom: '8px' }}
+        style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))' }}
       >
         <div className="flex items-center justify-around h-12">
           {primaryItems.map(({ href, effectiveHref, labelKey, icon: Icon }) => {

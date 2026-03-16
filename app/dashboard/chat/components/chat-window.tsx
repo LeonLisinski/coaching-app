@@ -84,8 +84,11 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     if (!vv) return
 
     const update = () => {
-      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
-      el.style.bottom = `${kb}px`
+      // In PWA mode on iOS, when keyboard opens the visual viewport can scroll
+      // (vv.offsetTop > 0). We must track both top AND bottom to keep the overlay
+      // anchored to what the user actually sees.
+      el.style.top = `${vv.offsetTop}px`
+      el.style.bottom = `${Math.max(0, window.innerHeight - vv.offsetTop - vv.height)}px`
     }
     update()
     vv.addEventListener('resize', update)
@@ -375,7 +378,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={t('window.messagePlaceholder')}
-            disabled={sending}
+            // Never disable textarea — disabling blurs it and closes the iOS keyboard
             rows={1}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 resize-none max-h-24 overflow-y-auto leading-relaxed"
             style={{ minHeight: '1.5rem' }}
