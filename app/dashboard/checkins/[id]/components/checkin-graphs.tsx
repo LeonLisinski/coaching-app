@@ -76,7 +76,7 @@ export default function CheckinGraphs({ clientId }: Props) {
     if (grouping === 'weekly') {
       const start = new Date(d)
       start.setDate(d.getDate() - d.getDay() + 1)
-      return start.toISOString().split('T')[0]
+      return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
     }
     return dateStr
   }

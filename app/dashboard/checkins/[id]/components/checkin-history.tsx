@@ -30,7 +30,9 @@ type DailyLog = {
   values: Record<string, any>
 }
 
-function isoDate(d: Date) { return d.toISOString().split('T')[0] }
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function parseVal(v: any): number {
   if (v === undefined || v === null || v === '') return NaN

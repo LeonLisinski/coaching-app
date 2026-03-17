@@ -22,7 +22,9 @@ const TABS = ['Prehrana', 'Trening'] as const
 const KEY_OTHER = '__other__'
 type Tab = typeof TABS[number]
 
-function isoDate(d: Date) { return d.toISOString().split('T')[0] }
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
   const today = new Date()

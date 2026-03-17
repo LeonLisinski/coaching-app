@@ -37,7 +37,7 @@ function durationLabel(days: number): string {
   const m = Math.round(days / 30)
   return m === 1 ? '1 mj.' : `${m} mj.`
 }
-function today() { return new Date().toISOString().split('T')[0] }
+function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 // dd/mm/yyyy ↔ yyyy-mm-dd helpers
 function isoToDisp(iso: string | null): string {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return ''

@@ -11,7 +11,9 @@ type Parameter = { id: string; name: string; type: string; unit: string | null; 
 type DailyLog = { id: string; date: string; values: Record<string, any> }
 type Checkin = { id: string; date: string; values: Record<string, any>; trainer_note: string | null; trainer_comment: string | null }
 
-function isoDate(d: Date) { return d.toISOString().split('T')[0] }
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 function parseVal(v: any): number {
   if (v === undefined || v === null || v === '') return NaN
   return parseFloat(String(v).replace(',', '.'))
@@ -40,7 +42,7 @@ export default function CheckinOverview({ clientId }: Props) {
   const [weeklyParams, setWeeklyParams] = useState<Parameter[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
   const [checkin, setCheckin] = useState<Checkin | null>(null)
-  const [checkinDay, setCheckinDay] = useState<number>(1)
+  const [checkinDay, setCheckinDay] = useState<number | null>(null)
   const [weekOffset, setWeekOffset] = useState(0)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -50,16 +52,17 @@ export default function CheckinOverview({ clientId }: Props) {
   const [trainerId, setTrainerId] = useState<string | null>(null)
 
   useEffect(() => { fetchConfig() }, [clientId])
-  useEffect(() => { fetchData() }, [clientId, weekOffset, checkinDay])
+  useEffect(() => { if (checkinDay !== null) fetchData() }, [clientId, weekOffset, checkinDay])
 
   const fetchConfig = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setTrainerId(user.id)
     const { data } = await supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle()
-    if (data?.checkin_day != null) setCheckinDay(data.checkin_day)
+    setCheckinDay(data?.checkin_day ?? 1)
   }
 
   const fetchData = async () => {
+    if (checkinDay === null) return
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -120,6 +123,8 @@ export default function CheckinOverview({ clientId }: Props) {
     const a = vals.reduce((a, b) => a + b, 0) / vals.length
     return a % 1 === 0 ? String(a) : a.toFixed(1)
   }
+
+  if (checkinDay === null) return <p className="text-sm text-gray-400 text-center py-8">...</p>
 
   const days = getWeekDays(checkinDay, weekOffset)
   const fmt = (d: Date) => d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
