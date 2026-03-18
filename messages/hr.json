@@ -30,6 +30,40 @@
       "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji na jednom ekranu." }
     }
   },
+  "register": {
+    "headlineMain": "Više napretka,",
+    "headlinePre": "manje",
+    "headlineAccent": "administracije.",
+    "tagline": "Sve što trener treba — na jednom ekranu.",
+    "welcomeTitle": "Kreiraj račun",
+    "welcomeSubtitle": "Registracija za UnitLift platformu.",
+    "fullName": "Ime i prezime",
+    "placeholderName": "Marko Markić",
+    "email": "Email",
+    "placeholderEmail": "trener@email.com",
+    "password": "Lozinka",
+    "placeholderPassword": "Minimalno 8 znakova",
+    "confirmPassword": "Potvrdi lozinku",
+    "placeholderConfirm": "Ponovi lozinku",
+    "submit": "Kreiraj račun",
+    "loading": "Kreiranje...",
+    "successTitle": "Račun je kreiran! 🎉",
+    "successMsg": "Tvoj UnitLift trenerski račun je spreman. Možeš se odmah prijaviti.",
+    "goToLogin": "Idi na prijavu",
+    "alreadyHaveAccount": "Već imaš račun?",
+    "loginLink": "Prijavi se",
+    "secureLogin": "Sigurna prijava",
+    "gdpr": "GDPR usklađeno",
+    "errFields": "Sva polja su obavezna.",
+    "errPasswordShort": "Lozinka mora imati najmanje 8 znakova.",
+    "errPasswordMatch": "Lozinke se ne podudaraju.",
+    "features": {
+      "training": { "label": "Trening & prehrana", "desc": "Planovi i makrosi personalizirani za svakog klijenta." },
+      "checkin": { "label": "Check-in sustav", "desc": "Tjedni napredak s grafikonima i fotografijama." },
+      "chat": { "label": "Chat s klijentima", "desc": "Poruke u stvarnom vremenu i brzi predlošci." },
+      "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji na jednom ekranu." }
+    }
+  },
   "common": {
     "loading": "Učitavanje...",
     "logout": "Odjava",

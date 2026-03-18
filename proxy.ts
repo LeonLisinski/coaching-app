@@ -29,15 +29,17 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Unauthenticated → login
-  if (!user && !pathname.startsWith('/login')) {
+  const isPublicPath = pathname.startsWith('/login') || pathname.startsWith('/register')
+
+  // Unauthenticated → login (skip public paths)
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Authenticated on root or login → dashboard
-  if (user && (pathname === '/' || pathname.startsWith('/login'))) {
+  // Authenticated on root, login or register → dashboard
+  if (user && (pathname === '/' || isPublicPath)) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
@@ -48,6 +50,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|login|site.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png|sw.js|manifest.json).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|login|register|site.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png|sw.js|manifest.json).*)',
   ],
 }

@@ -30,6 +30,40 @@
       "finance": { "label": "Financial overview", "desc": "Packages, payments and reports — all in one place." }
     }
   },
+  "register": {
+    "headlineMain": "More progress,",
+    "headlinePre": "less",
+    "headlineAccent": "administration.",
+    "tagline": "Everything a trainer needs — in one place.",
+    "welcomeTitle": "Create your account",
+    "welcomeSubtitle": "Register for the UnitLift platform.",
+    "fullName": "Full name",
+    "placeholderName": "John Smith",
+    "email": "Email",
+    "placeholderEmail": "trainer@email.com",
+    "password": "Password",
+    "placeholderPassword": "At least 8 characters",
+    "confirmPassword": "Confirm password",
+    "placeholderConfirm": "Repeat password",
+    "submit": "Create account",
+    "loading": "Creating...",
+    "successTitle": "Account created! 🎉",
+    "successMsg": "Your UnitLift trainer account is ready. You can log in now.",
+    "goToLogin": "Go to login",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginLink": "Log in",
+    "secureLogin": "Secure login",
+    "gdpr": "GDPR compliant",
+    "errFields": "All fields are required.",
+    "errPasswordShort": "Password must be at least 8 characters.",
+    "errPasswordMatch": "Passwords do not match.",
+    "features": {
+      "training": { "label": "Training & nutrition", "desc": "Plans, templates, macros and calories for every client." },
+      "checkin": { "label": "Check-in system", "desc": "Weekly progress, photos and graphs for every client." },
+      "chat": { "label": "Client chat", "desc": "Real-time messages with templates and notifications." },
+      "finance": { "label": "Financial overview", "desc": "Packages, payments and reports — all in one place." }
+    }
+  },
   "common": {
     "loading": "Loading...",
     "logout": "Log out",

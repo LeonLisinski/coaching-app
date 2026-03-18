@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, TrendingUp, Dumbbell, Loader2 } from 'lucide-react'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
+import Link from 'next/link'
 
 const FEATURE_ICONS = [Dumbbell, CheckCircle2, MessageSquare, TrendingUp] as const
 const FEATURE_KEYS  = ['training', 'checkin', 'chat', 'finance'] as const
@@ -34,9 +35,29 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false) }
-    else window.location.href = '/dashboard'
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
+
+    // Role check — only trainers can access the web app
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profile?.role !== 'trainer') {
+      await supabase.auth.signOut()
+      setError('Ova platforma je namijenjena isključivo trenerima. Klijenti koriste mobilnu aplikaciju.')
+      setLoading(false)
+      return
+    }
+
+    window.location.href = '/dashboard'
   }
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -268,9 +289,12 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* No access */}
+            {/* Register link */}
             <p className="text-center text-xs text-gray-400 mt-5">
-              {t('noAccess')}
+              Nemaš račun?{' '}
+              <Link href="/register" className="font-semibold transition-colors hover:underline" style={{ color: 'var(--app-accent)' }}>
+                Kreiraj račun
+              </Link>
             </p>
           </div>
         </div>

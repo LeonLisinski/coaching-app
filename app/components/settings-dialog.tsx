@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePushNotifications } from '@/app/hooks/use-push-notifications'
+import { supabase } from '@/lib/supabase'
 
 const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
   { key: 'violet', label: 'Violet',  hex: '#7c3aed' },
@@ -22,7 +23,7 @@ const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
   { key: 'slate',  label: 'Siva',    hex: '#475569' },
 ]
 
-type Tab = 'theme' | 'contact'
+type Tab = 'theme' | 'contact' | 'danger'
 
 
 interface Props {
@@ -35,6 +36,75 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const { accent, setAccent } = useAppTheme()
   const [tab, setTab] = useState<Tab>('theme')
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
+
+
+  // Delete account state
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0) // 0=idle, 1=warn1, 2=confirm
+  const [deleteWord, setDeleteWord] = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [deletionRequestedAt, setDeletionRequestedAt] = useState<string | null>(null)
+  const [clientCount, setClientCount] = useState(0)
+  const confirmInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (tab === 'danger') loadDangerData()
+  }, [tab])
+
+  const loadDangerData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const [profileRes, clientsRes] = await Promise.all([
+      supabase.from('profiles').select('deletion_requested_at').eq('id', user.id).single(),
+      supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id),
+    ])
+    setDeletionRequestedAt(profileRes.data?.deletion_requested_at ?? null)
+    setClientCount(clientsRes.count ?? 0)
+  }
+
+  const handleDeleteStep1 = () => {
+    setDeleteStep(1)
+    setDeleteWord('')
+    setDeleteError('')
+  }
+
+  const handleDeleteStep2 = () => {
+    setDeleteStep(2)
+    setTimeout(() => confirmInputRef.current?.focus(), 100)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (deleteWord.trim() !== 'DELETE') {
+      setDeleteError('Type exactly: DELETE')
+      return
+    }
+    setDeleteLoading(true)
+    setDeleteError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      })
+      if (!res.ok) throw new Error('Failed')
+      setDeleteStep(0)
+      setDeletionRequestedAt(new Date().toISOString())
+    } catch {
+      setDeleteError('Error submitting request. Please try again.')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const handleCancelDeletion = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('profiles').update({ deletion_requested_at: null }).eq('id', user.id)
+    setDeletionRequestedAt(null)
+  }
 
   // PWA install prompt
   const [installPrompt, setInstallPrompt] = useState<any>(null)
@@ -90,6 +160,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
           {([
             ['theme', <Palette size={14} />, t('tabs.theme')],
             ['contact', <Mail size={14} />, t('tabs.contact')],
+            ['danger', <TriangleAlert size={14} />, 'Račun'],
           ] as [Tab, React.ReactNode, string][]).map(([key, icon, label]) => (
             <button
               key={key}
@@ -297,6 +368,111 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 <p className="text-xs font-semibold text-gray-500">UnitLift · Coaching Platform</p>
                 <p className="text-xs text-gray-400">UnitLift v2.1 · Alat za profesionalne trenere</p>
               </div>
+            </div>
+          )}
+
+          {tab === 'danger' && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-100">
+                <TriangleAlert size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700">
+                  Radnje u ovoj sekciji su <strong>trajne i nepovratne</strong>. Podaci će biti obrisani za 30 dana.
+                </p>
+              </div>
+
+              {deletionRequestedAt ? (
+                /* Pending deletion state */
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ Zahtjev za brisanje na čekanju</p>
+                    <p className="text-xs text-amber-700">
+                      Zahtjev je poslan {new Date(deletionRequestedAt).toLocaleDateString('hr')}.
+                      Svi podaci bit će obrisani za 30 dana.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCancelDeletion}
+                    className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Poništi zahtjev za brisanje
+                  </button>
+                </div>
+              ) : deleteStep === 0 ? (
+                /* Step 0 — show button */
+                <button
+                  onClick={handleDeleteStep1}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 transition-colors group text-left"
+                >
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-100 group-hover:bg-red-200 transition-colors shrink-0">
+                    <Trash2 size={16} className="text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Obriši račun</p>
+                    <p className="text-xs text-red-500">Trajno briše sve podatke — tvoje i svih klijenata</p>
+                  </div>
+                </button>
+              ) : deleteStep === 1 ? (
+                /* Step 1 — Warning 1 */
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-2">
+                    <p className="text-sm font-bold text-red-800">⚠️ Jesi li siguran?</p>
+                    <p className="text-xs text-red-700 leading-relaxed">
+                      Brisanjem računa <strong>trajno se brišu svi podaci</strong> — tvoji i svih {clientCount} klijenta.
+                      To uključuje: treninge, planove prehrane, check-inove, poruke i sve ostalo.
+                    </p>
+                    <p className="text-xs text-red-600 font-medium">
+                      Ova radnja je <strong>nepovratna</strong>. Podaci će biti obrisani za 30 dana.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteStep(0)}
+                      className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      Odustani
+                    </button>
+                    <button
+                      onClick={handleDeleteStep2}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+                    >
+                      Nastavi →
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2 — Warning 2: type DELETE */
+                <div className="space-y-4">
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-100">
+                    <p className="text-xs text-red-700 font-medium">Upiši <code className="bg-red-100 px-1 rounded font-mono">DELETE</code> za potvrdu trajnog brisanja:</p>
+                  </div>
+                  <input
+                    ref={confirmInputRef}
+                    type="text"
+                    value={deleteWord}
+                    onChange={e => { setDeleteWord(e.target.value); setDeleteError('') }}
+                    placeholder="DELETE"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 font-mono text-base font-bold tracking-widest focus:outline-none focus:border-red-500 placeholder:text-red-200"
+                    autoComplete="off"
+                  />
+                  {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDeleteStep(1)}
+                      className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                      disabled={deleteLoading}
+                    >
+                      Natrag
+                    </button>
+                    <button
+                      onClick={handleDeleteConfirm}
+                      disabled={deleteLoading || deleteWord.trim() !== 'DELETE'}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleteLoading ? 'Slanje...' : 'Obriši račun'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
