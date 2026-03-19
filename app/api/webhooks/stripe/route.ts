@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
-
 function supabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,6 +16,7 @@ const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150
 const GRACE_MS = 3 * 24 * 60 * 60 * 1000
 
 export async function POST(req: NextRequest) {
+  const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
   const body      = await req.text()
   const signature = req.headers.get('stripe-signature') ?? ''
 
