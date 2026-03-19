@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2 } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 import { supabase } from '@/lib/supabase'
@@ -23,7 +23,7 @@ const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
   { key: 'slate',  label: 'Siva',    hex: '#475569' },
 ]
 
-type Tab = 'theme' | 'contact' | 'danger'
+type Tab = 'theme' | 'billing' | 'contact' | 'danger'
 
 
 interface Props {
@@ -47,9 +47,89 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const [clientCount, setClientCount] = useState(0)
   const confirmInputRef = useRef<HTMLInputElement>(null)
 
+  // Subscription state
+  const [subData, setSubData] = useState<{
+    plan: string; status: string; client_limit: number;
+    trial_end: string | null; current_period_end: string | null; cancel_at_period_end: boolean
+  } | null>(null)
+  const [subLoading, setSubLoading]       = useState(false)
+  const [cancelingPlan, setCancelingPlan] = useState(false)
+  const [subClientCount, setSubClientCount] = useState(0)
+
+  const PLANS_SETTINGS = [
+    { key: 'starter', label: 'Starter', price: 29, clients: 15, icon: Zap,    color: '#3b82f6' },
+    { key: 'pro',     label: 'Pro',     price: 59, clients: 50, icon: Crown,  color: '#7c3aed' },
+    { key: 'scale',   label: 'Scale',   price: 99, clients: 150, icon: Rocket, color: '#059669' },
+  ]
+
+  const PLAN_META_SETTINGS: Record<string, { label: string; price: string; icon: typeof Zap; color: string }> = {
+    starter: { label: 'Starter', price: '€29/mj', icon: Zap,    color: '#3b82f6' },
+    pro:     { label: 'Pro',     price: '€59/mj', icon: Crown,  color: '#7c3aed' },
+    scale:   { label: 'Scale',   price: '€99/mj', icon: Rocket, color: '#059669' },
+  }
+
   useEffect(() => {
-    if (tab === 'danger') loadDangerData()
+    if (tab === 'danger')  loadDangerData()
+    if (tab === 'billing') loadSub()
   }, [tab])
+
+  const loadSub = async () => {
+    setSubLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSubLoading(false); return }
+    const [subRes, clientsRes] = await Promise.all([
+      supabase.from('subscriptions')
+        .select('plan,status,client_limit,trial_end,current_period_end,cancel_at_period_end')
+        .eq('trainer_id', user.id).maybeSingle(),
+      supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id),
+    ])
+    setSubData(subRes.data ?? null)
+    setSubClientCount(clientsRes.count ?? 0)
+    setSubLoading(false)
+  }
+
+  const callBillingApi = async (endpoint: string, body?: object) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    return fetch(endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  }
+
+  const handleCancelSubscription = async () => {
+    const msg = subClientCount > 0
+      ? `Imaš ${subClientCount} aktivnih klijenata. Otkazivanjem izgubit ćeš pristup na kraju perioda, a klijenti neće moći koristiti mobilnu app.\n\nJesi li siguran?`
+      : 'Jesi li siguran da želiš otkazati pretplatu? Imat ćeš pristup do kraja perioda.'
+    if (!confirm(msg)) return
+    setCancelingPlan(true)
+    await callBillingApi('/api/billing/cancel')
+    await loadSub()
+    setCancelingPlan(false)
+  }
+
+  const handleReactivateSubscription = async () => {
+    setCancelingPlan(true)
+    await callBillingApi('/api/billing/reactivate')
+    await loadSub()
+    setCancelingPlan(false)
+  }
+
+  const handleChangePlanSettings = async (newPlan: string) => {
+    if (!subData) return
+    const newMeta  = PLANS_SETTINGS.find(p => p.key === newPlan)!
+    const currMeta = PLANS_SETTINGS.find(p => p.key === subData.plan)!
+    const isUp = newMeta.price > currMeta.price
+    if (!isUp && subClientCount > newMeta.clients) {
+      alert(`Ne možeš prijeći na ${newMeta.label} — imaš ${subClientCount} klijenata, a plan dopušta ${newMeta.clients}.`)
+      return
+    }
+    if (!confirm(`Promjena na ${newMeta.label} (€${newMeta.price}/mj). Stripe automatski obračunava prorate. Nastavi?`)) return
+    setCancelingPlan(true)
+    await callBillingApi('/api/billing/change-plan', { new_plan: newPlan })
+    await loadSub()
+    setCancelingPlan(false)
+  }
 
   const loadDangerData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -158,9 +238,10 @@ export default function SettingsDialog({ open, onClose }: Props) {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100 bg-gray-50/50 dark:border-white/8 dark:bg-white/3">
           {([
-            ['theme', <Palette size={14} />, t('tabs.theme')],
-            ['contact', <Mail size={14} />, t('tabs.contact')],
-            ['danger', <TriangleAlert size={14} />, 'Račun'],
+            ['theme',   <Palette size={14} />,       t('tabs.theme')],
+            ['billing', <CreditCard size={14} />,    'Pretplata'],
+            ['contact', <Mail size={14} />,           t('tabs.contact')],
+            ['danger',  <TriangleAlert size={14} />, 'Račun'],
           ] as [Tab, React.ReactNode, string][]).map(([key, icon, label]) => (
             <button
               key={key}
@@ -329,6 +410,99 @@ export default function SettingsDialog({ open, onClose }: Props) {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {tab === 'billing' && (
+            <div className="space-y-4">
+              {subLoading ? (
+                <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-gray-200 border-t-[var(--app-accent)] rounded-full animate-spin" /></div>
+              ) : !subData ? (
+                <div className="text-center py-6 space-y-3">
+                  <p className="text-sm text-gray-500">Nemaš aktivnu pretplatu.</p>
+                  <a href="https://unitlift.com/#cijene" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
+                    style={{ backgroundColor: 'var(--app-accent)' }}>
+                    Odaberi plan
+                  </a>
+                </div>
+              ) : (() => {
+                const meta = PLAN_META_SETTINGS[subData.plan]
+                const Icon = meta?.icon ?? CreditCard
+                const isTrialing = subData.status === 'trialing'
+                const isActive   = subData.status === 'active'
+                return (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: (meta?.color ?? '#6b7280') + '18' }}>
+                        <Icon size={16} style={{ color: meta?.color ?? '#6b7280' }} />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-gray-900">Plan {meta?.label}</p>
+                        <p className="text-xs text-gray-500">{meta?.price} · {subData.client_limit} klijenata</p>
+                      </div>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        isActive || isTrialing ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                      }`}>
+                        {isTrialing ? 'Trial' : isActive ? 'Aktivan' : subData.status}
+                      </span>
+                    </div>
+
+                    {isTrialing && subData.trial_end && (
+                      <p className="text-xs text-gray-500 text-center">Trial završava: <strong>{new Date(subData.trial_end).toLocaleDateString('hr')}</strong></p>
+                    )}
+                    {!isTrialing && subData.current_period_end && !subData.cancel_at_period_end && (
+                      <p className="text-xs text-gray-500 text-center">Sljedeća naplata: <strong>{new Date(subData.current_period_end).toLocaleDateString('hr')}</strong></p>
+                    )}
+                    {subData.cancel_at_period_end && subData.current_period_end && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100">
+                        <TriangleAlert size={12} className="text-amber-500 mt-0.5 shrink-0" />
+                        <p className="text-xs text-amber-700">Otkazuje se {new Date(subData.current_period_end).toLocaleDateString('hr')}</p>
+                      </div>
+                    )}
+
+                    {/* Change plan buttons */}
+                    {(isActive || isTrialing) && !subData.cancel_at_period_end && (
+                      <div className="space-y-1.5 pt-1 border-t border-gray-50">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Promijeni plan</p>
+                        {PLANS_SETTINGS.filter(p => p.key !== subData.plan).map(plan => {
+                          const PlanIcon = plan.icon
+                          const currPrice = PLANS_SETTINGS.find(p => p.key === subData.plan)?.price ?? 0
+                          const isUp = plan.price > currPrice
+                          const tooFew = !isUp && subClientCount > plan.clients
+                          return (
+                            <button key={plan.key} onClick={() => handleChangePlanSettings(plan.key)}
+                              disabled={cancelingPlan || tooFew}
+                              title={tooFew ? `Imaš ${subClientCount} klijenata, plan dopušta ${plan.clients}` : ''}
+                              className="w-full flex items-center gap-2 py-2 px-3 rounded-xl border transition-colors disabled:opacity-40 hover:bg-gray-50 text-left"
+                              style={{ borderColor: tooFew ? '#fca5a5' : '#e5e7eb' }}>
+                              <PlanIcon size={12} style={{ color: plan.color }} />
+                              <span className="flex-1 text-xs font-medium text-gray-700">{plan.label} · €{plan.price}/mj · {plan.clients} kl.</span>
+                              <span className={`text-[10px] font-bold ${isUp ? 'text-green-600' : 'text-blue-600'}`}>
+                                {isUp ? '↑' : '↓'} {isUp ? 'Upgrade' : 'Downgrade'}
+                              </span>
+                            </button>
+                          )
+                        })}
+                        <p className="text-[10px] text-gray-400 text-center">Prorate automatski · aktivno odmah</p>
+                      </div>
+                    )}
+
+                    {(isActive || isTrialing) && !subData.cancel_at_period_end && (
+                      <button onClick={handleCancelSubscription} disabled={cancelingPlan}
+                        className="w-full py-2 px-4 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50">
+                        {cancelingPlan ? 'Otkazivanje...' : 'Otkaži pretplatu'}
+                      </button>
+                    )}
+                    {subData.cancel_at_period_end && (isActive || isTrialing) && (
+                      <button onClick={handleReactivateSubscription} disabled={cancelingPlan}
+                        className="w-full py-2 px-4 rounded-xl border border-green-200 text-green-700 text-xs font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
+                        {cancelingPlan ? '...' : '✓ Poništi otkazivanje'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
           )}
 
