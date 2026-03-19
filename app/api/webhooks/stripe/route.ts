@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
 
     // ── Invoice paid → active ────────────────────────────────────────────────
     case 'invoice.payment_succeeded': {
-      const invoice = event.data.object as Stripe.Invoice
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice = event.data.object as any
       const subId   = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
       if (!subId) break
 
@@ -59,7 +60,8 @@ export async function POST(req: NextRequest) {
 
     // ── Invoice failed → past_due, schedule locking ─────────────────────────
     case 'invoice.payment_failed': {
-      const invoice = event.data.object as Stripe.Invoice
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice = event.data.object as any
       const subId   = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
       if (!subId) break
 
