@@ -29,6 +29,32 @@ Deno.serve(async (req) => {
 
     const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password, gender, notes, activity_level } = await req.json()
 
+    // Check subscription client limit before creating
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('client_limit, plan')
+      .eq('trainer_id', trainer_id)
+      .single()
+
+    if (subscription) {
+      const { count: clientCount } = await supabaseAdmin
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('trainer_id', trainer_id)
+
+      if (clientCount !== null && clientCount >= subscription.client_limit) {
+        return new Response(
+          JSON.stringify({
+            error: 'CLIENT_LIMIT_REACHED',
+            current: clientCount,
+            limit: subscription.client_limit,
+            plan: subscription.plan,
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password: password || Math.random().toString(36).slice(-8) + 'Aa1!',

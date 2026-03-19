@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp } from 'lucide-react'
+import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp, TrendingUp } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
@@ -68,6 +68,7 @@ function ClientsPageContent() {
 
   const [clients, setClients] = useState<Client[]>([])
   const [packages, setPackages] = useState<Package[]>([])
+  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
@@ -104,7 +105,7 @@ function ClientsPageContent() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [{ data: clientData }, { data: pkgData }] = await Promise.all([
+    const [{ data: clientData }, { data: pkgData }, { data: subData }] = await Promise.all([
       supabase
         .from('clients')
         .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes,
@@ -116,7 +117,14 @@ function ClientsPageContent() {
         .select('id, name, color')
         .eq('trainer_id', user.id)
         .order('name'),
+      supabase
+        .from('subscriptions')
+        .select('plan, client_limit')
+        .eq('trainer_id', user.id)
+        .single(),
     ])
+
+    setSubscription(subData ? { plan: subData.plan, client_limit: subData.client_limit } : null)
 
     const rawClients: Client[] = (clientData || []).map((c: any) => ({
       id: c.id,
@@ -246,6 +254,10 @@ function ClientsPageContent() {
       }
     })
 
+  const isAtLimit = subscription !== null && clients.length >= subscription.client_limit
+
+  const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', scale: 'Scale' }
+
   return (
     <div className="space-y-3">
       <div>
@@ -253,7 +265,7 @@ function ClientsPageContent() {
         <p className="text-gray-500">{t('subtitle')}</p>
       </div>
 
-      {/* Toolbar row 1: search + add */}
+      {/* Toolbar row 1: search + limit badge + add */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
@@ -269,13 +281,43 @@ function ClientsPageContent() {
             </button>
           )}
         </div>
-        <Button onClick={() => setShowAdd(true)} size="sm"
-          className="h-9 flex items-center gap-1.5 px-3.5 text-white shrink-0"
-          style={{ backgroundColor: 'var(--app-accent)' }}
-          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}>
-          <Plus size={13} /> {t('addClient')}
-        </Button>
+
+        {subscription && (
+          <div
+            className={`flex items-center gap-1.5 h-9 px-3 rounded-lg border text-xs font-semibold shrink-0 ${
+              isAtLimit
+                ? 'bg-amber-50 border-amber-200 text-amber-700'
+                : 'bg-gray-50 border-gray-200 text-gray-500'
+            }`}
+          >
+            {isAtLimit && <AlertTriangle size={11} className="text-amber-500" />}
+            <span>
+              {clients.length}/{subscription.client_limit}{' '}
+              <span className="font-normal opacity-70">{PLAN_LABELS[subscription.plan] ?? subscription.plan}</span>
+            </span>
+          </div>
+        )}
+
+        {isAtLimit ? (
+          <Button
+            onClick={() => router.push('/dashboard/billing')}
+            size="sm"
+            className="h-9 flex items-center gap-1.5 px-3.5 text-white shrink-0"
+            style={{ backgroundColor: '#d97706' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#b45309')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#d97706')}
+          >
+            <TrendingUp size={13} /> Nadogradi plan
+          </Button>
+        ) : (
+          <Button onClick={() => setShowAdd(true)} size="sm"
+            className="h-9 flex items-center gap-1.5 px-3.5 text-white shrink-0"
+            style={{ backgroundColor: 'var(--app-accent)' }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}>
+            <Plus size={13} /> {t('addClient')}
+          </Button>
+        )}
       </div>
 
       {/* Toolbar row 2: status pills + filter + sort */}
@@ -431,7 +473,12 @@ function ClientsPageContent() {
       )}
 
       {/* Count */}
-      <p className="text-xs text-gray-500">{filtered.length} / {clients.length} klijenata</p>
+      <p className="text-xs text-gray-500">
+        {filtered.length} / {clients.length} klijenata
+        {isAtLimit && (
+          <span className="ml-2 text-amber-600 font-medium">· Limit dostignut</span>
+        )}
+      </p>
 
       {/* List */}
       {loading ? (

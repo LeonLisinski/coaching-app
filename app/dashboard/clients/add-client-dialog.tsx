@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, Check, ChevronRight, CreditCard } from 'lucide-react'
+import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, Check, ChevronRight, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -54,6 +54,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const [step, setStep]       = useState<Step>('account')
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [limitInfo, setLimitInfo] = useState<{ current: number; limit: number; plan: string } | null>(null)
+  const [limitChecking, setLimitChecking] = useState(false)
 
   // Step 1
   const [full_name, setFullName]         = useState('')
@@ -80,15 +82,32 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const [checkinDay, setCheckinDay]     = useState<number | null>(null)
   const [plansLoading, setPlansLoading] = useState(false)
 
-  // Reset on open
+  const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', scale: 'Scale' }
+
+  // Reset on open + check limit
   useEffect(() => {
     if (open) {
-      setStep('account'); setError('')
+      setStep('account'); setError(''); setLimitInfo(null)
       setFullName(''); setEmail(''); setPassword(''); setGender('')
       setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
       setSelectedWorkout(''); setSelectedMeal(''); setSelectedPackage(''); setCheckinDay(null)
+      checkLimit()
     }
   }, [open])
+
+  const checkLimit = async () => {
+    setLimitChecking(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setLimitChecking(false); return }
+    const [{ data: sub }, { count }] = await Promise.all([
+      supabase.from('subscriptions').select('plan, client_limit').eq('trainer_id', user.id).single(),
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('trainer_id', user.id),
+    ])
+    if (sub && count !== null && count >= sub.client_limit) {
+      setLimitInfo({ current: count, limit: sub.client_limit, plan: sub.plan })
+    }
+    setLimitChecking(false)
+  }
 
   // Load plans when reaching step 3
   useEffect(() => {
@@ -265,8 +284,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors"><X size={18} /></button>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex shrink-0 border-b border-gray-100">
+        {/* Step indicator — hidden when limit reached */}
+        <div className={`flex shrink-0 border-b border-gray-100 ${limitInfo || limitChecking ? 'hidden' : ''}`}>
           {STEPS.map((s, i) => {
             const isActive  = step === s.key
             const isDone    = STEPS.findIndex(x => x.key === step) > i
@@ -288,7 +307,49 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col">
+
+          {/* ── Limit checking spinner ── */}
+          {limitChecking && (
+            <div className="flex-1 flex flex-col items-center justify-center py-12 gap-3">
+              <span className="w-8 h-8 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+              <p className="text-sm text-gray-400">Provjera plana...</p>
+            </div>
+          )}
+
+          {/* ── Limit reached screen ── */}
+          {!limitChecking && limitInfo && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <AlertTriangle size={26} className="text-amber-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-bold text-gray-900 text-base">Dostignut limit klijenata</h3>
+                <p className="text-gray-500 text-sm">
+                  Na vašem <span className="font-semibold">{PLAN_LABELS[limitInfo.plan] ?? limitInfo.plan}</span> planu možete imati
+                  maksimalno <span className="font-semibold">{limitInfo.limit} klijenata</span>.
+                </p>
+              </div>
+              <div className="flex items-baseline gap-1.5 px-5 py-3 rounded-xl bg-gray-50 border border-gray-100">
+                <span className="text-3xl font-extrabold" style={{ color: accentHex }}>{limitInfo.current}</span>
+                <span className="text-gray-400 text-sm">/ {limitInfo.limit} klijenata</span>
+              </div>
+              <p className="text-gray-400 text-xs max-w-[260px]">
+                Nadogradite plan kako biste mogli dodavati više klijenata ili deaktivirajte postojeće klijente.
+              </p>
+              <a
+                href="/dashboard/billing"
+                className="w-full h-10 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
+                style={{ backgroundColor: accentHex }}
+              >
+                <TrendingUp size={15} /> Nadogradi plan
+              </a>
+            </div>
+          )}
+
+          {/* ── Steps (hidden when limit reached or checking) ── */}
+          {!limitChecking && !limitInfo && (
+          <>
 
           {/* ── Step 1: Account ── */}
           {step === 'account' && (
@@ -508,40 +569,49 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             </div>
           )}
 
+          </>
+          )}
         </div>
 
         {/* Footer */}
         <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
-          {/* Error always visible regardless of active step */}
-          {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
-          <div className="flex gap-3">
-          {step !== 'account' ? (
-            <button type="button" onClick={() => setStep(step === 'plans' ? 'profile' : 'account')}
-              className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-              ← Natrag
-            </button>
-          ) : (
-            <button type="button" onClick={onClose} className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+          {limitInfo || limitChecking ? (
+            <button type="button" onClick={onClose}
+              className="w-full h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
               {tCommon('cancel')}
             </button>
-          )}
-
-          {step !== 'plans' ? (
-            <button type="button" onClick={goNext}
-              className="flex-1 h-9 rounded-lg text-white text-sm font-semibold flex items-center justify-center gap-1.5"
-              style={{ backgroundColor: accentHex }}>
-              Dalje <ChevronRight size={14} />
-            </button>
           ) : (
-            <button type="button" onClick={handleSubmit} disabled={loading}
-              className="flex-1 h-9 rounded-lg text-white text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{ backgroundColor: accentHex }}>
-              {loading
-                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Kreiranje...</>
-                : t('submit')}
-            </button>
+            <>
+              {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
+              <div className="flex gap-3">
+                {step !== 'account' ? (
+                  <button type="button" onClick={() => setStep(step === 'plans' ? 'profile' : 'account')}
+                    className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    ← Natrag
+                  </button>
+                ) : (
+                  <button type="button" onClick={onClose} className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    {tCommon('cancel')}
+                  </button>
+                )}
+                {step !== 'plans' ? (
+                  <button type="button" onClick={goNext}
+                    className="flex-1 h-9 rounded-lg text-white text-sm font-semibold flex items-center justify-center gap-1.5"
+                    style={{ backgroundColor: accentHex }}>
+                    Dalje <ChevronRight size={14} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={handleSubmit} disabled={loading}
+                    className="flex-1 h-9 rounded-lg text-white text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: accentHex }}>
+                    {loading
+                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Kreiranje...</>
+                      : t('submit')}
+                  </button>
+                )}
+              </div>
+            </>
           )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>

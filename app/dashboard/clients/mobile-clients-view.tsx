@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Search, MessageSquare, X, ChevronRight, Users } from 'lucide-react'
+import { Search, MessageSquare, X, ChevronRight, Users, AlertTriangle } from 'lucide-react'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 type CheckinStatus = 'submitted' | 'late' | 'neutral'
@@ -56,12 +56,15 @@ type MobileClient = {
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
+const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', scale: 'Scale' }
+
 export default function MobileClientsView() {
   const router = useRouter()
   const [clients, setClients]   = useState<MobileClient[]>([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
   const [filter, setFilter]     = useState<'all' | 'late'>('all')
+  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number } | null>(null)
 
   useEffect(() => { fetchData() }, [])
 
@@ -69,12 +72,21 @@ export default function MobileClientsView() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: clientData } = await supabase
-      .from('clients')
-      .select(`id, gender, active, profiles!clients_user_id_fkey (full_name, email)`)
-      .eq('trainer_id', user.id)
-      .eq('active', true)
-      .order('created_at', { ascending: false })
+    const [{ data: clientData }, { data: subData }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select(`id, gender, active, profiles!clients_user_id_fkey (full_name, email)`)
+        .eq('trainer_id', user.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('subscriptions')
+        .select('plan, client_limit')
+        .eq('trainer_id', user.id)
+        .single(),
+    ])
+
+    setSubscription(subData ? { plan: subData.plan, client_limit: subData.client_limit } : null)
 
     if (!clientData?.length) { setLoading(false); return }
 
@@ -127,7 +139,19 @@ export default function MobileClientsView() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Klijenti</h1>
-        <p className="text-sm text-gray-400 mt-0.5">{clients.length} aktivnih klijenata</p>
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          <p className="text-sm text-gray-400">{clients.length} aktivnih klijenata</p>
+          {subscription && (
+            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+              clients.length >= subscription.client_limit
+                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : 'bg-gray-100 text-gray-500'
+            }`}>
+              {clients.length >= subscription.client_limit && <AlertTriangle size={10} className="text-amber-500" />}
+              {clients.length}/{subscription.client_limit} {PLAN_LABELS[subscription.plan] ?? subscription.plan}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Search */}
