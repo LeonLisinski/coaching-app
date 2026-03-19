@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   if (session_id && process.env.STRIPE_SECRET_KEY) {
     try {
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' })
       const session = await stripe.checkout.sessions.retrieve(session_id, { expand: ['subscription'] })
 
       if (session.status !== 'complete') {
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Update Stripe customer metadata with Supabase user ID
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
     await stripe.customers.update(stripeCustomerId, {
       metadata: { supabase_user_id: authData.user.id },
     })
