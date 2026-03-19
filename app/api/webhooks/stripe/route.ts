@@ -40,14 +40,16 @@ export async function POST(req: NextRequest) {
       if (!subId) break
 
       const sub  = await stripe.subscriptions.retrieve(subId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subA = sub as any
       const plan = sub.metadata?.plan ?? 'starter'
 
       await db.from('subscriptions').update({
         status:               'active',
         plan,
         client_limit:         CLIENT_LIMITS[plan] ?? 15,
-        current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-        current_period_end:   new Date(sub.current_period_end   * 1000).toISOString(),
+        current_period_start: subA.current_period_start ? new Date(subA.current_period_start * 1000).toISOString() : null,
+        current_period_end:   subA.current_period_end   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
         cancel_at_period_end: sub.cancel_at_period_end,
         locked_at:            null,
         updated_at:           new Date().toISOString(),
@@ -91,6 +93,8 @@ export async function POST(req: NextRequest) {
     // ── Subscription updated → sync status + cancel_at_period_end ───────────
     case 'customer.subscription.updated': {
       const sub  = event.data.object as Stripe.Subscription
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subB = sub as any
       const plan = sub.metadata?.plan ?? 'starter'
 
       let status: string = sub.status
@@ -102,9 +106,9 @@ export async function POST(req: NextRequest) {
           plan,
           client_limit:         CLIENT_LIMITS[plan] ?? 15,
           cancel_at_period_end: sub.cancel_at_period_end,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end:   new Date(sub.current_period_end   * 1000).toISOString(),
-          trial_end:            sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+          current_period_start: subB.current_period_start ? new Date(subB.current_period_start * 1000).toISOString() : null,
+          current_period_end:   subB.current_period_end   ? new Date(subB.current_period_end   * 1000).toISOString() : null,
+          trial_end:            subB.trial_end ? new Date(subB.trial_end * 1000).toISOString() : null,
           locked_at:            null,
           updated_at:           new Date().toISOString(),
         }).eq('stripe_subscription_id', sub.id)

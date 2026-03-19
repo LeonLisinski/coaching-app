@@ -64,12 +64,13 @@ export async function POST(req: NextRequest) {
     metadata: { plan: new_plan, client_limit: String(CLIENT_LIMITS[new_plan]) },
   })
 
-  // Update our DB
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const u = updated as any
   await supabaseAdmin.from('subscriptions').update({
     plan:                    new_plan,
     client_limit:            CLIENT_LIMITS[new_plan],
-    current_period_start:    new Date(updated.current_period_start * 1000).toISOString(),
-    current_period_end:      new Date(updated.current_period_end   * 1000).toISOString(),
+    current_period_start:    u.current_period_start ? new Date(u.current_period_start * 1000).toISOString() : null,
+    current_period_end:      u.current_period_end   ? new Date(u.current_period_end   * 1000).toISOString() : null,
     cancel_at_period_end:    updated.cancel_at_period_end,
     updated_at:              new Date().toISOString(),
   }).eq('trainer_id', user.id)

@@ -46,9 +46,11 @@ export async function POST(req: NextRequest) {
       stripeSubscriptionId = sub?.id ?? null
       resolvedPlan         = session.metadata?.plan ?? plan ?? 'starter'
 
-      if (sub?.trial_end)           trialEnd    = new Date(sub.trial_end * 1000)
-      if (sub?.current_period_start) periodStart = new Date(sub.current_period_start * 1000)
-      if (sub?.current_period_end)   periodEnd   = new Date(sub.current_period_end * 1000)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s = sub as any
+      if (s?.trial_end)           trialEnd    = new Date(s.trial_end * 1000)
+      if (s?.current_period_start) periodStart = new Date(s.current_period_start * 1000)
+      if (s?.current_period_end)   periodEnd   = new Date(s.current_period_end * 1000)
 
       // Update Stripe customer email/name to match registration
       if (stripeCustomerId) {
