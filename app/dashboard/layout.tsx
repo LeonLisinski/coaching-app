@@ -156,7 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })()
 
       if (!hasAccess) {
-        router.replace('https://unitlift.com/cijene')
+        router.replace('/choose-plan')
         return
       }
       // ──────────────────────────────────────────────────────────────────────
