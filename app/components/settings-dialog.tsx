@@ -170,8 +170,8 @@ export default function SettingsDialog({ open, onClose }: Props) {
         },
       })
       if (!res.ok) throw new Error('Failed')
-      setDeleteStep(0)
-      setDeletionRequestedAt(new Date().toISOString())
+      await supabase.auth.signOut()
+      window.location.href = '/login'
     } catch {
       setDeleteError('Error submitting request. Please try again.')
     } finally {
