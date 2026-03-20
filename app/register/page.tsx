@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2,
+  Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, Users,
   TrendingUp, Dumbbell, Loader2, CircleCheck, Crown, Zap, Rocket,
 } from 'lucide-react'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
@@ -232,17 +232,24 @@ function RegisterInner() {
             {planMeta && (
               <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)' }}>
                 {/* Card header */}
-                <div className="px-5 pt-5 pb-4 flex items-center gap-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: BLUE + '25', border: `1px solid ${BLUE}40` }}>
-                    <planMeta.icon size={17} style={{ color: BLUE }} />
+                <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: BLUE + '25', border: `1px solid ${BLUE}40` }}>
+                      <planMeta.icon size={17} style={{ color: BLUE }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-bold text-sm leading-none">Plan {planMeta.label}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-white font-black text-2xl leading-none">{planMeta.price}</p>
+                      <p className="text-white/35 text-[10px] mt-1">po mjesecu</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-white font-bold text-sm leading-none">Plan {planMeta.label}</p>
-                    <p className="text-white/50 text-xs mt-1">{planMeta.clients}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-white font-black text-lg leading-none">{planMeta.price}</p>
-                    <p className="text-white/35 text-[10px] mt-0.5">po mjesecu</p>
+                  {/* Client limit badge */}
+                  <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                    style={{ backgroundColor: BLUE + '20', border: `1px solid ${BLUE}40`, color: '#7ab8ff' }}>
+                    <Users size={11} />
+                    {planMeta.clients}
                   </div>
                 </div>
                 {/* Guarantees + features */}
