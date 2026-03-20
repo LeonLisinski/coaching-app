@@ -387,7 +387,7 @@ function RegisterInner() {
                   </div>
 
                   {/* Password row */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-3.5">
                     <div className="space-y-1.5">
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">{t('password')}</label>
                       <div className="relative">
@@ -439,7 +439,7 @@ function RegisterInner() {
                   >
                     {step === 'loading'
                       ? <><Loader2 size={15} className="animate-spin" />{mode === 'new' ? 'Kreiranje računa...' : t('loading')}</>
-                      : mode === 'new' ? 'Nastavi na plaćanje →' : t('submit')
+                      : mode === 'new' ? 'Kreni besplatno →' : t('submit')
                     }
                   </button>
                 </form>
