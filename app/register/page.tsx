@@ -245,12 +245,11 @@ function RegisterInner() {
                     <p className="text-white/35 text-[10px] mt-0.5">po mjesecu</p>
                   </div>
                 </div>
-                {/* Trial info */}
+                {/* Guarantees + features */}
                 <div className="px-5 py-3.5 space-y-2.5">
                   {[
                     { color: '#22c55e', icon: CheckCircle2, text: '14 dana besplatnog probnog perioda' },
-                    { color: BLUE,      icon: Shield,       text: 'Kartica potrebna · naplata tek nakon triala' },
-                    { color: '#a855f7', icon: CircleCheck,  text: 'Pravo na povrat novca unutar triala' },
+                    { color: '#a855f7', icon: CircleCheck,  text: '30 dana pravo na povrat novca' },
                     { color: '#f59e0b', icon: Lock,         text: 'Besplatno otkazivanje u bilo kom trenutku' },
                   ].map(({ color, icon: Icon, text }) => (
                     <div key={text} className="flex items-center gap-2.5">
@@ -261,27 +260,30 @@ function RegisterInner() {
                     </div>
                   ))}
                 </div>
+
+                {/* Divider */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }} />
+
+                {/* Feature list inside card */}
+                <div className="px-5 py-4 space-y-3">
+                  {FEATURE_KEYS.map((key, i) => {
+                    const Icon = FEATURE_ICONS[i]
+                    return (
+                      <div key={key} className="flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.18)' }}>
+                          <Icon size={13} style={{ color: BLUE }} />
+                        </div>
+                        <div>
+                          <p className="text-white text-xs font-semibold leading-tight">{t(`features.${key}.label`)}</p>
+                          <p className="text-white/35 text-[10px] mt-0.5">{t(`features.${key}.desc`)}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
-
-            {/* Feature list */}
-            <div className="space-y-4">
-              {FEATURE_KEYS.map((key, i) => {
-                const Icon = FEATURE_ICONS[i]
-                return (
-                  <div key={key} className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: 'rgba(0,102,255,0.12)', border: '1px solid rgba(0,102,255,0.2)' }}>
-                      <Icon size={14} style={{ color: BLUE }} />
-                    </div>
-                    <div>
-                      <p className="text-white text-sm font-semibold leading-tight">{t(`features.${key}.label`)}</p>
-                      <p className="text-white/35 text-xs mt-0.5">{t(`features.${key}.desc`)}</p>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
 
           <p className="text-white/20 text-[11px]">© 2026 UnitLift · unitlift.com</p>
