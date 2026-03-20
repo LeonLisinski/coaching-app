@@ -376,16 +376,6 @@ function RegisterInner() {
                     )}
                   </div>
 
-                  {/* Phone */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                      Telefon <span className="text-gray-400 normal-case font-normal">(opcija)</span>
-                    </label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                      placeholder="+385 91 234 5678"
-                      className={inputClass} />
-                  </div>
-
                   {/* Password row */}
                   <div className="flex flex-col gap-3.5">
                     <div className="space-y-1.5">
@@ -443,12 +433,6 @@ function RegisterInner() {
                     }
                   </button>
                 </form>
-
-                {mode === 'new' && (
-                  <p className="text-center text-[11px] text-gray-400 leading-relaxed">
-                    Kartica potrebna za aktivaciju · Bez naplate 14 dana · Otkaži besplatno kad hoćeš
-                  </p>
-                )}
 
                 {/* Trust row */}
                 <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-100">
