@@ -218,9 +218,9 @@ function RegisterInner() {
           </div>
 
           {/* Headline + plan card */}
-          <div className="flex-1 flex flex-col justify-start space-y-6 pt-6 pb-8">
+          <div className="flex-1 flex flex-col justify-start space-y-8 pt-6 pb-8">
             <div>
-              <h1 className="text-2xl font-black text-white leading-tight tracking-tight">
+              <h1 className="text-[1.9rem] font-black text-white leading-tight tracking-tight">
                 {t('headlineMain')}<br />
                 {t('headlinePre')}{' '}
                 <span style={{ color: BLUE }}>{t('headlineAccent')}</span>
