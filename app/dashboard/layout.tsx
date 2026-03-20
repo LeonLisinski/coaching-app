@@ -129,8 +129,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.replace('/login'); return }
+
+      // ── Subscription gate ──────────────────────────────────────────────────
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('status, trial_end, locked_at')
+        .eq('trainer_id', user.id)
+        .maybeSingle()
+
+      const now = new Date()
+      const hasAccess = sub && (() => {
+        if (sub.status === 'active') return true
+        if (sub.status === 'trialing') {
+          // Allow if trial hasn't ended yet
+          if (!sub.trial_end) return true
+          return new Date(sub.trial_end) > now
+        }
+        if (sub.status === 'past_due') {
+          // Allow until locked_at (grace period)
+          if (!sub.locked_at) return true
+          return new Date(sub.locked_at) > now
+        }
+        return false
+      })()
+
+      if (!hasAccess) {
+        router.replace('https://unitlift.com/cijene')
+        return
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
       supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single().then(({ data }) => {
         const name = data?.full_name || user.email || ''
         setUserName(name)

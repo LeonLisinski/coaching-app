@@ -38,6 +38,9 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
 
 
+  // Plan change / cancel confirm state
+  const [confirmAction, setConfirmAction] = useState<null | { type: 'cancel' | 'change'; plan?: string; label?: string; price?: number }>(null)
+
   // Delete account state
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0) // 0=idle, 1=warn1, 2=confirm
   const [deleteWord, setDeleteWord] = useState('')
@@ -97,11 +100,12 @@ export default function SettingsDialog({ open, onClose }: Props) {
     })
   }
 
-  const handleCancelSubscription = async () => {
-    const msg = subClientCount > 0
-      ? `Imaš ${subClientCount} aktivnih klijenata. Otkazivanjem izgubit ćeš pristup na kraju perioda, a klijenti neće moći koristiti mobilnu app.\n\nJesi li siguran?`
-      : 'Jesi li siguran da želiš otkazati pretplatu? Imat ćeš pristup do kraja perioda.'
-    if (!confirm(msg)) return
+  const handleCancelSubscription = () => {
+    setConfirmAction({ type: 'cancel' })
+  }
+
+  const executeCancelSubscription = async () => {
+    setConfirmAction(null)
     setCancelingPlan(true)
     await callBillingApi('/api/billing/cancel')
     await loadSub()
@@ -115,7 +119,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
     setCancelingPlan(false)
   }
 
-  const handleChangePlanSettings = async (newPlan: string) => {
+  const handleChangePlanSettings = (newPlan: string) => {
     if (!subData) return
     const newMeta  = PLANS_SETTINGS.find(p => p.key === newPlan)!
     const currMeta = PLANS_SETTINGS.find(p => p.key === subData.plan)!
@@ -124,9 +128,14 @@ export default function SettingsDialog({ open, onClose }: Props) {
       alert(`Ne možeš prijeći na ${newMeta.label} — imaš ${subClientCount} klijenata, a plan dopušta ${newMeta.clients}.`)
       return
     }
-    if (!confirm(`Promjena na ${newMeta.label} (€${newMeta.price}/mj). Stripe automatski obračunava prorate. Nastavi?`)) return
+    setConfirmAction({ type: 'change', plan: newPlan, label: newMeta.label, price: newMeta.price })
+  }
+
+  const executeChangePlan = async () => {
+    if (!confirmAction?.plan) return
+    setConfirmAction(null)
     setCancelingPlan(true)
-    await callBillingApi('/api/billing/change-plan', { new_plan: newPlan })
+    await callBillingApi('/api/billing/change-plan', { new_plan: confirmAction.plan })
     await loadSub()
     setCancelingPlan(false)
   }
@@ -210,6 +219,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
@@ -652,6 +662,67 @@ export default function SettingsDialog({ open, onClose }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* ── Inline confirm modal for plan change / cancel ── */}
+    {confirmAction && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          {confirmAction.type === 'cancel' ? (
+            <>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                  <span className="text-red-600 text-lg">⚠</span>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">Otkazivanje pretplate</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    {subClientCount > 0
+                      ? `Imaš ${subClientCount} aktivnih klijenata. Imat ćeš pristup do kraja perioda, nakon čega klijenti neće moći koristiti mobilnu app.`
+                      : 'Imat ćeš pristup do kraja naplatnog perioda. Nakon toga se pristup blokira.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setConfirmAction(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                  Natrag
+                </button>
+                <button onClick={executeCancelSubscription}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors">
+                  Otkaži pretplatu
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 15%, white)' }}>
+                  <span className="text-base">↕</span>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">Promjena na {confirmAction.label}</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                    Nova cijena: <strong>€{confirmAction.price}/mj</strong>. Stripe automatski obračunava razliku (prorate) za tekući period.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setConfirmAction(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                  Odustani
+                </button>
+                <button onClick={executeChangePlan}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
+                  style={{ backgroundColor: 'var(--app-accent)' }}>
+                  Potvrdi promjenu
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+  </>
   )
 }
 
