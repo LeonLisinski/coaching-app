@@ -42,7 +42,7 @@ export function useTrainerSettings() {
         .from('trainer_profiles')
         .select('nutrition_fields, exercise_fields')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
       if (data) {
         setSettings({
           nutritionFields: data.nutrition_fields || [],

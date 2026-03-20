@@ -242,7 +242,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden relative" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -516,13 +516,53 @@ export default function SettingsDialog({ open, onClose }: Props) {
                           )
                         })}
                         <p className="text-[10px] text-gray-400 text-center">Prorate automatski · aktivno odmah</p>
+
+                        {/* Inline confirm for plan change */}
+                        {confirmAction?.type === 'change' && (
+                          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2.5 mt-1">
+                            <p className="text-xs font-semibold text-gray-800">Potvrdi promjenu na {confirmAction.label}</p>
+                            <p className="text-xs text-gray-500">Nova cijena: <strong>€{confirmAction.price}/mj</strong>. Stripe obračunava razliku za tekući period.</p>
+                            <div className="flex gap-2">
+                              <button onClick={() => setConfirmAction(null)}
+                                className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 bg-white hover:bg-gray-100 transition-colors">
+                                Odustani
+                              </button>
+                              <button onClick={executeChangePlan} disabled={cancelingPlan}
+                                className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                                style={{ backgroundColor: 'var(--app-accent)' }}>
+                                {cancelingPlan ? '...' : 'Potvrdi'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {billingError && (
                       <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{billingError}</p>
                     )}
-                    {(isActive || isTrialing) && !subData.cancel_at_period_end && (
+
+                    {/* Inline confirm for cancel */}
+                    {confirmAction?.type === 'cancel' ? (
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-2.5">
+                        <p className="text-xs font-semibold text-red-700">Potvrdi otkazivanje</p>
+                        <p className="text-xs text-red-600 leading-relaxed">
+                          {subClientCount > 0
+                            ? `Imaš ${subClientCount} aktivnih klijenata. Imat ćeš pristup do kraja perioda.`
+                            : 'Imat ćeš pristup do kraja naplatnog perioda. Nakon toga se pristup blokira.'}
+                        </p>
+                        <div className="flex gap-2">
+                          <button onClick={() => setConfirmAction(null)}
+                            className="flex-1 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 bg-white hover:bg-red-50 transition-colors">
+                            Natrag
+                          </button>
+                          <button onClick={executeCancelSubscription} disabled={cancelingPlan}
+                            className="flex-1 py-1.5 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50">
+                            {cancelingPlan ? '...' : 'Otkaži pretplatu'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (isActive || isTrialing) && !subData.cancel_at_period_end && (
                       <button onClick={handleCancelSubscription} disabled={cancelingPlan}
                         className="w-full py-2 px-4 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50">
                         {cancelingPlan ? 'Otkazivanje...' : 'Otkaži pretplatu'}
@@ -684,65 +724,6 @@ export default function SettingsDialog({ open, onClose }: Props) {
             </div>
           )}
         </div>
-        {/* ── Confirm modal for plan change / cancel — inside DialogContent to respect focus trap ── */}
-        {confirmAction && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center p-4 rounded-2xl" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-5 space-y-4">
-              {confirmAction.type === 'cancel' ? (
-                <>
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-                      <span className="text-red-600">⚠</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">Otkazivanje pretplate</p>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        {subClientCount > 0
-                          ? `Imaš ${subClientCount} aktivnih klijenata. Imat ćeš pristup do kraja perioda, nakon čega klijenti neće moći koristiti mobilnu app.`
-                          : 'Imat ćeš pristup do kraja naplatnog perioda. Nakon toga se pristup blokira.'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmAction(null)}
-                      className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                      Natrag
-                    </button>
-                    <button onClick={executeCancelSubscription}
-                      className="flex-1 py-2.5 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors">
-                      Otkaži pretplatu
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 15%, white)' }}>
-                      <span>↕</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900 text-sm">Promjena na {confirmAction.label}</p>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        Nova cijena: <strong>€{confirmAction.price}/mj</strong>. Stripe automatski obračunava razliku (prorate) za tekući period.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmAction(null)}
-                      className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                      Odustani
-                    </button>
-                    <button onClick={executeChangePlan}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
-                      style={{ backgroundColor: 'var(--app-accent)' }}>
-                      Potvrdi promjenu
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   )
