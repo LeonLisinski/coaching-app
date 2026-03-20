@@ -52,8 +52,15 @@ export async function POST(req: NextRequest) {
   })
 
   if (createError || !user) {
-    console.error('[register/start] createUser error:', createError)
-    return NextResponse.json({ error: createError?.message || 'Greška pri kreiranju računa.' }, { status: 500 })
+    console.error('[register/start] createUser error:', createError?.message)
+    const isEmailTaken = createError?.message?.toLowerCase().includes('already registered')
+      || createError?.message?.toLowerCase().includes('already been registered')
+      || createError?.message?.toLowerCase().includes('user already exists')
+    return NextResponse.json({
+      error: isEmailTaken
+        ? 'Ova email adresa je već registrirana.'
+        : 'Greška pri kreiranju računa. Provjeri podatke i pokušaj ponovo.',
+    }, { status: 500 })
   }
 
   // Wait for DB trigger to create the profile row
