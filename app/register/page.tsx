@@ -218,14 +218,14 @@ function RegisterInner() {
           </div>
 
           {/* Headline + plan card */}
-          <div className="flex-1 flex flex-col justify-start space-y-6 pt-6 pb-8">
+          <div className="flex-1 flex flex-col justify-start space-y-4 pt-6 pb-8">
             <div>
-              <h1 className="text-[2.4rem] xl:text-[2.8rem] font-black text-white leading-[1.08] tracking-tight">
+              <h1 className="text-2xl font-black text-white leading-tight tracking-tight">
                 {t('headlineMain')}<br />
                 {t('headlinePre')}{' '}
                 <span style={{ color: BLUE }}>{t('headlineAccent')}</span>
               </h1>
-              <p className="text-white/45 text-sm mt-4 leading-relaxed max-w-[300px]">{t('tagline')}</p>
+              <p className="text-white/40 text-xs mt-2 leading-relaxed max-w-[280px]">{t('tagline')}</p>
             </div>
 
             {/* Plan summary card */}
@@ -450,16 +450,16 @@ function RegisterInner() {
                   </p>
                 )}
 
-                {/* Trust badges */}
-                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-100">
+                {/* Trust row */}
+                <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-100">
                   {[
-                    { icon: Shield,       label: '14 dana besplatno' },
-                    { icon: CircleCheck,  label: 'Pravo na povrat' },
-                    { icon: Lock,         label: 'Besplatno otkazivanje' },
+                    { icon: Shield,      label: '14 dana besplatno' },
+                    { icon: CircleCheck, label: 'Pravo na povrat' },
+                    { icon: Lock,        label: 'Otkaži besplatno' },
                   ].map(({ icon: Icon, label }) => (
-                    <div key={label} className="flex flex-col items-center gap-1 px-1 py-2 rounded-xl bg-gray-50 border border-gray-100">
-                      <Icon size={13} style={{ color: BLUE }} />
-                      <span className="text-[10px] text-gray-500 font-medium text-center leading-tight">{label}</span>
+                    <div key={label} className="flex items-center gap-1.5">
+                      <Icon size={12} style={{ color: BLUE }} />
+                      <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{label}</span>
                     </div>
                   ))}
                 </div>
