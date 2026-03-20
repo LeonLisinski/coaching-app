@@ -40,6 +40,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   // Plan change / cancel confirm state
   const [confirmAction, setConfirmAction] = useState<null | { type: 'cancel' | 'change'; plan?: string; label?: string; price?: number }>(null)
+  const [billingError, setBillingError] = useState('')
 
   // Delete account state
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0) // 0=idle, 1=warn1, 2=confirm
@@ -107,8 +108,18 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const executeCancelSubscription = async () => {
     setConfirmAction(null)
     setCancelingPlan(true)
-    await callBillingApi('/api/billing/cancel')
-    await loadSub()
+    setBillingError('')
+    try {
+      const res = await callBillingApi('/api/billing/cancel')
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setBillingError(d.error || 'Greška pri otkazivanju. Pokušaj ponovo.')
+      } else {
+        await loadSub()
+      }
+    } catch {
+      setBillingError('Greška pri spajanju na server.')
+    }
     setCancelingPlan(false)
   }
 
@@ -133,10 +144,21 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   const executeChangePlan = async () => {
     if (!confirmAction?.plan) return
+    const plan = confirmAction.plan
     setConfirmAction(null)
     setCancelingPlan(true)
-    await callBillingApi('/api/billing/change-plan', { new_plan: confirmAction.plan })
-    await loadSub()
+    setBillingError('')
+    try {
+      const res = await callBillingApi('/api/billing/change-plan', { new_plan: plan })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setBillingError(d.error || 'Greška pri promjeni plana. Pokušaj ponovo.')
+      } else {
+        await loadSub()
+      }
+    } catch {
+      setBillingError('Greška pri spajanju na server.')
+    }
     setCancelingPlan(false)
   }
 
@@ -498,6 +520,9 @@ export default function SettingsDialog({ open, onClose }: Props) {
                       </div>
                     )}
 
+                    {billingError && (
+                      <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{billingError}</p>
+                    )}
                     {(isActive || isTrialing) && !subData.cancel_at_period_end && (
                       <button onClick={handleCancelSubscription} disabled={cancelingPlan}
                         className="w-full py-2 px-4 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50">

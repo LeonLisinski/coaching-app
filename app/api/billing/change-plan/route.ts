@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
 
-const PLAN_PRICE_MAP: Record<string, string | undefined> = {
-  starter: process.env.STRIPE_PRICE_STARTER,
-  pro:     process.env.STRIPE_PRICE_PRO,
-  scale:   process.env.STRIPE_PRICE_SCALE,
-}
-
 const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150 }
 
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+
+  const PLAN_PRICE_MAP: Record<string, string | undefined> = {
+    starter: process.env.STRIPE_PRICE_STARTER,
+    pro:     process.env.STRIPE_PRICE_PRO,
+    scale:   process.env.STRIPE_PRICE_SCALE,
+  }
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
