@@ -247,18 +247,19 @@ function RegisterInner() {
                 </div>
                 {/* Trial info */}
                 <div className="px-5 py-3.5 space-y-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: '#22c55e22' }}>
-                      <CheckCircle2 size={10} className="text-green-400" />
+                  {[
+                    { color: '#22c55e', icon: CheckCircle2, text: '14 dana besplatnog probnog perioda' },
+                    { color: BLUE,      icon: Shield,       text: 'Kartica potrebna · naplata tek nakon triala' },
+                    { color: '#a855f7', icon: CircleCheck,  text: 'Pravo na povrat novca unutar triala' },
+                    { color: '#f59e0b', icon: Lock,         text: 'Besplatno otkazivanje u bilo kom trenutku' },
+                  ].map(({ color, icon: Icon, text }) => (
+                    <div key={text} className="flex items-center gap-2.5">
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: color + '22' }}>
+                        <Icon size={10} style={{ color }} />
+                      </div>
+                      <p className="text-white/65 text-xs">{text}</p>
                     </div>
-                    <p className="text-white/65 text-xs">14 dana besplatnog probnog perioda</p>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: BLUE + '22' }}>
-                      <Shield size={10} style={{ color: BLUE }} />
-                    </div>
-                    <p className="text-white/65 text-xs">Kartica potrebna · naplata tek nakon triala</p>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -436,17 +437,22 @@ function RegisterInner() {
 
                 {mode === 'new' && (
                   <p className="text-center text-[11px] text-gray-400 leading-relaxed">
-                    Kartica je potrebna za aktivaciju · Bez naplate 14 dana · Otkaži kad hoćeš
+                    Kartica potrebna za aktivaciju · Bez naplate 14 dana · Otkaži besplatno kad hoćeš
                   </p>
                 )}
 
-                <div className="flex items-center justify-center gap-5 pt-1 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Lock size={11} /><span className="text-[11px]">Sigurna prijava</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-gray-400">
-                    <Shield size={11} /><span className="text-[11px]">GDPR usklađeno</span>
-                  </div>
+                {/* Trust badges */}
+                <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-100">
+                  {[
+                    { icon: Shield,       label: '14 dana besplatno' },
+                    { icon: CircleCheck,  label: 'Pravo na povrat' },
+                    { icon: Lock,         label: 'Besplatno otkazivanje' },
+                  ].map(({ icon: Icon, label }) => (
+                    <div key={label} className="flex flex-col items-center gap-1 px-1 py-2 rounded-xl bg-gray-50 border border-gray-100">
+                      <Icon size={13} style={{ color: BLUE }} />
+                      <span className="text-[10px] text-gray-500 font-medium text-center leading-tight">{label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
