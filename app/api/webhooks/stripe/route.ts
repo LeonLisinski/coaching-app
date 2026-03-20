@@ -32,6 +32,54 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
 
+    // ── Checkout completed → create subscription (new register flow) ─────────
+    case 'checkout.session.completed': {
+      const session    = event.data.object as Stripe.Checkout.Session
+      const userId     = session.metadata?.supabase_user_id
+      if (!userId) break // Legacy flow — subscription created by /api/register instead
+
+      const subId = typeof session.subscription === 'string'
+        ? session.subscription
+        : (session.subscription as any)?.id
+      if (!subId) break
+
+      const sub  = await stripe.subscriptions.retrieve(subId)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subA = sub as any
+      const plan = session.metadata?.plan ?? sub.metadata?.plan ?? 'starter'
+
+      let status: string = sub.status
+      if (status !== 'trialing' && status !== 'active') status = 'trialing'
+
+      const customerId = typeof session.customer === 'string'
+        ? session.customer
+        : (session.customer as any)?.id
+
+      await db.from('subscriptions').insert({
+        trainer_id:             userId,
+        stripe_customer_id:     customerId,
+        stripe_subscription_id: subId,
+        plan,
+        status,
+        client_limit:           CLIENT_LIMITS[plan] ?? 15,
+        trial_end:              subA.trial_end            ? new Date(subA.trial_end            * 1000).toISOString() : null,
+        current_period_start:   subA.current_period_start ? new Date(subA.current_period_start * 1000).toISOString() : null,
+        current_period_end:     subA.current_period_end   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
+        cancel_at_period_end:   sub.cancel_at_period_end,
+        locked_at:              null,
+        created_at:             new Date().toISOString(),
+        updated_at:             new Date().toISOString(),
+      })
+
+      // Update Stripe customer metadata with supabase_user_id (in case not set)
+      if (customerId) {
+        await stripe.customers.update(customerId, {
+          metadata: { supabase_user_id: userId },
+        })
+      }
+      break
+    }
+
     // ── Invoice paid → active ────────────────────────────────────────────────
     case 'invoice.payment_succeeded': {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

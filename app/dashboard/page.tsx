@@ -15,6 +15,7 @@ import {
   Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
   Clock, ArrowRight, MessageSquare, Activity, ClipboardCheck, CreditCard,
   CalendarDays, Package, Sun, Globe, ChevronRight, Check, AlertTriangle,
+  Loader2, PartyPopper,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
@@ -160,12 +161,81 @@ function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => voi
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Setup pending banner (shown after new-flow registration) ────────────────
+
+function SetupBanner({ onReady }: { onReady: () => void }) {
+  const [ready, setReady] = useState(false)
+  const [timedOut, setTimedOut] = useState(false)
+
+  useEffect(() => {
+    let attempts = 0
+    const check = async () => {
+      attempts++
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('id, status')
+        .eq('trainer_id', user.id)
+        .maybeSingle()
+
+      if (sub && (sub.status === 'trialing' || sub.status === 'active')) {
+        setReady(true)
+        setTimeout(onReady, 1200) // brief "ready" flash before dismissing
+        return
+      }
+      if (attempts >= 15) { setTimedOut(true); return }
+      setTimeout(check, 2000)
+    }
+    check()
+  }, [])
+
+  if (ready) return (
+    <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3.5 mb-5">
+      <PartyPopper size={18} className="text-emerald-500 shrink-0" />
+      <p className="text-sm font-semibold text-emerald-700">Dobrodošao! Tvoj trial je aktivan. 14 dana besplatno. 🎉</p>
+    </div>
+  )
+
+  if (timedOut) return (
+    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 mb-5">
+      <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+      <p className="text-sm text-amber-700">
+        Postavljanje pretplate traje malo duže nego očekivano.{' '}
+        <button onClick={() => window.location.reload()} className="font-semibold underline">Osvježi stranicu</button>.
+      </p>
+    </div>
+  )
+
+  return (
+    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 mb-5">
+      <Loader2 size={16} className="animate-spin text-blue-500 shrink-0" />
+      <p className="text-sm text-blue-700">Postavljamo tvoj račun i aktiviramo trial...</p>
+    </div>
+  )
+}
+
+// ─── Page content ─────────────────────────────────────────────────────────────
+
 function DashboardPageContent() {
   const t      = useTranslations('dashboard')
   const locale = useLocale()
   const router = useRouter()
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+
+  // Setup-pending banner (after new registration flow)
+  const [showSetupBanner, setShowSetupBanner] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('setup') === 'pending') {
+      setShowSetupBanner(true)
+      // Clean URL without reload
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [])
 
   const [loading, setLoading] = useState(true)
   const [trainerName, setTrainerName] = useState('')
@@ -459,6 +529,11 @@ function DashboardPageContent() {
 
   return (
     <div className="space-y-6">
+
+      {/* Setup banner — shown after new registration flow */}
+      {showSetupBanner && (
+        <SetupBanner onReady={() => setShowSetupBanner(false)} />
+      )}
 
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">

@@ -524,7 +524,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
               </a>
 
               <a
-                href="https://app.unitlift.com"
+                href="https://unitlift.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-[var(--app-accent)] hover:bg-[var(--app-accent-light)] transition-colors group"
@@ -534,7 +534,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">{t('website')}</p>
-                  <p className="text-xs text-gray-500">app.unitlift.com</p>
+                  <p className="text-xs text-gray-500">unitlift.com</p>
                 </div>
               </a>
 
