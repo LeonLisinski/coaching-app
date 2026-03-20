@@ -74,6 +74,11 @@ export async function POST(req: NextRequest) {
     ...(phone?.trim() ? { phone: phone.trim() } : {}),
   }).eq('id', user.id)
 
+  // Ensure trainer_profiles row exists (upsert — safe if trigger already created it)
+  await adminDb.from('trainer_profiles').upsert({
+    id: user.id,
+  }, { onConflict: 'id', ignoreDuplicates: true })
+
   // Sign user in so the auth cookie is set for app.unitlift.com
   const supabaseSSR = await createSupabaseServerClient()
   await supabaseSSR.auth.signInWithPassword({ email: email.trim(), password })
