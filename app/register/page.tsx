@@ -218,7 +218,7 @@ function RegisterInner() {
           </div>
 
           {/* Headline + plan card */}
-          <div className="flex-1 flex flex-col justify-center space-y-8 mt-12">
+          <div className="flex-1 flex flex-col justify-start space-y-6 pt-6 pb-8">
             <div>
               <h1 className="text-[2.4rem] xl:text-[2.8rem] font-black text-white leading-[1.08] tracking-tight">
                 {t('headlineMain')}<br />

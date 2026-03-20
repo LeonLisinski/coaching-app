@@ -72,32 +72,50 @@ export async function POST(req: NextRequest) {
   await supabaseSSR.auth.signInWithPassword({ email: email.trim(), password })
 
   // Create Stripe customer + checkout session
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('[register/start] STRIPE_SECRET_KEY not set')
+    return NextResponse.json({ error: 'Konfiguracijska greška. Kontaktiraj podršku.' }, { status: 500 })
+  }
 
-  const customer = await stripe.customers.create({
-    email: email.trim(),
-    name:  full_name.trim(),
-    metadata: { supabase_user_id: user.id },
-  })
+  let stripe: Stripe
+  try {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' })
+  } catch (e) {
+    console.error('[register/start] Stripe init error:', e)
+    return NextResponse.json({ error: 'Konfiguracijska greška. Kontaktiraj podršku.' }, { status: 500 })
+  }
 
-  const appUrl     = 'https://app.unitlift.com'
-  const cancelBase = process.env.NEXT_PUBLIC_LANDING_URL || 'https://unitlift.com'
+  let checkoutUrl: string
+  try {
+    const customer = await stripe.customers.create({
+      email: email.trim(),
+      name:  full_name.trim(),
+      metadata: { supabase_user_id: user.id },
+    })
 
-  const session = await stripe.checkout.sessions.create({
-    customer:                customer.id,
-    mode:                    'subscription',
-    payment_method_types:    ['card'],
-    payment_method_collection: 'always',
-    line_items:              [{ price: priceId, quantity: 1 }],
-    subscription_data: {
-      trial_period_days: 14,
+    const appUrl     = 'https://app.unitlift.com'
+
+    const session = await stripe.checkout.sessions.create({
+      customer:                  customer.id,
+      mode:                      'subscription',
+      payment_method_types:      ['card'],
+      payment_method_collection: 'always',
+      line_items:                [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 14,
+        metadata: { plan: resolvedPlan, supabase_user_id: user.id },
+      },
       metadata: { plan: resolvedPlan, supabase_user_id: user.id },
-    },
-    metadata: { plan: resolvedPlan, supabase_user_id: user.id },
-    allow_promotion_codes: true,
-    success_url: `${appUrl}/dashboard?setup=pending`,
-    cancel_url:  `${appUrl}/register?plan=${resolvedPlan}`,
-  })
+      allow_promotion_codes: true,
+      success_url: `${appUrl}/dashboard?setup=pending`,
+      cancel_url:  `${appUrl}/register?plan=${resolvedPlan}`,
+    })
 
-  return NextResponse.json({ checkout_url: session.url })
+    checkoutUrl = session.url!
+  } catch (stripeErr: any) {
+    console.error('[register/start] Stripe error:', stripeErr?.message)
+    return NextResponse.json({ error: 'Greška pri kreiranju pretplate. Pokušaj ponovo.' }, { status: 500 })
+  }
+
+  return NextResponse.json({ checkout_url: checkoutUrl })
 }
