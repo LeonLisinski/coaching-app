@@ -105,7 +105,7 @@ export default function ChoosePlanPage() {
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg,#fff 0%,#f5f9ff 100%)' }}>
 
       {/* Header */}
-      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '14px 28px', background: '#fff', borderBottom: '1px solid #e8edf5' }}>
+      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingTop: 'max(14px, env(safe-area-inset-top, 14px))', paddingBottom: '14px', paddingLeft: 28, paddingRight: 28, background: '#fff', borderBottom: '1px solid #e8edf5' }}>
         <GradientLogo height={34} />
         <span style={{ fontWeight: 700, fontSize: 20, color: NAVY }}>UnitLift</span>
       </header>
