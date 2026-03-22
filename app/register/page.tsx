@@ -301,21 +301,16 @@ function RegisterInner() {
       <div className="flex-1 flex flex-col bg-white">
 
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-3 px-5 border-b border-gray-100"
-          style={{ paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))', paddingBottom: '1rem', backgroundColor: NAVY }}>
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: BLUE }}>
-            <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
+        <header className="lg:hidden flex items-center gap-3 px-5"
+          style={{ paddingTop: 'max(0.875rem, env(safe-area-inset-top, 0.875rem))', paddingBottom: '0.875rem', backgroundColor: NAVY, borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: BLUE }}>
+            <UnitLiftLogo fill="white" tight={false} className="w-4 h-4" />
           </div>
           <span className="font-black text-sm text-white">UnitLift</span>
-          {planMeta && (
-            <span className="ml-auto text-xs font-semibold px-2.5 py-1 rounded-full text-white"
-              style={{ backgroundColor: BLUE + '30', border: `1px solid ${BLUE}50` }}>
-              {planMeta.label} · {planMeta.price}
-            </span>
-          )}
+          <span className="text-white/30 text-xs ml-0.5">· Coaching Platform</span>
         </header>
 
-        <div className="flex-1 flex items-center justify-center px-6 py-10 lg:py-12"
+        <div className="flex-1 overflow-y-auto flex items-start justify-center px-4 py-6 lg:py-12"
           style={{ backgroundColor: '#f8f9fc' }}>
           <div className="w-full max-w-[420px]">
 
@@ -337,21 +332,35 @@ function RegisterInner() {
                 </Link>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-7 py-8 space-y-5">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-6 lg:px-7 lg:py-8 space-y-4 lg:space-y-5">
 
                 {/* Form header */}
                 <div>
-                  {/* Mobile plan badge */}
+                  {/* Mobile plan card - more prominent */}
                   {planMeta && (
-                    <div className="lg:hidden flex items-center gap-2 mb-4 px-3 py-2 rounded-xl"
-                      style={{ backgroundColor: BLUE + '0d', border: `1px solid ${BLUE}25` }}>
-                      <planMeta.icon size={13} style={{ color: BLUE }} />
-                      <span className="text-xs font-semibold" style={{ color: BLUE }}>
-                        Plan {planMeta.label} · {planMeta.price} · 14 dana besplatno
-                      </span>
+                    <div className="lg:hidden rounded-xl mb-4 overflow-hidden"
+                      style={{ background: `linear-gradient(135deg, ${NAVY} 0%, #0d1a3a 100%)`, border: `1px solid ${BLUE}30` }}>
+                      <div className="px-4 py-3 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: BLUE + '25', border: `1px solid ${BLUE}40` }}>
+                          <planMeta.icon size={15} style={{ color: BLUE }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-xs font-bold">Plan {planMeta.label}</p>
+                          <p className="text-white/40 text-[10px]">{planMeta.clients} · 14 dana besplatno</p>
+                        </div>
+                        <p className="text-white font-black text-xl shrink-0">{planMeta.price}</p>
+                      </div>
+                      <div className="px-4 py-2 flex items-center gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                        <span className="text-[10px] text-white/50">✓ 30 dana povrat</span>
+                        <span className="text-white/20 text-[10px]">·</span>
+                        <span className="text-[10px] text-white/50">✓ Otkaži besplatno</span>
+                        <span className="text-white/20 text-[10px]">·</span>
+                        <span className="text-[10px] text-white/50">✓ Bez skrivenih troškova</span>
+                      </div>
                     </div>
                   )}
-                  <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Kreiraj račun</h2>
+                  <h2 className="text-xl lg:text-2xl font-extrabold text-gray-900 tracking-tight">Kreiraj račun</h2>
                   <p className="text-gray-400 text-sm mt-1">Registracija za UnitLift platformu.</p>
                 </div>
 
