@@ -161,7 +161,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const subscribeToMessages = (uid: string) => {
     supabase
       .channel(`chat-${clientId}-${uid}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const msg = payload.new as Message
         if (msg.client_id === clientId && msg.trainer_id === uid) {
           setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
@@ -169,17 +169,23 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
           // Send push if tab is hidden (app in background)
           if (msg.sender_id !== uid && document.visibilityState === 'hidden') {
-            fetch('/api/push/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                trainer_id: uid,
-                title: `💬 ${clientName}`,
-                body: msg.content?.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content,
-                url: '/dashboard/chat',
-                tag: `message-${clientId}`,
-              }),
-            }).catch(() => {})
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.access_token) {
+              fetch('/api/push/send', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  trainer_id: uid,
+                  title: `💬 ${clientName}`,
+                  body: msg.content?.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content,
+                  url: '/dashboard/chat',
+                  tag: `message-${clientId}`,
+                }),
+              }).catch(() => {})
+            }
           }
         }
       })

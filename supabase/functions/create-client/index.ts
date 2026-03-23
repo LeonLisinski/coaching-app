@@ -13,7 +13,10 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      throw new Error('No authorization header')
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const supabaseAdmin = createClient(
@@ -27,7 +30,25 @@ Deno.serve(async (req) => {
       }
     )
 
+    // Validate JWT and extract caller identity
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: callerUser }, error: callerError } = await supabaseAdmin.auth.getUser(token)
+    if (callerError || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password, gender, notes, activity_level } = await req.json()
+
+    // Ensure the caller is the trainer they claim to be
+    if (callerUser.id !== trainer_id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Check subscription client limit before creating
     const { data: subscription } = await supabaseAdmin

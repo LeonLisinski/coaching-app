@@ -1,10 +1,10 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertTriangle, Clock, CreditCard, XCircle } from 'lucide-react'
 
 function GradientLogo({ height = 32 }: { height?: number }) {
   return (
@@ -75,10 +75,67 @@ const Chk = () => (
   }}>✓</span>
 )
 
+type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked' | null
+
+const STATUS_BANNER: Record<NonNullable<SubStatus>, { icon: React.ReactNode; bg: string; border: string; text: string; label: string; sub: string }> = {
+  trialing: {
+    icon: <Clock size={16} color="#d97706" />,
+    bg: '#fffbeb', border: '#fde68a', text: '#92400e',
+    label: 'Probni period je završio',
+    sub: 'Odaberi plan da nastaviš koristiti UnitLift bez prekida.',
+  },
+  past_due: {
+    icon: <CreditCard size={16} color="#dc2626" />,
+    bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
+    label: 'Neuspjela naplata',
+    sub: 'Nismo uspjeli naplatiti pretplatu. Odaberi plan i ažuriraj platnu karticu da nastaviš.',
+  },
+  canceled: {
+    icon: <XCircle size={16} color="#6b7280" />,
+    bg: '#f9fafb', border: '#e5e7eb', text: '#374151',
+    label: 'Pretplata je otkazana',
+    sub: 'Tvoja pretplata je istekla. Aktiviraj novi plan da nastaviš s radom.',
+  },
+  locked: {
+    icon: <AlertTriangle size={16} color="#dc2626" />,
+    bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
+    label: 'Račun je privremeno zaključan',
+    sub: 'Pretplata nije plaćena. Aktiviraj plan za povratak pristupa.',
+  },
+  active: {
+    icon: null, bg: '', border: '', text: '',
+    label: '', sub: '',
+  },
+}
+
 export default function ChoosePlanPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState<string | null>(null)
-  const [error, setError]     = useState('')
+  const [loading, setLoading]   = useState<string | null>(null)
+  const [error, setError]       = useState('')
+  const [subStatus, setSubStatus] = useState<SubStatus>(null)
+  const [subLoading, setSubLoading] = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.replace('/login'); return }
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('status, trial_end, locked_at')
+        .eq('trainer_id', user.id)
+        .maybeSingle()
+      if (sub) {
+        const now = new Date()
+        if (sub.status === 'trialing' && sub.trial_end && new Date(sub.trial_end) <= now) {
+          setSubStatus('trialing')
+        } else if (sub.status === 'past_due') {
+          setSubStatus(sub.locked_at && new Date(sub.locked_at) <= now ? 'locked' : 'past_due')
+        } else if (sub.status === 'canceled') {
+          setSubStatus('canceled')
+        }
+      }
+      setSubLoading(false)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectPlan = async (planKey: string) => {
     setLoading(planKey)
@@ -114,13 +171,31 @@ export default function ChoosePlanPage() {
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 16px 0' }}>
         <div style={{ width: '100%', maxWidth: 980, display: 'flex', flexDirection: 'column', flex: 1 }}>
 
+          {/* Status banner */}
+          {!subLoading && subStatus && subStatus !== 'active' && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              background: STATUS_BANNER[subStatus].bg,
+              border: `1px solid ${STATUS_BANNER[subStatus].border}`,
+              borderRadius: 14, padding: '12px 16px',
+              maxWidth: 520, margin: '0 auto 20px', width: '100%',
+            }}>
+              <span style={{ marginTop: 1, flexShrink: 0 }}>{STATUS_BANNER[subStatus].icon}</span>
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: STATUS_BANNER[subStatus].text }}>
+                  {STATUS_BANNER[subStatus].label}
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: '.8rem', color: STATUS_BANNER[subStatus].text, opacity: .8, lineHeight: 1.4 }}>
+                  {STATUS_BANNER[subStatus].sub}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Headline */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: '.75rem', fontWeight: 700, letterSpacing: '.06em', color: BLUE, marginBottom: 8 }}>
-              Nemaš aktivnu pretplatu
-            </div>
             <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 900, color: NAVY, lineHeight: 1.1, margin: '0 0 10px' }}>
-              Odaberi plan za nastavak
+              {subLoading ? ' ' : subStatus ? 'Odaberi plan za nastavak' : 'Odaberi plan za početak'}
             </h1>
             <p style={{ fontSize: '.9rem', color: '#6b7a99', margin: 0 }}>
               Aktiviraj pretplatu i nastavi s radom. Otkaži kad hoćeš — bez skrivenih troškova.

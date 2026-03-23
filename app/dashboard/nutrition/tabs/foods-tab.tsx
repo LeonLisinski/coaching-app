@@ -87,24 +87,29 @@ export default function FoodsTab({
 
   const fetchFoods = async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    const [{ data: allFoods }, { data: overrides }] = await Promise.all([
-      supabase.from('foods').select('*').order('name'),
-      supabase.from('trainer_overrides')
-        .select('default_id')
-        .eq('trainer_id', user.id)
-        .eq('resource_type', 'food'),
-    ])
+      const [{ data: allFoods }, { data: overrides }] = await Promise.all([
+        supabase.from('foods').select('*').order('name'),
+        supabase.from('trainer_overrides')
+          .select('default_id')
+          .eq('trainer_id', user.id)
+          .eq('resource_type', 'food'),
+      ])
 
-    const overriddenIds = new Set((overrides || []).map(o => o.default_id))
-    const visible = (allFoods || []).filter(f =>
-      (!f.is_default && f.trainer_id === user.id) ||
-      (f.is_default && !overriddenIds.has(f.id))
-    )
-    setFoods(visible)
-    setLoading(false)
+      const overriddenIds = new Set((overrides || []).map(o => o.default_id))
+      const visible = (allFoods || []).filter(f =>
+        (!f.is_default && f.trainer_id === user.id) ||
+        (f.is_default && !overriddenIds.has(f.id))
+      )
+      setFoods(visible)
+    } catch {
+      // Auth lock was taken over by another tab/request — non-fatal
+    } finally {
+      setLoading(false)
+    }
   }
 
   const deleteFood = async (id: string) => {

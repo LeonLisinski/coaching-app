@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
   const sessionId = req.nextUrl.searchParams.get('session_id')
   if (!sessionId) {
-    return NextResponse.json({ valid: false, error: 'Missing session_id' })
+    return NextResponse.json({ valid: false })
   }
 
   try {
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // Session must be completed (payment/trial setup succeeded)
     if (session.status !== 'complete') {
-      return NextResponse.json({ valid: false, error: 'Session not complete' })
+      return NextResponse.json({ valid: false })
     }
 
     // Check no trainer already registered with this session
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      return NextResponse.json({ valid: false, error: 'Account already exists for this checkout session' })
+      return NextResponse.json({ valid: false })
     }
 
     const customer = session.customer as Stripe.Customer | null
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       customer_email: customer?.email ?? session.customer_details?.email ?? '',
       plan: session.metadata?.plan ?? '',
     })
-  } catch (err: any) {
-    return NextResponse.json({ valid: false, error: err.message })
+  } catch {
+    return NextResponse.json({ valid: false })
   }
 }

@@ -48,6 +48,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Already on this plan' }, { status: 400 })
   }
 
+  if (!['active', 'trialing'].includes(sub.status)) {
+    return NextResponse.json({ error: 'Pretplata nije aktivna.' }, { status: 400 })
+  }
+
+  // Server-side: block downgrade if current client count exceeds new plan limit
+  const newLimit = CLIENT_LIMITS[new_plan] ?? 0
+  const { count: clientCount } = await supabaseAdmin
+    .from('clients')
+    .select('id', { count: 'exact', head: true })
+    .eq('trainer_id', user.id)
+  if ((clientCount ?? 0) > newLimit) {
+    return NextResponse.json({
+      error: `Ne možeš prijeći na ${new_plan} plan — imaš ${clientCount} klijenata, a limit je ${newLimit}.`,
+    }, { status: 400 })
+  }
+
   // Retrieve current subscription to get item ID
   const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
   const itemId    = stripeSub.items.data[0]?.id
@@ -56,20 +72,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Subscription item not found' }, { status: 500 })
   }
 
-  // Update Stripe subscription with proration (default behavior)
-  const updated = await stripe.subscriptions.update(sub.stripe_subscription_id, {
-    items: [{ id: itemId, price: newPriceId }],
-    proration_behavior: 'create_prorations',
-    metadata: { plan: new_plan, client_limit: String(CLIENT_LIMITS[new_plan]) },
-  })
+  let updated: Stripe.Subscription
+  try {
+    updated = await stripe.subscriptions.update(sub.stripe_subscription_id, {
+      items: [{ id: itemId, price: newPriceId }],
+      proration_behavior: 'create_prorations',
+      metadata: { plan: new_plan, client_limit: String(CLIENT_LIMITS[new_plan]) },
+    })
+  } catch (err: any) {
+    console.error('[change-plan] Stripe update failed:', err?.message)
+    return NextResponse.json({ error: 'Greška pri promjeni plana.' }, { status: 502 })
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const u = updated as any
   await supabaseAdmin.from('subscriptions').update({
     plan:                    new_plan,
     client_limit:            CLIENT_LIMITS[new_plan],
-    current_period_start:    u.current_period_start ? new Date(u.current_period_start * 1000).toISOString() : null,
-    current_period_end:      u.current_period_end   ? new Date(u.current_period_end   * 1000).toISOString() : null,
+    current_period_start:    u.current_period_start != null ? new Date(u.current_period_start * 1000).toISOString() : null,
+    current_period_end:      u.current_period_end   != null ? new Date(u.current_period_end   * 1000).toISOString() : null,
     cancel_at_period_end:    updated.cancel_at_period_end,
     updated_at:              new Date().toISOString(),
   }).eq('trainer_id', user.id)

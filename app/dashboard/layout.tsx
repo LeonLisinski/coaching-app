@@ -58,6 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials, setUserInitials] = useState('')
   const [userName, setUserName]         = useState('')
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
+  const [authChecked, setAuthChecked]   = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifs, setShowNotifs]     = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
@@ -160,6 +161,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return
       }
       // ──────────────────────────────────────────────────────────────────────
+      setAuthChecked(true)
 
       supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single().then(({ data }) => {
         const name = data?.full_name || user.email || ''
@@ -189,6 +191,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('checkins')
         .select('id, date, client_id, clients(profiles(full_name))')
+        .eq('trainer_id', userId)
         .gte('date', sevenDaysAgoDate)
         .order('date', { ascending: false }).limit(30),
     ])
@@ -529,7 +532,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             : { WebkitOverflowScrolling: 'touch', paddingBottom: '3.5rem' }
           }
         >
-          {children}
+          {authChecked ? children : null}
         </main>
       </div>
 

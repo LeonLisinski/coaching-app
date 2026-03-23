@@ -156,6 +156,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     const { data: { user: trainer } } = await supabase.auth.getUser()
     if (!trainer) return
     const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) return
 
     const response = await fetch(
       'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',

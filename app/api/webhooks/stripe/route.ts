@@ -55,21 +55,26 @@ export async function POST(req: NextRequest) {
         ? session.customer
         : (session.customer as any)?.id
 
-      await db.from('subscriptions').insert({
+      const { error: insertErr } = await db.from('subscriptions').upsert({
         trainer_id:             userId,
         stripe_customer_id:     customerId,
         stripe_subscription_id: subId,
         plan,
         status,
         client_limit:           CLIENT_LIMITS[plan] ?? 15,
-        trial_end:              subA.trial_end            ? new Date(subA.trial_end            * 1000).toISOString() : null,
-        current_period_start:   subA.current_period_start ? new Date(subA.current_period_start * 1000).toISOString() : null,
-        current_period_end:     subA.current_period_end   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
+        trial_start:            subA.trial_start != null          ? new Date(subA.trial_start          * 1000).toISOString() : null,
+        trial_end:              subA.trial_end != null            ? new Date(subA.trial_end            * 1000).toISOString() : null,
+        current_period_start:   subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,
+        current_period_end:     subA.current_period_end != null   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
         cancel_at_period_end:   sub.cancel_at_period_end,
         locked_at:              null,
         created_at:             new Date().toISOString(),
         updated_at:             new Date().toISOString(),
-      })
+      }, { onConflict: 'trainer_id' })
+      if (insertErr) {
+        console.error('[stripe webhook] checkout.session.completed insert failed:', insertErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
 
       // Update Stripe customer metadata with supabase_user_id (in case not set)
       if (customerId) {
@@ -80,7 +85,7 @@ export async function POST(req: NextRequest) {
       break
     }
 
-    // ── Invoice paid → active ────────────────────────────────────────────────
+    // ── Invoice paid → sync period dates (only flip to active if Stripe says active) ──
     case 'invoice.payment_succeeded': {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invoice = event.data.object as any
@@ -92,16 +97,25 @@ export async function POST(req: NextRequest) {
       const subA = sub as any
       const plan = sub.metadata?.plan ?? 'starter'
 
-      await db.from('subscriptions').update({
-        status:               'active',
+      // Do NOT flip 'trialing' → 'active' here ($0 trial invoice fires this event too).
+      // Only set active when Stripe itself reports active status.
+      const newStatus = sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'trialing' : null
+      if (!newStatus) break // incomplete, unpaid, etc — let subscription.updated handle it
+
+      const { error: updateErr } = await db.from('subscriptions').update({
+        status:               newStatus,
         plan,
         client_limit:         CLIENT_LIMITS[plan] ?? 15,
-        current_period_start: subA.current_period_start ? new Date(subA.current_period_start * 1000).toISOString() : null,
-        current_period_end:   subA.current_period_end   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
+        current_period_start: subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,
+        current_period_end:   subA.current_period_end   != null ? new Date(subA.current_period_end   * 1000).toISOString() : null,
         cancel_at_period_end: sub.cancel_at_period_end,
         locked_at:            null,
         updated_at:           new Date().toISOString(),
       }).eq('stripe_subscription_id', subId)
+      if (updateErr) {
+        console.error('[stripe webhook] invoice.payment_succeeded update failed:', updateErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
       break
     }
 
@@ -112,17 +126,16 @@ export async function POST(req: NextRequest) {
       const subId   = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id
       if (!subId) break
 
-      await db.from('subscriptions').update({
-        status:     'past_due',
-        updated_at: new Date().toISOString(),
-      }).eq('stripe_subscription_id', subId)
-
-      // Schedule lock after grace period — set locked_at = now + 3 days
       const lockAt = new Date(Date.now() + GRACE_MS).toISOString()
-      await db.from('subscriptions').update({
+      const { error: failErr } = await db.from('subscriptions').update({
+        status:     'past_due',
         locked_at:  lockAt,
         updated_at: new Date().toISOString(),
       }).eq('stripe_subscription_id', subId)
+      if (failErr) {
+        console.error('[stripe webhook] invoice.payment_failed update failed:', failErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
 
       // Notify trainer via in-app (update status is enough — dashboard reads it)
       // Could also send email here via Resend if needed
@@ -132,10 +145,14 @@ export async function POST(req: NextRequest) {
     // ── Subscription deleted → canceled ─────────────────────────────────────
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription
-      await db.from('subscriptions').update({
+      const { error: delErr } = await db.from('subscriptions').update({
         status:     'canceled',
         updated_at: new Date().toISOString(),
       }).eq('stripe_subscription_id', sub.id)
+      if (delErr) {
+        console.error('[stripe webhook] subscription.deleted update failed:', delErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
       break
     }
 
@@ -157,7 +174,8 @@ export async function POST(req: NextRequest) {
           cancel_at_period_end: sub.cancel_at_period_end,
           current_period_start: subB.current_period_start ? new Date(subB.current_period_start * 1000).toISOString() : null,
           current_period_end:   subB.current_period_end   ? new Date(subB.current_period_end   * 1000).toISOString() : null,
-          trial_end:            subB.trial_end ? new Date(subB.trial_end * 1000).toISOString() : null,
+          trial_start:          subB.trial_start != null ? new Date(subB.trial_start * 1000).toISOString() : null,
+          trial_end:            subB.trial_end   != null ? new Date(subB.trial_end   * 1000).toISOString() : null,
           locked_at:            null,
           updated_at:           new Date().toISOString(),
         }).eq('stripe_subscription_id', sub.id)

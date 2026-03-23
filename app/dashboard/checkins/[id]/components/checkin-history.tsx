@@ -68,6 +68,22 @@ export default function CheckinHistory({ clientId }: Props) {
 
   useEffect(() => { fetchData() }, [clientId])
 
+  const resolvePhotoUrls = async (checkinList: Checkin[]): Promise<Checkin[]> => {
+    const paths = checkinList.flatMap(c =>
+      (c.photo_urls ?? []).map((p: any) => p?.url).filter((u: string) => u && !u.startsWith('http'))
+    )
+    if (!paths.length) return checkinList
+    const { data: signed } = await supabase.storage.from('checkin-images').createSignedUrls(paths, 3600)
+    if (!signed) return checkinList
+    const urlMap = Object.fromEntries(signed.map(s => [s.path, s.signedUrl]))
+    return checkinList.map(c => ({
+      ...c,
+      photo_urls: (c.photo_urls ?? []).map((p: any) =>
+        p?.url && !p.url.startsWith('http') ? { ...p, url: urlMap[p.url] ?? p.url } : p
+      ),
+    }))
+  }
+
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
@@ -80,7 +96,7 @@ export default function CheckinHistory({ clientId }: Props) {
     ])
 
     if (paramsData) setParams(paramsData)
-    if (checkinsData) setCheckins(checkinsData)
+    if (checkinsData) setCheckins(await resolvePhotoUrls(checkinsData))
     if (dailyData) setDailyLogs(dailyData)
     if (configData?.checkin_day != null) setCheckinDay(configData.checkin_day)
     setLoading(false)

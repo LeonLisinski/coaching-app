@@ -3,8 +3,26 @@ import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const token = authHeader.replace('Bearer ', '')
+  const supabaseAuth = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { trainer_id, title, body, url, tag } = await req.json()
   if (!trainer_id) return NextResponse.json({ error: 'Missing trainer_id' }, { status: 400 })
+
+  if (user.id !== trainer_id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   webpush.setVapidDetails(
     process.env.VAPID_EMAIL!,
@@ -14,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
   const { data: subs } = await supabase

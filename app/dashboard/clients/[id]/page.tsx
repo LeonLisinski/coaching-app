@@ -149,24 +149,32 @@ function ClientDetailPageContent() {
   useEffect(() => { fetchClient() }, [id])
 
   const fetchClient = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
+
     const { data } = await supabase
       .from('clients')
       .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes, activity_level, step_goal,
         profiles!clients_user_id_fkey (full_name, email)`)
-      .eq('id', id).single()
+      .eq('id', id)
+      .eq('trainer_id', user.id)
+      .single()
 
-    if (data) {
-      const c: Client = {
-        id: data.id,
-        full_name: (data.profiles as any)?.full_name || noName,
-        email: (data.profiles as any)?.email || '',
-        goal: data.goal, weight: data.weight, height: data.height,
-        date_of_birth: data.date_of_birth, start_date: data.start_date, active: data.active,
-        gender: data.gender, notes: data.notes,
-        activity_level: data.activity_level, step_goal: data.step_goal,
-      }
-      setClient(c)
+    if (!data) {
+      router.push('/dashboard/clients')
+      return
     }
+
+    const c: Client = {
+      id: data.id,
+      full_name: (data.profiles as any)?.full_name || noName,
+      email: (data.profiles as any)?.email || '',
+      goal: data.goal, weight: data.weight, height: data.height,
+      date_of_birth: data.date_of_birth, start_date: data.start_date, active: data.active,
+      gender: data.gender, notes: data.notes,
+      activity_level: data.activity_level, step_goal: data.step_goal,
+    }
+    setClient(c)
 
     // Fetch active package
     const { data: pkgData } = await supabase

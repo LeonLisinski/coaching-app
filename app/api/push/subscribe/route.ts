@@ -15,8 +15,13 @@ function supabaseServer(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { subscription } = await req.json()
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  const { subscription } = body
   if (!subscription?.endpoint) return NextResponse.json({ error: 'Missing subscription' }, { status: 400 })
+  if (!subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return NextResponse.json({ error: 'Missing subscription keys' }, { status: 400 })
+  }
 
   const supabase = supabaseServer(req)
   const { data: { user } } = await supabase.auth.getUser()
@@ -36,7 +41,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { endpoint } = await req.json()
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }) }
+  const { endpoint } = body
+  if (!endpoint) return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
   const supabase = supabaseServer(req)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

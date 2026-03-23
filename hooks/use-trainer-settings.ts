@@ -36,20 +36,25 @@ export function useTrainerSettings() {
 
   useEffect(() => {
     const fetch = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data } = await supabase
-        .from('trainer_profiles')
-        .select('nutrition_fields, exercise_fields')
-        .eq('id', user.id)
-        .maybeSingle()
-      if (data) {
-        setSettings({
-          nutritionFields: data.nutrition_fields || [],
-          exerciseFields: data.exercise_fields || [],
-        })
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { data } = await supabase
+          .from('trainer_profiles')
+          .select('nutrition_fields, exercise_fields')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (data) {
+          setSettings({
+            nutritionFields: data.nutrition_fields || [],
+            exerciseFields: data.exercise_fields || [],
+          })
+        }
+      } catch {
+        // Auth lock was taken over by another tab/request — non-fatal
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetch()
   }, [])

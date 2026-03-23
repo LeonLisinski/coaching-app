@@ -18,6 +18,8 @@ export default function LoginPage() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
   const [checking, setChecking] = useState(true)
+  const [mode, setMode]         = useState<'login' | 'forgot' | 'forgotSent'>('login')
+  const [forgotEmail, setForgotEmail] = useState('')
 
   // Validate session server-side using getUser() (not getSession which only reads localStorage).
   // If valid, redirect to dashboard. If stale/expired, show login form.
@@ -58,6 +60,17 @@ export default function LoginPage() {
     }
 
     window.location.href = '/dashboard'
+  }
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true); setError('')
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    setLoading(false)
+    if (error) { setError(error.message); return }
+    setMode('forgotSent')
   }
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -195,88 +208,131 @@ export default function LoginPage() {
 
                 <div>
                   <h2 className="text-[1.75rem] font-extrabold text-gray-900 tracking-tight leading-tight">
-                    {t('welcomeTitle')}
+                    {mode === 'login' ? t('welcomeTitle')
+                      : mode === 'forgot' ? t('forgotTitle')
+                      : t('forgotSentTitle')}
                   </h2>
-                  <p className="text-gray-400 text-sm mt-1.5">{t('welcomeSubtitle')}</p>
+                  <p className="text-gray-400 text-sm mt-1.5">
+                    {mode === 'login' ? t('welcomeSubtitle')
+                      : mode === 'forgot' ? t('forgotSubtitle')
+                      : t('forgotSentDesc')}
+                  </p>
                 </div>
               </div>
 
-              {/* Form */}
-              <form onSubmit={handleLogin} className="space-y-5">
-
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
-                  <input
-                    id="email" type="email" value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder={t('placeholderEmail')}
-                    autoComplete="email"
-                    required
-                    onFocus={inputFocus} onBlur={inputBlur}
-                    className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
-                  />
-                </div>
-
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="block text-sm font-semibold text-gray-700">{t('password')}</label>
-                    <button type="button"
-                      className="text-xs font-semibold transition-all hover:underline"
-                      style={{ color: 'var(--app-accent)' }}>
-                      {t('forgotPassword')}
-                    </button>
-                  </div>
-                  <div className="relative">
+              {/* ── Login form ── */}
+              {mode === 'login' && (
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
                     <input
-                      id="password" type={showPwd ? 'text' : 'password'} value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      autoComplete="current-password"
+                      id="email" type="email" value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder={t('placeholderEmail')}
+                      autoComplete="email"
                       required
                       onFocus={inputFocus} onBlur={inputBlur}
-                      className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
                     />
-                    <button type="button" onClick={() => setShowPwd(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">
-                      {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
                   </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="password" className="block text-sm font-semibold text-gray-700">{t('password')}</label>
+                      <button type="button"
+                        onClick={() => { setMode('forgot'); setForgotEmail(email); setError('') }}
+                        className="text-xs font-semibold transition-all hover:underline"
+                        style={{ color: 'var(--app-accent)' }}>
+                        {t('forgotPassword')}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="password" type={showPwd ? 'text' : 'password'} value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        required
+                        onFocus={inputFocus} onBlur={inputBlur}
+                        className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                      />
+                      <button type="button" onClick={() => setShowPwd(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">
+                        {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                  </div>
+                  {error && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+                      <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
+                      <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                    </div>
+                  )}
+                  <button
+                    type="submit" disabled={loading}
+                    className="w-full h-12 rounded-xl text-white font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                    style={{ backgroundColor: 'var(--app-accent)' }}
+                    onMouseEnter={e => { if (!loading) { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.boxShadow = '0 6px 20px color-mix(in srgb, var(--app-accent) 35%, transparent)'; e.currentTarget.style.transform = 'translateY(-1px)' }}}
+                    onMouseLeave={e => { e.currentTarget.style.filter = ''; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
+                  >
+                    {loading ? <><Loader2 size={16} className="animate-spin" />{t('loading')}</> : t('submit')}
+                  </button>
+                </form>
+              )}
+
+              {/* ── Forgot password form ── */}
+              {mode === 'forgot' && (
+                <form onSubmit={handleForgot} className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label htmlFor="forgot-email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
+                    <input
+                      id="forgot-email" type="email" value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder={t('placeholderEmail')}
+                      autoComplete="email"
+                      required
+                      onFocus={inputFocus} onBlur={inputBlur}
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                    />
+                  </div>
+                  {error && (
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+                      <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
+                      <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                    </div>
+                  )}
+                  <button
+                    type="submit" disabled={loading}
+                    className="w-full h-12 rounded-xl text-white font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                    style={{ backgroundColor: 'var(--app-accent)' }}
+                    onMouseEnter={e => { if (!loading) { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.boxShadow = '0 6px 20px color-mix(in srgb, var(--app-accent) 35%, transparent)'; e.currentTarget.style.transform = 'translateY(-1px)' }}}
+                    onMouseLeave={e => { e.currentTarget.style.filter = ''; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = '' }}
+                  >
+                    {loading ? <><Loader2 size={16} className="animate-spin" />{t('forgotLoading')}</> : t('forgotSubmit')}
+                  </button>
+                  <button type="button" onClick={() => { setMode('login'); setError('') }}
+                    className="w-full text-center text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">
+                    ← {t('backToLogin')}
+                  </button>
+                </form>
+              )}
+
+              {/* ── Forgot sent confirmation ── */}
+              {mode === 'forgotSent' && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-center w-14 h-14 rounded-2xl mx-auto"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 12%, transparent)' }}>
+                    <CheckCircle2 size={28} style={{ color: 'var(--app-accent)' }} />
+                  </div>
+                  <button type="button" onClick={() => { setMode('login'); setError('') }}
+                    className="w-full h-12 rounded-xl text-white font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2"
+                    style={{ backgroundColor: 'var(--app-accent)' }}
+                    onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(1.08)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.filter = ''; e.currentTarget.style.transform = '' }}
+                  >
+                    ← {t('backToLogin')}
+                  </button>
                 </div>
-
-                {/* Error */}
-                {error && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
-                    <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
-                    <p className="text-red-600 text-xs leading-relaxed">{error}</p>
-                  </div>
-                )}
-
-                {/* Submit */}
-                <button
-                  type="submit" disabled={loading}
-                  className="w-full h-12 rounded-xl text-white font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-                  style={{ backgroundColor: 'var(--app-accent)' }}
-                  onMouseEnter={e => {
-                    if (!loading) {
-                      e.currentTarget.style.filter = 'brightness(1.08)'
-                      e.currentTarget.style.boxShadow = '0 6px 20px color-mix(in srgb, var(--app-accent) 35%, transparent)'
-                      e.currentTarget.style.transform = 'translateY(-1px)'
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.filter = ''
-                    e.currentTarget.style.boxShadow = ''
-                    e.currentTarget.style.transform = ''
-                  }}
-                >
-                  {loading
-                    ? <><Loader2 size={16} className="animate-spin" />{t('loading')}</>
-                    : t('submit')
-                  }
-                </button>
-              </form>
+              )}
 
               {/* Trust row */}
               <div className="flex items-center justify-center gap-6 pt-1 border-t border-gray-50">
