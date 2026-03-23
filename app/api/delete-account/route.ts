@@ -31,21 +31,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Cancel Stripe subscription if exists
+  // Cancel Stripe subscription and delete customer (GDPR)
   try {
     const { data: sub } = await adminDb
       .from('subscriptions')
-      .select('stripe_subscription_id')
+      .select('stripe_subscription_id, stripe_customer_id')
       .eq('trainer_id', userId)
       .maybeSingle()
 
-    if (sub?.stripe_subscription_id) {
+    if (sub?.stripe_subscription_id || sub?.stripe_customer_id) {
       const Stripe = (await import('stripe')).default
       const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
-      await stripe.subscriptions.cancel(sub.stripe_subscription_id)
+
+      if (sub.stripe_subscription_id) {
+        try { await stripe.subscriptions.cancel(sub.stripe_subscription_id) } catch {}
+      }
+      if (sub.stripe_customer_id) {
+        try { await stripe.customers.del(sub.stripe_customer_id) } catch {}
+      }
     }
   } catch (e) {
-    console.error('[delete-account] Stripe cancel error:', e)
+    console.error('[delete-account] Stripe cleanup error:', e)
   }
 
   // Hard delete the auth user (cascades to profiles via DB trigger)
