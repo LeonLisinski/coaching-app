@@ -18,7 +18,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: '#7c3aed',
+  themeColor: '#000000',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
