@@ -268,7 +268,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+      <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] sm:w-auto flex flex-col p-0 gap-0 overflow-hidden h-[min(640px,92vh)]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -458,7 +458,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-600">Bilješke</Label>
                 <Textarea value={notes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                  placeholder="Ozljede, alergije, posebni zahtjevi..." rows={2} className="resize-none text-sm" />
+                  placeholder="Ozljede, alergije, posebni zahtjevi..." rows={3} className="resize-none text-sm" />
               </div>
             </div>
           )}
