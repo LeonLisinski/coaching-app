@@ -55,8 +55,7 @@ export async function POST(req: NextRequest) {
         ? session.customer
         : (session.customer as any)?.id
 
-      const { error: insertErr } = await db.from('subscriptions').upsert({
-        trainer_id:             userId,
+      const subPayload = {
         stripe_customer_id:     customerId,
         stripe_subscription_id: subId,
         plan,
@@ -68,11 +67,26 @@ export async function POST(req: NextRequest) {
         current_period_end:     subA.current_period_end != null   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
         cancel_at_period_end:   sub.cancel_at_period_end,
         locked_at:              null,
-        created_at:             new Date().toISOString(),
         updated_at:             new Date().toISOString(),
-      }, { onConflict: 'trainer_id' })
-      if (insertErr) {
-        console.error('[stripe webhook] checkout.session.completed insert failed:', insertErr)
+      }
+
+      const { data: existing } = await db
+        .from('subscriptions')
+        .select('id')
+        .eq('trainer_id', userId)
+        .maybeSingle()
+
+      let dbErr
+      if (existing) {
+        const { error } = await db.from('subscriptions').update(subPayload).eq('trainer_id', userId)
+        dbErr = error
+      } else {
+        const { error } = await db.from('subscriptions').insert({ trainer_id: userId, ...subPayload, created_at: new Date().toISOString() })
+        dbErr = error
+      }
+
+      if (dbErr) {
+        console.error('[stripe webhook] checkout.session.completed db failed:', dbErr)
         return NextResponse.json({ error: 'DB error' }, { status: 500 })
       }
 
@@ -102,7 +116,8 @@ export async function POST(req: NextRequest) {
       const newStatus = sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'trialing' : null
       if (!newStatus) break // incomplete, unpaid, etc — let subscription.updated handle it
 
-      const { error: updateErr } = await db.from('subscriptions').update({
+      // Try by subscription ID first, fall back to customer ID
+      const updatePayload = {
         status:               newStatus,
         plan,
         client_limit:         CLIENT_LIMITS[plan] ?? 15,
@@ -111,7 +126,10 @@ export async function POST(req: NextRequest) {
         cancel_at_period_end: sub.cancel_at_period_end,
         locked_at:            null,
         updated_at:           new Date().toISOString(),
-      }).eq('stripe_subscription_id', subId)
+      }
+      const custId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as any)?.id
+      const { error: updateErr } = await db.from('subscriptions').update(updatePayload)
+        .or(`stripe_subscription_id.eq.${subId},stripe_customer_id.eq.${custId}`)
       if (updateErr) {
         console.error('[stripe webhook] invoice.payment_succeeded update failed:', updateErr)
         return NextResponse.json({ error: 'DB error' }, { status: 500 })
