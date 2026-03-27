@@ -81,6 +81,7 @@ type AssignMeal = {
   protein: number
   carbs: number
   fat: number
+  custom_ingredients?: any[]
 }
 
 function SortableMealCard({
@@ -259,14 +260,19 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   )
 }
 
-function MealAccordion({ meals, activeExtraFields }: { meals: any[]; activeExtraFields: typeof NUTRITION_FIELD_OPTIONS }) {
+function MealAccordion({ meals, activeExtraFields, recipes = [] }: { meals: any[]; activeExtraFields: typeof NUTRITION_FIELD_OPTIONS; recipes?: Recipe[] }) {
   const [openMeals, setOpenMeals] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenMeals(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
 
   return (
     <div className="border-t border-gray-100 divide-y divide-gray-50">
       {meals.map((meal: any, mIdx: number) => {
-        const ingredients: any[] = meal.custom_ingredients || []
+        // Custom ingredients first; fall back to recipe's ingredient list
+        const customIngs: any[] = meal.custom_ingredients || []
+        const recipeIngs: any[] = customIngs.length === 0 && meal.recipe_id
+          ? (recipes.find(r => r.id === meal.recipe_id)?.ingredients || [])
+          : []
+        const ingredients: any[] = customIngs.length > 0 ? customIngs : recipeIngs
         const hasIngredients = ingredients.length > 0
         const isOpen = openMeals[mIdx] ?? false
         return (
@@ -460,6 +466,7 @@ export default function ClientMealPlans({ clientId }: Props) {
       protein: m.protein ?? 0,
       carbs: m.carbs ?? 0,
       fat: m.fat ?? 0,
+      custom_ingredients: m.custom_ingredients ?? [],
     })))
   }
 
@@ -727,7 +734,7 @@ export default function ClientMealPlans({ clientId }: Props) {
                   )}
 
                   {/* Meals list — collapsible ingredients */}
-                  {meals.length > 0 && <MealAccordion meals={meals} activeExtraFields={activeExtraFields} />}
+                  {meals.length > 0 && <MealAccordion meals={meals} activeExtraFields={activeExtraFields} recipes={availableRecipes} />}
                 </CardContent>
               </Card>
             )

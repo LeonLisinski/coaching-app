@@ -142,9 +142,19 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     setCustomName(meal.recipe_name || '')
     setSaveAsRecipe(meal.save_as_recipe || false)
     setIngredients(meal.custom_ingredients || [])
+    setSearch('')
+
+    // Auto-populate recipe ingredients when recipe already selected (no custom override yet)
+    if (!isCustom && meal.recipe_id) {
+      const recipe = recipes.find(r => r.id === meal.recipe_id)
+      if (recipe?.ingredients?.length) {
+        setRecipeIngredients(recipe.ingredients.map(i => ({ ...i })))
+        setShowIngredients(false)
+        return
+      }
+    }
     setRecipeIngredients([])
     setShowIngredients(false)
-    setSearch('')
   }, [index])
 
   const calcExtras = (ings: Ingredient[]) => {

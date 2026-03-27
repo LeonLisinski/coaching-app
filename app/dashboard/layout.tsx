@@ -134,29 +134,59 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!user) { router.replace('/login'); return }
 
       // ── Subscription gate ──────────────────────────────────────────────────
+      const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null } | null) => {
+        if (!sub) return false
+        const now = new Date()
+        if (sub.status === 'active') return true
+        if (sub.status === 'trialing') {
+          if (!sub.trial_end) return true
+          return new Date(sub.trial_end) > now
+        }
+        if (sub.status === 'past_due') {
+          if (!sub.locked_at) return true
+          return new Date(sub.locked_at) > now
+        }
+        return false
+      }
+
+      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
+
+      // If coming back from Stripe, sync directly from Stripe (bypasses webhook timing)
+      if (isPending) {
+        try {
+          const { data: { session: authSession } } = await supabase.auth.getSession()
+          if (authSession?.access_token) {
+            const res = await fetch('/api/billing/sync', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${authSession.access_token}` },
+            })
+            const json = await res.json()
+            if (json.hasAccess) {
+              window.history.replaceState({}, '', '/dashboard')
+            }
+          }
+        } catch {
+          // Fallback: poll Supabase for up to 10s
+          const deadline = Date.now() + 10_000
+          while (Date.now() < deadline) {
+            const { data: sub } = await supabase
+              .from('subscriptions')
+              .select('status, trial_end, locked_at')
+              .eq('trainer_id', user.id)
+              .maybeSingle()
+            if (checkAccess(sub)) { window.history.replaceState({}, '', '/dashboard'); break }
+            await new Promise(r => setTimeout(r, 1500))
+          }
+        }
+      }
+
       const { data: sub } = await supabase
         .from('subscriptions')
         .select('status, trial_end, locked_at')
         .eq('trainer_id', user.id)
         .maybeSingle()
 
-      const now = new Date()
-      const hasAccess = sub && (() => {
-        if (sub.status === 'active') return true
-        if (sub.status === 'trialing') {
-          // Allow if trial hasn't ended yet
-          if (!sub.trial_end) return true
-          return new Date(sub.trial_end) > now
-        }
-        if (sub.status === 'past_due') {
-          // Allow until locked_at (grace period)
-          if (!sub.locked_at) return true
-          return new Date(sub.locked_at) > now
-        }
-        return false
-      })()
-
-      if (!hasAccess) {
+      if (!checkAccess(sub)) {
         router.replace('/choose-plan')
         return
       }
