@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-import { PLAN_PRICES } from '@/lib/plans'
+import { PLAN_PRICES, Plan } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const { full_name, email, password, phone, plan } = await req.json()
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lozinka mora imati najmanje 8 znakova.' }, { status: 400 })
   }
 
-  const resolvedPlan = ['starter', 'pro', 'scale'].includes(plan) ? plan : 'starter'
+  const resolvedPlan = (['starter', 'pro', 'scale'].includes(plan) ? plan : 'starter') as Plan
   const priceId = PLAN_PRICES[resolvedPlan]
   if (!priceId) {
     return NextResponse.json({ error: 'Plan nije konfiguriran.' }, { status: 500 })
