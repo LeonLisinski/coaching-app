@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-
-const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150 }
+import { CLIENT_LIMITS } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -17,7 +16,7 @@ export async function POST(req: NextRequest) {
     pro:     process.env.STRIPE_PRICE_PRO,
     scale:   process.env.STRIPE_PRICE_SCALE,
   }
-  const priceId = PLAN_PRICES[resolvedPlan]
+  const priceId = PLAN_PRICES[resolvedPlan as string]
   if (!priceId) return NextResponse.json({ error: 'Plan nije konfiguriran.' }, { status: 500 })
 
   const adminDb = createClient(

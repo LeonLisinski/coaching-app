@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-
-const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150 }
+import { CLIENT_LIMITS } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -20,7 +19,7 @@ export async function POST(req: NextRequest) {
   // Get existing subscription row
   const { data: existingSub } = await adminDb
     .from('subscriptions')
-    .select('stripe_customer_id, stripe_subscription_id, status')
+    .select('stripe_customer_id, stripe_subscription_id, status, locked_at')
     .eq('trainer_id', user.id)
     .maybeSingle()
 
@@ -55,7 +54,7 @@ export async function POST(req: NextRequest) {
   const hasAccess =
     status === 'active' ||
     (status === 'trialing' && (!subA.trial_end || new Date(subA.trial_end * 1000) > now)) ||
-    (status === 'past_due' && (!subA.locked_at || new Date(subA.locked_at) > now))
+    (status === 'past_due' && (!existingSub.locked_at || new Date(existingSub.locked_at) > now))
 
   return NextResponse.json({ hasAccess, status })
 }

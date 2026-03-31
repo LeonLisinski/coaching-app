@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
-
-const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150 }
-
-const PLAN_PRICES: Record<string, string | undefined> = {
-  starter: process.env.STRIPE_PRICE_STARTER,
-  pro:     process.env.STRIPE_PRICE_PRO,
-  scale:   process.env.STRIPE_PRICE_SCALE,
-}
+import { PLAN_PRICES } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const { full_name, email, password, phone, plan } = await req.json()
