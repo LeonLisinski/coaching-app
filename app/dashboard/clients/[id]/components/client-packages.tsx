@@ -86,12 +86,12 @@ export default function ClientPackages({ clientId }: Props) {
 
   // Assign dialog (only when no active package)
   const [showAssignDialog, setShowAssignDialog] = useState(false)
-  const [assignForm, setAssignForm]             = useState({ package_id: '', start_date: today(), start_disp: todayDisp(), price: '', notes: '' })
+  const [assignForm, setAssignForm]             = useState({ package_id: '', start_date: today(), start_disp: todayDisp(), notes: '' })
 
   // Replace dialog (when active package exists)
   const [showReplaceDialog, setShowReplaceDialog] = useState(false)
   const [replaceMode, setReplaceMode]             = useState<'keep_start' | 'new_start'>('new_start')
-  const [replaceForm, setReplaceForm]             = useState({ package_id: '', price: '', notes: '' })
+  const [replaceForm, setReplaceForm]             = useState({ package_id: '', notes: '' })
   const [activeCpForReplace, setActiveCpForReplace] = useState<ClientPackage | null>(null)
 
   // Payment dialog
@@ -157,7 +157,7 @@ export default function ClientPackages({ clientId }: Props) {
       package_id: assignForm.package_id,
       start_date: assignForm.start_date,
       end_date: end.toISOString().split('T')[0],
-      price: parseFloat(assignForm.price) || pkg.price,
+      price: pkg.price,
       notes: assignForm.notes || null,
       status: 'active',
     }).select().single()
@@ -165,13 +165,13 @@ export default function ClientPackages({ clientId }: Props) {
       await supabase.from('payments').insert({ trainer_id: trainerId, client_id: clientId, client_package_id: cpData.id, amount: cpData.price, status: 'pending' })
     }
     setShowAssignDialog(false)
-    setAssignForm({ package_id: '', start_date: today(), start_disp: todayDisp(), price: '', notes: '' })
+    setAssignForm({ package_id: '', start_date: today(), start_disp: todayDisp(), notes: '' })
     fetchData()
   }
 
-  const openReplaceDialog = (currentActive: ClientPackage) => {
+    const openReplaceDialog = (currentActive: ClientPackage) => {
     setActiveCpForReplace(currentActive)
-    setReplaceForm({ package_id: '', price: '', notes: '' })
+    setReplaceForm({ package_id: '', notes: '' })
     setReplaceMode('new_start')
     setShowReplaceDialog(true)
   }
@@ -195,7 +195,7 @@ export default function ClientPackages({ clientId }: Props) {
       package_id: replaceForm.package_id,
       start_date: startDate,
       end_date: end.toISOString().split('T')[0],
-      price: parseFloat(replaceForm.price) || pkg.price,
+      price: pkg.price,
       notes: replaceForm.notes || null,
       status: 'active',
     }).select().single()
@@ -215,50 +215,69 @@ export default function ClientPackages({ clientId }: Props) {
 
   const markAsPaid = async () => {
     if (!selectedCp || !trainerId || savingPayment) return
-    const payment = selectedCp.payments?.[0]
-    if (!payment) return
     setSavingPayment(true)
+    try {
+      const payment = selectedCp.payments?.[0]
+      const amount  = parseFloat(paymentForm.amount) || selectedCp.price
 
-    await supabase.from('payments').update({
-      status: 'paid',
-      amount: parseFloat(paymentForm.amount) || selectedCp.price,
-      paid_at: paymentForm.paid_at,
-      notes: paymentForm.notes || null,
-    }).eq('id', payment.id)
-
-    // Auto-renew: expire current package and create next period from end_date
-    if (autoRenew) {
-      const pkg = selectedCp.packages
-      const newStart = new Date(selectedCp.end_date)
-      const newEnd = addMonths(newStart, Math.round(pkg.duration_days / 30))
-
-      // Expire the current package so only the new one is 'active'
-      await supabase.from('client_packages').update({ status: 'expired' }).eq('id', selectedCp.id)
-
-      const { data: newCp } = await supabase.from('client_packages').insert({
-        trainer_id: trainerId,
-        client_id: clientId,
-        package_id: selectedCp.package_id,
-        start_date: newStart.toISOString().split('T')[0],
-        end_date: newEnd.toISOString().split('T')[0],
-        price: parseFloat(paymentForm.amount) || selectedCp.price,
-        status: 'active',
-      }).select().single()
-      if (newCp) {
-        await supabase.from('payments').insert({
+      if (payment) {
+        const { error } = await supabase.from('payments').update({
+          status: 'paid',
+          amount,
+          paid_at: paymentForm.paid_at,
+          notes: paymentForm.notes || null,
+        }).eq('id', payment.id)
+        if (error) throw error
+      } else {
+        // Nema payment zapisa — upsert da se izbjegne duplikat
+        const { error } = await supabase.from('payments').upsert({
           trainer_id: trainerId,
           client_id: clientId,
-          client_package_id: newCp.id,
-          amount: newCp.price,
-          status: 'pending',
-        })
+          client_package_id: selectedCp.id,
+          amount,
+          paid_at: paymentForm.paid_at,
+          status: 'paid',
+          notes: paymentForm.notes || null,
+        }, { onConflict: 'client_package_id' })
+        if (error) throw error
       }
-    }
 
-    setShowPaymentDialog(false)
-    setAutoRenew(false)
-    setSavingPayment(false)
-    fetchData()
+      // Auto-renew: expire current package and create next period from end_date
+      if (autoRenew) {
+        const pkg = selectedCp.packages
+        const newStart = new Date(selectedCp.end_date)
+        const newEnd = addMonths(newStart, Math.round(pkg.duration_days / 30))
+
+        await supabase.from('client_packages').update({ status: 'expired' }).eq('id', selectedCp.id)
+
+        const { data: newCp } = await supabase.from('client_packages').insert({
+          trainer_id: trainerId,
+          client_id: clientId,
+          package_id: selectedCp.package_id,
+          start_date: newStart.toISOString().split('T')[0],
+          end_date: newEnd.toISOString().split('T')[0],
+          price: amount,
+          status: 'active',
+        }).select().single()
+        if (newCp) {
+          await supabase.from('payments').insert({
+            trainer_id: trainerId,
+            client_id: clientId,
+            client_package_id: newCp.id,
+            amount: newCp.price,
+            status: 'pending',
+          })
+        }
+      }
+
+      setShowPaymentDialog(false)
+      setAutoRenew(false)
+      fetchData()
+    } catch (err: any) {
+      alert(`Greška pri potvrdi plaćanja: ${err?.message || 'Nepoznata greška'}`)
+    } finally {
+      setSavingPayment(false)
+    }
   }
 
   const markAsUnpaid = async (cp: ClientPackage) => {
@@ -423,8 +442,7 @@ export default function ClientPackages({ clientId }: Props) {
               <select
                 value={assignForm.package_id}
                 onChange={e => {
-                  const pkg = availablePackages.find(p => p.id === e.target.value)
-                  setAssignForm({ ...assignForm, package_id: e.target.value, price: pkg?.price.toString() || '' })
+                  setAssignForm({ ...assignForm, package_id: e.target.value })
                 }}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               >
@@ -434,21 +452,15 @@ export default function ClientPackages({ clientId }: Props) {
                 ))}
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">{t('startDate')}</Label>
-                <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
-                  value={assignForm.start_disp}
-                  onChange={e => {
-                    const disp = fmtDateInput(e.target.value)
-                    setAssignForm({ ...assignForm, start_disp: disp, start_date: dispToIso(disp) || assignForm.start_date })
-                  }}
-                  className="h-8 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t('price')}</Label>
-                <Input type="number" value={assignForm.price} onChange={e => setAssignForm({ ...assignForm, price: e.target.value })} className="h-8 text-sm" placeholder={t('pricePlaceholder')} />
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('startDate')}</Label>
+              <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                value={assignForm.start_disp}
+                onChange={e => {
+                  const disp = fmtDateInput(e.target.value)
+                  setAssignForm({ ...assignForm, start_disp: disp, start_date: dispToIso(disp) || assignForm.start_date })
+                }}
+                className="h-8 text-sm" />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t('notesOptional')}</Label>
@@ -501,8 +513,7 @@ export default function ClientPackages({ clientId }: Props) {
               <select
                 value={replaceForm.package_id}
                 onChange={e => {
-                  const pkg = availablePackages.find(p => p.id === e.target.value)
-                  setReplaceForm({ ...replaceForm, package_id: e.target.value, price: pkg?.price.toString() || '' })
+                  setReplaceForm({ ...replaceForm, package_id: e.target.value })
                 }}
                 className="w-full border rounded-md px-3 py-2 text-sm"
               >
@@ -513,15 +524,9 @@ export default function ClientPackages({ clientId }: Props) {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">{t('price')}</Label>
-                <Input type="number" value={replaceForm.price} onChange={e => setReplaceForm({ ...replaceForm, price: e.target.value })} className="h-8 text-sm" placeholder={t('replacePricePlaceholder')} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t('notesOptional')}</Label>
-                <Input value={replaceForm.notes} onChange={e => setReplaceForm({ ...replaceForm, notes: e.target.value })} className="h-8 text-sm" />
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('notesOptional')}</Label>
+              <Input value={replaceForm.notes} onChange={e => setReplaceForm({ ...replaceForm, notes: e.target.value })} className="h-8 text-sm" />
             </div>
 
             <p className="text-[11px] text-gray-400">{t('replaceExpiredNotice')}</p>

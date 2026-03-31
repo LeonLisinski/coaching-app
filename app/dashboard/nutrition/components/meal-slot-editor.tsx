@@ -137,25 +137,47 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
 
   // Sinkroniziraj kad se index promijeni
   useEffect(() => {
-    const isCustom = !!meal.custom_ingredients?.length
-    setMode(isCustom ? 'custom' : 'existing')
+    // custom mode = nema recipe_id, ali ima custom_ingredients (vlastiti obrok)
+    // existing mode = ima recipe_id (s ili bez custom_ingredients kao editiranih namirnica)
+    const isCustomMode = !meal.recipe_id && !!meal.custom_ingredients?.length
+    setMode(isCustomMode ? 'custom' : 'existing')
     setCustomName(meal.recipe_name || '')
     setSaveAsRecipe(meal.save_as_recipe || false)
-    setIngredients(meal.custom_ingredients || [])
+    setIngredients(isCustomMode ? (meal.custom_ingredients || []) : [])
     setSearch('')
 
-    // Auto-populate recipe ingredients when recipe already selected (no custom override yet)
-    if (!isCustom && meal.recipe_id) {
-      const recipe = recipes.find(r => r.id === meal.recipe_id)
-      if (recipe?.ingredients?.length) {
-        setRecipeIngredients(recipe.ingredients.map(i => ({ ...i })))
-        setShowIngredients(false)
-        return
+    if (meal.recipe_id) {
+      if (meal.custom_ingredients?.length) {
+        // Recept s editiranim namirnicama — koristi custom_ingredients kao editabilnu kopiju
+        setRecipeIngredients(meal.custom_ingredients.map((i: any) => ({ ...i })))
+      } else {
+        // Recept bez promjena — učitaj originalne sastojke iz recipes arraya
+        const recipe = recipes.find(r => r.id === meal.recipe_id)
+        if (recipe?.ingredients?.length) {
+          setRecipeIngredients(recipe.ingredients.map(i => ({ ...i })))
+        } else {
+          setRecipeIngredients([])
+        }
       }
+      // Ne resetiraj showIngredients — korisnik je možda imao expandano, DnD ne treba zatvoriti
+      return
     }
     setRecipeIngredients([])
     setShowIngredients(false)
   }, [index])
+
+  // Kad recipes postanu dostupni (async load), popuni recipeIngredients ako su još prazni
+  useEffect(() => {
+    if (mode !== 'existing' || !meal.recipe_id || recipeIngredients.length > 0) return
+    if (meal.custom_ingredients?.length) {
+      setRecipeIngredients(meal.custom_ingredients.map((i: any) => ({ ...i })))
+      return
+    }
+    const recipe = recipes.find(r => r.id === meal.recipe_id)
+    if (recipe?.ingredients?.length) {
+      setRecipeIngredients(recipe.ingredients.map(i => ({ ...i })))
+    }
+  }, [recipes])
 
   const calcExtras = (ings: Ingredient[]) => {
     const extras: Record<string, number> = {}
@@ -250,6 +272,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       extras,
     }]
     setIngredients(newIngs)
+    setShowIngredients(true)
     setSearch('')
     setDropdownIndex(-1)
     updateCustomTotals(newIngs, customName, saveAsRecipe)
@@ -271,7 +294,12 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     const food = foods.find(f => f.id === food_id)
     const newIngs = ingredients.map(i => {
       if (i.food_id !== food_id) return i
-      if (!food) return i
+      if (!food) {
+        // Food not in DB — update grams proportionally from existing macros
+        const origGrams = i.grams || 100
+        const r = origGrams > 0 ? grams / origGrams : 1
+        return { ...i, grams, calories: i.calories * r, protein: i.protein * r, carbs: i.carbs * r, fat: i.fat * r }
+      }
       const ratio = grams / 100
       const extras: Record<string, number> = {}
       if (food.extras) {
@@ -524,6 +552,43 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             placeholder={`${t('mealName')}...`}
             className="h-8 text-sm"
           />
+
+          {/* Accordion — namirnice iza togla (kao kod recepta) */}
+          {ingredients.length > 0 && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setShowIngredients(!showIngredients)}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              >
+                {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                Uredi namirnice ({ingredients.length})
+              </button>
+              {showIngredients && (
+                <div className="space-y-1 pt-1">
+                  {ingredients.map(ing => (
+                    <div key={ing.food_id} className="flex items-center gap-2 text-xs">
+                      <span className="flex-1 text-gray-700">{ing.name}</span>
+                      <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
+                      <span className="text-gray-400">g</span>
+                      <span className="text-gray-400 w-16 text-right">{Math.round(ing.calories)} kcal</span>
+                      <button type="button" onClick={() => removeIngredient(ing.food_id)}>
+                        <X size={11} className="text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer pt-0.5">
+                    <input type="checkbox" checked={saveAsRecipe}
+                      onChange={e => { setSaveAsRecipe(e.target.checked); updateCustomTotals(ingredients, customName, e.target.checked) }}
+                      className="rounded" />
+                    Spremi kao jelo u bazu
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Search — uvijek vidljiv za dodavanje novih namirnica */}
           <div className="space-y-1">
             <Input
               ref={searchRef}
@@ -558,25 +623,6 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               </div>
             )}
           </div>
-          {ingredients.map(ing => (
-            <div key={ing.food_id} className="flex items-center gap-2 text-xs">
-              <span className="flex-1 text-gray-700">{ing.name}</span>
-              <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
-              <span className="text-gray-400">g</span>
-              <span className="text-gray-400 w-16 text-right">{Math.round(ing.calories)} kcal</span>
-              <button type="button" onClick={() => removeIngredient(ing.food_id)}>
-                <X size={11} className="text-gray-400 hover:text-red-500" />
-              </button>
-            </div>
-          ))}
-          {ingredients.length > 0 && (
-            <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={saveAsRecipe}
-                onChange={e => { setSaveAsRecipe(e.target.checked); updateCustomTotals(ingredients, customName, e.target.checked) }}
-                className="rounded" />
-              Spremi kao jelo u bazu
-            </label>
-          )}
         </div>
       )}
 

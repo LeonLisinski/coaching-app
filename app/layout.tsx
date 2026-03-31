@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "UnitLift — Coaching Platform",
+  title: "UnitLift - Coaching Platform",
   description: "UnitLift is a coaching platform for personal trainers to manage clients, check-ins, workout plans, nutrition, chat, and progress tracking in one place.",
   icons: {
     icon: [
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
     openGraph: {
-    title: "UnitLift — Coaching Platform",
+    title: "UnitLift - Coaching Platform",
     description: "A coaching platform for personal trainers to manage clients, check-ins, workouts, nutrition, chat, and progress tracking in one place.",
     type: "website",
     images: [{ url: '/icon-512.png', width: 512, height: 512 }],

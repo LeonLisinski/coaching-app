@@ -244,7 +244,7 @@ function DashboardPageContent() {
   const [expiringPackages, setExpiringPackages] = useState<{ id: string; client_name: string; pkg_name: string; end_date: string; days_left: number; client_id: string }[]>([])
   const [stats, setStats] = useState({
     activeClients: 0, submitted: 0, late: 0, neutral: 0,
-    expectedMonth: 0, collectedMonth: 0, latePayments: 0,
+    expectedMonth: 0, collectedMonth: 0, paidByStart: 0, totalMonth: 0, latePayments: 0,
     avgCheckinRate: 0, unreadMessages: 0,
   })
   const [clients, setClients]             = useState<ClientRow[]>([])
@@ -344,9 +344,10 @@ function DashboardPageContent() {
       .eq('read', false)
 
     // Revenue
+    // isoDate() koristi lokalne komponente (ne UTC) — važno za UTC+2 timezone
     const now        = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
-    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+    const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
+    const monthEnd   = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
 
     // Fetch all packages (not just active) to include historical payments in charts
     const { data: packagesData } = await supabase
@@ -354,7 +355,7 @@ function DashboardPageContent() {
       .select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`)
       .eq('trainer_id', user.id)
 
-    let expectedMonth = 0, collectedMonth = 0, latePayments = 0
+    let expectedMonth = 0, collectedMonth = 0, paidByStart = 0, latePayments = 0
     const monthly: Record<string, { ocekivano: number; naplaceno: number }> = {}
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
@@ -362,31 +363,46 @@ function DashboardPageContent() {
     }
 
     packagesData?.forEach((cp: any) => {
-      // Expected = packages that START in the given month (new invoices)
-      if (cp.start_date >= monthStart && cp.start_date <= monthEnd) expectedMonth += cp.price || 0
+      const price      = cp.price || 0
+      const paidPayment = (cp.payments as any[])?.find((p: any) => p.status === 'paid')
+      const hasPaid    = !!paidPayment
+      const paidAmt    = paidPayment?.amount || price   // stvarni iznos plaćanja
 
-      // Late payments = packages with no paid payment and end_date has passed
-      const hasPaid = (cp.payments as any[])?.some((p: any) => p.status === 'paid')
-      if (!hasPaid && new Date(cp.end_date) < now) latePayments++
+      // Kasna plaćanja = aktivni paketi bez uplate čiji je end_date prošao
+      if (!hasPaid && cp.status === 'active' && new Date(cp.end_date) < now) latePayments++
 
+      // ── STAT KARTICE ──────────────────────────────────────────────────────────
+      // Naplaćeno ovaj mj = plaćanja s paid_at u tekućem mj (stvarni novčani tok)
+      // paid_at može biti timestamp ("2026-03-31T22:00:00+00:00") pa uzimamo samo prvih 10 znakova
+      ;(cp.payments as any[])?.forEach((p: any) => {
+        const paidDate = p.paid_at ? (p.paid_at as string).substring(0, 10) : null
+        if (p.status === 'paid' && paidDate && paidDate >= monthStart && paidDate <= monthEnd) {
+          collectedMonth += p.amount || price
+        }
+      })
+      // Paketi koji POČINJU ovaj mj — za donut i konzistentnost s bar chartom
+      // naplaćeno = svi plaćeni (uključujući expired), očekivano = samo aktivni neplaćeni
+      if (cp.start_date >= monthStart && cp.start_date <= monthEnd) {
+        if (hasPaid)                     paidByStart   += paidAmt
+        else if (cp.status === 'active') expectedMonth += price
+      }
+
+      // ── BAR CHART (historijski) ───────────────────────────────────────────────
+      // naplaćeno = stvarni iznos, očekivano = samo aktivni neplaćeni
       for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const mStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
-        const mEnd   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
+        const d      = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const mStart = isoDate(new Date(d.getFullYear(), d.getMonth(), 1))
+        const mEnd   = isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0))
         const key    = getMonthLabel(d)
-        // Expected for month = packages starting in that month
-        if (cp.start_date >= mStart && cp.start_date <= mEnd) monthly[key].ocekivano += cp.price || 0
-        // Collected = payments with paid_at in that month
-        ;(cp.payments as any[])?.forEach((p: any) => {
-          if (p.status === 'paid' && p.paid_at && p.paid_at >= mStart && p.paid_at <= mEnd) {
-            monthly[key].naplaceno += p.amount || 0
-            if (mStart === monthStart) collectedMonth += p.amount || 0
-          }
-        })
+        if (cp.start_date >= mStart && cp.start_date <= mEnd) {
+          if (hasPaid)                     monthly[key].naplaceno += paidAmt
+          else if (cp.status === 'active') monthly[key].ocekivano += price
+        }
       }
     })
 
-    const progress = expectedMonth > 0 ? Math.min(100, Math.round((collectedMonth / expectedMonth) * 100)) : 0
+    const totalMonth = paidByStart + expectedMonth
+    const progress   = totalMonth > 0 ? Math.round((paidByStart / totalMonth) * 100) : (paidByStart > 0 ? 100 : 0)
 
     // Expiring packages (within 7 days, active, not paid)
     const clientNameMapForPkg: Record<string, string> = {}
@@ -408,17 +424,19 @@ function DashboardPageContent() {
       .sort((a: any, b: any) => a.days_left - b.days_left)
     setExpiringPackages(expiring)
 
-    // Year-to-date revenue
+    // Year-to-date revenue = plaćanja s paid_at ove godine (stvarni novčani tok)
     const thisYear = now.getFullYear().toString()
     let ytdRevenue = 0
     packagesData?.forEach((cp: any) => {
       ;(cp.payments as any[])?.forEach((p: any) => {
-        if (p.status === 'paid' && p.paid_at?.startsWith(thisYear)) ytdRevenue += p.amount || 0
+        if (p.status === 'paid' && (p.paid_at as string | null)?.substring(0, 4) === thisYear) {
+          ytdRevenue += p.amount || cp.price || 0
+        }
       })
     })
     setYearRevenue(ytdRevenue)
 
-    setStats({ activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 })
+    setStats({ activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, paidByStart, totalMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 })
     setMonthlyRevenue(Object.entries(monthly).map(([month, v]) => ({ month, ...v })))
     setProgressPercent(progress)
 
@@ -429,7 +447,7 @@ function DashboardPageContent() {
 
     const sevenDaysAgo = new Date(now)
     sevenDaysAgo.setDate(now.getDate() - 7)
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+    const sevenDaysAgoStr = isoDate(sevenDaysAgo)
 
     const formatRelTime = (ts: number) => {
       const diffMs = now.getTime() - ts
@@ -516,7 +534,7 @@ function DashboardPageContent() {
     : null
   const revTrendLabel = revTrendPct !== null
     ? `${revTrendPct >= 0 ? '↑' : '↓'}${Math.abs(revTrendPct)}% vs prošli mj.`
-    : `od ${stats.expectedMonth}€`
+    : (stats.expectedMonth > 0 ? `+ ${stats.expectedMonth}€ očekivano` : '')
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">
@@ -718,7 +736,7 @@ function DashboardPageContent() {
         <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} onClick={() => router.push('/dashboard/financije')} />
         <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/financije')} />
         <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
-        <StatCard icon={TrendingUp}    label="Prihod ove godine"        value={`${yearRevenue}€`}       color="emerald" sub={`od ${stats.expectedMonth}€ ovaj mj.`} onClick={() => router.push('/dashboard/financije')} />
+        <StatCard icon={TrendingUp}    label="Prihod ove godine"        value={`${yearRevenue}€`}       color="emerald" sub={stats.totalMonth > 0 ? `${stats.paidByStart}€ / ${stats.totalMonth}€ ovaj mj.` : ''} onClick={() => router.push('/dashboard/financije')} />
       </div>
 
       {/* Charts + checkin list */}
@@ -743,15 +761,15 @@ function DashboardPageContent() {
             </div>
           </div>
           <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={monthlyRevenue} barGap={4} barCategoryGap="38%">
+            <BarChart data={monthlyRevenue} barCategoryGap="40%">
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={36} />
               <Tooltip
                 formatter={(v: number | undefined, name: string | undefined) => [`${v ?? 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
               />
-              <Bar dataKey="ocekivano" fill={`${accentHex}30`} radius={[5, 5, 0, 0]} />
-              <Bar dataKey="naplaceno" fill={accentHex} radius={[5, 5, 0, 0]} />
+              <Bar dataKey="naplaceno" stackId="rev" fill={accentHex} radius={[0, 0, 0, 0]} />
+              <Bar dataKey="ocekivano" stackId="rev" fill={`${accentHex}35`} radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -773,9 +791,9 @@ function DashboardPageContent() {
             </div>
           </div>
           <p className="text-sm font-semibold text-gray-700 mt-3">
-            {stats.collectedMonth}€
+            {stats.paidByStart}€
             <span className="text-gray-300 mx-1">/</span>
-            <span className="text-gray-400 font-normal">{stats.expectedMonth}€</span>
+            <span className="text-gray-400 font-normal">{stats.totalMonth}€</span>
           </p>
           {stats.latePayments > 0 && (
             <p className="text-xs text-rose-500 mt-1.5 font-medium">{stats.latePayments} kasno plaćanje</p>

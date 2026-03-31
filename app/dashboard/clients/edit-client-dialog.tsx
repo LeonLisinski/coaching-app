@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { useTranslations } from 'next-intl'
 import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const ACCENT_HEX_MAP: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -95,9 +96,14 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
   const [workoutPlans, setWorkoutPlans] = useState<Plan[]>([])
   const [mealPlans, setMealPlans] = useState<Plan[]>([])
   const [currentWorkout, setCurrentWorkout] = useState<string | null>(null)
-  const [currentMeal, setCurrentMeal] = useState<string | null>(null)
-  const [selectedWorkout, setSelectedWorkout] = useState<string | null>(null)
-  const [selectedMeal, setSelectedMeal] = useState<string | null>(null)
+  const [currentMealDefault, setCurrentMealDefault]   = useState<string | null>(null)
+  const [currentMealTraining, setCurrentMealTraining] = useState<string | null>(null)
+  const [currentMealRest, setCurrentMealRest]         = useState<string | null>(null)
+  const [selectedWorkout, setSelectedWorkout]         = useState<string | null>(null)
+  const [mealPlanMode, setMealPlanMode]               = useState<'default' | 'split'>('default')
+  const [selectedMealDefault, setSelectedMealDefault]   = useState<string | null>(null)
+  const [selectedMealTraining, setSelectedMealTraining] = useState<string | null>(null)
+  const [selectedMealRest, setSelectedMealRest]         = useState<string | null>(null)
   const [plansLoading, setPlansLoading] = useState(false)
   const [plansSaved, setPlansSaved] = useState(false)
   const [savingPlans, setSavingPlans] = useState(false)
@@ -147,16 +153,26 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
       supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).order('name'),
       supabase.from('meal_plans').select('id, name').eq('trainer_id', user.id).order('name'),
       supabase.from('client_workout_plans').select('workout_plan_id').eq('client_id', client.id).eq('active', true).maybeSingle(),
-      supabase.from('client_meal_plans').select('meal_plan_id').eq('client_id', client.id).eq('active', true).maybeSingle(),
+      supabase.from('client_meal_plans').select('meal_plan_id, plan_type').eq('client_id', client.id).eq('active', true),
       supabase.from('packages').select('id, name, price, duration_days, color').eq('trainer_id', user.id).eq('active', true).order('name'),
       supabase.from('client_packages').select('id, end_date, price, packages(name, color)').eq('client_id', client.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
     setWorkoutPlans(wp || [])
     setMealPlans(mp || [])
     const wId = cwp?.workout_plan_id || null
-    const mId = cmp?.meal_plan_id || null
-    setCurrentWorkout(wId); setCurrentMeal(mId)
-    setSelectedWorkout(wId); setSelectedMeal(mId)
+    setCurrentWorkout(wId)
+    setSelectedWorkout(wId)
+
+    // Parse active meal plans by type
+    const activeMealPlans = (cmp as any[] | null) || []
+    const defPlan      = activeMealPlans.find(p => p.plan_type === 'default' || !p.plan_type)?.meal_plan_id || null
+    const trainPlan    = activeMealPlans.find(p => p.plan_type === 'training_day')?.meal_plan_id || null
+    const restPlan     = activeMealPlans.find(p => p.plan_type === 'rest_day')?.meal_plan_id || null
+    const hasSplit     = !!(trainPlan || restPlan)
+    setCurrentMealDefault(defPlan); setCurrentMealTraining(trainPlan); setCurrentMealRest(restPlan)
+    setSelectedMealDefault(defPlan); setSelectedMealTraining(trainPlan); setSelectedMealRest(restPlan)
+    setMealPlanMode(hasSplit ? 'split' : 'default')
+
     setPkgTemplates(pkgs || [])
     if (cpData) {
       setActiveCp({ id: cpData.id, pkg_name: (cpData.packages as any)?.name || '—', pkg_color: (cpData.packages as any)?.color || '#6366f1', end_date: cpData.end_date, price: cpData.price })
@@ -251,28 +267,43 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
       }
     }
 
-    // Handle meal plan change
-    if (selectedMeal !== currentMeal) {
-      if (currentMeal) {
+    // Helper: assign or replace one meal plan slot
+    const upsertMealPlan = async (planId: string | null, planType: 'default' | 'training_day' | 'rest_day', currentId: string | null) => {
+      if (planId === currentId) return
+      // Deactivate current slot
+      if (currentId) {
         await supabase.from('client_meal_plans').update({ active: false })
-          .eq('client_id', client.id).eq('meal_plan_id', currentMeal)
+          .eq('client_id', client.id).eq('meal_plan_id', currentId).eq('plan_type', planType)
       }
-      if (selectedMeal) {
+      if (planId) {
         const { data: existing } = await supabase.from('client_meal_plans')
-          .select('id').eq('client_id', client.id).eq('meal_plan_id', selectedMeal).maybeSingle()
+          .select('id').eq('client_id', client.id).eq('meal_plan_id', planId).eq('plan_type', planType).maybeSingle()
         if (existing) {
           await supabase.from('client_meal_plans').update({ active: true }).eq('id', existing.id)
         } else {
           await supabase.from('client_meal_plans').insert({
-            client_id: client.id, meal_plan_id: selectedMeal, trainer_id: user.id, active: true,
+            client_id: client.id, meal_plan_id: planId, trainer_id: user.id, active: true, plan_type: planType,
           })
         }
       }
     }
 
+    if (mealPlanMode === 'default') {
+      // Deactivate any split plans
+      if (currentMealTraining) await supabase.from('client_meal_plans').update({ active: false }).eq('client_id', client.id).eq('meal_plan_id', currentMealTraining).eq('plan_type', 'training_day')
+      if (currentMealRest)     await supabase.from('client_meal_plans').update({ active: false }).eq('client_id', client.id).eq('meal_plan_id', currentMealRest).eq('plan_type', 'rest_day')
+      await upsertMealPlan(selectedMealDefault, 'default', currentMealDefault)
+    } else {
+      // Deactivate default plan
+      if (currentMealDefault) await supabase.from('client_meal_plans').update({ active: false }).eq('client_id', client.id).eq('meal_plan_id', currentMealDefault).eq('plan_type', 'default')
+      await upsertMealPlan(selectedMealTraining, 'training_day', currentMealTraining)
+      await upsertMealPlan(selectedMealRest, 'rest_day', currentMealRest)
+    }
+
     setSavingPlans(false); setPlansSaved(true)
     setTimeout(() => setPlansSaved(false), 2500)
-    setCurrentWorkout(selectedWorkout); setCurrentMeal(selectedMeal)
+    setCurrentWorkout(selectedWorkout)
+    setCurrentMealDefault(selectedMealDefault); setCurrentMealTraining(selectedMealTraining); setCurrentMealRest(selectedMealRest)
     onSuccess()
   }
 
@@ -287,7 +318,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+      <DialogContent className="w-[min(560px,calc(100vw-2rem))] flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -447,27 +478,18 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       </div>
                       <Label className="text-sm font-semibold text-gray-800">Plan treninga</Label>
                     </div>
-                    <div className="space-y-1.5">
-                      <button type="button"
-                        onClick={() => setSelectedWorkout(null)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${selectedWorkout === null ? 'border-transparent text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
-                        style={selectedWorkout === null ? { backgroundColor: accentHex } : {}}>
-                        <span className="font-medium">Bez plana</span>
-                        {selectedWorkout === null && <Check size={14} />}
-                      </button>
-                      {workoutPlans.map(wp => (
-                        <button key={wp.id} type="button"
-                          onClick={() => setSelectedWorkout(wp.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${selectedWorkout === wp.id ? 'border-transparent text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
-                          style={selectedWorkout === wp.id ? { backgroundColor: accentHex } : {}}>
-                          <span className="font-medium">{wp.name}</span>
-                          {selectedWorkout === wp.id && <Check size={14} />}
-                        </button>
-                      ))}
-                      {workoutPlans.length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-2">Nema kreiranih planova treninga.</p>
-                      )}
-                    </div>
+                    <Select value={selectedWorkout ?? '_none'} onValueChange={v => setSelectedWorkout(v === '_none' ? null : v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Odaberi plan treninga..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                        {workoutPlans.length === 0
+                          ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                          : workoutPlans.map(wp => <SelectItem key={wp.id} value={wp.id}>{wp.name}</SelectItem>)
+                        }
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Meal plan */}
@@ -478,27 +500,56 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       </div>
                       <Label className="text-sm font-semibold text-gray-800">Plan prehrane</Label>
                     </div>
-                    <div className="space-y-1.5">
-                      <button type="button"
-                        onClick={() => setSelectedMeal(null)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${selectedMeal === null ? 'border-transparent text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
-                        style={selectedMeal === null ? { backgroundColor: accentHex } : {}}>
-                        <span className="font-medium">Bez plana</span>
-                        {selectedMeal === null && <Check size={14} />}
-                      </button>
-                      {mealPlans.map(mp => (
-                        <button key={mp.id} type="button"
-                          onClick={() => setSelectedMeal(mp.id)}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${selectedMeal === mp.id ? 'border-transparent text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
-                          style={selectedMeal === mp.id ? { backgroundColor: accentHex } : {}}>
-                          <span className="font-medium">{mp.name}</span>
-                          {selectedMeal === mp.id && <Check size={14} />}
+                    <div className="flex gap-2">
+                      {([['default', 'Standardni'], ['split', 'Trening / Odmor']] as const).map(([m, lbl]) => (
+                        <button key={m} type="button" onClick={() => setMealPlanMode(m)}
+                          className="flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                          style={mealPlanMode === m ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+                          {lbl}
                         </button>
                       ))}
-                      {mealPlans.length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-2">Nema kreiranih planova prehrane.</p>
-                      )}
                     </div>
+                    {mealPlanMode === 'default' ? (
+                      <Select value={selectedMealDefault ?? '_none'} onValueChange={v => setSelectedMealDefault(v === '_none' ? null : v)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Odaberi plan prehrane..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                          {mealPlans.length === 0
+                            ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                            : mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)
+                          }
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-[11px] text-gray-500 mb-1">Dani treninga</p>
+                          <Select value={selectedMealTraining ?? '_none'} onValueChange={v => setSelectedMealTraining(v === '_none' ? null : v)}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Plan za dane treninga..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              {mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-gray-500 mb-1">Dani odmora</p>
+                          <Select value={selectedMealRest ?? '_none'} onValueChange={v => setSelectedMealRest(v === '_none' ? null : v)}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Plan za dane odmora..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              {mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Package section */}
@@ -510,7 +561,6 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <Label className="text-sm font-semibold text-gray-800">Paket plaćanja</Label>
                     </div>
 
-                    {/* Current active package */}
                     {activeCp && (
                       <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-gray-50">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeCp.pkg_color }} />
@@ -524,30 +574,30 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <p className="text-xs text-gray-400 px-1">Klijent nema aktivnog paketa.</p>
                     )}
 
-                    {/* Select new package */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <p className="text-xs text-gray-500">{activeCp ? 'Zamijeni s novim paketom:' : 'Dodjeli paket:'}</p>
-                      <div className="space-y-1.5">
-                        {pkgTemplates.map(pkg => (
-                          <button key={pkg.id} type="button"
-                            onClick={() => setSelectedPkg(selectedPkg === pkg.id ? null : pkg.id)}
-                            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-all ${selectedPkg === pkg.id ? 'border-transparent text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
-                            style={selectedPkg === pkg.id ? { backgroundColor: accentHex } : {}}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: selectedPkg === pkg.id ? 'white' : pkg.color }} />
-                              <span className="font-medium">{pkg.name}</span>
-                              <span className={`text-xs ${selectedPkg === pkg.id ? 'opacity-75' : 'text-gray-400'}`}>{pkg.price} € · {durationLabel(pkg.duration_days)}</span>
-                            </div>
-                            {selectedPkg === pkg.id && <Check size={14} />}
-                          </button>
-                        ))}
-                        {pkgTemplates.length === 0 && (
-                          <p className="text-xs text-gray-400 text-center py-2">Nema kreiranih paketa.</p>
-                        )}
-                      </div>
+                      <Select value={selectedPkg ?? '_none'} onValueChange={v => setSelectedPkg(v === '_none' ? null : v)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Odaberi paket..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez paketa</span></SelectItem>
+                          {pkgTemplates.length === 0
+                            ? <SelectItem value="_empty" disabled>Nema kreiranih paketa</SelectItem>
+                            : pkgTemplates.map(pkg => (
+                              <SelectItem key={pkg.id} value={pkg.id}>
+                                <span className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: pkg.color }} />
+                                  {pkg.name} · {pkg.price} € · {durationLabel(pkg.duration_days)}
+                                </span>
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    {selectedPkg && (
+                    {selectedPkg && selectedPkg !== '_none' && (
                       <Button type="button" onClick={assignOrReplacePkg} disabled={savingPkg}
                         className="h-8 text-xs gap-1.5 text-white" style={{ backgroundColor: accentHex }}>
                         <RefreshCw size={12} />

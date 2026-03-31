@@ -18,6 +18,24 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+// Custom sensor: skip drag activation when pointer starts on an interactive element
+function isInteractiveElement(el: HTMLElement | null) {
+  while (el) {
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
+    el = el.parentElement
+  }
+  return false
+}
+class SmartPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: 'onPointerDown' as const,
+      handler: ({ nativeEvent }: React.PointerEvent) =>
+        !isInteractiveElement(nativeEvent.target as HTMLElement),
+    },
+  ]
+}
+
 type Recipe   = { id: string; name: string; total_calories: number; total_protein: number; total_carbs: number; total_fat: number; ingredients?: any[] }
 type Food     = { id: string; name: string; calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number; extras?: Record<string, number> }
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
@@ -118,7 +136,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(SmartPointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 

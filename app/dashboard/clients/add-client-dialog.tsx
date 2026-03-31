@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, Check, ChevronRight, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
+import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, ChevronRight, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -76,9 +77,11 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const [workoutPlans, setWorkoutPlans]   = useState<{ id: string; name: string }[]>([])
   const [mealPlans, setMealPlans]         = useState<{ id: string; name: string }[]>([])
   const [trainerPackages, setTrainerPkgs] = useState<{ id: string; name: string; price: number; duration_days: number; color: string }[]>([])
-  const [selectedWorkout, setSelectedWorkout] = useState('')
-  const [selectedMeal, setSelectedMeal]       = useState('')
-  const [selectedPackage, setSelectedPackage] = useState('')
+  const [selectedWorkout, setSelectedWorkout]   = useState('')
+  const [selectedMeal, setSelectedMeal]         = useState('')
+  const [selectedMealRest, setSelectedMealRest] = useState('')
+  const [mealPlanMode, setMealPlanMode]         = useState<'default' | 'split'>('default')
+  const [selectedPackage, setSelectedPackage]   = useState('')
   const [checkinDay, setCheckinDay]     = useState<number | null>(null)
   const [plansLoading, setPlansLoading] = useState(false)
 
@@ -90,7 +93,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
       setStep('account'); setError(''); setLimitInfo(null)
       setFullName(''); setEmail(''); setPassword(''); setGender('')
       setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
-      setSelectedWorkout(''); setSelectedMeal(''); setSelectedPackage(''); setCheckinDay(null)
+      setSelectedWorkout(''); setSelectedMeal(''); setSelectedMealRest(''); setMealPlanMode('default'); setSelectedPackage(''); setCheckinDay(null)
       checkLimit()
     }
   }, [open])
@@ -153,30 +156,38 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const handleSubmit = async () => {
     setLoading(true); setError('')
 
+    try {
     const { data: { user: trainer } } = await supabase.auth.getUser()
-    if (!trainer) return
+    if (!trainer) { setError('Nisi prijavljen.'); setLoading(false); return }
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.access_token) return
+    if (!session?.access_token) { setError('Sesija je istekla. Osvježi stranicu.'); setLoading(false); return }
 
-    const response = await fetch(
-      'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          trainer_id: trainer.id,
-          email, password, full_name,
-          goal: goal || null,
-          date_of_birth: date_of_birth || null,
-          weight: weight ? parseFloat(weight) : null,
-          height: height ? parseFloat(height) : null,
-          gender: gender || null,
-          activity_level: activity_level || null,
-          notes: notes || null,
-        }),
-      }
-    )
-    const result = await response.json()
+    let result: any
+    try {
+      const response = await fetch(
+        'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({
+            trainer_id: trainer.id,
+            email, password, full_name,
+            goal: goal || null,
+            date_of_birth: date_of_birth || null,
+            weight: weight ? parseFloat(weight) : null,
+            height: height ? parseFloat(height) : null,
+            gender: gender || null,
+            activity_level: activity_level || null,
+            notes: notes || null,
+          }),
+        }
+      )
+      result = await response.json()
+    } catch {
+      setError('Greška pri spajanju. Provjeri internet vezu i pokušaj ponovo.')
+      setLoading(false)
+      return
+    }
     if (result.error) { setError(result.error); setLoading(false); return }
 
     const newClientId = result.client_id
@@ -191,11 +202,22 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           client_id: newClientId, workout_plan_id: selectedWorkout, trainer_id: trainer.id, active: true,
         })
       }
-      // Assign meal plan
-      if (selectedMeal) {
+      // Assign meal plan(s)
+      if (mealPlanMode === 'default' && selectedMeal) {
         await supabase.from('client_meal_plans').insert({
-          client_id: newClientId, meal_plan_id: selectedMeal, trainer_id: trainer.id, active: true,
+          client_id: newClientId, meal_plan_id: selectedMeal, trainer_id: trainer.id, active: true, plan_type: 'default',
         })
+      } else if (mealPlanMode === 'split') {
+        if (selectedMeal) {
+          await supabase.from('client_meal_plans').insert({
+            client_id: newClientId, meal_plan_id: selectedMeal, trainer_id: trainer.id, active: true, plan_type: 'training_day',
+          })
+        }
+        if (selectedMealRest) {
+          await supabase.from('client_meal_plans').insert({
+            client_id: newClientId, meal_plan_id: selectedMealRest, trainer_id: trainer.id, active: true, plan_type: 'rest_day',
+          })
+        }
       }
       // Set up check-in
       if (checkinDay !== null) {
@@ -228,6 +250,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     onClose()
     // Small delay so Supabase has time to commit before parent re-fetches
     setTimeout(onSuccess, 250)
+    } catch (err: any) {
+      setError('Neočekivana greška. Pokušaj ponovo.')
+      setLoading(false)
+    }
   }
 
   const STEPS: { key: Step; label: string }[] = [
@@ -236,39 +262,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     { key: 'plans',   label: 'Planovi' },
   ]
 
-  const PlanPicker = ({ items, selected, onSelect, emptyText }: {
-    items: { id: string; name: string }[]; selected: string; onSelect: (id: string) => void; emptyText: string
-  }) => (
-    <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
-      {items.length === 0 ? (
-        <p className="text-xs text-gray-400 py-3 text-center">{emptyText}</p>
-      ) : (
-        <>
-          <button type="button"
-            onClick={() => onSelect('')}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-sm transition-all"
-            style={selected === '' ? { borderColor: '#d1d5db', backgroundColor: '#f9fafb', color: '#9ca3af' } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
-            <span className="text-xs italic">Bez plana</span>
-          </button>
-          {items.map(p => (
-            <button key={p.id} type="button"
-              onClick={() => onSelect(p.id)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left text-sm transition-all"
-              style={selected === p.id
-                ? { borderColor: accentHex, backgroundColor: `${accentHex}08`, color: '#111827' }
-                : { borderColor: '#e5e7eb', color: '#374151' }}>
-              <span className="font-medium truncate">{p.name}</span>
-              {selected === p.id && <Check size={13} style={{ color: accentHex, flexShrink: 0 }} />}
-            </button>
-          ))}
-        </>
-      )}
-    </div>
-  )
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg w-[calc(100%-2rem)] sm:w-auto flex flex-col p-0 gap-0 overflow-hidden h-[min(640px,92vh)]" showCloseButton={false}>
+      <DialogContent className="w-[min(560px,calc(100vw-2rem))] flex flex-col p-0 gap-0 overflow-hidden h-[min(680px,92vh)]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -477,14 +474,19 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                         <Dumbbell size={12} />
                       </div>
                       <p className="text-xs font-semibold text-gray-700">Plan treninga</p>
-                      {selectedWorkout && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ backgroundColor: accentHex }}>Odabran</span>}
                     </div>
-                    <PlanPicker
-                      items={workoutPlans}
-                      selected={selectedWorkout}
-                      onSelect={setSelectedWorkout}
-                      emptyText="Nema kreiranih planova treninga"
-                    />
+                    <Select value={selectedWorkout || '_none'} onValueChange={v => setSelectedWorkout(v === '_none' ? '' : v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Odaberi plan treninga..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                        {workoutPlans.length === 0
+                          ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                          : workoutPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
+                        }
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Meal plan */}
@@ -494,14 +496,57 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                         <UtensilsCrossed size={12} />
                       </div>
                       <p className="text-xs font-semibold text-gray-700">Plan prehrane</p>
-                      {selectedMeal && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ backgroundColor: accentHex }}>Odabran</span>}
                     </div>
-                    <PlanPicker
-                      items={mealPlans}
-                      selected={selectedMeal}
-                      onSelect={setSelectedMeal}
-                      emptyText="Nema kreiranih planova prehrane"
-                    />
+                    <div className="flex gap-2">
+                      {([['default', 'Standardni'], ['split', 'Trening / Odmor']] as const).map(([m, lbl]) => (
+                        <button key={m} type="button" onClick={() => setMealPlanMode(m)}
+                          className="flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                          style={mealPlanMode === m ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+                          {lbl}
+                        </button>
+                      ))}
+                    </div>
+                    {mealPlanMode === 'default' ? (
+                      <Select value={selectedMeal || '_none'} onValueChange={v => setSelectedMeal(v === '_none' ? '' : v)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Odaberi plan prehrane..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                          {mealPlans.length === 0
+                            ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                            : mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
+                          }
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-[11px] text-gray-500 mb-1">Dani treninga</p>
+                          <Select value={selectedMeal || '_none'} onValueChange={v => setSelectedMeal(v === '_none' ? '' : v)}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Plan za dane treninga..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              {mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-gray-500 mb-1">Dani odmora</p>
+                          <Select value={selectedMealRest || '_none'} onValueChange={v => setSelectedMealRest(v === '_none' ? '' : v)}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Plan za dane odmora..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              {mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Payment package */}
@@ -511,35 +556,26 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                         <CreditCard size={12} />
                       </div>
                       <p className="text-xs font-semibold text-gray-700">Paket plaćanja</p>
-                      {selectedPackage && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ backgroundColor: accentHex }}>Odabran</span>}
                     </div>
-                    <div className="space-y-1 max-h-36 overflow-y-auto pr-0.5">
-                      {trainerPackages.length === 0 ? (
-                        <p className="text-xs text-gray-400 py-3 text-center">Nema kreiranih paketa</p>
-                      ) : (
-                        <>
-                          <button type="button" onClick={() => setSelectedPackage('')}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-sm transition-all"
-                            style={selectedPackage === '' ? { borderColor: '#d1d5db', backgroundColor: '#f9fafb', color: '#9ca3af' } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
-                            <span className="text-xs italic">Bez paketa</span>
-                          </button>
-                          {trainerPackages.map(p => (
-                            <button key={p.id} type="button" onClick={() => setSelectedPackage(p.id)}
-                              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left text-sm transition-all"
-                              style={selectedPackage === p.id ? { borderColor: accentHex, backgroundColor: `${accentHex}08` } : { borderColor: '#e5e7eb' }}>
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                                <span className="font-medium text-gray-800 truncate">{p.name}</span>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-xs text-gray-400">{p.price} € / {Math.round(p.duration_days / 30)} mj.</span>
-                                {selectedPackage === p.id && <Check size={13} style={{ color: accentHex }} />}
-                              </div>
-                            </button>
-                          ))}
-                        </>
-                      )}
-                    </div>
+                    <Select value={selectedPackage || '_none'} onValueChange={v => setSelectedPackage(v === '_none' ? '' : v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Odaberi paket..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez paketa</span></SelectItem>
+                        {trainerPackages.length === 0
+                          ? <SelectItem value="_empty" disabled>Nema kreiranih paketa</SelectItem>
+                          : trainerPackages.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: p.color }} />
+                                {p.name} · {p.price} € / {Math.round(p.duration_days / 30)} mj.
+                              </span>
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Check-in day */}

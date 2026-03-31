@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { CLIENT_LIMITS } from '@/lib/plans'
+import { CLIENT_LIMITS, type Plan } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const sub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id)
   const subA = sub as any
 
-  const plan = sub.metadata?.plan ?? 'starter'
+  const plan = (sub.metadata?.plan ?? 'starter') as Plan
   const status = sub.status // 'active' | 'trialing' | 'past_due' | 'canceled' | etc.
 
   // Sync to Supabase

@@ -18,6 +18,23 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+function isInteractiveElement(el: HTMLElement | null) {
+  while (el) {
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
+    el = el.parentElement
+  }
+  return false
+}
+class SmartPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: 'onPointerDown' as const,
+      handler: ({ nativeEvent }: React.PointerEvent) =>
+        !isInteractiveElement(nativeEvent.target as HTMLElement),
+    },
+  ]
+}
+
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void; isTemplate?: boolean }
 
 type Recipe   = { id: string; name: string; total_calories: number; total_protein: number; total_carbs: number; total_fat: number; ingredients?: any[] }
@@ -96,7 +113,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(SmartPointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 

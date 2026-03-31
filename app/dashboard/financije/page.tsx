@@ -17,6 +17,12 @@ import { Button } from '@/components/ui/button'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useTranslations } from 'next-intl'
 
+// Builds ISO date string from LOCAL date components — avoids UTC offset shifting the date
+function localIso(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function todayIso() { return localIso(new Date()) }
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Payment = {
   id: string
@@ -132,7 +138,7 @@ function FinancijePageContent() {
   const [pkgFilter, setPkgFilter] = useState<string>('all')
   const [showPayDialog, setShowPayDialog] = useState(false)
   const [selectedCp, setSelectedCp] = useState<ClientPackage | null>(null)
-  const [payForm, setPayForm] = useState({ amount: '', paid_at: new Date().toISOString().split('T')[0], notes: '' })
+  const [payForm, setPayForm] = useState({ amount: '', paid_at: todayIso(), notes: '' })
   const [saving, setSaving] = useState(false)
   const [histPage, setHistPage] = useState(0)
   const [justMarkedId, setJustMarkedId] = useState<string | null>(null)
@@ -200,8 +206,8 @@ function FinancijePageContent() {
   const now = new Date()
   const thisMonth = now.getMonth()
   const thisYear = now.getFullYear()
-  const monthStart = new Date(thisYear, thisMonth, 1).toISOString().split('T')[0]
-  const monthEnd = new Date(thisYear, thisMonth + 1, 0).toISOString().split('T')[0]
+  const monthStart = localIso(new Date(thisYear, thisMonth, 1))
+  const monthEnd   = localIso(new Date(thisYear, thisMonth + 1, 0))
 
   // Filter only by package template (not year) for stats/chart — year filter applies to history table
   const filteredByPkg = useMemo(() => {
@@ -210,36 +216,55 @@ function FinancijePageContent() {
   }, [clientPackages, pkgFilter])
 
   const stats = useMemo(() => {
-    let paidThisMonth = 0
-    let paidLastMonth = 0
-    let paidThisYear = 0
-    const lastMonthStart = new Date(thisYear, thisMonth === 0 ? 11 : thisMonth - 1, 1).toISOString().split('T')[0]
-    const lastMonthEnd = new Date(thisYear, thisMonth, 0).toISOString().split('T')[0]
+    // Prihod po start_date paketa — paket pripada mjesecu u kojem je počeo
+    const lastMonthStart = localIso(new Date(thisYear, thisMonth === 0 ? 11 : thisMonth - 1, 1))
+    const lastMonthEnd   = localIso(new Date(thisYear, thisMonth, 0))
     const yearStart = `${thisYear}-01-01`
-    const yearEnd = `${thisYear}-12-31`
+    const yearEnd   = `${thisYear}-12-31`
+
+    let paidThisMonth = 0, expectedThisMonth = 0, paidByStartThisMonth = 0
+    let paidLastMonth = 0
+    let paidThisYear  = 0
 
     filteredByPkg.forEach(cp => {
-      const p = cp.payments?.[0]
-      if (p?.status === 'paid' && p.paid_at) {
-        if (p.paid_at >= monthStart && p.paid_at <= monthEnd) paidThisMonth += p.amount || cp.price
-        if (p.paid_at >= lastMonthStart && p.paid_at <= lastMonthEnd) paidLastMonth += p.amount || cp.price
-        if (p.paid_at >= yearStart && p.paid_at <= yearEnd) paidThisYear += p.amount || cp.price
+      // Koristi .find() umjesto [0] — ispravno ako ima više payment zapisa
+      const paidPayment = cp.payments?.find((p: Payment) => p.status === 'paid')
+      const hasPaid = !!paidPayment
+      const price   = cp.price
+      const paidAt  = paidPayment?.paid_at || null
+      const paidAmt = paidPayment?.amount || price
+
+      // Naplaćeno = plaćanja s paid_at u tekućem/prošlom mj / ovoj godini (stvarni tok)
+      // paid_at može biti timestamp ("2026-03-31T22:00:00+00:00") pa uzimamo samo prvih 10 znakova
+      const paidDate = paidAt ? (paidAt as string).substring(0, 10) : null
+      if (hasPaid && paidDate) {
+        if (paidDate >= monthStart     && paidDate <= monthEnd)     paidThisMonth += paidAmt
+        if (paidDate >= lastMonthStart && paidDate <= lastMonthEnd) paidLastMonth += paidAmt
+        if (paidDate >= yearStart      && paidDate <= yearEnd)      paidThisYear  += paidAmt
+      }
+      // Paketi koji POČINJU ovaj mj:
+      // naplaćeno = svi plaćeni (uključujući expired), očekivano = samo aktivni neplaćeni
+      if (cp.start_date >= monthStart && cp.start_date <= monthEnd) {
+        if (hasPaid)                        paidByStartThisMonth += paidAmt
+        else if (cp.status === 'active')    expectedThisMonth    += price
       }
     })
 
+    const totalThisMonth = paidByStartThisMonth + expectedThisMonth
+
+    // Neplaćeno ukupno = svi aktivni paketi bez uplate (bez filtra po datumu)
     const outstanding = filteredByPkg.reduce((s, cp) => {
-      const p = cp.payments?.[0]
-      return s + (p?.status !== 'paid' ? cp.price : 0)
+      const hasPaid = cp.payments?.[0]?.status === 'paid'
+      return s + (hasPaid ? 0 : cp.price)
     }, 0)
 
     const activePkgs    = filteredByPkg.filter(cp => cp.status === 'active').length
     const activeClients = new Set(filteredByPkg.filter(cp => cp.status === 'active').map(cp => cp.client_id)).size
-
-    const monthTrend = paidLastMonth > 0
+    const monthTrend    = paidLastMonth > 0
       ? Math.round(((paidThisMonth - paidLastMonth) / paidLastMonth) * 100)
       : 0
 
-    return { paidThisMonth, paidThisYear, outstanding, activePkgs, activeClients, monthTrend }
+    return { paidThisMonth, expectedThisMonth, paidByStartThisMonth, totalThisMonth, paidThisYear, outstanding, activePkgs, activeClients, monthTrend }
   }, [filteredByPkg, thisMonth, thisYear, monthStart, monthEnd])
 
   // ── Monthly chart (last 12 months, by paid_at) ────────────────────────────
@@ -251,15 +276,19 @@ function FinancijePageContent() {
       d.setMonth(d.getMonth() - i)
       const m = d.getMonth()
       const y = d.getFullYear()
-      const mStart = new Date(y, m, 1).toISOString().split('T')[0]
-      const mEnd = new Date(y, m + 1, 0).toISOString().split('T')[0]
+      const mStart = localIso(new Date(y, m, 1))
+      const mEnd   = localIso(new Date(y, m + 1, 0))
 
+      // naplaćeno = stvarni iznos plaćanja (svi plaćeni, uključujući expired)
+      // fakturirano = samo aktivni neplaćeni (expired bez uplate idu u "Neplaćeno", ne ovdje)
       let naplaceno = 0, fakturirano = 0
       filteredByPkg.forEach(cp => {
-        if (cp.start_date >= mStart && cp.start_date <= mEnd) fakturirano += cp.price
-        const p = cp.payments?.[0]
-        if (p?.status === 'paid' && p.paid_at && p.paid_at >= mStart && p.paid_at <= mEnd) {
-          naplaceno += p.amount || cp.price
+        if (cp.start_date >= mStart && cp.start_date <= mEnd) {
+          const paidPayment = cp.payments?.find((p: Payment) => p.status === 'paid')
+          const hasPaid = !!paidPayment
+          const paidAmt = paidPayment?.amount || cp.price
+          if (hasPaid)                     naplaceno   += paidAmt
+          else if (cp.status === 'active') fakturirano += cp.price
         }
       })
 
@@ -314,54 +343,65 @@ function FinancijePageContent() {
   const markPaid = async () => {
     if (!selectedCp) return
     setSaving(true)
-    const payment = selectedCp.payments?.[0]
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    if (payment) {
-      await supabase.from('payments').update({
-        status: 'paid',
-        amount: parseFloat(payForm.amount) || selectedCp.price,
-        paid_at: payForm.paid_at,
-        notes: payForm.notes || null,
-      }).eq('id', payment.id)
-    } else {
-      await supabase.from('payments').insert({
-        trainer_id: user.id,
-        client_id: selectedCp.client_id,
-        client_package_id: selectedCp.id,
-        amount: parseFloat(payForm.amount) || selectedCp.price,
-        paid_at: payForm.paid_at,
-        status: 'paid',
-        notes: payForm.notes || null,
-      })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setSaving(false); return }
+      const payment = selectedCp.payments?.[0]
+      const amount = parseFloat(payForm.amount) || selectedCp.price
+      if (payment) {
+        const { error } = await supabase.from('payments').update({
+          status: 'paid', amount, paid_at: payForm.paid_at, notes: payForm.notes || null,
+        }).eq('id', payment.id)
+        if (error) throw error
+      } else {
+        // Use upsert on client_package_id to avoid duplicate key errors
+        const { error } = await supabase.from('payments').upsert({
+          trainer_id: user.id, client_id: selectedCp.client_id,
+          client_package_id: selectedCp.id, amount,
+          paid_at: payForm.paid_at, status: 'paid', notes: payForm.notes || null,
+        }, { onConflict: 'client_package_id' })
+        if (error) throw error
+      }
+      setShowPayDialog(false)
+      await fetchData()
+    } catch (err: any) {
+      alert(`Greška pri spremanju: ${err?.message || 'Nepoznata greška'}`)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    setShowPayDialog(false)
-    fetchData()
   }
 
   const openPayDialog = (cp: ClientPackage) => {
     setSelectedCp(cp)
-    setPayForm({ amount: cp.price.toString(), paid_at: new Date().toISOString().split('T')[0], notes: '' })
+    setPayForm({ amount: cp.price.toString(), paid_at: todayIso(), notes: '' })
     setShowPayDialog(true)
   }
 
   const inlineMarkPaid = async (cp: ClientPackage) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const today = new Date().toISOString().split('T')[0]
-    const payment = cp.payments?.[0]
-    if (payment) {
-      await supabase.from('payments').update({ status: 'paid', amount: cp.price, paid_at: today }).eq('id', payment.id)
-    } else {
-      await supabase.from('payments').insert({
-        trainer_id: user.id, client_id: cp.client_id, client_package_id: cp.id,
-        amount: cp.price, paid_at: today, status: 'paid',
-      })
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const today = todayIso()
+      const payment = cp.payments?.[0]
+      let error: any = null
+      if (payment) {
+        ;({ error } = await supabase.from('payments')
+          .update({ status: 'paid', amount: payment.amount || cp.price, paid_at: today })
+          .eq('id', payment.id))
+      } else {
+        // upsert on client_package_id avoids duplicate key if payment already exists
+        ;({ error } = await supabase.from('payments').upsert({
+          trainer_id: user.id, client_id: cp.client_id, client_package_id: cp.id,
+          amount: cp.price, paid_at: today, status: 'paid',
+        }, { onConflict: 'client_package_id' }))
+      }
+      if (error) throw error
+      setJustMarkedId(cp.id)
+      setTimeout(() => setJustMarkedId(null), 3000)
+      await fetchData()
+    } catch (err: any) {
+      alert(`Greška pri označavanju: ${err?.message || 'Nepoznata greška'}`)
     }
-    setJustMarkedId(cp.id)
-    setTimeout(() => setJustMarkedId(null), 3000)
-    fetchData()
   }
 
   const markUnpaid = async (cp: ClientPackage) => {
@@ -424,7 +464,7 @@ function FinancijePageContent() {
         <StatCard
           label={`${t('finance.stats.paidThisMonth')} — ${tMonthsFull(String(thisMonth) as any)}`}
           value={fmtEur(stats.paidThisMonth)}
-          sub={stats.monthTrend !== 0 ? t('finance.stats.vsLastMonth') : undefined}
+          sub={stats.totalThisMonth > 0 ? `${fmtEur(stats.paidByStartThisMonth)} / ${fmtEur(stats.totalThisMonth)} po paketu` : stats.monthTrend !== 0 ? t('finance.stats.vsLastMonth') : undefined}
           icon={TrendingUp}
           color="emerald"
           trend={stats.monthTrend !== 0 ? { dir: stats.monthTrend >= 0 ? 'up' : 'down', pct: Math.abs(stats.monthTrend) } : { dir: 'neutral', pct: 0 }}
@@ -448,7 +488,7 @@ function FinancijePageContent() {
           <h2 className="text-sm font-semibold text-gray-800 mb-1">{t('finance.chart.title')}</h2>
           <p className="text-xs text-gray-400 mb-4">{t('dashboard.revenue.title')}</p>
           <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={monthlyData} barGap={2} barSize={16}>
+            <BarChart data={monthlyData} barCategoryGap="40%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={42} tickFormatter={v => `${v}€`} />
@@ -456,12 +496,8 @@ function FinancijePageContent() {
                 formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? t('dashboard.revenue.collected') : t('dashboard.revenue.expected')] as any}
                 contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
               />
-              <Bar dataKey="fakturirano" fill={`${accentHex}20`} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="naplaceno" radius={[4, 4, 0, 0]}>
-                {monthlyData.map((_, i) => (
-                  <Cell key={i} fill={accentHex} fillOpacity={0.85} />
-                ))}
-              </Bar>
+              <Bar dataKey="naplaceno" stackId="rev" fill={accentHex} fillOpacity={0.85} radius={[0, 0, 0, 0]} />
+              <Bar dataKey="fakturirano" stackId="rev" fill={`${accentHex}30`} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-5 mt-1">
@@ -535,7 +571,7 @@ function FinancijePageContent() {
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cp.pkg_color }} />
                       <p className="text-xs text-gray-400">{cp.pkg_name}</p>
                       <span className="text-xs text-gray-300">·</span>
-                      <p className="text-xs text-gray-400">{fmtDate(cp.end_date)}</p>
+                      <p className="text-xs text-gray-400">{fmtDate(cp.start_date)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
