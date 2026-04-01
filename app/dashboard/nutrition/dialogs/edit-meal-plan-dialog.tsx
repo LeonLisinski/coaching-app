@@ -50,6 +50,16 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: meal._id })
+  const slotEndRef = useRef<HTMLDivElement>(null)
+  const prevRecipeId = useRef(meal.recipe_id)
+  useEffect(() => {
+    if (meal.recipe_id !== prevRecipeId.current) {
+      prevRecipeId.current = meal.recipe_id
+      if (meal.recipe_id) {
+        setTimeout(() => slotEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120)
+      }
+    }
+  }, [meal.recipe_id])
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`rounded-xl ${isNew ? 'item-added' : ''}`}>
@@ -59,6 +69,7 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
         onCopy={onCopy} isDragging={isDragging}
         dragHandleProps={{ ...listeners, ...attributes } as any}
       />
+      <div ref={slotEndRef} />
     </div>
   )
 }
