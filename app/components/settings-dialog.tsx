@@ -242,7 +242,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[90vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -269,27 +269,29 @@ export default function SettingsDialog({ open, onClose }: Props) {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100 bg-gray-50/50 dark:border-white/8 dark:bg-white/3">
           {([
-            ['theme',   <Palette size={14} />,       t('tabs.theme')],
-            ['billing', <CreditCard size={14} />,    'Pretplata'],
-            ['contact', <Mail size={14} />,           t('tabs.contact')],
-            ['danger',  <TriangleAlert size={14} />, 'Račun'],
-          ] as [Tab, React.ReactNode, string][]).map(([key, icon, label]) => (
+            ['theme',   <Palette size={14} />,       t('tabs.theme'),    'Izgled'],
+            ['billing', <CreditCard size={14} />,    'Pretplata',        'Plan'],
+            ['contact', <Mail size={14} />,           'Pomoć',            'Pomoć'],
+            ['danger',  <TriangleAlert size={14} />, 'Račun',            'Račun'],
+          ] as [Tab, React.ReactNode, string, string][]).map(([key, icon, label, mobileLabel]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-4 py-2.5 sm:py-3 font-medium transition-colors border-b-2 ${
                 tab === key
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              {icon}{label}
+              {icon}
+              <span className="text-[9px] leading-tight sm:hidden">{mobileLabel}</span>
+              <span className="hidden sm:inline text-sm">{label}</span>
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6 bg-white dark:bg-[oklch(0.165_0.025_264)]">
+        <div className="p-6 space-y-6 bg-white dark:bg-[oklch(0.165_0.025_264)] overflow-y-auto flex-1 min-h-0">
 
           {tab === 'theme' && (
             <>
