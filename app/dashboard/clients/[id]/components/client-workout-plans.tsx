@@ -157,6 +157,10 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [planExpanded, setPlanExpanded] = useState<Record<string, boolean>>({})
 
+  const [renameTarget, setRenameTarget] = useState<AssignedPlan | null>(null)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+
   // Conflict: trying to activate a plan while another is already active
   const [activateConflict, setActivateConflict] = useState<{
     existingName: string
@@ -361,6 +365,30 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     setConfirmDeleteId(null)
   }
 
+  const renamePlan = async () => {
+    if (!renameTarget || !renameName.trim()) return
+    setRenaming(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const original = renameTarget.workout_plan
+      const { data: copy, error } = await supabase
+        .from('workout_plans')
+        .insert({ trainer_id: user.id, name: renameName.trim(), description: original.description, days: original.days, is_template: false })
+        .select('id')
+        .single()
+      if (error || !copy) { alert('Greška pri preimenovanju.'); return }
+      await supabase.from('client_workout_plans').update({ workout_plan_id: copy.id }).eq('id', renameTarget.id)
+      setAssignedPlans(prev => prev.map(p => p.id === renameTarget.id
+        ? { ...p, workout_plan: { ...original, id: copy.id, name: renameName.trim() } }
+        : p
+      ))
+      setRenameTarget(null)
+    } finally {
+      setRenaming(false)
+    }
+  }
+
   if (loading) return <p className="text-sm text-gray-500">{tCommon('loading')}</p>
 
   return (
@@ -471,6 +499,9 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}>
                       {assigned.active ? 'Aktivan' : 'Neaktivan'}
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Preimenuj plan" onClick={() => { setRenameTarget(assigned); setRenameName(assigned.workout_plan.name) }}>
+                      <span className="text-[11px] text-gray-400">Abc</span>
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setEditTarget(assigned)}>
                       <Pencil size={14} />
@@ -974,6 +1005,34 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         confirmLabel="Da, zamijeni"
         cancelLabel="Odustani"
       />
+
+      {/* Rename plan (for this client only — creates a copy) */}
+      <Dialog open={!!renameTarget} onOpenChange={open => { if (!open) setRenameTarget(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Preimenuj plan</DialogTitle>
+            <DialogDescription>Novi naziv vrijedi samo za ovog klijenta. Originalni plan ostaje nepromijenjen.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Naziv plana</Label>
+              <Input
+                value={renameName}
+                onChange={e => setRenameName(e.target.value)}
+                placeholder="Upiši novi naziv..."
+                onKeyDown={e => { if (e.key === 'Enter') renamePlan() }}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setRenameTarget(null)}>Odustani</Button>
+              <Button className="flex-1" disabled={!renameName.trim() || renaming} onClick={renamePlan}>
+                {renaming ? 'Spremanje...' : 'Spremi'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

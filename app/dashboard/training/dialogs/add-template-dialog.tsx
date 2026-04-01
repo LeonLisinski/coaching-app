@@ -46,7 +46,7 @@ type TemplateExercise = {
 
 // ─── Sortable exercise item ────────────────────────────────────────────────────
 function SortableItem({
-  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove,
+  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, isNew,
 }: {
   ex: TemplateExercise
   index: number
@@ -54,6 +54,7 @@ function SortableItem({
   onUpdate: (field: string, value: any) => void
   onUpdateExtra: (key: string, value: string) => void
   onRemove: () => void
+  isNew?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
@@ -62,7 +63,7 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="border border-gray-100 rounded-xl p-3 space-y-2 bg-white shadow-sm hover:border-blue-200 transition-colors"
+      className={`border border-gray-100 rounded-xl p-3 space-y-2 bg-white shadow-sm hover:border-blue-200 transition-colors ${isNew ? 'item-added' : ''}`}
     >
       <div className="flex items-center gap-2">
         <button
@@ -161,6 +162,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const exercisesEndRef = useRef<HTMLDivElement>(null)
 
   const extraFields = EXERCISE_FIELD_OPTIONS.filter(f =>
     settings.exerciseFields.includes(f.key) && !['rest'].includes(f.key)
@@ -190,6 +192,8 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
   // Dropdown shows when focused OR when there's text — in-flow (not absolute), so no overflow clipping
   const showDropdown = searchFocused || search.length > 0
 
+  const [flashId, setFlashId] = useState<string | null>(null)
+
   const addExercise = useCallback((exercise: ExerciseOption) => {
     if (selected.find(s => s.exercise_id === exercise.id)) return
     setSelected(prev => [...prev, {
@@ -198,9 +202,12 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
       sets: 3, reps: '10', rest_seconds: 60, notes: '', extras: {},
       video_url: exercise.video_url || '',
     }])
+    setFlashId(exercise.id)
+    setTimeout(() => setFlashId(null), 1400)
     setSearch('')
     setDropdownIndex(-1)
     searchRef.current?.focus()
+    setTimeout(() => exercisesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
   }, [selected])
 
   const removeExercise = (exercise_id: string) =>
@@ -323,84 +330,84 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
               </div>
             </div>
 
-            {/* Scrollable content: search + exercises */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-
-              {/* Exercise search — dropdown is IN-FLOW (not absolute) so overflow-y-auto won't clip it */}
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-gray-600">{t('addExercise')}</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
-                  <Input
-                    ref={searchRef}
-                    value={search}
-                    onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
-                    onFocus={() => setSearchFocused(true)}
-                    onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder="Pretraži i dodaj vježbu... (↑↓ Enter)"
-                    className="pl-9 h-9 border-blue-200 focus:border-blue-400"
-                  />
-                  {search && (
-                    <button type="button" onClick={() => { setSearch(''); searchRef.current?.focus() }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-
-                {/* IN-FLOW dropdown — no absolute positioning, no overflow clipping */}
-                {showDropdown && (
-                  <div ref={dropdownRef} className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
-                    {!exercisesLoaded ? (
-                      <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
-                    ) : (
-                      <div className="overflow-y-auto max-h-44">
-                        {filteredExercises.length === 0 ? (
-                          <p className="px-4 py-3 text-xs text-gray-400 text-center">
-                            {search ? t('noResults', { search }) : t('allAdded')}
-                          </p>
-                        ) : filteredExercises.map((e, i) => {
-                          const muscles = e.primary_muscles?.length ? e.primary_muscles : (e.muscle_group ? [e.muscle_group] : [])
-                          return (
-                            <button
-                              key={e.id} type="button"
-                              onMouseDown={ev => ev.preventDefault()}
-                              onClick={() => addExercise(e)}
-                              onMouseEnter={() => setDropdownIndex(i)}
-                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                                dropdownIndex === i ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <div>
-                                <span className="font-medium">{e.name}</span>
-                                {muscles.length > 0 && (
-                                  <span className="ml-2 text-xs text-gray-400">{muscles.join(', ')}</span>
-                                )}
-                              </div>
-                              <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200 shrink-0 ml-2">
-                                {e.category}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {/* Create new exercise option */}
-                    <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
-                      <button
-                        type="button"
-                        onMouseDown={ev => ev.preventDefault()}
-                        onClick={() => setShowAddExercise(true)}
-                        className="w-full text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1.5 py-0.5 font-medium transition-colors"
-                      >
-                        <Plus size={12} />
-                        {search ? t('createExercise', { search }) : t('createNewExercise')}
-                      </button>
-                    </div>
-                  </div>
+            {/* Fixed: search — always visible, never scrolls away */}
+            <div className="px-6 py-3 border-b shrink-0 bg-white space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">{t('addExercise')}</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
+                <Input
+                  ref={searchRef}
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Pretraži i dodaj vježbu... (↑↓ Enter)"
+                  className="pl-9 h-9 border-blue-200 focus:border-blue-400"
+                />
+                {search && (
+                  <button type="button" onClick={() => { setSearch(''); searchRef.current?.focus() }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X size={13} />
+                  </button>
                 )}
               </div>
+
+              {/* IN-FLOW dropdown */}
+              {showDropdown && (
+                <div ref={dropdownRef} className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
+                  {!exercisesLoaded ? (
+                    <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
+                  ) : (
+                    <div className="overflow-y-auto max-h-44">
+                      {filteredExercises.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-gray-400 text-center">
+                          {search ? t('noResults', { search }) : t('allAdded')}
+                        </p>
+                      ) : filteredExercises.map((e, i) => {
+                        const muscles = e.primary_muscles?.length ? e.primary_muscles : (e.muscle_group ? [e.muscle_group] : [])
+                        return (
+                          <button
+                            key={e.id} type="button"
+                            onMouseDown={ev => ev.preventDefault()}
+                            onClick={() => addExercise(e)}
+                            onMouseEnter={() => setDropdownIndex(i)}
+                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                              dropdownIndex === i ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="font-medium">{e.name}</span>
+                              {muscles.length > 0 && (
+                                <span className="ml-2 text-xs text-gray-400">{muscles.join(', ')}</span>
+                              )}
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200 shrink-0 ml-2">
+                              {e.category}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {/* Create new exercise option */}
+                  <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
+                    <button
+                      type="button"
+                      onMouseDown={ev => ev.preventDefault()}
+                      onClick={() => setShowAddExercise(true)}
+                      className="w-full text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1.5 py-0.5 font-medium transition-colors"
+                    >
+                      <Plus size={12} />
+                      {search ? t('createExercise', { search }) : t('createNewExercise')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Scrollable: exercises only */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
 
               {/* Sortable exercise list */}
               {selected.length > 0 && (
@@ -425,10 +432,12 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
                             onUpdate={(field, value) => updateExercise(ex.exercise_id, field, value)}
                             onUpdateExtra={(key, value) => updateExtra(ex.exercise_id, key, value)}
                             onRemove={() => setConfirmRemove(ex.exercise_id)}
+                            isNew={flashId === ex.exercise_id}
                           />
                         ))}
                       </div>
                     </SortableContext>
+                    <div ref={exercisesEndRef} />
                     <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
                       {activeDragId && (() => {
                         const ex = selected.find(s => s.exercise_id === activeDragId)

@@ -162,43 +162,45 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
   const hasFilters = sort !== 'date_desc'
 
   return (
-    <div className="space-y-3">
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-xs">{sorted.length} / {plans.length} planova</p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline" size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-purple-300 text-purple-600 bg-purple-50' : ''}`}
-          >
-            <SlidersHorizontal size={12} />
-            Filtriraj
-            {hasFilters && <span className="bg-purple-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>}
-            <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </Button>
-          <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-purple-600 hover:bg-purple-700">
-            <Plus size={12} /> Dodaj
-          </Button>
+    <div>
+      {/* Sticky: header + search */}
+      <div className="sticky top-0 z-10 bg-white -mx-4 px-4 pt-3 pb-3 border-b border-gray-100 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-gray-500 text-xs">{sorted.length} / {plans.length} planova</p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-purple-300 text-purple-600 bg-purple-50' : ''}`}
+            >
+              <SlidersHorizontal size={12} />
+              Filtriraj
+              {hasFilters && <span className="bg-purple-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>}
+              <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </Button>
+            <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-purple-600 hover:bg-purple-700">
+              <Plus size={12} /> Dodaj
+            </Button>
+          </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          <Input
+            placeholder="Pretraži planove prehrane..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={13} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-        <Input
-          placeholder="Pretraži planove prehrane..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X size={13} />
-          </button>
-        )}
-      </div>
+      {/* Scrollable content */}
+      <div className="space-y-3 pt-3">
 
       {/* Filter panel */}
       {showFilters && (
@@ -275,6 +277,7 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
         confirmLabel="Obriši"
         destructive
       />
+      </div>
     </div>
   )
 }

@@ -22,8 +22,6 @@ export default function CheckinConfig({ clientId }: Props) {
   const PHOTO_FREQUENCIES = [
     { value: 'none', label: tConfig('frequencies.none') },
     { value: 'every', label: tConfig('frequencies.every') },
-    { value: 'biweekly', label: tConfig('frequencies.biweekly') },
-    { value: 'monthly', label: tConfig('frequencies.monthly') },
   ]
 
   const [config, setConfig] = useState({

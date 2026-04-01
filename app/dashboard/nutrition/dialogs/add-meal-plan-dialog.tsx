@@ -42,14 +42,16 @@ type Food     = { id: string; name: string; calories_per_100g: number; protein_p
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
 type PlanType = 'default' | 'training_day' | 'rest_day'
 
-function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy }: {
+function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, isNew }: {
   meal: MealSlot; index: number; recipes: any[]; foods: any[]; nutritionFields: string[];
   onChange: (i: number, f: string, v: any) => void; onRemove: (i: number) => void; onCopy: (i: number) => void;
+  isNew?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: meal._id })
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`rounded-xl ${isNew ? 'item-added' : ''}`}>
       <MealSlotEditor
         meal={meal} index={index} recipes={recipes} foods={foods}
         nutritionFields={nutritionFields} onChange={onChange} onRemove={onRemove}
@@ -117,9 +119,14 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  const [flashMealId, setFlashMealId] = useState<string | null>(null)
+
   const addMeal = () => {
-    setMeals(prev => [...prev, { _id: crypto.randomUUID(), meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
+    const newId = crypto.randomUUID()
+    setMeals(prev => [...prev, { _id: newId, meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
     setTimeout(() => mealsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
+    setFlashMealId(newId)
+    setTimeout(() => setFlashMealId(null), 1400)
   }
 
   const copyMeal = (index: number) => {
@@ -235,20 +242,20 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
           </button>
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-2 space-y-4">
-          <form id="add-meal-plan-form" onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+        {/* Fixed: form fields */}
+        <form id="add-meal-plan-form" onSubmit={handleSubmit}>
+          <div className="px-6 pt-4 pb-3 border-b shrink-0 space-y-3 bg-white">
+            <div className="space-y-1.5">
               <Label>{t('name')}</Label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} required />
             </div>
 
-            <div className="space-y-2">
-              <Label>Tip plana</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-500">Tip plana</Label>
               <div className="grid grid-cols-3 gap-2">
                 {PLAN_TYPE_OPTIONS.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
-                    className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
+                    className={`rounded-lg border-2 px-3 py-2 text-left transition-all ${
                       planType === opt.value
                         ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
                         : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
@@ -260,18 +267,18 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-4 gap-2">
               {[
-                { key: 'calories', label: 'Kcal',         placeholder: '2000' },
-                { key: 'protein',  label: 'Proteini (g)',  placeholder: '150'  },
-                { key: 'carbs',    label: 'Ugljik. (g)',   placeholder: '200'  },
-                { key: 'fat',      label: 'Masti (g)',     placeholder: '70'   },
+                { key: 'calories', label: 'Kcal',        placeholder: '2000' },
+                { key: 'protein',  label: 'Proteini (g)', placeholder: '150'  },
+                { key: 'carbs',    label: 'Ugljik. (g)',  placeholder: '200'  },
+                { key: 'fat',      label: 'Masti (g)',    placeholder: '70'   },
               ].map(f => (
                 <div key={f.key} className="space-y-1">
                   <Label className="text-xs">{f.label}</Label>
                   <Input type="number" value={targets[f.key as keyof typeof targets]} onKeyDown={decimalKeyDown}
                     onChange={e => setTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="h-8 text-sm" placeholder={f.placeholder} />
+                    className="h-7 text-sm" placeholder={f.placeholder} />
                 </div>
               ))}
               {activeExtraFields.map(f => (
@@ -279,33 +286,39 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                   <Label className="text-xs">{f.label} ({f.unit})</Label>
                   <Input type="number" value={extrasTargets[f.key] ?? ''} onKeyDown={decimalKeyDown}
                     onChange={e => setExtrasTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="h-8 text-sm" placeholder="—" />
+                    className="h-7 text-sm" placeholder="—" />
                 </div>
               ))}
             </div>
+          </div>
+        </form>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>{t('meals', { count: meals.length })}</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
-                  <Plus size={12} /> {t('addMeal')}
-                </Button>
+        {/* Fixed: meals header */}
+        <div className="px-6 py-2 border-b shrink-0 flex items-center justify-between bg-white">
+          <Label>{t('meals', { count: meals.length })}</Label>
+          <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
+            <Plus size={12} /> {t('addMeal')}
+          </Button>
+        </div>
+
+        {/* Scrollable: meals only */}
+        <div className="flex-1 overflow-y-auto px-6 py-3">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderMeals}>
+            <SortableContext items={meals.map(m => m._id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3">
+                {meals.map((meal, index) => (
+                  <SortableMealSlot
+                    key={meal._id} meal={meal} index={index}
+                    recipes={recipes} foods={foods}
+                    nutritionFields={settings.nutritionFields}
+                    onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
+                    isNew={flashMealId === meal._id}
+                  />
+                ))}
               </div>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderMeals}>
-                <SortableContext items={meals.map(m => m._id)} strategy={verticalListSortingStrategy}>
-                  {meals.map((meal, index) => (
-                    <SortableMealSlot
-                      key={meal._id} meal={meal} index={index}
-                      recipes={recipes} foods={foods}
-                      nutritionFields={settings.nutritionFields}
-                      onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-              <div ref={mealsEndRef} />
-            </div>
-          </form>
+            </SortableContext>
+          </DndContext>
+          <div ref={mealsEndRef} />
         </div>
 
         {/* Sticky footer — summary + buttons */}

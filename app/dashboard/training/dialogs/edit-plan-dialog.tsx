@@ -18,10 +18,11 @@ import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboa
 import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
 
-function SortableDayWrapper({ id, children }: { id: string; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
+function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boolean; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className={`rounded-xl ${isNew ? 'item-added' : ''}`}>
       {children({ ...listeners, ...attributes } as any, isDragging)}
     </div>
   )
@@ -57,6 +58,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const searchRefs   = useRef<Record<number, HTMLInputElement | null>>({})
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const daysEndRef   = useRef<HTMLDivElement>(null)
+  const [flashDayId, setFlashDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -108,12 +110,15 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   }
 
   const addDay = () => {
+    const newId = crypto.randomUUID()
     setDays(prev => {
       const newIdx = prev.length
       setExpandedDays(ed => ({ ...ed, [newIdx]: true }))
-      return [...prev, { _id: crypto.randomUUID(), day_number: newIdx + 1, name: `${t('form.dayLabel')} ${newIdx + 1}`, template_id: null, exercises: [], mode: 'template' }]
+      return [...prev, { _id: newId, day_number: newIdx + 1, name: `${t('form.dayLabel')} ${newIdx + 1}`, template_id: null, exercises: [], mode: 'template' }]
     })
     setTimeout(() => daysEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
+    setFlashDayId(newId)
+    setTimeout(() => setFlashDayId(null), 1400)
   }
 
   const copyDay = (index: number) => {
@@ -296,7 +301,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
             <form id="edit-plan-form" onSubmit={handleSubmit} className="space-y-4 py-2">
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between sticky top-0 z-10 bg-white -mx-6 px-6 py-2 border-b border-gray-100">
                   <span className="text-xs font-semibold text-gray-600">{t('form.trainingDays')} ({days.length})</span>
                   <Button type="button" variant="outline" size="sm" onClick={addDay}
                     className="flex items-center gap-1 h-7 text-xs px-2.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
@@ -311,7 +316,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderDays}>
                   <SortableContext items={days.map(d => d._id)} strategy={verticalListSortingStrategy}>
                 {days.map((day, index) => (
-                  <SortableDayWrapper key={day._id} id={day._id}>
+                  <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
                   {(dayDragHandle) => (
                   <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
                     {/* Accordion header */}
@@ -362,30 +367,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                           </div>
                         )}
 
-                        {/* Exercises with DnD */}
-                        <DndContext sensors={sensors} collisionDetection={closestCenter}
-                          onDragEnd={ev => reorderExercises(index, ev)}>
-                          <SortableContext items={day.exercises.map(e => e.exercise_id)} strategy={verticalListSortingStrategy}>
-                            <div className="space-y-2">
-                              {day.exercises.map((ex, exIndex) => (
-                                <SortableExerciseCard
-                                  key={ex.exercise_id} ex={ex} index={exIndex}
-                                  onUpdate={(field, val) => updateExercise(index, ex.exercise_id, field, val)}
-                                  onRemove={() => setConfirmEx({ day: index, id: ex.exercise_id })}
-                                  labelSets={tTemplate('sets')} labelRest={tTemplate('rest')} labelNotes={tTemplate('notes')}
-                                />
-                              ))}
-                            </div>
-                          </SortableContext>
-                        </DndContext>
-
-                        {day.exercises.length === 0 && (
-                          <p className="text-xs text-gray-400 text-center py-2">
-                            {day.mode === 'template' ? t('form.selectTemplate') : t('form.emptyDays')}
-                          </p>
-                        )}
-
-                        {/* Search */}
+                        {/* Search — pinned at top so always accessible */}
                         <div className="space-y-1">
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
@@ -431,6 +413,29 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                             </div>
                           )}
                         </div>
+
+                        {/* Exercises with DnD */}
+                        <DndContext sensors={sensors} collisionDetection={closestCenter}
+                          onDragEnd={ev => reorderExercises(index, ev)}>
+                          <SortableContext items={day.exercises.map(e => e.exercise_id)} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-2">
+                              {day.exercises.map((ex, exIndex) => (
+                                <SortableExerciseCard
+                                  key={ex.exercise_id} ex={ex} index={exIndex}
+                                  onUpdate={(field, val) => updateExercise(index, ex.exercise_id, field, val)}
+                                  onRemove={() => setConfirmEx({ day: index, id: ex.exercise_id })}
+                                  labelSets={tTemplate('sets')} labelRest={tTemplate('rest')} labelNotes={tTemplate('notes')}
+                                />
+                              ))}
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+
+                        {day.exercises.length === 0 && (
+                          <p className="text-xs text-gray-400 text-center py-2">
+                            {day.mode === 'template' ? t('form.selectTemplate') : t('form.emptyDays')}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

@@ -132,6 +132,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const [expanded, setExpanded]           = useState(true)
   const [searchFocused, setSearchFocused] = useState(false)
   const [dropdownIndex, setDropdownIndex] = useState(-1)
+  const [flashIngId, setFlashIngId]       = useState<string | null>(null)
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -277,6 +278,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     setDropdownIndex(-1)
     updateCustomTotals(newIngs, customName, saveAsRecipe)
     setTimeout(() => searchRef.current?.focus(), 0)
+    setFlashIngId(food.id)
+    setTimeout(() => setFlashIngId(null), 1400)
   }
 
   const showDropdown = searchFocused || !!search
@@ -377,6 +380,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     setRecipeIngredients(newIngs)
     setSearch('')
     setDropdownIndex(-1)
+    setFlashIngId(food.id)
+    setTimeout(() => setFlashIngId(null), 1400)
     const totals = calcTotals(newIngs)
     onChange(index, '_custom', {
       recipe_id: meal.recipe_id,
@@ -495,7 +500,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               {showIngredients && (
                 <div className="space-y-1 pt-1">
                   {recipeIngredients.map(ing => (
-                    <div key={ing.food_id} className="flex items-center gap-2 text-xs">
+                    <div key={ing.food_id} className={`flex items-center gap-2 text-xs rounded px-1 -mx-1 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
                       <span className="flex-1 text-gray-700">{ing.name}</span>
                       <GramInput value={ing.grams} onChange={v => updateRecipeIngredientGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
                       <span className="text-gray-400">g</span>
@@ -567,7 +572,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               {showIngredients && (
                 <div className="space-y-1 pt-1">
                   {ingredients.map(ing => (
-                    <div key={ing.food_id} className="flex items-center gap-2 text-xs">
+                    <div key={ing.food_id} className={`flex items-center gap-2 text-xs rounded px-1 -mx-1 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
                       <span className="flex-1 text-gray-700">{ing.name}</span>
                       <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className="w-16 h-7 text-xs" />
                       <span className="text-gray-400">g</span>

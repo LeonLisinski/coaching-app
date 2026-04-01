@@ -342,3 +342,12 @@ html, body {
     ) !important;
   }
 }
+
+@keyframes item-added {
+  0%   { background-color: #d1fae5; box-shadow: 0 0 0 1px #6ee7b7; }
+  60%  { background-color: #d1fae5; box-shadow: 0 0 0 1px #6ee7b7; }
+  100% { background-color: transparent; box-shadow: none; }
+}
+.item-added {
+  animation: item-added 1.2s ease-out forwards;
+}

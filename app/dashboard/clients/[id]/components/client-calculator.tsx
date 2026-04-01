@@ -506,13 +506,14 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       <div className="relative">
                         <Input
                           type="number"
-                          min="1"
-                          max="90"
-                          value={macroSplit[m.key]}
+                          value={macroSplit[m.key] === 0 ? '' : macroSplit[m.key]}
                           onChange={e => {
-                            const v = parseInt(e.target.value) || 0
-                            setMacroSplit(s => ({ ...s, [m.key]: Math.max(1, Math.min(90, v)) }))
+                            const raw = e.target.value
+                            if (raw === '') { setMacroSplit(s => ({ ...s, [m.key]: 0 })); return }
+                            const v = parseInt(raw)
+                            if (!isNaN(v)) setMacroSplit(s => ({ ...s, [m.key]: Math.min(98, v) }))
                           }}
+                          onBlur={() => setMacroSplit(s => ({ ...s, [m.key]: Math.max(1, Math.min(98, s[m.key] || 1)) }))}
                           className={`h-9 text-center pr-6 text-sm font-semibold ${m.border}`}
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>

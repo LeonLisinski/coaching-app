@@ -55,6 +55,8 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     if (data) setFoods(data)
   }
 
+  const [flashIngId, setFlashIngId] = useState<string | null>(null)
+
   const addIngredient = (food: Food) => {
     if (ingredients.find(i => i.food_id === food.id)) return
     const extras: Record<string, number> = {}
@@ -70,6 +72,8 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     setSearch('')
     setDropdownIndex(-1)
     setTimeout(() => searchRef.current?.focus(), 0)
+    setFlashIngId(food.id)
+    setTimeout(() => setFlashIngId(null), 1400)
   }
 
   const filteredFoods = foods.filter(f =>
@@ -157,20 +161,24 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('name')}</Label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} required />
-            </div>
-            <div className="space-y-2">
-              <Label>{t('description')}</Label>
-              <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('descriptionPlaceholder')} />
+
+          {/* Fixed: name + description */}
+          <div className="px-6 pt-4 pb-3 border-b shrink-0 bg-white">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>{t('name')}</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} required />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('description')}</Label>
+                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('descriptionPlaceholder')} />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('addIngredients')}</Label>
+          {/* Fixed: search */}
+          <div className="px-6 py-3 border-b shrink-0 bg-white space-y-1.5">
+            <Label className="text-xs font-semibold text-gray-600">{t('addIngredients')}</Label>
             <div className="relative">
               <Input
                 ref={searchRef}
@@ -211,11 +219,13 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
             </div>
           </div>
 
+          {/* Scrollable: ingredients */}
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {ingredients.length > 0 && (
             <div className="space-y-2">
               <Label>{t('ingredients')} ({ingredients.length})</Label>
               {ingredients.map(ing => (
-                <div key={ing.food_id} className="flex items-center gap-3 border rounded-md p-2">
+                <div key={ing.food_id} className={`flex items-center gap-3 border rounded-md p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
                   <span className="text-sm flex-1">{ing.name}</span>
                   <div className="flex items-center gap-2">
                     <Input type="number" value={ing.grams}
@@ -238,7 +248,6 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
                   <span>🍞 {Math.round(totals.carbs)}g</span>
                   <span>🫒 {Math.round(totals.fat)}g</span>
                 </div>
-                {/* Dinamički extra totals */}
                 {activeNutritionFields.length > 0 && (
                   <div className="flex gap-3 text-xs text-gray-400 flex-wrap">
                     {activeNutritionFields.map(f => (
@@ -251,7 +260,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
           )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
-        </div>
+          </div>
 
         <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
           <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
