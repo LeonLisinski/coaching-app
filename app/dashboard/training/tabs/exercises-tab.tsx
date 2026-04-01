@@ -143,46 +143,49 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
   }
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-xs">{filtered.length} / {exercises.length} vježbi</p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline" size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : ''}`}
-          >
-            <SlidersHorizontal size={12} />
-            Filtriraj
-            {activeFilterCount > 0 && (
-              <span className="bg-emerald-600 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                {activeFilterCount}
-              </span>
-            )}
-            <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-          </Button>
-          <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-emerald-600 hover:bg-emerald-700">
-            <Plus size={12} /> Dodaj
-          </Button>
+    <>
+      {/* Fixed: header + search */}
+      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-gray-500 text-xs">{filtered.length} / {exercises.length} vježbi</p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline" size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : ''}`}
+            >
+              <SlidersHorizontal size={12} />
+              Filtriraj
+              {activeFilterCount > 0 && (
+                <span className="bg-emerald-600 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </Button>
+            <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-emerald-600 hover:bg-emerald-700">
+              <Plus size={12} /> Dodaj
+            </Button>
+          </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          <Input
+            placeholder="Pretraži vježbe..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X size={13} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-        <Input
-          placeholder="Pretraži vježbe..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
-        />
-        {search && (
-          <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-            <X size={13} />
-          </button>
-        )}
-      </div>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
 
       {/* Filter panel */}
       {showFilters && (
@@ -401,7 +404,8 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
         confirmLabel={tCommon('delete')}
         destructive
       />
-    </div>
+      </div>
+    </>
   )
 }
 

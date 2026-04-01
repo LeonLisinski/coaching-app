@@ -185,7 +185,7 @@ function TrainingPageContent() {
                 <span className="text-[10px] text-emerald-100/80 font-medium">povuci u trening →</span>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <ExercisesTab activeType={activeType} refreshKey={exerciseRefreshKey} />
             </div>
           </div>
@@ -210,7 +210,7 @@ function TrainingPageContent() {
                 }
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <TemplatesTab key={templateRefreshKey} activeType={activeType} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -235,7 +235,7 @@ function TrainingPageContent() {
                 }
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <PlansTab key={planRefreshKey} activeType={activeType} />
             </div>
           </div>

@@ -273,86 +273,87 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
           </button>
         </div>
 
-        {/* Fixed: form fields */}
-        <form id="edit-meal-plan-form" onSubmit={handleSubmit}>
-          <div className="px-6 pt-4 pb-3 border-b shrink-0 space-y-3 bg-white">
-            {!isClientEdit && (
-              <>
-                <div className="space-y-1.5">
-                  <Label>{t('name')}</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} required />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-gray-500">Tip plana</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PLAN_TYPE_OPTIONS.map(opt => (
-                      <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
-                        className={`rounded-lg border-2 px-3 py-2 text-left transition-all ${
-                          planType === opt.value
-                            ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
-                            : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                        }`}>
-                        <p className="font-semibold text-xs">{opt.label}</p>
-                        <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
-                      </button>
-                    ))}
+        {/* Single scroll: form fields scroll away, Obroci bar sticks, meals scroll */}
+        <div className="flex-1 overflow-y-auto">
+          <form id="edit-meal-plan-form" onSubmit={handleSubmit}>
+            {/* Scrollable: form fields */}
+            <div className="px-6 pt-4 pb-4 space-y-3">
+              {!isClientEdit && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>{t('name')}</Label>
+                    <Input value={name} onChange={e => setName(e.target.value)} required />
                   </div>
-                </div>
-              </>
-            )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-gray-500">Tip plana</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PLAN_TYPE_OPTIONS.map(opt => (
+                        <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
+                          className={`rounded-lg border-2 px-3 py-2 text-left transition-all ${
+                            planType === opt.value
+                              ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
+                              : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                          }`}>
+                          <p className="font-semibold text-xs">{opt.label}</p>
+                          <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { key: 'calories', label: 'Kcal',        placeholder: '2000' },
-                { key: 'protein',  label: 'Proteini (g)', placeholder: '150'  },
-                { key: 'carbs',    label: 'Ugljik. (g)',  placeholder: '200'  },
-                { key: 'fat',      label: 'Masti (g)',    placeholder: '70'   },
-              ].map(f => (
-                <div key={f.key} className="space-y-1">
-                  <Label className="text-xs">{f.label}</Label>
-                  <Input type="number" value={targets[f.key as keyof typeof targets]} onKeyDown={decimalKeyDown}
-                    onChange={e => setTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="h-7 text-sm" placeholder={f.placeholder} />
-                </div>
-              ))}
-              {activeExtraFields.map(f => (
-                <div key={f.key} className="space-y-1">
-                  <Label className="text-xs">{f.label} ({f.unit})</Label>
-                  <Input type="number" value={extrasTargets[f.key] ?? ''} onKeyDown={decimalKeyDown}
-                    onChange={e => setExtrasTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="h-7 text-sm" placeholder="—" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </form>
-
-        {/* Fixed: meals header */}
-        <div className="px-6 py-2 border-b shrink-0 flex items-center justify-between bg-white">
-          <Label>{t('meals', { count: meals.length })}</Label>
-          <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
-            <Plus size={12} /> {t('addMeal')}
-          </Button>
-        </div>
-
-        {/* Scrollable: meals only */}
-        <div className="flex-1 overflow-y-auto px-6 py-3">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderMeals}>
-            <SortableContext items={meals.map(m => m._id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-3">
-                {meals.map((meal, index) => (
-                  <SortableMealSlot
-                    key={meal._id} meal={meal} index={index}
-                    recipes={recipes} foods={foods}
-                    nutritionFields={settings.nutritionFields}
-                    onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
-                    isNew={flashMealId === meal._id}
-                  />
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { key: 'calories', label: 'Kcal',        placeholder: '2000' },
+                  { key: 'protein',  label: 'Proteini (g)', placeholder: '150'  },
+                  { key: 'carbs',    label: 'Ugljik. (g)',  placeholder: '200'  },
+                  { key: 'fat',      label: 'Masti (g)',    placeholder: '70'   },
+                ].map(f => (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs">{f.label}</Label>
+                    <Input type="number" value={targets[f.key as keyof typeof targets]} onKeyDown={decimalKeyDown}
+                      onChange={e => setTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      className="h-7 text-sm" placeholder={f.placeholder} />
+                  </div>
+                ))}
+                {activeExtraFields.map(f => (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs">{f.label} ({f.unit})</Label>
+                    <Input type="number" value={extrasTargets[f.key] ?? ''} onKeyDown={decimalKeyDown}
+                      onChange={e => setExtrasTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                      className="h-7 text-sm" placeholder="—" />
+                  </div>
                 ))}
               </div>
-            </SortableContext>
-          </DndContext>
-          <div ref={mealsEndRef} />
+            </div>
+
+            {/* Sticky: Obroci header — sticks when form fields scroll out of view */}
+            <div className="sticky top-0 z-10 bg-white border-y border-gray-100 px-6 py-2 flex items-center justify-between">
+              <Label>{t('meals', { count: meals.length })}</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
+                <Plus size={12} /> {t('addMeal')}
+              </Button>
+            </div>
+
+            {/* Meals list */}
+            <div className="px-6 py-3 space-y-3">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderMeals}>
+                <SortableContext items={meals.map(m => m._id)} strategy={verticalListSortingStrategy}>
+                  {meals.map((meal, index) => (
+                    <SortableMealSlot
+                      key={meal._id} meal={meal} index={index}
+                      recipes={recipes} foods={foods}
+                      nutritionFields={settings.nutritionFields}
+                      onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
+                      isNew={flashMealId === meal._id}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+              <div ref={mealsEndRef} />
+            </div>
+          </form>
         </div>
 
         {/* Sticky footer — summary + buttons */}

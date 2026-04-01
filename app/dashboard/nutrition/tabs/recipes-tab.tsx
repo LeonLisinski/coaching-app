@@ -202,9 +202,9 @@ export default function RecipesTab({
   const hasFilters = sort !== 'date_desc'
 
   return (
-    <div>
-      {/* Sticky: header + search */}
-      <div className="sticky top-0 z-10 bg-white -mx-4 px-4 pt-3 pb-3 border-b border-gray-100 space-y-2.5">
+    <>
+      {/* Fixed: header + search */}
+      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
           <p className="text-gray-500 text-xs">{sorted.length} / {recipes.length} recepata</p>
           <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export default function RecipesTab({
       </div>
 
       {/* Scrollable content */}
-      <div className="space-y-3 pt-3">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
 
       {/* Filter panel */}
       {showFilters && (
@@ -327,7 +327,7 @@ export default function RecipesTab({
         destructive
       />
       </div>
-    </div>
+    </>
   )
 }
 

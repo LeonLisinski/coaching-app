@@ -41,6 +41,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+  const ingredientsEndRef = useRef<HTMLDivElement>(null)
 
   const activeNutritionFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -74,6 +75,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     setTimeout(() => searchRef.current?.focus(), 0)
     setFlashIngId(food.id)
     setTimeout(() => setFlashIngId(null), 1400)
+    setTimeout(() => ingredientsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
   }
 
   const filteredFoods = foods.filter(f =>
@@ -260,6 +262,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
           )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div ref={ingredientsEndRef} />
           </div>
 
         <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">

@@ -187,7 +187,7 @@ function NutritionPageContent() {
                 <span className="text-[10px] text-orange-100/80 font-medium">povuci u recept →</span>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <FoodsTab activeType={activeType} refreshKey={foodRefreshKey} onFoodCreated={() => setFoodRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -210,7 +210,7 @@ function NutritionPageContent() {
                 }
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <RecipesTab key={recipeRefreshKey} activeType={activeType} onFoodCreated={() => setFoodRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -233,7 +233,7 @@ function NutritionPageContent() {
                 }
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 bg-white">
+            <div className="flex flex-col flex-1 min-h-0 bg-white">
               <PlansTab activeType={activeType} refreshKey={planRefreshKey} />
             </div>
           </div>
