@@ -135,6 +135,11 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const [flashIngId, setFlashIngId]       = useState<string | null>(null)
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const recipeSearchRef = useRef<HTMLInputElement>(null)
+
+  const scrollInputToCenter = (ref: React.RefObject<HTMLInputElement | null>) => {
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+  }
 
   // Sinkroniziraj kad se index promijeni
   useEffect(() => {
@@ -513,9 +518,14 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                   {/* Dodaj namirnicu u recept (lokalna kopija) */}
                   <div className="relative pt-1">
                     <Input
+                      ref={recipeSearchRef}
                       value={search}
                       onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
-                      onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setSearchFocused(true) }}
+                      onFocus={() => {
+                        if (blurTimer.current) clearTimeout(blurTimer.current)
+                        setSearchFocused(true)
+                        scrollInputToCenter(recipeSearchRef)
+                      }}
                       onBlur={() => { blurTimer.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
                       onKeyDown={handleSearchKeyDown}
                       placeholder="Dodaj namirnicu..."
@@ -599,7 +609,11 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               ref={searchRef}
               value={search}
               onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
-              onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setSearchFocused(true) }}
+              onFocus={() => {
+                if (blurTimer.current) clearTimeout(blurTimer.current)
+                setSearchFocused(true)
+                scrollInputToCenter(searchRef)
+              }}
               onBlur={() => { blurTimer.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
               onKeyDown={handleSearchKeyDown}
               placeholder={tRecipe('addIngredients')}
