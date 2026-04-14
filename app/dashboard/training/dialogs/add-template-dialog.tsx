@@ -196,10 +196,15 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
 
   const addExercise = useCallback((exercise: ExerciseOption) => {
     if (selected.find(s => s.exercise_id === exercise.id)) return
+    const { sets, reps, rest_seconds, ...optionalDefaults } = settings.workoutDefaults
+    const extras: Record<string, string> = {}
+    settings.exerciseFields.forEach(key => {
+      if (optionalDefaults[key]) extras[key] = String(optionalDefaults[key])
+    })
     setSelected(prev => [...prev, {
       exercise_id: exercise.id,
       name: exercise.name,
-      sets: 3, reps: '10', rest_seconds: 60, notes: '', extras: {},
+      sets, reps, rest_seconds, notes: '', extras,
       video_url: exercise.video_url || '',
     }])
     setFlashId(exercise.id)
@@ -208,7 +213,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
     setDropdownIndex(-1)
     searchRef.current?.focus()
     setTimeout(() => exercisesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
-  }, [selected])
+  }, [selected, settings])
 
   const removeExercise = (exercise_id: string) =>
     setSelected(prev => prev.filter(s => s.exercise_id !== exercise_id))
@@ -253,8 +258,15 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
 
   useEffect(() => {
     if (dropdownIndex >= 0 && dropdownRef.current) {
-      const item = dropdownRef.current.children[dropdownIndex] as HTMLElement
-      item?.scrollIntoView({ block: 'nearest' })
+      const container = dropdownRef.current
+      const item = container.children[dropdownIndex] as HTMLElement
+      if (!item) return
+      const itemTop    = item.offsetTop
+      const itemBottom = itemTop + item.offsetHeight
+      if (itemBottom > container.scrollTop + container.clientHeight)
+        container.scrollTop = itemBottom - container.clientHeight
+      else if (itemTop < container.scrollTop)
+        container.scrollTop = itemTop
     }
   }, [dropdownIndex])
 

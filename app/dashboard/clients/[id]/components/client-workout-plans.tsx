@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2, BookMarked } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
@@ -160,6 +160,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [renameTarget, setRenameTarget] = useState<AssignedPlan | null>(null)
   const [renameName, setRenameName] = useState('')
   const [renaming, setRenaming] = useState(false)
+  const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
 
   // Conflict: trying to activate a plan while another is already active
   const [activateConflict, setActivateConflict] = useState<{
@@ -389,6 +390,23 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     }
   }
 
+  const saveAsTemplate = async (assigned: AssignedPlan) => {
+    setSavingTemplate(assigned.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingTemplate(null); return }
+    const effectiveDays = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
+    const templateName  = `${assigned.workout_plan.name} (predložak)`
+    await supabase.from('workout_plans').insert({
+      trainer_id: user.id,
+      name: templateName,
+      description: assigned.workout_plan.description,
+      is_template: true,
+      days: effectiveDays,
+    })
+    setSavingTemplate(null)
+    alert(`Plan je dodan u predloške kao „${templateName}".`)
+  }
+
   if (loading) return <p className="text-sm text-gray-500">{tCommon('loading')}</p>
 
   return (
@@ -502,6 +520,11 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                     </Button>
                     <Button variant="ghost" size="sm" title="Preimenuj plan" onClick={() => { setRenameTarget(assigned); setRenameName(assigned.workout_plan.name) }}>
                       <span className="text-[11px] text-gray-400">Abc</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                      onClick={() => saveAsTemplate(assigned)}
+                      disabled={savingTemplate === assigned.id}>
+                      <BookMarked size={14} className="text-violet-400" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setEditTarget(assigned)}>
                       <Pencil size={14} />

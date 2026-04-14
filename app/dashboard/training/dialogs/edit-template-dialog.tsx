@@ -265,8 +265,15 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
 
   useEffect(() => {
     if (dropdownIndex >= 0 && dropdownRef.current) {
-      const item = dropdownRef.current.children[dropdownIndex] as HTMLElement
-      item?.scrollIntoView({ block: 'nearest' })
+      const container = dropdownRef.current
+      const item = container.children[dropdownIndex] as HTMLElement
+      if (!item) return
+      const itemTop    = item.offsetTop
+      const itemBottom = itemTop + item.offsetHeight
+      if (itemBottom > container.scrollTop + container.clientHeight)
+        container.scrollTop = itemBottom - container.clientHeight
+      else if (itemTop < container.scrollTop)
+        container.scrollTop = itemTop
     }
   }, [dropdownIndex])
 

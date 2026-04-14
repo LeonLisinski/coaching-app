@@ -17,6 +17,7 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
+import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 
 /** Wrapper koji poziva useSortable za dan i injektira dragHandleProps via render prop */
 function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boolean; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
@@ -42,6 +43,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const t         = useTranslations('training.dialogs.plan')
   const tCommon   = useTranslations('common')
   const tTemplate = useTranslations('training.dialogs.template')
+  const { settings: trainerSettings } = useTrainerSettings()
 
   const [name, setName]               = useState('')
   const [description, setDescription] = useState('')
@@ -68,14 +70,21 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  // Scroll highlighted dropdown item into view when navigating with arrow keys
+  // Scroll highlighted dropdown item into view when navigating with arrow keys.
+  // Use direct scrollTop manipulation — scrollIntoView scrolls the outer dialog instead.
   useEffect(() => {
     for (const [dayIdx, kbIdx] of Object.entries(dropdownKbIndex)) {
       if (kbIdx < 0) continue
-      const dropdown = dropdownRefs.current[Number(dayIdx)]
-      if (!dropdown) continue
-      const item = dropdown.querySelector(`[data-kb-item="${kbIdx}"]`) as HTMLElement | null
-      item?.scrollIntoView({ block: 'nearest' })
+      const container = dropdownRefs.current[Number(dayIdx)]
+      if (!container) continue
+      const item = container.querySelector(`[data-kb-item="${kbIdx}"]`) as HTMLElement | null
+      if (!item) continue
+      const itemTop    = item.offsetTop
+      const itemBottom = itemTop + item.offsetHeight
+      if (itemBottom > container.scrollTop + container.clientHeight)
+        container.scrollTop = itemBottom - container.clientHeight
+      else if (itemTop < container.scrollTop)
+        container.scrollTop = itemTop
     }
   }, [dropdownKbIndex])
 
@@ -181,14 +190,20 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   }
 
   const addExerciseToDay = (dayIndex: number, exercise: Exercise) => {
+    const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
+    const optionalFields: Record<string, string> = {}
+    trainerSettings.exerciseFields.forEach(key => {
+      if (optionalDefaults[key]) optionalFields[key] = String(optionalDefaults[key])
+    })
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d
       if (d.exercises.find(e => e.exercise_id === exercise.id)) return d
       return { ...d, exercises: [...d.exercises, {
         exercise_id: exercise.id, name: exercise.name,
-        sets: 3, reps: exercise.exercise_type === 'endurance' ? '5min' : '10',
-        rest_seconds: 60, notes: '',
+        sets, reps: exercise.exercise_type === 'endurance' ? '5min' : reps,
+        rest_seconds, notes: '',
         exercise_type: (exercise.exercise_type as 'strength' | 'endurance') || 'strength',
+        ...optionalFields,
       }]}
     }))
     setExerciseSearch(prev => ({ ...prev, [dayIndex]: '' }))
@@ -399,6 +414,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                                   onUpdate={(field, val) => updateExercise(index, ex.exercise_id, field, val)}
                                   onRemove={() => setConfirmEx({ day: index, id: ex.exercise_id })}
                                   labelSets={tTemplate('sets')} labelRest={tTemplate('rest')} labelNotes={tTemplate('notes')}
+                                  activeExerciseFields={trainerSettings.exerciseFields}
                                 />
                               ))}
                             </div>

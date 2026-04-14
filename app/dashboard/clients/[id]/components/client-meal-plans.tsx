@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical, BookMarked } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
@@ -53,6 +53,7 @@ type AssignedPlan = {
   assigned_at: string
   notes: string | null
   plan_type: 'default' | 'training_day' | 'rest_day'
+  custom_name: string | null
   meals: any[] | null
   calories_target: number | null
   protein_target: number | null
@@ -359,6 +360,7 @@ export default function ClientMealPlans({ clientId }: Props) {
   const [editTarget, setEditTarget] = useState<AssignedPlan | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [editingPlanTypeId, setEditingPlanTypeId] = useState<string | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
 
   // Conflict: another plan of the same type is already active
   const [activateConflict, setActivateConflict] = useState<{
@@ -377,7 +379,7 @@ export default function ClientMealPlans({ clientId }: Props) {
       supabase
         .from('client_meal_plans')
         .select(`
-          id, active, assigned_at, notes, plan_type, meals,
+          id, active, assigned_at, notes, plan_type, custom_name, meals,
           calories_target, protein_target, carbs_target, fat_target, extras_targets,
           meal_plan:meal_plans (id, name, calories_target, protein_target, carbs_target, fat_target, meals, extras_targets)
         `)
@@ -591,6 +593,27 @@ export default function ClientMealPlans({ clientId }: Props) {
     setConfirmDelete(null)
   }
 
+  const saveAsTemplate = async (assigned: AssignedPlan) => {
+    setSavingTemplate(assigned.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingTemplate(null); return }
+    const effectiveMeals  = assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || []
+    const effectiveName   = assigned.custom_name || assigned.meal_plan.name
+    const templateName    = `${effectiveName} (predložak)`
+    await supabase.from('meal_plans').insert({
+      trainer_id: user.id,
+      name: templateName,
+      is_template: true,
+      meals: effectiveMeals,
+      calories_target: assigned.calories_target ?? assigned.meal_plan.calories_target,
+      protein_target:  assigned.protein_target  ?? assigned.meal_plan.protein_target,
+      carbs_target:    assigned.carbs_target     ?? assigned.meal_plan.carbs_target,
+      fat_target:      assigned.fat_target       ?? assigned.meal_plan.fat_target,
+    })
+    setSavingTemplate(null)
+    alert(`Plan je dodan u predloške kao „${templateName}".`)
+  }
+
   const activePlans = assignedPlans.filter(p => p.active)
   const inactivePlans = assignedPlans.filter(p => !p.active)
   const hasTrainingDay = activePlans.some(p => p.plan_type === 'training_day')
@@ -666,7 +689,10 @@ export default function ClientMealPlans({ clientId }: Props) {
                       <span className="mt-[5px] w-2 h-2 rounded-full shrink-0 bg-emerald-400" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{assigned.meal_plan.name}</span>
+                          <span className="font-medium text-sm">{assigned.custom_name || assigned.meal_plan.name}</span>
+                          {assigned.custom_name && (
+                            <span className="text-[10px] text-gray-400 italic">({assigned.meal_plan.name})</span>
+                          )}
                           <span
                             className="text-xs font-semibold px-2 py-0.5 rounded-full"
                             style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
@@ -708,6 +734,11 @@ export default function ClientMealPlans({ clientId }: Props) {
                           </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
                             <span className="text-xs text-gray-400">{t('typeLabel')}</span>
+                          </Button>
+                          <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                            onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
+                            disabled={savingTemplate === assigned.id}>
+                            <BookMarked size={14} className="text-violet-400" />
                           </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
                             <Pencil size={14} />
@@ -755,7 +786,8 @@ export default function ClientMealPlans({ clientId }: Props) {
                     <span className="w-2 h-2 rounded-full shrink-0 bg-gray-300" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm">{assigned.meal_plan.name}</p>
+                        <p className="font-medium text-sm">{assigned.custom_name || assigned.meal_plan.name}</p>
+                        {assigned.custom_name && <span className="text-[10px] text-gray-400 italic">({assigned.meal_plan.name})</span>}
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}>{typeInfo.label}</span>
                       </div>
                     </div>
@@ -765,6 +797,11 @@ export default function ClientMealPlans({ clientId }: Props) {
                       onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
                       className="text-xs h-7 px-3 rounded-full border text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100">
                       Neaktivno
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                      onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
+                      disabled={savingTemplate === assigned.id}>
+                      <BookMarked size={14} className="text-violet-400" />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
                       <Pencil size={14} />
@@ -1007,6 +1044,7 @@ export default function ClientMealPlans({ clientId }: Props) {
             fat_target: editTarget.fat_target ?? editTarget.meal_plan.fat_target,
           }}
           clientAssignId={editTarget.id}
+          initialCustomName={editTarget.custom_name || ''}
           onClose={() => setEditTarget(null)}
           onSuccess={() => { setEditTarget(null); fetchData() }}
         />

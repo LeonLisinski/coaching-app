@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { GripVertical, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 
 export type PlanExercise = {
   exercise_id: string
@@ -14,6 +15,11 @@ export type PlanExercise = {
   rest_seconds: number
   notes: string
   exercise_type?: 'strength' | 'endurance'
+  rir?: string
+  rpe?: string
+  tempo?: string
+  duration?: string
+  distance?: string
 }
 
 type Props = {
@@ -24,15 +30,17 @@ type Props = {
   labelSets: string
   labelRest: string
   labelNotes: string
+  activeExerciseFields?: string[]
 }
 
 export default function SortableExerciseCard({
-  ex, index, onUpdate, onRemove, labelSets, labelRest, labelNotes
+  ex, index, onUpdate, onRemove, labelSets, labelRest, labelNotes, activeExerciseFields = [],
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
 
   const isEndurance = ex.exercise_type === 'endurance'
+  const activeOptional = EXERCISE_FIELD_OPTIONS.filter(f => activeExerciseFields.includes(f.key))
 
   return (
     <div
@@ -85,6 +93,22 @@ export default function SortableExerciseCard({
         </div>
       </div>
 
+      {activeOptional.length > 0 && (
+        <div className={`grid gap-2 ${activeOptional.length <= 3 ? `grid-cols-${activeOptional.length}` : 'grid-cols-3'}`}>
+          {activeOptional.map(f => (
+            <div key={f.key}>
+              <Label className="text-xs">{f.label}{f.unit ? ` (${f.unit})` : ''}</Label>
+              <Input
+                value={(ex as any)[f.key] ?? ''}
+                onChange={e => onUpdate(f.key, e.target.value)}
+                placeholder={f.label}
+                className="h-7 text-xs"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       <Input value={ex.notes}
         onChange={e => onUpdate('notes', e.target.value)}
         placeholder={labelNotes}
@@ -92,4 +116,3 @@ export default function SortableExerciseCard({
     </div>
   )
 }
-

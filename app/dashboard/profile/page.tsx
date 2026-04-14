@@ -102,6 +102,10 @@ export default function ProfilePage() {
 
   const [nutritionFields, setNutritionFields] = useState<string[]>([])
   const [exerciseFields, setExerciseFields]   = useState<string[]>([])
+  const [workoutDefaults, setWorkoutDefaults] = useState({
+    sets: 3, reps: '10', rest_seconds: 60,
+    rir: '', rpe: '', tempo: '', duration: '', distance: '',
+  })
   const [savingSettings, setSavingSettings]   = useState(false)
   const [settingsSaved, setSettingsSaved]     = useState(false)
 
@@ -130,6 +134,12 @@ export default function ProfilePage() {
       setNutritionFields(tp.nutrition_fields || [])
       setExerciseFields(tp.exercise_fields || [])
       setSocialVisibility(tp.social_visibility || ['phone', 'email', 'instagram', 'website'])
+      const wd = tp.workout_defaults || {}
+      setWorkoutDefaults({
+        sets: wd.sets ?? 3, reps: wd.reps ?? '10', rest_seconds: wd.rest_seconds ?? 60,
+        rir: wd.rir ?? '', rpe: wd.rpe ?? '', tempo: wd.tempo ?? '',
+        duration: wd.duration ?? '', distance: wd.distance ?? '',
+      })
     }
     setLoading(false)
   }
@@ -197,7 +207,19 @@ export default function ProfilePage() {
     setSavingSettings(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    await supabase.from('trainer_profiles').update({ nutrition_fields: nutritionFields, exercise_fields: exerciseFields, social_visibility: socialVisibility }).eq('id', user.id)
+    const wd: Record<string, any> = {
+      sets: Number(workoutDefaults.sets) || 3,
+      reps: workoutDefaults.reps || '10',
+      rest_seconds: Number(workoutDefaults.rest_seconds) || 60,
+    }
+    EXERCISE_FIELD_OPTIONS.forEach(f => {
+      const v = workoutDefaults[f.key as keyof typeof workoutDefaults]
+      if (v) wd[f.key] = String(v)
+    })
+    await supabase.from('trainer_profiles').update({
+      nutrition_fields: nutritionFields, exercise_fields: exerciseFields,
+      social_visibility: socialVisibility, workout_defaults: wd,
+    }).eq('id', user.id)
     setSavingSettings(false); setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500)
   }
 
@@ -545,6 +567,62 @@ export default function ProfilePage() {
               )
             })}
           </div>
+        </div>
+
+        {/* Workout defaults */}
+        <div>
+          <p className="text-xs font-semibold text-gray-700 mb-0.5">Zadane vrijednosti vježbi</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Ove vrijednosti koriste se kao početne postavke pri dodavanju vježbi u planove i predloške.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Serije (sets)</label>
+              <input
+                type="number" min="1"
+                value={workoutDefaults.sets}
+                onChange={e => setWorkoutDefaults(prev => ({ ...prev, sets: parseInt(e.target.value) || 1 }))}
+                className="w-full h-8 border border-input rounded-md px-3 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Ponavljanja (reps)</label>
+              <input
+                type="text"
+                value={workoutDefaults.reps}
+                onChange={e => setWorkoutDefaults(prev => ({ ...prev, reps: e.target.value }))}
+                placeholder="npr. 10 ili 8-12"
+                className="w-full h-8 border border-input rounded-md px-3 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">Pauza (s)</label>
+              <input
+                type="number" min="0"
+                value={workoutDefaults.rest_seconds}
+                onChange={e => setWorkoutDefaults(prev => ({ ...prev, rest_seconds: parseInt(e.target.value) || 0 }))}
+                placeholder="120"
+                className="w-full h-8 border border-input rounded-md px-3 text-sm"
+              />
+            </div>
+          </div>
+
+          {exerciseFields.length > 0 && (
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {EXERCISE_FIELD_OPTIONS.filter(f => exerciseFields.includes(f.key)).map(f => (
+                <div key={f.key} className="space-y-1">
+                  <label className="text-xs font-medium text-gray-600">{f.label} {f.unit ? `(${f.unit})` : ''}</label>
+                  <input
+                    type="text"
+                    value={workoutDefaults[f.key as keyof typeof workoutDefaults] as string}
+                    onChange={e => setWorkoutDefaults(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={`zadani ${f.label}`}
+                    className="w-full h-8 border border-input rounded-md px-3 text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3 pt-1">

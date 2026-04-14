@@ -41,7 +41,7 @@ type Food     = { id: string; name: string; calories_per_100g: number; protein_p
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
 type PlanType = 'default' | 'training_day' | 'rest_day'
 type MealPlan = { id: string; name: string; plan_type?: PlanType; calories_target: number | null; protein_target: number | null; carbs_target: number | null; fat_target: number | null; meals: MealSlot[] }
-type Props    = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void; clientAssignId?: string }
+type Props    = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void; clientAssignId?: string; initialCustomName?: string }
 
 function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, isNew }: {
   meal: MealSlot; index: number; recipes: any[]; foods: any[]; nutritionFields: string[];
@@ -74,7 +74,7 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
   )
 }
 
-export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, clientAssignId }: Props) {
+export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, clientAssignId, initialCustomName }: Props) {
   const t       = useTranslations('nutrition.dialogs.mealPlan')
   const tCommon = useTranslations('common')
   const isClientEdit = !!clientAssignId
@@ -86,7 +86,8 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
     { value: 'rest_day',     label: t('planTypeRestDay'),      desc: t('planTypeRestDayDesc'),      color: 'border-purple-300 bg-purple-50 text-purple-700' },
   ]
 
-  const [name, setName]       = useState(plan.name)
+  const [name, setName]         = useState(plan.name)
+  const [customName, setCustomName] = useState(initialCustomName ?? '')
   const [planType, setPlanType] = useState<PlanType>((plan.plan_type as PlanType) || 'default')
   const [targets, setTargets] = useState({
     calories: plan.calories_target?.toString() || '',
@@ -108,6 +109,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   useEffect(() => {
     if (open) {
       setName(plan.name)
+      setCustomName(initialCustomName ?? '')
       setPlanType((plan.plan_type as PlanType) || 'default')
       setTargets({
         calories: plan.calories_target?.toString() || '',
@@ -247,6 +249,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
       const { error } = await supabase.from('client_meal_plans').update({
         meals: processedMeals, calories_target: tgt.calories, protein_target: tgt.protein, carbs_target: tgt.carbs, fat_target: tgt.fat,
         extras_targets: extrasTgt,
+        custom_name: customName.trim() || null,
       }).eq('id', clientAssignId)
       if (error) { setError(error.message); setLoading(false); return }
     } else {
@@ -289,6 +292,19 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
           <form id="edit-meal-plan-form" onSubmit={handleSubmit}>
             {/* Scrollable: form fields */}
             <div className="px-6 pt-4 pb-4 space-y-3">
+              {isClientEdit && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Naziv plana (samo za ovog klijenta)</Label>
+                  <Input
+                    value={customName}
+                    onChange={e => setCustomName(e.target.value)}
+                    placeholder={plan.name}
+                    className="h-8 text-sm"
+                  />
+                  <p className="text-[10px] text-gray-400">Ostavi prazno za zadani naziv: „{plan.name}"</p>
+                </div>
+              )}
+
               {!isClientEdit && (
                 <>
                   <div className="space-y-1.5">
