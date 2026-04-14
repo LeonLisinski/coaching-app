@@ -129,14 +129,16 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   }, [open])
 
   const fetchRecipes = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data } = await supabase.from('recipes').select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients').eq('trainer_id', user.id).order('name')
     if (data) setRecipes(data)
   }
 
   const fetchFoods = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: allFoods }, { data: overrides }] = await Promise.all([
       supabase.from('foods').select('*').order('name'),
@@ -226,7 +228,8 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const processedMeals = await Promise.all(meals.map(async (meal) => {

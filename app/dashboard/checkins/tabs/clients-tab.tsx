@@ -91,7 +91,8 @@ export default function ClientsCheckinTab() {
   useEffect(() => { fetchClients() }, [])
 
   const fetchClients = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data: clientsData } = await supabase.from('clients')
       .select(`id, gender, profiles!clients_user_id_fkey (full_name)`)

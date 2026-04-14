@@ -127,7 +127,8 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const { error } = await supabase.from('recipes').insert({

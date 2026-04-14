@@ -38,7 +38,8 @@ export default function CheckinGraphs({ clientId }: Props) {
   useEffect(() => { fetchData() }, [clientId])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: paramsData }, { data: checkinsData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),

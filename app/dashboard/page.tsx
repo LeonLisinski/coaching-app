@@ -171,7 +171,8 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
     let attempts = 0
     const check = async () => {
       attempts++
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) return
 
       const { data: sub } = await supabase
@@ -258,36 +259,40 @@ function DashboardPageContent() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
-    // Trainer name
-    const { data: profileData } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    // Fetch profile + clients in parallel
+    const [{ data: profileData }, { data: clientsData }] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+      supabase.from('clients').select(`id, start_date, profiles!clients_user_id_fkey(full_name)`).eq('trainer_id', user.id).eq('active', true),
+    ])
     if (profileData) setTrainerName(profileData.full_name?.split(' ')[0] || '')
-
-    // Clients
-    const { data: clientsData } = await supabase
-      .from('clients')
-      .select(`id, start_date, profiles!clients_user_id_fkey(full_name)`)
-      .eq('trainer_id', user.id)
-      .eq('active', true)
 
     const clientIds = clientsData?.map(c => c.id) || []
 
-    // Checkin config — separate query (more reliable than join)
-    const { data: checkinConfigs } = await supabase
-      .from('checkin_config')
-      .select('client_id, checkin_day')
-      .in('client_id', clientIds)
+    // All client-id-dependent and user-id-dependent queries in parallel
+    const [
+      { data: checkinConfigs },
+      { data: allCheckins },
+      { count: unread },
+      { data: packagesData },
+      { data: recentMsgs },
+      { data: recentPays },
+    ] = await Promise.all([
+      supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
+      clientIds.length
+        ? supabase.from('checkins').select('client_id, date').in('client_id', clientIds).order('date', { ascending: false })
+        : Promise.resolve({ data: [] as any[], error: null }),
+      supabase.from('messages').select('*', { count: 'exact', head: true }).eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
+      supabase.from('client_packages').select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`).eq('trainer_id', user.id),
+      supabase.from('messages').select('id, content, created_at, client_id').eq('trainer_id', user.id).neq('sender_id', user.id).order('created_at', { ascending: false }).limit(5),
+      supabase.from('payments').select('id, amount, paid_at, client_packages(client_id)').eq('status', 'paid').not('paid_at', 'is', null).order('paid_at', { ascending: false }).limit(5),
+    ])
 
     const checkinDayMap: Record<string, number> = {}
     checkinConfigs?.forEach(cfg => { checkinDayMap[cfg.client_id] = cfg.checkin_day })
-
-    // Checkins
-    const { data: allCheckins } = await supabase
-      .from('checkins').select('client_id, date')
-      .in('client_id', clientIds)
-      .order('date', { ascending: false })
 
     const lastCheckinMap: Record<string, string> = {}
     const checkinCountMap: Record<string, number> = {}
@@ -335,25 +340,10 @@ function DashboardPageContent() {
       .map(r => ({ id: r.id, full_name: r.full_name, submitted: !!(r.last_checkin && r.last_checkin >= todayStr) }))
     setTodayCheckinClients(todayClients)
 
-    // Unread messages
-    const { count: unread } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('trainer_id', user.id)
-      .neq('sender_id', user.id)
-      .eq('read', false)
-
-    // Revenue
-    // isoDate() koristi lokalne komponente (ne UTC) — važno za UTC+2 timezone
+    // Revenue calculations — use packagesData already fetched above
     const now        = new Date()
     const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
     const monthEnd   = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
-
-    // Fetch all packages (not just active) to include historical payments in charts
-    const { data: packagesData } = await supabase
-      .from('client_packages')
-      .select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`)
-      .eq('trainer_id', user.id)
 
     let expectedMonth = 0, collectedMonth = 0, paidByStart = 0, latePayments = 0
     const monthly: Record<string, { ocekivano: number; naplaceno: number }> = {}
@@ -475,15 +465,6 @@ function DashboardPageContent() {
         clientId: c.client_id,
       }))
 
-    // Recent messages received by trainer
-    const { data: recentMsgs } = await supabase
-      .from('messages')
-      .select('id, content, created_at, client_id')
-      .eq('trainer_id', user.id)
-      .neq('sender_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5)
-
     const recentMsgActivities = (recentMsgs || []).map((m: any) => ({
       id: `msg-${m.id}`,
       type: 'message' as const,
@@ -493,15 +474,6 @@ function DashboardPageContent() {
       ts: new Date(m.created_at).getTime(),
       clientId: m.client_id as string,
     }))
-
-    // Recent payments — join back to client_id via client_packages
-    const { data: recentPays } = await supabase
-      .from('payments')
-      .select('id, amount, paid_at, client_packages(client_id)')
-      .eq('status', 'paid')
-      .not('paid_at', 'is', null)
-      .order('paid_at', { ascending: false })
-      .limit(5)
 
     const recentPayActivities = (recentPays || [])
       .filter((p: any) => clientIds.includes(p.client_packages?.client_id))

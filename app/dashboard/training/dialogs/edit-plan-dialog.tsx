@@ -108,7 +108,8 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   }, [open, plan.id])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: tmpl }, { data: exer }] = await Promise.all([
       supabase.from('workout_templates').select('id, name, exercises').eq('trainer_id', user.id).order('name'),
@@ -202,6 +203,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   }
 
   const addExercise = (dayIndex: number, exercise: Exercise) => {
+    console.log('[addExercise] using defaults:', trainerSettings.workoutDefaults)
     const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
     const optionalFields: Record<string, string> = {}
     trainerSettings.exerciseFields.forEach(key => {

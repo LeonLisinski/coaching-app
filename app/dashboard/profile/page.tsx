@@ -12,6 +12,7 @@ import {
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AvatarCropDialog from '@/components/ui/avatar-crop-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTrainerSettingsContext, NUTRITION_FIELD_OPTIONS, EXERCISE_FIELD_OPTIONS } from '@/app/contexts/trainer-settings-context'
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date)
@@ -50,25 +51,6 @@ type Pkg = {
   price: number; duration_days: number; color: string; active: boolean
 }
 
-const NUTRITION_FIELD_OPTIONS = [
-  { key: 'fiber',         label: 'Vlakna',         unit: 'g' },
-  { key: 'sugar',         label: 'Šećeri',         unit: 'g' },
-  { key: 'sodium',        label: 'Natrij',         unit: 'mg' },
-  { key: 'salt',          label: 'Sol',            unit: 'g' },
-  { key: 'potassium',     label: 'Kalij',          unit: 'mg' },
-  { key: 'saturated_fat', label: 'Zasićene masti', unit: 'g' },
-  { key: 'cholesterol',   label: 'Kolesterol',     unit: 'mg' },
-  { key: 'vitamin_c',     label: 'Vitamin C',      unit: 'mg' },
-  { key: 'calcium',       label: 'Kalcij',         unit: 'mg' },
-  { key: 'iron',          label: 'Željezo',        unit: 'mg' },
-]
-const EXERCISE_FIELD_OPTIONS = [
-  { key: 'rir',      label: 'RIR',      desc: 'Reps In Reserve' },
-  { key: 'rpe',      label: 'RPE',      desc: 'Rate of Perceived Exertion' },
-  { key: 'tempo',    label: 'Tempo',    desc: 'Brzina izvođenja (npr. 3-1-2)' },
-  { key: 'duration', label: 'Trajanje', desc: 'Trajanje vježbe (min)' },
-  { key: 'distance', label: 'Distanca', desc: 'Prijeđena distanca (km/m)' },
-]
 
 function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
@@ -85,6 +67,7 @@ export default function ProfilePage() {
   const tCommon = useTranslations('common')
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
+  const { refresh: refreshTrainerSettings, settings: ctxSettings, loading: ctxLoading } = useTrainerSettingsContext()
 
   const [profile, setProfile]   = useState<Profile | null>(null)
   const [packages, setPackages] = useState<Pkg[]>([])
@@ -114,7 +97,8 @@ export default function ProfilePage() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: pd }, { data: pkgs }, { data: tp }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -147,7 +131,8 @@ export default function ProfilePage() {
   const saveProfile = async () => {
     if (!profile) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     await supabase.from('profiles').update({
       full_name: form.full_name, bio: form.bio || null,
       phone: form.phone || null, website: form.website || null,
@@ -190,7 +175,8 @@ export default function ProfilePage() {
   const openEditPkg = (pkg: Pkg) => { setEditPkg(pkg); setPkgForm({ name: pkg.name, description: pkg.description || '', price: pkg.price.toString(), duration_months: String(Math.round(pkg.duration_days / 30)), color: pkg.color }); setShowPkgForm(true) }
 
   const savePkg = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const months = parseInt(pkgForm.duration_months) || 1
     const payload = { trainer_id: user.id, name: pkgForm.name, description: pkgForm.description || null, price: parseFloat(pkgForm.price), duration_days: months * 30, color: pkgForm.color }
@@ -205,21 +191,34 @@ export default function ProfilePage() {
 
   const saveSettings = async () => {
     setSavingSettings(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user) { setSavingSettings(false); return }
     const wd: Record<string, any> = {
-      sets: Number(workoutDefaults.sets) || 3,
-      reps: workoutDefaults.reps || '10',
+      sets:         Number(workoutDefaults.sets)         || 3,
+      reps:         workoutDefaults.reps                 || '10',
       rest_seconds: Number(workoutDefaults.rest_seconds) || 60,
     }
     EXERCISE_FIELD_OPTIONS.forEach(f => {
       const v = workoutDefaults[f.key as keyof typeof workoutDefaults]
       if (v) wd[f.key] = String(v)
     })
-    await supabase.from('trainer_profiles').update({
-      nutrition_fields: nutritionFields, exercise_fields: exerciseFields,
-      social_visibility: socialVisibility, workout_defaults: wd,
-    }).eq('id', user.id)
+    // upsert handles the case where a trainer_profiles row doesn't exist yet
+    const { error } = await supabase.from('trainer_profiles').upsert({
+      id: user.id,
+      nutrition_fields: nutritionFields,
+      exercise_fields:  exerciseFields,
+      social_visibility: socialVisibility,
+      workout_defaults: wd,
+    }, { onConflict: 'id' })
+    if (error) {
+      console.error('[saveSettings] error:', error.message)
+      setSavingSettings(false)
+      alert('Greška pri spremanju: ' + error.message)
+      return
+    }
+    // Refresh the shared context so dialogs immediately get the new defaults
+    await refreshTrainerSettings()
     setSavingSettings(false); setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500)
   }
 
@@ -572,9 +571,15 @@ export default function ProfilePage() {
         {/* Workout defaults */}
         <div>
           <p className="text-xs font-semibold text-gray-700 mb-0.5">Zadane vrijednosti vježbi</p>
-          <p className="text-xs text-gray-400 mb-3">
+          <p className="text-xs text-gray-400 mb-2">
             Ove vrijednosti koriste se kao početne postavke pri dodavanju vježbi u planove i predloške.
           </p>
+          {/* Shows what's actually loaded in context (i.e. what's in the DB) */}
+          {!ctxLoading && (
+            <p className="text-xs text-gray-400 mb-3 font-mono">
+              Aktivno u bazi: sets={ctxSettings.workoutDefaults.sets} · reps={ctxSettings.workoutDefaults.reps} · odmor={ctxSettings.workoutDefaults.rest_seconds}s
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600">Serije (sets)</label>

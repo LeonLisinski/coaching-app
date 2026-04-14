@@ -50,12 +50,15 @@ export default function CheckinOverview({ clientId }: Props) {
   const [sent, setSent] = useState(false)
   // trainer_id for sending messages
   const [trainerId, setTrainerId] = useState<string | null>(null)
+  const [pinging, setPinging] = useState(false)
+  const [pinged, setPinged] = useState(false)
 
   useEffect(() => { fetchConfig() }, [clientId])
   useEffect(() => { if (checkinDay !== null) fetchData() }, [clientId, weekOffset, checkinDay])
 
   const fetchConfig = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (user) setTrainerId(user.id)
     const { data } = await supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle()
     setCheckinDay(data?.checkin_day ?? 1)
@@ -64,8 +67,9 @@ export default function CheckinOverview({ clientId }: Props) {
   const fetchData = async () => {
     if (checkinDay === null) return
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user) { setLoading(false); return }
     const days = getWeekDays(checkinDay, weekOffset)
     const startDate = isoDate(days[0])
     const endDate = isoDate(days[6])
@@ -115,6 +119,23 @@ export default function CheckinOverview({ clientId }: Props) {
     setSending(false)
     setSent(true)
     setComment('')
+  }
+
+  const pingClient = async (message: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    setPinging(true)
+    await fetch('/api/push/notify-client', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ client_id: clientId, message }),
+    })
+    setPinging(false)
+    setPinged(true)
+    setTimeout(() => setPinged(false), 3000)
   }
 
   const avg = (paramId: string) => {
@@ -172,12 +193,24 @@ export default function CheckinOverview({ clientId }: Props) {
                   <p className="font-semibold text-sm text-gray-800">{t('weeklyCheckin')}</p>
                   <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
-                <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${checkin ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                  {checkin
-                    ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
-                    : t('notSent')
-                  }
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Remind button — shown when check-in is missing for this week */}
+                  {!checkin && weekOffset === 0 && (
+                    <button
+                      onClick={() => pingClient('Hej! Nezaboravi poslati tjedni check-in 💪')}
+                      disabled={pinging || pinged}
+                      className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border transition-all ${pinged ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
+                    >
+                      {pinged ? '✓ Poslano' : pinging ? '...' : '🔔 Podsjeti'}
+                    </button>
+                  )}
+                  <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${checkin ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
+                    {checkin
+                      ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
+                      : t('notSent')
+                    }
+                  </span>
+                </div>
               </div>
 
               {/* Weekly param values */}

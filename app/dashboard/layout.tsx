@@ -30,6 +30,7 @@ import SettingsDialog from '@/app/components/settings-dialog'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import GlobalSearch from '@/app/components/global-search'
 import { TabStateProvider } from '@/app/contexts/tab-state'
+import { TrainerSettingsProvider } from '@/app/contexts/trainer-settings-context'
 import MobileBottomNav from '@/app/components/mobile-bottom-nav'
 import { useActiveChat } from '@/app/contexts/active-chat'
 
@@ -306,6 +307,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { inActiveChat } = useActiveChat()
 
   return (
+    <TrainerSettingsProvider>
     <TabStateProvider>
     <div className="flex bg-background" style={{ height: '100dvh' }}>
 
@@ -580,6 +582,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
     </div>
     </TabStateProvider>
+    </TrainerSettingsProvider>
   )
 }
 

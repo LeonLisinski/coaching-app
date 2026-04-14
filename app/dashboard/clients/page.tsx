@@ -102,7 +102,8 @@ function ClientsPageContent() {
   }, [searchParams])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const [{ data: clientData }, { data: pkgData }, { data: subData }] = await Promise.all([
@@ -186,7 +187,7 @@ function ClientsPageContent() {
 
   const toggleStatus = async (client: Client) => {
     await supabase.from('clients').update({ active: !client.active }).eq('id', client.id)
-    setClients(clients.map(c => c.id === client.id ? { ...c, active: !c.active } : c))
+    setClients(prev => prev.map(c => c.id === client.id ? { ...c, active: !c.active } : c))
     setConfirmToggle(null)
   }
 

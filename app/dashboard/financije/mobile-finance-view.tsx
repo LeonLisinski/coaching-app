@@ -45,7 +45,8 @@ export default function MobileFinanceView() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const [{ data: cpData }, { data: pkgData }, { data: clientsData }] = await Promise.all([
@@ -88,7 +89,8 @@ export default function MobileFinanceView() {
   }
 
   const markPaid = async (item: PackageItem) => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const today = new Date().toISOString().split('T')[0]
     if (item.paymentId) {

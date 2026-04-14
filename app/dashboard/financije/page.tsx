@@ -148,7 +148,8 @@ function FinancijePageContent() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     // Fetch client_packages, packages, payments separately to avoid broken FK joins
@@ -344,7 +345,8 @@ function FinancijePageContent() {
     if (!selectedCp) return
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) { setSaving(false); return }
       const payment = selectedCp.payments?.[0]
       const amount = parseFloat(payForm.amount) || selectedCp.price
@@ -379,7 +381,8 @@ function FinancijePageContent() {
 
   const inlineMarkPaid = async (cp: ClientPackage) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) return
       const today = todayIso()
       const payment = cp.payments?.[0]

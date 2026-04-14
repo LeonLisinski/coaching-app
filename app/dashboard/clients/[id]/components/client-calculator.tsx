@@ -169,7 +169,8 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
   }
 
   const fetchActivePlan = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     const [{ data: active }, { data: plans }] = await Promise.all([
       supabase
         .from('client_meal_plans')
@@ -193,7 +194,8 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
     setPlanAction('loading')
     setPlanActionError('')
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) throw new Error('Nije autentificiran')
 
       const targets = {

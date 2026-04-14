@@ -126,7 +126,8 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
   useEffect(() => { fetchPlans() }, [refreshKey])
 
   const fetchPlans = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data }, { data: foods }] = await Promise.all([
       supabase

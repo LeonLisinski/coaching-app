@@ -37,7 +37,8 @@ export default function BillingPage() {
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [subRes, clientsRes] = await Promise.all([
       supabase.from('subscriptions')

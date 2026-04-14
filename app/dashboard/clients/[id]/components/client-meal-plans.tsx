@@ -361,6 +361,7 @@ export default function ClientMealPlans({ clientId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [editingPlanTypeId, setEditingPlanTypeId] = useState<string | null>(null)
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
 
   // Conflict: another plan of the same type is already active
   const [activateConflict, setActivateConflict] = useState<{
@@ -372,7 +373,8 @@ export default function ClientMealPlans({ clientId }: Props) {
   useEffect(() => { fetchData() }, [clientId])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const [{ data: assigned }, { data: available }, { data: recipes }, { data: allFoods }] = await Promise.all([
@@ -526,7 +528,8 @@ export default function ClientMealPlans({ clientId }: Props) {
     const conflicting = assignedPlans.find(p => p.active && p.plan_type === assignPlanType)
     const doInsert = async () => {
       setAssigning(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) return
       await supabase.from('client_meal_plans').insert({
         trainer_id: user.id, client_id: clientId,
@@ -595,7 +598,8 @@ export default function ClientMealPlans({ clientId }: Props) {
 
   const saveAsTemplate = async (assigned: AssignedPlan) => {
     setSavingTemplate(assigned.id)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { setSavingTemplate(null); return }
     const effectiveMeals  = assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || []
     const effectiveName   = assigned.custom_name || assigned.meal_plan.name
@@ -611,7 +615,8 @@ export default function ClientMealPlans({ clientId }: Props) {
       fat_target:      assigned.fat_target       ?? assigned.meal_plan.fat_target,
     })
     setSavingTemplate(null)
-    alert(`Plan je dodan u predloške kao „${templateName}".`)
+    setSavedMsg(`Dodano u predloške kao „${templateName}"`)
+    setTimeout(() => setSavedMsg(null), 3500)
   }
 
   const activePlans = assignedPlans.filter(p => p.active)
@@ -624,6 +629,13 @@ export default function ClientMealPlans({ clientId }: Props) {
 
   return (
     <div className="space-y-4">
+
+      {savedMsg && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {savedMsg}
+        </div>
+      )}
 
       {/* Info banneri */}
       {hasTrainingDay && hasRestDay && (
@@ -996,7 +1008,8 @@ export default function ClientMealPlans({ clientId }: Props) {
         onClose={() => setShowCreateNew(false)}
         isTemplate={false}
         onSuccess={async () => {
-          const { data: { user } } = await supabase.auth.getUser()
+          const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
           if (!user) return
           const { data: latestPlan } = await supabase
             .from('meal_plans').select('id, meals, calories_target, protein_target, carbs_target, fat_target')

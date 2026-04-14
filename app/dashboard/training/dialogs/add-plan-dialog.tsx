@@ -96,7 +96,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   }, [open])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: tmpl }, { data: exer }] = await Promise.all([
       supabase.from('workout_templates').select('id, name, exercises').eq('trainer_id', user.id).order('name'),
@@ -190,6 +191,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   }
 
   const addExerciseToDay = (dayIndex: number, exercise: Exercise) => {
+    console.log('[addExerciseToDay] using defaults:', trainerSettings.workoutDefaults)
     const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
     const optionalFields: Record<string, string> = {}
     trainerSettings.exerciseFields.forEach(key => {
@@ -241,7 +243,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const { data: created, error } = await supabase

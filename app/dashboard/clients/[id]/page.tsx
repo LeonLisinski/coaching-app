@@ -143,29 +143,43 @@ function ClientDetailPageContent() {
   const [activePackage, setActivePackage] = useState<ActivePackage | null>(null)
   const [showCheckinConfig, setShowCheckinConfig] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Track which tabs have been mounted — once visited, keep alive to avoid re-fetching
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set([urlTab || 'pregled']))
 
   const noName = t('noName')
 
   useEffect(() => { fetchClient() }, [id])
 
   const fetchClient = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { router.push('/login'); return }
 
-    const { data } = await supabase
-      .from('clients')
-      .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes, activity_level, step_goal,
-        profiles!clients_user_id_fkey (full_name, email)`)
-      .eq('id', id)
-      .eq('trainer_id', user.id)
-      .single()
+    const [{ data }, { data: pkgData }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes, activity_level, step_goal,
+          profiles!clients_user_id_fkey (full_name, email)`)
+        .eq('id', id)
+        .eq('trainer_id', user.id)
+        .single(),
+      supabase
+        .from('client_packages')
+        .select('id, start_date, end_date, status, packages(name, color)')
+        .eq('client_id', id as string)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
 
     if (!data) {
+      setLoading(false)
       router.push('/dashboard/clients')
       return
     }
 
-    const c: Client = {
+    setClient({
       id: data.id,
       full_name: (data.profiles as any)?.full_name || noName,
       email: (data.profiles as any)?.email || '',
@@ -173,18 +187,7 @@ function ClientDetailPageContent() {
       date_of_birth: data.date_of_birth, start_date: data.start_date, active: data.active,
       gender: data.gender, notes: data.notes,
       activity_level: data.activity_level, step_goal: data.step_goal,
-    }
-    setClient(c)
-
-    // Fetch active package
-    const { data: pkgData } = await supabase
-      .from('client_packages')
-      .select('id, start_date, end_date, status, packages(name, color)')
-      .eq('client_id', id)
-      .eq('status', 'active')
-      .order('start_date', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    })
 
     if (pkgData) {
       setActivePackage({
@@ -347,7 +350,7 @@ function ClientDetailPageContent() {
       )}
 
       <div className="flex items-center justify-between">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+        <Tabs value={activeTab} onValueChange={tab => { setActiveTab(tab); setMountedTabs(prev => new Set([...prev, tab])) }} className="flex-1">
           <div className="flex items-center gap-2">
             <TabsList className="flex-nowrap overflow-x-auto sm:flex-wrap h-auto gap-1 bg-gray-100/80 scrollbar-hide">
               <TabsTrigger value="pregled" className="flex items-center gap-1.5">
@@ -388,31 +391,31 @@ function ClientDetailPageContent() {
           </div>
 
           <TabsContent value="pregled" className="mt-6">
-            <ClientOverview clientId={id as string} />
+            {mountedTabs.has('pregled') && <ClientOverview clientId={id as string} />}
           </TabsContent>
           <TabsContent value="pracenje" className="mt-6">
-            <ClientHistory clientId={id as string} />
+            {mountedTabs.has('pracenje') && <ClientHistory clientId={id as string} />}
           </TabsContent>
           <TabsContent value="checkin" className="mt-6">
-            <CheckinOverview clientId={id as string} />
+            {mountedTabs.has('checkin') && <CheckinOverview clientId={id as string} />}
           </TabsContent>
           <TabsContent value="slike" className="mt-6">
-            <CheckinHistory clientId={id as string} />
+            {mountedTabs.has('slike') && <CheckinHistory clientId={id as string} />}
           </TabsContent>
           <TabsContent value="graphs" className="mt-6">
-            <CheckinGraphs clientId={id as string} />
+            {mountedTabs.has('graphs') && <CheckinGraphs clientId={id as string} />}
           </TabsContent>
           <TabsContent value="treninzi" className="mt-6">
-            <ClientWorkoutPlans clientId={id as string} />
+            {mountedTabs.has('treninzi') && <ClientWorkoutPlans clientId={id as string} />}
           </TabsContent>
           <TabsContent value="prehrana" className="mt-6">
-            <ClientMealPlans clientId={id as string} />
+            {mountedTabs.has('prehrana') && <ClientMealPlans clientId={id as string} />}
           </TabsContent>
           <TabsContent value="paketi" className="mt-6">
-            <ClientPackages clientId={id as string} />
+            {mountedTabs.has('paketi') && <ClientPackages clientId={id as string} />}
           </TabsContent>
           <TabsContent value="timeline" className="mt-6">
-            <ClientTimeline clientId={id as string} />
+            {mountedTabs.has('timeline') && <ClientTimeline clientId={id as string} />}
           </TabsContent>
         </Tabs>
       </div>

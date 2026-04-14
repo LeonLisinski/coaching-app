@@ -219,7 +219,8 @@ export default function ParametersTab() {
   useEffect(() => { fetchParameters() }, [])
 
   const fetchParameters = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data } = await supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('frequency').order('order_index')
     if (data) setParameters(data)
@@ -237,7 +238,8 @@ export default function ParametersTab() {
   const saveEdit = async (param: Parameter) => {
     const form = editForms[param.id]
     if (!form?.name) return
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     await supabase.from('checkin_parameters').update({
       name: form.name, type: form.type,
@@ -252,7 +254,8 @@ export default function ParametersTab() {
 
   const saveAdd = async () => {
     if (!addForm.name) return
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     await supabase.from('checkin_parameters').insert({
       trainer_id: user.id, name: addForm.name, type: addForm.type,

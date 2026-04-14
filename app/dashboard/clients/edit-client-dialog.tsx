@@ -147,7 +147,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
 
   const fetchPlans = async () => {
     setPlansLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: wp }, { data: mp }, { data: cwp }, { data: cmp }, { data: pkgs }, { data: cpData }] = await Promise.all([
       supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).order('name'),
@@ -184,7 +185,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
   const assignOrReplacePkg = async () => {
     if (!selectedPkg) return
     setSavingPkg(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { setSavingPkg(false); return }
     const pkg = pkgTemplates.find(p => p.id === selectedPkg)
     if (!pkg) { setSavingPkg(false); return }
@@ -244,7 +246,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
 
   const savePlans = async () => {
     setSavingPlans(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { setSavingPlans(false); return }
 
     // Handle workout plan change

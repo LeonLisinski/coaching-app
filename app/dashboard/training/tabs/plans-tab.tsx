@@ -124,7 +124,8 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
   useEffect(() => { fetchPlans() }, [])
 
   const fetchPlans = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data } = await supabase
       .from('workout_plans')

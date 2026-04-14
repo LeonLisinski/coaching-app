@@ -98,7 +98,8 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
   }, [open, sourceClientId])
 
   const fetchPackages = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const { data } = await supabase.from('packages').select('id, name, price, duration_days, color').eq('trainer_id', user.id).eq('active', true).order('name')
     setTrainerPkgs(data || [])

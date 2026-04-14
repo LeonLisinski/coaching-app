@@ -100,7 +100,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
   const checkLimit = async () => {
     setLimitChecking(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { setLimitChecking(false); return }
     const [{ data: sub }, { count }] = await Promise.all([
       supabase.from('subscriptions').select('plan, client_limit').eq('trainer_id', user.id).single(),
@@ -121,7 +122,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
   const fetchPlans = async () => {
     setPlansLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
     const [{ data: wp }, { data: mp }, { data: pkgs }] = await Promise.all([
       supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).order('name'),

@@ -56,22 +56,26 @@ export default function ClientOverview({ clientId }: Props) {
 
   const fetchOverview = async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (user) setTrainerId(user.id)
 
-    // Weight: read directly from checkins.values JSON (no separate entries table needed)
-    const { data: recentCheckins } = await supabase
-      .from('checkins')
-      .select('id, date, values')
-      .eq('client_id', clientId)
-      .order('date', { ascending: false })
-      .limit(12)
+    const [
+      { data: recentCheckins },
+      { data: workout },
+      { data: meal },
+      { data: msgs },
+    ] = await Promise.all([
+      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(12),
+      supabase.from('client_workout_plans').select('id, active, workout_plan:workout_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
+      supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
+      supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ])
 
     const weightKeys = ['težina', 'tezina', 'weight', 'masa', 'tjelesna_masa', 'tjelesna masa', 'body_weight']
     const pts = (recentCheckins || [])
       .map((c: any) => {
         const vals = c.values || {}
-        // Try known keys, then find first numeric value in the object
         const raw = weightKeys.map(k => vals[k]).find(v => v != null && !isNaN(parseFloat(v)))
           ?? Object.values(vals).find((v: any) => v != null && !isNaN(parseFloat(v)) && parseFloat(v) > 20 && parseFloat(v) < 300)
         return raw != null ? { date: c.date, w: parseFloat(raw) } : null
@@ -80,55 +84,12 @@ export default function ClientOverview({ clientId }: Props) {
       .reverse() as { date: string; w: number }[]
     if (pts.length > 0) setWeightData(pts)
 
-    // Last check-in
-    const { data: lastCi } = await supabase
-      .from('checkins')
-      .select('id, date')
-      .eq('client_id', clientId)
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (lastCi) setLastCheckin(lastCi)
+    // Derive last check-in from already-fetched recentCheckins (no extra round-trip)
+    if (recentCheckins?.[0]) setLastCheckin({ id: recentCheckins[0].id, date: recentCheckins[0].date })
 
-    // Active workout plan
-    const { data: workout } = await supabase
-      .from('client_workout_plans')
-      .select('id, active, workout_plan:workout_plans(id, name)')
-      .eq('client_id', clientId)
-      .eq('active', true)
-      .limit(1)
-      .maybeSingle()
-    if (workout?.workout_plan) {
-      setActiveWorkout({ name: (workout.workout_plan as any).name, id: workout.id })
-    }
-
-    // Active meal plan
-    const { data: meal } = await supabase
-      .from('client_meal_plans')
-      .select('id, active, meal_plan:meal_plans(id, name)')
-      .eq('client_id', clientId)
-      .eq('active', true)
-      .limit(1)
-      .maybeSingle()
-    if (meal?.meal_plan) {
-      setActiveMeal({ name: (meal.meal_plan as any).name, id: meal.id })
-    }
-
-    // Last message
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('content, created_at, sender_id, trainer_id')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (msgs) {
-      setLastMessage({
-        content: msgs.content,
-        created_at: msgs.created_at,
-        isTrainer: msgs.sender_id === msgs.trainer_id,
-      })
-    }
+    if (workout?.workout_plan) setActiveWorkout({ name: (workout.workout_plan as any).name, id: workout.id })
+    if (meal?.meal_plan) setActiveMeal({ name: (meal.meal_plan as any).name, id: meal.id })
+    if (msgs) setLastMessage({ content: msgs.content, created_at: msgs.created_at, isTrainer: msgs.sender_id === msgs.trainer_id })
 
     setLoading(false)
   }

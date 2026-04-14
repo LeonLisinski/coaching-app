@@ -30,6 +30,7 @@ import AddPlanDialog from '@/app/dashboard/training/dialogs/add-plan-dialog'
 import EditPlanDialog from '@/app/dashboard/training/dialogs/edit-plan-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -131,6 +132,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const locale = useLocale()
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const { settings: trainerSettings } = useTrainerSettings()
 
   const [assignedPlans, setAssignedPlans] = useState<AssignedPlan[]>([])
   const [availablePlans, setAvailablePlans] = useState<WorkoutPlan[]>([])
@@ -161,6 +163,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [renameName, setRenameName] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
+  const [savedMsg, setSavedMsg] = useState<string | null>(null)
 
   // Conflict: trying to activate a plan while another is already active
   const [activateConflict, setActivateConflict] = useState<{
@@ -181,7 +184,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   useEffect(() => { fetchData() }, [clientId])
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const [{ data: assigned }, { data: available }, { data: trainerEx }, { data: defaultEx }] = await Promise.all([
@@ -248,12 +252,18 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   }
 
   const addAssignEx = (dayIdx: number, ex: Exercise) => {
+    const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
+    const optionalFields: Record<string, string> = {}
+    trainerSettings.exerciseFields.forEach(key => {
+      if (optionalDefaults[key]) optionalFields[key] = String(optionalDefaults[key])
+    })
     setAssignDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
       ...d, exercises: [...d.exercises, {
-        exercise_id: ex.id, name: ex.name, sets: 3,
-        reps: ex.exercise_type === 'endurance' ? '5min' : '10',
-        rest_seconds: 60, notes: '',
+        exercise_id: ex.id, name: ex.name, sets,
+        reps: ex.exercise_type === 'endurance' ? '5min' : reps,
+        rest_seconds, notes: '',
         exercise_type: (ex.exercise_type as 'strength' | 'endurance') || 'strength',
+        ...optionalFields,
       }]
     }))
     setAssignExSearch(prev => ({ ...prev, [dayIdx]: '' }))
@@ -287,7 +297,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     const currentActive = assignedPlans.find(p => p.active)
     const doInsert = async () => {
       setAssigning(true)
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) return
       if (saveToDb) {
         const planName = availablePlans.find(p => p.id === selectedPlanId)?.name || 'Plan'
@@ -315,7 +326,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   }
 
   const handleNewPlanCreated = async (planId: string, days: any[]) => {
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const currentActive = assignedPlans.find(p => p.active)
@@ -370,7 +382,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     if (!renameTarget || !renameName.trim()) return
     setRenaming(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
       if (!user) return
       const original = renameTarget.workout_plan
       const { data: copy, error } = await supabase
@@ -392,7 +405,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
   const saveAsTemplate = async (assigned: AssignedPlan) => {
     setSavingTemplate(assigned.id)
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) { setSavingTemplate(null); return }
     const effectiveDays = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
     const templateName  = `${assigned.workout_plan.name} (predložak)`
@@ -404,13 +418,21 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       days: effectiveDays,
     })
     setSavingTemplate(null)
-    alert(`Plan je dodan u predloške kao „${templateName}".`)
+    setSavedMsg(`Dodano u predloške kao „${templateName}"`)
+    setTimeout(() => setSavedMsg(null), 3500)
   }
 
   if (loading) return <p className="text-sm text-gray-500">{tCommon('loading')}</p>
 
   return (
     <div className="space-y-4">
+
+      {savedMsg && (
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {savedMsg}
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
