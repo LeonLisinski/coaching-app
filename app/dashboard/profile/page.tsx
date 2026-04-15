@@ -7,8 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Plus, Pencil, Trash2, Phone, Globe, Instagram, Camera, Check,
-  X, Mail, FileText, AtSign, Package, Facebook, Eye, EyeOff,
+  X, Mail, FileText, Package, Facebook, Eye, EyeOff,
 } from 'lucide-react'
+
+function TikTokIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.84 1.56V6.8a4.85 4.85 0 0 1-1.07-.11z"/>
+    </svg>
+  )
+}
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AvatarCropDialog from '@/components/ui/avatar-crop-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -44,7 +52,7 @@ const SOCIAL_LINKS = [
   { key: 'website',   label: 'Web',       Icon: Globe,      prefix: '' },
   { key: 'instagram', label: 'Instagram', Icon: Instagram,  prefix: '@' },
   { key: 'facebook',  label: 'Facebook',  Icon: Facebook,   prefix: '' },
-  { key: 'tiktok',    label: 'TikTok',    Icon: AtSign,     prefix: '@' },
+  { key: 'tiktok',    label: 'TikTok',    Icon: TikTokIcon, prefix: '@' },
 ] as const
 type Pkg = {
   id: string; name: string; description: string | null
@@ -286,7 +294,7 @@ export default function ProfilePage() {
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
               {form.instagram && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Instagram size={9} />@{form.instagram.replace('@', '')}</span>}
               {form.facebook  && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Facebook size={9} />{form.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>}
-              {form.tiktok    && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><AtSign size={9} />@{form.tiktok.replace('@', '')}</span>}
+              {form.tiktok    && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><TikTokIcon size={9} />@{form.tiktok.replace('@', '')}</span>}
               {form.phone     && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Phone size={9} />{form.phone}</span>}
               {form.website   && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Globe size={9} />{form.website.replace(/^https?:\/\//, '')}</span>}
             </div>
@@ -319,7 +327,7 @@ export default function ProfilePage() {
                   { key: 'website',   Icon: Globe,     label: 'Web',       placeholder: 'https://...' },
                   { key: 'instagram', Icon: Instagram, label: 'Instagram', placeholder: '@korisničkoime' },
                   { key: 'facebook',  Icon: Facebook,  label: 'Facebook',  placeholder: 'https://facebook.com/...' },
-                  { key: 'tiktok',    Icon: AtSign,    label: 'TikTok',    placeholder: '@korisničkoime' },
+                  { key: 'tiktok',    Icon: TikTokIcon, label: 'TikTok',    placeholder: '@korisničkoime' },
                 ].map(({ key, Icon, label, placeholder }) => (
                   <div key={key} className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">

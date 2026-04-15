@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   CreditCard,
   UserPlus,
+  Package,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -64,7 +65,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showNotifs, setShowNotifs]     = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
   const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
-  const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment'; href?: string; isNew?: boolean }[]>([])
+  const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package'; href?: string; isNew?: boolean }[]>([])
 
   // Update last-visited client / chat / checkin whenever the pathname changes
   useEffect(() => {
@@ -215,7 +216,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const storedSeen: Set<string> = stored ? new Set(JSON.parse(stored)) : new Set()
     setSeenIds(storedSeen)
 
-    const [{ data: msgs }, { data: checkins }] = await Promise.all([
+    const sevenDaysAheadDate = new Date(now); sevenDaysAheadDate.setDate(now.getDate() + 7)
+    const sevenDaysAhead = sevenDaysAheadDate.toISOString().split('T')[0]
+    const oneDayAgoDate = new Date(now); oneDayAgoDate.setDate(now.getDate() - 1)
+    const oneDayAgo = oneDayAgoDate.toISOString().split('T')[0]
+
+    const [{ data: msgs }, { data: checkins }, { data: pkgAlerts }] = await Promise.all([
       supabase.from('messages')
         .select('id, content, created_at, client_id, clients(profiles(full_name))')
         .eq('trainer_id', userId).neq('sender_id', userId).eq('read', false)
@@ -225,6 +231,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .eq('trainer_id', userId)
         .gte('date', sevenDaysAgoDate)
         .order('date', { ascending: false }).limit(30),
+      supabase.from('client_packages')
+        .select('id, end_date, client_id, packages(name), clients(profiles(full_name))')
+        .eq('trainer_id', userId)
+        .eq('status', 'active')
+        .gte('end_date', oneDayAgo)
+        .lte('end_date', sevenDaysAhead)
+        .order('end_date', { ascending: true }),
     ])
 
     const formatTime = (dateStr: string) => {
@@ -264,6 +277,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         time: formatTime(c.date),
         type: 'checkin',
         href: `/dashboard/checkins/${c.client_id}`,
+        isNew: !storedSeen.has(id),
+      })
+    })
+
+    ;(pkgAlerts || []).forEach((cp: any) => {
+      const name = cp.clients?.profiles?.full_name || 'Klijent'
+      const pkgName = (cp.packages as any)?.name || 'Paket'
+      const endDate = cp.end_date as string
+      const daysLeft = Math.ceil((new Date(endDate).getTime() - now.getTime()) / 86400000)
+      const id = `pkg-${cp.id}-${endDate}`
+      const subtitle = daysLeft < 0
+        ? `${pkgName} — paket je istekao`
+        : daysLeft === 0
+        ? `${pkgName} — istječe danas`
+        : `${pkgName} — istječe za ${daysLeft} ${daysLeft === 1 ? 'dan' : 'dana'}`
+      notifs.push({
+        id,
+        title: name,
+        subtitle,
+        time: daysLeft < 0 ? `${Math.abs(daysLeft)}d isteklo` : daysLeft === 0 ? 'danas' : `za ${daysLeft}d`,
+        type: 'package',
+        href: `/dashboard/clients/${cp.client_id}?tab=paketi`,
         isNew: !storedSeen.has(id),
       })
     })
@@ -486,12 +521,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         notifications.map(n => {
                           const isMsg = n.type === 'message'
                           const isCi  = n.type === 'checkin'
+                          const isPkg = n.type === 'package'
                           const iconEl = isMsg
                             ? <MessageSquare size={12} className="text-sky-500" />
                             : isCi
                             ? <ClipboardCheck size={12} style={{ color: 'var(--app-accent)' }} />
+                            : isPkg
+                            ? <Package size={12} className="text-amber-500" />
                             : <CreditCard size={12} className="text-emerald-500" />
-                          const iconBg = isMsg ? '#e0f2fe' : isCi ? 'var(--app-accent-muted)' : '#d1fae5'
+                          const iconBg = isMsg ? '#e0f2fe' : isCi ? 'var(--app-accent-muted)' : isPkg ? '#fef3c7' : '#d1fae5'
                           return (
                             <button key={n.id}
                               className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${n.isNew ? 'bg-blue-50/40 hover:bg-blue-50/60' : 'hover:bg-gray-50'}`}
