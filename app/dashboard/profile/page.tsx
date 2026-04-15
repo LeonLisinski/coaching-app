@@ -7,8 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Plus, Pencil, Trash2, Phone, Globe, Instagram, Camera, Check,
-  X, Mail, FileText, Package, Facebook, Eye, EyeOff,
+  X, Mail, FileText, Package, Eye, EyeOff,
 } from 'lucide-react'
+
+function FacebookIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.514c-1.491 0-1.956.93-1.956 1.883v2.272h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+    </svg>
+  )
+}
 
 function TikTokIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
   return (
@@ -51,7 +59,7 @@ const SOCIAL_LINKS = [
   { key: 'phone',     label: 'Telefon',   Icon: Phone,      prefix: '' },
   { key: 'website',   label: 'Web',       Icon: Globe,      prefix: '' },
   { key: 'instagram', label: 'Instagram', Icon: Instagram,  prefix: '@' },
-  { key: 'facebook',  label: 'Facebook',  Icon: Facebook,   prefix: '' },
+  { key: 'facebook',  label: 'Facebook',  Icon: FacebookIcon, prefix: '' },
   { key: 'tiktok',    label: 'TikTok',    Icon: TikTokIcon, prefix: '@' },
 ] as const
 type Pkg = {
@@ -293,7 +301,7 @@ export default function ProfilePage() {
             {/* Social links — compact on mobile, never break mid-item */}
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
               {form.instagram && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Instagram size={9} />@{form.instagram.replace('@', '')}</span>}
-              {form.facebook  && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Facebook size={9} />{form.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>}
+              {form.facebook  && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><FacebookIcon size={9} />{form.facebook.replace(/^https?:\/\/(www\.)?facebook\.com\//, '')}</span>}
               {form.tiktok    && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><TikTokIcon size={9} />@{form.tiktok.replace('@', '')}</span>}
               {form.phone     && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Phone size={9} />{form.phone}</span>}
               {form.website   && <span className="whitespace-nowrap flex items-center gap-1 text-[11px] text-white/70"><Globe size={9} />{form.website.replace(/^https?:\/\//, '')}</span>}
@@ -326,7 +334,7 @@ export default function ProfilePage() {
                   { key: 'phone',     Icon: Phone,     label: 'Telefon',   placeholder: '+385 99 123 4567' },
                   { key: 'website',   Icon: Globe,     label: 'Web',       placeholder: 'https://...' },
                   { key: 'instagram', Icon: Instagram, label: 'Instagram', placeholder: '@korisničkoime' },
-                  { key: 'facebook',  Icon: Facebook,  label: 'Facebook',  placeholder: 'https://facebook.com/...' },
+                  { key: 'facebook',  Icon: FacebookIcon, label: 'Facebook',  placeholder: 'https://facebook.com/...' },
                   { key: 'tiktok',    Icon: TikTokIcon, label: 'TikTok',    placeholder: '@korisničkoime' },
                 ].map(({ key, Icon, label, placeholder }) => (
                   <div key={key} className="flex items-center gap-2">
