@@ -185,11 +185,11 @@ function RegisterInner() {
   const inputClass = "w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 bg-white focus:border-[#0066FF] focus:ring-2 focus:ring-[#0066FF]/10"
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#f3f4f8' }}>
+    <div className="h-[100dvh] flex overflow-hidden" style={{ backgroundColor: '#f3f4f8' }}>
 
       {/* ── LEFT: branding panel ── */}
       <div
-        className="hidden lg:flex lg:w-[42%] xl:w-[46%] flex-col relative overflow-hidden select-none"
+        className="hidden lg:flex lg:w-[42%] xl:w-[46%] flex-col relative overflow-y-auto select-none"
         style={{ background: `linear-gradient(155deg, ${NAVY} 0%, #0d1a3a 55%, ${NAVY} 100%)` }}
       >
         {/* Glow blobs */}
@@ -298,7 +298,7 @@ function RegisterInner() {
       </div>
 
       {/* ── RIGHT: form panel ── */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-h-0 min-w-0">
 
         {/* Mobile header */}
         <header className="lg:hidden flex items-center gap-3 px-5"
@@ -444,7 +444,7 @@ function RegisterInner() {
                 </form>
 
                 {/* Trust row */}
-                <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-100">
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-2 border-t border-gray-100">
                   {[
                     { icon: Shield,      label: '14 dana besplatno' },
                     { icon: CircleCheck, label: 'Pravo na povrat' },
@@ -452,7 +452,7 @@ function RegisterInner() {
                   ].map(({ icon: Icon, label }) => (
                     <div key={label} className="flex items-center gap-1.5">
                       <Icon size={12} style={{ color: BLUE }} />
-                      <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{label}</span>
+                      <span className="text-[11px] text-gray-500 font-medium">{label}</span>
                     </div>
                   ))}
                 </div>
