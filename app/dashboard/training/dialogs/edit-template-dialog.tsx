@@ -268,12 +268,12 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
       const container = dropdownRef.current
       const item = container.children[dropdownIndex] as HTMLElement
       if (!item) return
-      const itemTop    = item.offsetTop
-      const itemBottom = itemTop + item.offsetHeight
-      if (itemBottom > container.scrollTop + container.clientHeight)
-        container.scrollTop = itemBottom - container.clientHeight
-      else if (itemTop < container.scrollTop)
-        container.scrollTop = itemTop
+      const iRect = item.getBoundingClientRect()
+      const cRect = container.getBoundingClientRect()
+      if (iRect.bottom > cRect.bottom)
+        container.scrollTop += iRect.bottom - cRect.bottom
+      else if (iRect.top < cRect.top)
+        container.scrollTop -= cRect.top - iRect.top
     }
   }, [dropdownIndex])
 

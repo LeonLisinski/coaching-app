@@ -76,12 +76,12 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       if (!container) continue
       const item = container.querySelector(`[data-kb-item="${kbIdx}"]`) as HTMLElement | null
       if (!item) continue
-      const itemTop    = item.offsetTop
-      const itemBottom = itemTop + item.offsetHeight
-      if (itemBottom > container.scrollTop + container.clientHeight)
-        container.scrollTop = itemBottom - container.clientHeight
-      else if (itemTop < container.scrollTop)
-        container.scrollTop = itemTop
+      const iRect = item.getBoundingClientRect()
+      const cRect = container.getBoundingClientRect()
+      if (iRect.bottom > cRect.bottom)
+        container.scrollTop += iRect.bottom - cRect.bottom
+      else if (iRect.top < cRect.top)
+        container.scrollTop -= cRect.top - iRect.top
     }
   }, [dropdownKbIndex])
 
