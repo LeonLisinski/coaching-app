@@ -67,7 +67,7 @@ export default function ProfilePage() {
   const tCommon = useTranslations('common')
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
-  const { refresh: refreshTrainerSettings, settings: ctxSettings, loading: ctxLoading } = useTrainerSettingsContext()
+  const { refresh: refreshTrainerSettings } = useTrainerSettingsContext()
 
   const [profile, setProfile]   = useState<Profile | null>(null)
   const [packages, setPackages] = useState<Pkg[]>([])
@@ -574,12 +574,6 @@ export default function ProfilePage() {
           <p className="text-xs text-gray-400 mb-2">
             Ove vrijednosti koriste se kao početne postavke pri dodavanju vježbi u planove i predloške.
           </p>
-          {/* Shows what's actually loaded in context (i.e. what's in the DB) */}
-          {!ctxLoading && (
-            <p className="text-xs text-gray-400 mb-3 font-mono">
-              Aktivno u bazi: sets={ctxSettings.workoutDefaults.sets} · reps={ctxSettings.workoutDefaults.reps} · odmor={ctxSettings.workoutDefaults.rest_seconds}s
-            </p>
-          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-gray-600">Serije (sets)</label>
