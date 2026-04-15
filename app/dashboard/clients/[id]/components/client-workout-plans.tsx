@@ -252,6 +252,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   }
 
   const addAssignEx = (dayIdx: number, ex: Exercise) => {
+    console.log('[addAssignEx] workoutDefaults:', trainerSettings.workoutDefaults)
     const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
     const optionalFields: Record<string, string> = {}
     trainerSettings.exerciseFields.forEach(key => {

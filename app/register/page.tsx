@@ -310,9 +310,9 @@ function RegisterInner() {
           <span className="text-white/30 text-xs ml-0.5">· Coaching Platform</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto flex items-center justify-center px-4 py-6 lg:py-12"
+        <div className="flex-1 overflow-y-auto flex flex-col items-center px-4 py-6 lg:py-12"
           style={{ backgroundColor: '#f8f9fc' }}>
-          <div className="w-full max-w-[420px]">
+          <div className="w-full max-w-[420px] my-auto">
 
             {step === 'success' ? (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-12 text-center space-y-5">

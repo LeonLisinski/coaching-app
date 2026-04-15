@@ -261,12 +261,13 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
       const container = dropdownRef.current
       const item = container.children[dropdownIndex] as HTMLElement
       if (!item) return
-      const iRect = item.getBoundingClientRect()
-      const cRect = container.getBoundingClientRect()
-      if (iRect.bottom > cRect.bottom)
-        container.scrollTop += iRect.bottom - cRect.bottom
-      else if (iRect.top < cRect.top)
-        container.scrollTop -= cRect.top - iRect.top
+      // offsetTop is relative to container because container has position:relative
+      const itemTop = item.offsetTop
+      const itemBot = itemTop + item.offsetHeight
+      if (itemBot > container.scrollTop + container.clientHeight)
+        container.scrollTop = itemBot - container.clientHeight
+      else if (itemTop < container.scrollTop)
+        container.scrollTop = itemTop
     }
   }, [dropdownIndex])
 
@@ -368,11 +369,11 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
 
               {/* IN-FLOW dropdown */}
               {showDropdown && (
-                <div ref={dropdownRef} className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
+                <div className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
                   {!exercisesLoaded ? (
                     <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
                   ) : (
-                    <div className="overflow-y-auto max-h-44">
+                    <div ref={dropdownRef} className="relative overflow-y-auto max-h-44">
                       {filteredExercises.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-gray-400 text-center">
                           {search ? t('noResults', { search }) : t('allAdded')}

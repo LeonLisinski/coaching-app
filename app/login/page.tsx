@@ -186,8 +186,8 @@ export default function LoginPage() {
         </header>
 
         {/* Centered form */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <div className="w-full max-w-[440px]">
+        <div className="flex-1 overflow-y-auto flex flex-col items-center px-6 py-12">
+          <div className="w-full max-w-[440px] my-auto">
 
             {/* Card */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_4px_32px_rgba(0,0,0,0.07)] px-9 py-10 space-y-7">

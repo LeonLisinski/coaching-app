@@ -76,12 +76,13 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       if (!container) continue
       const item = container.querySelector(`[data-kb-item="${kbIdx}"]`) as HTMLElement | null
       if (!item) continue
-      const iRect = item.getBoundingClientRect()
-      const cRect = container.getBoundingClientRect()
-      if (iRect.bottom > cRect.bottom)
-        container.scrollTop += iRect.bottom - cRect.bottom
-      else if (iRect.top < cRect.top)
-        container.scrollTop -= cRect.top - iRect.top
+      // item.offsetTop is relative to container because container has position:relative
+      const itemTop = item.offsetTop
+      const itemBot = itemTop + item.offsetHeight
+      if (itemBot > container.scrollTop + container.clientHeight)
+        container.scrollTop = itemBot - container.clientHeight
+      else if (itemTop < container.scrollTop)
+        container.scrollTop = itemTop
     }
   }, [dropdownKbIndex])
 
@@ -404,7 +405,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
                             <div
                               ref={el => { dropdownRefs.current[index] = el }}
-                              className="border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
+                              className="relative border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
                               onWheel={e => e.stopPropagation()}
                             >
                               {getFilteredExercisesForDay(index).length === 0 ? (
