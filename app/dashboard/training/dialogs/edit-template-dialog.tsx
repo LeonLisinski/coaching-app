@@ -60,6 +60,7 @@ function SortableItem({
   onRemove: () => void
   isNew?: boolean
 }) {
+  const t = useTranslations('training.dialogs.template')
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
 
@@ -74,7 +75,7 @@ function SortableItem({
           type="button" {...listeners} {...attributes}
           className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-blue-400 shrink-0 touch-none transition-colors"
           tabIndex={-1}
-          title="Povuci za promjenu redoslijeda"
+          title={t('dragHandleTitle')}
         >
           <GripVertical size={15} />
         </button>
@@ -90,26 +91,26 @@ function SortableItem({
         )}
         <button type="button" onClick={onRemove}
           className="shrink-0 p-1 rounded hover:bg-red-50 transition-colors text-gray-300 hover:text-red-500"
-          title="Ukloni vježbu">
+          title={t('removeExerciseHandleTitle')}>
           <X size={13} />
         </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2 ml-7">
         <div>
-          <Label className="text-[11px] text-gray-500 font-medium">Serije</Label>
+          <Label className="text-[11px] text-gray-500 font-medium">{t('sets')}</Label>
           <Input type="number" value={ex.sets}
             onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
             className="h-7 text-xs mt-0.5" />
         </div>
         <div>
-          <Label className="text-[11px] text-gray-500 font-medium">Ponavljanja</Label>
+          <Label className="text-[11px] text-gray-500 font-medium">{t('repsLabel')}</Label>
           <Input value={ex.reps}
             onChange={e => onUpdate('reps', e.target.value)}
             placeholder="10 ili 8-12" className="h-7 text-xs mt-0.5" />
         </div>
         <div>
-          <Label className="text-[11px] text-gray-500 font-medium">Odmor (sek)</Label>
+          <Label className="text-[11px] text-gray-500 font-medium">{t('restSecsLabel')}</Label>
           <Input type="number" value={ex.rest_seconds}
             onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
             className="h-7 text-xs mt-0.5" />
@@ -137,7 +138,7 @@ function SortableItem({
       <textarea
         value={ex.notes}
         onChange={e => onUpdate('notes', e.target.value)}
-        placeholder="Napomena..."
+        placeholder={t('notePlaceholder')}
         rows={1}
         className="ml-7 w-[calc(100%-1.75rem)] border border-input rounded-md px-3 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
       />
@@ -297,7 +298,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
         description={t('removeExerciseConfirm')}
         onConfirm={() => { if (confirmRemove) removeExercise(confirmRemove); setConfirmRemove(null) }}
         onCancel={() => setConfirmRemove(null)}
-        confirmLabel="Ukloni"
+        confirmLabel={tCommon('remove')}
         destructive
       />
       <AddExerciseDialog
@@ -357,7 +358,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
                   onKeyDown={handleSearchKeyDown}
-                  placeholder="Pretraži i dodaj vježbu... (↑↓ Enter)"
+                  placeholder={t('searchAddPlaceholder')}
                   className="pl-9 h-9 border-blue-200 focus:border-blue-400"
                 />
                 {search && (

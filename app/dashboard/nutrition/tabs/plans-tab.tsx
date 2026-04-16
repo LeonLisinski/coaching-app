@@ -10,6 +10,7 @@ import AddMealPlanDialog from '../dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '../dialogs/edit-meal-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useTranslations } from 'next-intl'
 
 type MealPlan = {
   id: string
@@ -47,6 +48,7 @@ function DroppablePlanCard({
     acc[f.key] = (plan.meals || []).reduce((sum, m) => sum + getMealExtra(m, f.key), 0)
     return acc
   }, {} as Record<string, number>)
+  const t = useTranslations('nutrition.plansTab')
   const { setNodeRef, isOver } = useDroppable({
     id: `plan-drop::${plan.id}`,
     data: { type: 'plan-drop', planId: plan.id },
@@ -64,7 +66,7 @@ function DroppablePlanCard({
     >
       {isActive && (
         <div className="text-[11px] text-purple-600 font-semibold mb-2 flex items-center gap-1">
-          <CalendarDays size={11} /> Ispusti recept da dodaš obrok
+          <CalendarDays size={11} /> {t('addMealDrop')}
         </div>
       )}
       <div className="flex items-center gap-2">
@@ -82,11 +84,11 @@ function DroppablePlanCard({
               })}
             </div>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">dvoklik za uređivanje</p>
+          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
           <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium border border-purple-100">
-            {plan.meals?.length ?? 0} obroka
+            {t('mealsCountBadge', { count: plan.meals?.length ?? 0 })}
           </span>
           {plan.calories_target && (
             <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded-full border border-gray-100">
@@ -110,6 +112,8 @@ function DroppablePlanCard({
 type Props = { activeType?: 'food' | 'recipe' | null; refreshKey?: number }
 
 export default function PlansTab({ activeType, refreshKey }: Props) {
+  const tTab = useTranslations('nutrition.plansTab')
+  const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
   const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -167,7 +171,7 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
       {/* Fixed: header + search */}
       <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{sorted.length} / {plans.length} planova</p>
+          <p className="text-gray-500 text-xs">{sorted.length} / {tTab('count', { count: plans.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -175,19 +179,19 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
               className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-purple-300 text-purple-600 bg-purple-50' : ''}`}
             >
               <SlidersHorizontal size={12} />
-              Filtriraj
+              {tTab('filterButton')}
               {hasFilters && <span className="bg-purple-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>}
               <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </Button>
             <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-purple-600 hover:bg-purple-700">
-              <Plus size={12} /> Dodaj
+              <Plus size={12} /> {tTab('add')}
             </Button>
           </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
-            placeholder="Pretraži planove prehrane..."
+            placeholder={tTab('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
@@ -207,13 +211,13 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
       {showFilters && (
         <div className="bg-purple-50/60 rounded-xl p-3 space-y-3 border border-purple-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tTab('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
-                { key: 'date_desc', label: 'Najnoviji' },
-                { key: 'date_asc', label: 'Najstariji' },
-                { key: 'name_asc', label: 'A → Z' },
-                { key: 'name_desc', label: 'Z → A' },
+                { key: 'date_desc', label: tTab('sortNewest') },
+                { key: 'date_asc', label: tTab('sortOldest') },
+                { key: 'name_asc', label: tTab('sortAZ') },
+                { key: 'name_desc', label: tTab('sortZA') },
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
@@ -226,7 +230,7 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
           </div>
           {hasFilters && (
             <button type="button" onClick={() => setSort('date_desc')} className="text-xs text-purple-600 flex items-center gap-1 hover:text-purple-800">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -241,10 +245,10 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
           <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center mx-auto mb-2">
             <CalendarDays size={20} className="text-purple-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : 'Nema planova prehrane'}</p>
+          <p className="text-gray-400 text-sm">{search ? tTab('noSearchResults') : tTab('noPlans')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mx-auto">
-              <Plus size={11} /> Kreiraj prvi plan
+              <Plus size={11} /> {tTab('createFirst')}
             </button>
           )}
         </div>
@@ -271,11 +275,11 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši plan prehrane"
-        description="Jesi li siguran da želiš obrisati ovaj plan? Ova radnja je nepovratna."
+        title={tTab('deleteTitle')}
+        description={tTab('deleteConfirm')}
         onConfirm={() => confirmDelete && deletePlan(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
       </div>

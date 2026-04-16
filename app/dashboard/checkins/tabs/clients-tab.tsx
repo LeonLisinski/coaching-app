@@ -48,14 +48,6 @@ function getStatus(checkinDay: number | null, lastCheckin: string | null): 'subm
   return lastCheckin >= expectedStr ? 'submitted' : 'late'
 }
 
-const STATUS_CONFIG = {
-  submitted: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'Predano' },
-  late:      { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-600 border-red-200',             label: 'Kasni' },
-  neutral:   { dot: 'bg-gray-300',   badge: 'bg-gray-50 text-gray-400 border-gray-200',           label: 'Na čekanju' },
-}
-
-const DAY_NAMES_SHORT = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
-const DAY_NAMES_FULL  = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
 
 function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -70,6 +62,18 @@ function avatarStyle(gender: string | null): string {
 export default function ClientsCheckinTab() {
   const locale = useLocale()
   const t = useTranslations('checkins.clientsTab')
+  const t2 = useTranslations('checkins2')
+  const tDaysShort = useTranslations('daysShort')
+  const tDaysFull = useTranslations('days')
+
+  const STATUS_CONFIG = {
+    submitted: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: t2('statusSubmitted') },
+    late:      { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-600 border-red-200',             label: t2('statusLate') },
+    neutral:   { dot: 'bg-gray-300',    badge: 'bg-gray-50 text-gray-400 border-gray-200',          label: t2('statusWaiting') },
+  }
+
+  const DAY_NAMES_SHORT = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
+  const DAY_NAMES_FULL  = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysFull(String(i) as any))
 
   const SORT_OPTIONS = [
     { value: 'name_asc',  label: t('sortAZ') },
@@ -134,14 +138,14 @@ export default function ClientsCheckinTab() {
 
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-xs">{filtered.length} / {clients.length} klijenata</p>
+        <p className="text-gray-500 text-xs">{t2('clientCountDisplay', { filtered: filtered.length, total: clients.length })}</p>
         <Button
           variant="outline" size="sm"
           onClick={() => setShowFilters(f => !f)}
           className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-teal-300 text-teal-600 bg-teal-50' : ''}`}
         >
           <SlidersHorizontal size={12} />
-          Filtriraj
+          {t2('filterBtn')}
           {activeFilterCount > 0 && (
             <span className="bg-teal-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
               {activeFilterCount}
@@ -204,7 +208,7 @@ export default function ClientsCheckinTab() {
           </div>
           {hasFilters && (
             <button type="button" onClick={clearFilters} className="text-xs text-teal-600 flex items-center gap-1 hover:text-teal-800">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {t2('clearFilters')}
             </button>
           )}
         </div>
@@ -220,7 +224,7 @@ export default function ClientsCheckinTab() {
           <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mx-auto mb-2">
             <ClipboardList size={20} className="text-teal-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : t('noClients')}</p>
+          <p className="text-gray-400 text-sm">{search ? t2('noSearchResults') : t('noClients')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2">
@@ -243,11 +247,11 @@ export default function ClientsCheckinTab() {
                     <p className="font-semibold text-sm text-gray-800 truncate">{client.full_name}</p>
                     <p className="text-[11px] text-gray-400 mt-0.5">
                       {client.checkin_day !== null
-                        ? `Check-in: ${DAY_NAMES_FULL[client.checkin_day]}`
-                        : 'Bez konfiguriranog dana'}
+                        ? `${t2('checkinDayPrefix')} ${DAY_NAMES_FULL[client.checkin_day]}`
+                        : t2('noDay')}
                       {client.last_checkin && (
                         <span className="ml-1.5">
-                          · Zadnji: {new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          {t2('lastCheckinPrefix')} {new Date(client.last_checkin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </span>
                       )}
                     </p>
@@ -261,7 +265,7 @@ export default function ClientsCheckinTab() {
                     </span>
                     {client.status === 'late' && (
                       <button
-                        title="Pošalji podsjetnik"
+                        title={t2('sendReminder')}
                         onClick={e => {
                           e.stopPropagation()
                           router.push(`/dashboard/chat?clientId=${client.id}`)

@@ -93,7 +93,7 @@ export default function ClientCheckinPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-white font-bold text-lg leading-tight truncate">{client.full_name}</h1>
-            <p className="text-white/60 text-xs mt-0.5">Checkini i napredak</p>
+            <p className="text-white/60 text-xs mt-0.5">{t('page.clientSubtitle')}</p>
           </div>
         </div>
       </div>

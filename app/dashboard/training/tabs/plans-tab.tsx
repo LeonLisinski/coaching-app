@@ -33,6 +33,8 @@ function PlanCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const t = useTranslations('training.plansTab')
+
   const { setNodeRef, isOver } = useDroppable({
     id: `plan-drop::${plan.id}`,
     data: { type: 'plan-drop', planId: plan.id },
@@ -56,7 +58,7 @@ function PlanCard({
       {isActive && (
         <div className="absolute inset-0 rounded-xl flex items-center justify-center pointer-events-none z-10">
           <div className="bg-indigo-600/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-            <PlusCircle size={12} /> Dodaj kao novi dan
+            <PlusCircle size={12} /> {t('addNewDayDropLabel')}
           </div>
         </div>
       )}
@@ -71,7 +73,7 @@ function PlanCard({
           {plan.description && (
             <p className="text-xs text-gray-400 truncate">{plan.description}</p>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">dvoklik za uređivanje</p>
+          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
           {plan.days?.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {plan.days.slice(0, 4).map((day: any, i: number) => (
@@ -81,7 +83,7 @@ function PlanCard({
               ))}
               {plan.days.length > 4 && (
                 <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded border border-gray-100">
-                  +{plan.days.length - 4} dana
+                  +{plan.days.length - 4} {t('daysSuffix')}
                 </span>
               )}
             </div>
@@ -163,7 +165,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       {/* Fixed: header + search */}
       <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{filtered.length} / {plans.length} planova</p>
+          <p className="text-gray-500 text-xs">{filtered.length} / {t('count', { count: plans.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -171,19 +173,19 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
               className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-indigo-300 text-indigo-600 bg-indigo-50' : ''}`}
             >
               <SlidersHorizontal size={12} />
-              Filtriraj
+              {t('filterButton')}
               {hasFilters && <span className="bg-indigo-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>}
               <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </Button>
             <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-indigo-600 hover:bg-indigo-700">
-              <Plus size={12} /> Dodaj
+              <Plus size={12} /> {t('add')}
             </Button>
           </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
-            placeholder="Pretraži planove..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
@@ -203,14 +205,14 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       {showFilters && (
         <div className="bg-indigo-50/60 rounded-xl p-3 space-y-3 border border-indigo-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
-                { key: 'date_desc', label: 'Najnoviji' },
-                { key: 'date_asc', label: 'Najstariji' },
-                { key: 'name_asc', label: 'A → Z' },
-                { key: 'name_desc', label: 'Z → A' },
-                { key: 'days_desc', label: 'Najviše dana' },
+                { key: 'date_desc', label: t('sortNewest') },
+                { key: 'date_asc', label: t('sortOldest') },
+                { key: 'name_asc', label: t('sortAZ') },
+                { key: 'name_desc', label: t('sortZA') },
+                { key: 'days_desc', label: t('mostDays') },
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
@@ -222,21 +224,21 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Minimalno dana</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('minDaysHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {[0, 2, 4, 6].map(n => (
                 <button key={n} type="button" onClick={() => setMinDays(n)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
                     minDays === n ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
                   }`}>
-                  {n === 0 ? 'Sve' : `${n}+`}
+                  {n === 0 ? t('allLabel') : `${n}+`}
                 </button>
               ))}
             </div>
           </div>
           {hasFilters && (
             <button type="button" onClick={() => { setSort('date_desc'); setMinDays(0) }} className="text-xs text-indigo-600 flex items-center gap-1 hover:text-indigo-800">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -245,18 +247,18 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       {/* Active sort chip */}
       {hasFilters && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
           {sort !== 'date_desc' && (
             <button type="button" onClick={() => setSort('date_desc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-600 text-white">
-              {sort === 'name_asc' ? 'A→Z' : sort === 'name_desc' ? 'Z→A' : sort === 'date_asc' ? 'Najstariji' : 'Najviše dana'}
+              {sort === 'name_asc' ? t('sortAZ') : sort === 'name_desc' ? t('sortZA') : sort === 'date_asc' ? t('sortOldest') : t('mostDays')}
               <X size={10} />
             </button>
           )}
           {minDays > 0 && (
             <button type="button" onClick={() => setMinDays(0)}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-500 text-white">
-              {minDays}+ dana <X size={10} />
+              {minDays}+ {t('daysSuffix')} <X size={10} />
             </button>
           )}
         </div>
@@ -265,7 +267,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       {/* Drag hint */}
       {activeType === 'template' && (
         <p className="text-xs text-indigo-600/70 text-center py-1 border border-dashed border-indigo-300/40 rounded-lg">
-          Ispusti trening na plan da dodaš novi dan ↓
+          {t('dropTemplateHint')}
         </p>
       )}
 
@@ -280,14 +282,14 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
           <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-2">
             <CalendarDays size={20} className="text-indigo-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : t('noPlans')}</p>
+          <p className="text-gray-400 text-sm">{search ? t('noSearchResults') : t('noPlans')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mx-auto">
-              <Plus size={11} /> Kreiraj prvi plan
+              <Plus size={11} /> {t('createFirst')}
             </button>
           )}
           {activeType === 'template' && (
-            <p className="text-xs text-indigo-500/60 mt-1">Ili ispusti trening ovdje</p>
+            <p className="text-xs text-indigo-500/60 mt-1">{t('dropTemplateHint')}</p>
           )}
         </div>
       ) : (

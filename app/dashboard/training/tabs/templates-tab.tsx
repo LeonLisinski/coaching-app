@@ -33,6 +33,8 @@ function TemplateCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const t = useTranslations('training.templatesTab')
+
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `template-drop::${template.id}`,
     data: { type: 'template-drop', templateId: template.id },
@@ -43,7 +45,7 @@ function TemplateCard({
     data: {
       type: 'template',
       name: template.name,
-      subtitle: `${template.exercises?.length ?? 0} vježbi`,
+      subtitle: `${template.exercises?.length ?? 0} ${t('exercisesShort')}`,
       payload: template,
     },
   })
@@ -67,7 +69,7 @@ function TemplateCard({
       {isActive && (
         <div className="absolute inset-0 rounded-xl flex items-center justify-center pointer-events-none z-10">
           <div className="bg-primary/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-            <PlusCircle size={12} /> Dodaj vježbu
+            <PlusCircle size={12} /> {t('addExerciseDropLabel')}
           </div>
         </div>
       )}
@@ -79,7 +81,7 @@ function TemplateCard({
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-indigo-400 shrink-0 touch-none transition-colors"
-          title="Povuci u plan"
+          title={t('dragTooltip')}
           onDoubleClick={e => e.stopPropagation()}
         >
           <GripVertical size={14} />
@@ -94,12 +96,12 @@ function TemplateCard({
           {template.description && (
             <p className="text-xs text-gray-400 truncate">{template.description}</p>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">dvoklik za uređivanje</p>
+          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
           <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium border border-blue-100">
-            {template.exercises?.length ?? 0} vj.
+            {template.exercises?.length ?? 0} {t('exercisesShort')}
           </span>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700"
             onClick={e => { e.stopPropagation(); onEdit() }}>
@@ -186,7 +188,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       {/* Fixed: header + search */}
       <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{sorted.length} / {templates.length} treninga</p>
+          <p className="text-gray-500 text-xs">{sorted.length} / {t('count', { count: templates.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -194,19 +196,19 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
               className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${hasFilters ? 'border-blue-300 text-blue-600 bg-blue-50' : ''}`}
             >
               <SlidersHorizontal size={12} />
-              Filtriraj
+              {t('filterButton')}
               {hasFilters && <span className="bg-blue-500 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">1</span>}
               <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </Button>
             <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-blue-600 hover:bg-blue-700">
-              <Plus size={12} /> Dodaj
+              <Plus size={12} /> {t('add')}
             </Button>
           </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
-            placeholder="Pretraži treninge..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
@@ -226,14 +228,14 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       {showFilters && (
         <div className="bg-blue-50/60 rounded-xl p-3 space-y-3 border border-blue-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
-                { key: 'date_desc', label: 'Najnoviji' },
-                { key: 'date_asc', label: 'Najstariji' },
-                { key: 'name_asc', label: 'A → Z' },
-                { key: 'name_desc', label: 'Z → A' },
-                { key: 'exercises_desc', label: 'Najviše vježbi' },
+                { key: 'date_desc', label: t('sortNewest') },
+                { key: 'date_asc', label: t('sortOldest') },
+                { key: 'name_asc', label: t('sortAZ') },
+                { key: 'name_desc', label: t('sortZA') },
+                { key: 'exercises_desc', label: t('mostExercises') },
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
@@ -245,21 +247,21 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Minimalno vježbi</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('minExercisesHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {[0, 3, 5, 8].map(n => (
                 <button key={n} type="button" onClick={() => setMinExercises(n)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
                     minExercises === n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
                   }`}>
-                  {n === 0 ? 'Sve' : `${n}+`}
+                  {n === 0 ? t('allLabel') : `${n}+`}
                 </button>
               ))}
             </div>
           </div>
           {hasFilters && (
             <button type="button" onClick={() => { setSort('date_desc'); setMinExercises(0) }} className="text-xs text-blue-600 flex items-center gap-1 hover:text-blue-800">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -268,18 +270,18 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       {/* Active sort chip */}
       {hasFilters && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
           {sort !== 'date_desc' && (
             <button type="button" onClick={() => setSort('date_desc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-600 text-white">
-              {sort === 'name_asc' ? 'A→Z' : sort === 'name_desc' ? 'Z→A' : sort === 'date_asc' ? 'Najstariji' : 'Najviše vježbi'}
+              {sort === 'name_asc' ? t('sortAZ') : sort === 'name_desc' ? t('sortZA') : sort === 'date_asc' ? t('sortOldest') : t('mostExercises')}
               <X size={10} />
             </button>
           )}
           {minExercises > 0 && (
             <button type="button" onClick={() => setMinExercises(0)}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-500 text-white">
-              {minExercises}+ vježbi <X size={10} />
+              {minExercises}+ {t('exercisesShort')} <X size={10} />
             </button>
           )}
         </div>
@@ -288,7 +290,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       {/* Drag hint */}
       {activeType === 'exercise' && (
         <p className="text-xs text-primary/70 text-center py-1 border border-dashed border-primary/30 rounded-lg">
-          Ispusti vježbu na trening ↓
+          {t('dropExerciseHint')}
         </p>
       )}
 
@@ -303,10 +305,10 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-2">
             <Dumbbell size={20} className="text-blue-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? 'Nema rezultata za pretragu' : 'Nema treninga'}</p>
+          <p className="text-gray-400 text-sm">{search ? t('noSearchResults') : t('noTemplates')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mx-auto">
-              <Plus size={11} /> Kreiraj prvi trening
+              <Plus size={11} /> {t('createFirst')}
             </button>
           )}
         </div>

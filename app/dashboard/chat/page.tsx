@@ -26,6 +26,7 @@ type Client = {
 
 function ChatPageContent() {
   const t = useTranslations('chat')
+  const tChat = useTranslations('chatPage')
   const searchParams = useSearchParams()
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -102,7 +103,7 @@ function ChatPageContent() {
 
     const mapped: Client[] = clientsData.map((c: any) => ({
       id: c.id,
-      full_name: c.profiles?.full_name || 'Bez imena',
+      full_name: c.profiles?.full_name || tChat('fallbackName'),
       last_message: lastMessageMap[c.id]?.content || null,
       last_message_time: lastMessageMap[c.id]?.time || null,
       unread: unreadMap[c.id] || 0,
@@ -129,7 +130,7 @@ function ChatPageContent() {
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
     if (days === 0) return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-    if (days === 1) return 'Jučer'
+    if (days === 1) return tChat('yesterday')
     if (days < 7) return date.toLocaleDateString(locale, { weekday: 'short' })
     return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
   }
@@ -253,8 +254,8 @@ function ChatPageContent() {
               <MessageCircle size={28} style={{ color: accentHex }} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-700">Odaberi klijenta</p>
-              <p className="text-xs text-gray-400 mt-1">za početak razgovora s klijentom</p>
+              <p className="text-sm font-semibold text-gray-700">{tChat('selectClient')}</p>
+              <p className="text-xs text-gray-400 mt-1">{tChat('selectClientHint')}</p>
             </div>
             <div className="flex gap-2 mt-2">
               {clients.slice(0, 3).map(c => (

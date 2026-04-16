@@ -4,23 +4,23 @@ import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
 import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 import { supabase } from '@/lib/supabase'
 
-const ACCENT_COLORS: { key: AccentColor; label: string; hex: string }[] = [
-  { key: 'violet', label: 'Violet',  hex: '#7c3aed' },
-  { key: 'blue',   label: 'Plava',   hex: '#2563eb' },
-  { key: 'indigo', label: 'Indigo',  hex: '#4f46e5' },
-  { key: 'sky',    label: 'Nebo',    hex: '#0284c7' },
-  { key: 'teal',   label: 'Teal',    hex: '#0d9488' },
-  { key: 'green',  label: 'Zelena',  hex: '#16a34a' },
-  { key: 'yellow', label: 'Žuta',    hex: '#ca8a04' },
-  { key: 'amber',  label: 'Amber',   hex: '#d97706' },
-  { key: 'orange', label: 'Narančasta', hex: '#ea580c' },
-  { key: 'red',    label: 'Crvena',  hex: '#dc2626' },
-  { key: 'rose',   label: 'Roza',    hex: '#ec4899' },
-  { key: 'slate',  label: 'Siva',    hex: '#475569' },
+const ACCENT_COLORS: { key: AccentColor; hex: string }[] = [
+  { key: 'violet', hex: '#7c3aed' },
+  { key: 'blue',   hex: '#2563eb' },
+  { key: 'indigo', hex: '#4f46e5' },
+  { key: 'sky',    hex: '#0284c7' },
+  { key: 'teal',   hex: '#0d9488' },
+  { key: 'green',  hex: '#16a34a' },
+  { key: 'yellow', hex: '#ca8a04' },
+  { key: 'amber',  hex: '#d97706' },
+  { key: 'orange', hex: '#ea580c' },
+  { key: 'red',    hex: '#dc2626' },
+  { key: 'rose',   hex: '#ec4899' },
+  { key: 'slate',  hex: '#475569' },
 ]
 
 type Tab = 'theme' | 'billing' | 'contact' | 'danger'
@@ -33,7 +33,11 @@ interface Props {
 
 export default function SettingsDialog({ open, onClose }: Props) {
   const t = useTranslations('settings')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
   const { accent, setAccent } = useAppTheme()
+
+  const colorLabel = (key: string) => t(`colorLabels.${key}` as any)
   const [tab, setTab] = useState<Tab>('theme')
   const { state: pushState, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePushNotifications()
 
@@ -113,12 +117,12 @@ export default function SettingsDialog({ open, onClose }: Props) {
       const res = await callBillingApi('/api/billing/cancel')
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setBillingError(d.error || 'Greška pri otkazivanju. Pokušaj ponovo.')
+        setBillingError(d.error || t('billingErrorCancel'))
       } else {
         await loadSub()
       }
     } catch {
-      setBillingError('Greška pri spajanju na server.')
+      setBillingError(t('billingErrorServer'))
     }
     setCancelingPlan(false)
   }
@@ -136,7 +140,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
     const currMeta = PLANS_SETTINGS.find(p => p.key === subData.plan)!
     const isUp = newMeta.price > currMeta.price
     if (!isUp && subClientCount > newMeta.clients) {
-      alert(`Ne možeš prijeći na ${newMeta.label} — imaš ${subClientCount} klijenata, a plan dopušta ${newMeta.clients}.`)
+      alert(t('billingErrorTooManyClients', { plan: newMeta.label, count: subClientCount, limit: newMeta.clients }))
       return
     }
     setConfirmAction({ type: 'change', plan: newPlan, label: newMeta.label, price: newMeta.price })
@@ -152,12 +156,12 @@ export default function SettingsDialog({ open, onClose }: Props) {
       const res = await callBillingApi('/api/billing/change-plan', { new_plan: plan })
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        setBillingError(d.error || 'Greška pri promjeni plana. Pokušaj ponovo.')
+        setBillingError(d.error || t('billingErrorChangePlan'))
       } else {
         await loadSub()
       }
     } catch {
-      setBillingError('Greška pri spajanju na server.')
+      setBillingError(t('billingErrorServer'))
     }
     setCancelingPlan(false)
   }
@@ -269,10 +273,10 @@ export default function SettingsDialog({ open, onClose }: Props) {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100 bg-gray-50/50 dark:border-white/8 dark:bg-white/3">
           {([
-            ['theme',   <Palette size={14} />,       t('tabs.theme'),    'Izgled'],
-            ['billing', <CreditCard size={14} />,    'Pretplata',        'Plan'],
-            ['contact', <Mail size={14} />,           'Pomoć',            'Pomoć'],
-            ['danger',  <TriangleAlert size={14} />, 'Račun',            'Račun'],
+            ['theme',   <Palette size={14} />,       t('tabs.theme'),    t('tabs.theme')],
+            ['billing', <CreditCard size={14} />,    t('tabs.billing'),  t('mobileTabPlan')],
+            ['contact', <Mail size={14} />,           t('tabs.contact'),  t('tabs.contact')],
+            ['danger',  <TriangleAlert size={14} />, t('tabs.account'),  t('tabs.account')],
           ] as [Tab, React.ReactNode, string, string][]).map(([key, icon, label, mobileLabel]) => (
             <button
               key={key}
@@ -303,7 +307,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
                     <button
                       key={c.key}
                       onClick={() => setAccent(c.key)}
-                      title={c.label}
+                      title={colorLabel(c.key)}
                       className="group relative w-full aspect-square rounded-xl transition-transform hover:scale-110 focus:outline-none"
                       style={{ backgroundColor: c.hex }}
                     >
@@ -324,7 +328,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
                   ))}
                 </div>
                 <p className="mt-2.5 text-xs text-gray-400">
-                  Aktivna tema: <span className="font-semibold" style={{ color: ACCENT_COLORS.find(c => c.key === accent)?.hex }}>{ACCENT_COLORS.find(c => c.key === accent)?.label}</span>
+                  {t('activeTheme')} <span className="font-semibold" style={{ color: ACCENT_COLORS.find(c => c.key === accent)?.hex }}>{colorLabel(accent)}</span>
                 </p>
               </div>
 
@@ -332,13 +336,13 @@ export default function SettingsDialog({ open, onClose }: Props) {
               <div className="pt-1 border-t border-gray-100">
                 <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
                   <Smartphone size={14} className="text-gray-500" />
-                  Dodaj na ekran
+                  {t('addToHomeScreen')}
                 </p>
 
                 {installed ? (
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
                     <Check size={14} className="text-green-500 shrink-0" />
-                    <p className="text-xs text-green-700">App je već instalirana na tvom uređaju.</p>
+                    <p className="text-xs text-green-700">{t('appInstalled')}</p>
                   </div>
                 ) : installPrompt ? (
                   <button
@@ -349,31 +353,31 @@ export default function SettingsDialog({ open, onClose }: Props) {
                       <Download size={14} className="text-[var(--app-accent)] group-hover:text-white transition-colors" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">Instaliraj aplikaciju</p>
-                      <p className="text-xs text-gray-400">Dodaj UnitLift na početni ekran</p>
+                      <p className="text-sm font-medium text-gray-800">{t('installApp')}</p>
+                      <p className="text-xs text-gray-400">{t('addToHomeDesc')}</p>
                     </div>
                   </button>
                 ) : isIOS ? (
                   <div className="px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 space-y-2">
-                    <p className="text-xs font-medium text-blue-800">Upute za iPhone / iPad:</p>
+                    <p className="text-xs font-medium text-blue-800">{t('iosInstructions')}</p>
                     <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
                       <span className="text-amber-500 text-sm leading-none mt-0.5">⚠</span>
-                      <p className="text-xs text-amber-700">Radi <strong>samo u Safariju</strong>. Ako koristiš Chrome, otvori ovu stranicu u Safariju.</p>
+                      <p className="text-xs text-amber-700">{t('iosSafariWarning')}</p>
                     </div>
                     <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-                      <li>Otvori stranicu u <strong>Safariju</strong></li>
-                      <li>Pritisni <Share size={11} className="inline mb-0.5" /> <strong>Dijeli</strong> gumb (donji bar)</li>
-                      <li>Odaberi <strong>"Dodaj na početni zaslon"</strong></li>
+                      <li>{t('iosStep1')}</li>
+                      <li><Share size={11} className="inline mb-0.5" /> {t('iosStep2')}</li>
+                      <li>{t('iosStep3')}</li>
                     </ol>
                   </div>
                 ) : isAndroid ? (
                   <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                    <p className="text-xs font-medium text-gray-700">Upute za Android:</p>
-                    <p className="text-xs text-gray-500">U Chromeu pritisni ⋮ izbornik → <strong>"Dodaj na početni ekran"</strong></p>
+                    <p className="text-xs font-medium text-gray-700">{t('androidInstructions')}</p>
+                    <p className="text-xs text-gray-500">{t('androidDesc')}</p>
                   </div>
                 ) : (
                   <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                    <p className="text-xs text-gray-500">Otvori ovu stranicu na mobitelu za instalaciju.</p>
+                    <p className="text-xs text-gray-500">{t('mobileOnly')}</p>
                   </div>
                 )}
               </div>
@@ -385,19 +389,19 @@ export default function SettingsDialog({ open, onClose }: Props) {
             <div className="pt-1 border-t border-gray-100">
               <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
                 <Bell size={14} className="text-gray-500" />
-                Push notifikacije
+                {t('pushNotificationsTitle')}
               </p>
 
               {pushState === 'loading' && (
                 <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs text-gray-400">Provjera...</p>
+                  <p className="text-xs text-gray-400">{t('pushChecking')}</p>
                 </div>
               )}
 
               {pushState === 'unsupported' && (
                 <div className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                  <p className="text-xs text-gray-500">Push notifikacije nisu podržane u ovom pregledniku.</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Dodaj app na početni zaslon za podršku.</p>
+                  <p className="text-xs text-gray-500">{t('pushUnsupported')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{t('pushUnsupportedHint')}</p>
                 </div>
               )}
 
@@ -405,8 +409,8 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-100">
                   <BellOff size={14} className="text-red-400 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-medium text-red-700">Notifikacije su blokirane</p>
-                    <p className="text-xs text-red-500 mt-0.5">Odobri ih u postavkama preglednika/telefona.</p>
+                    <p className="text-xs font-medium text-red-700">{t('pushDeniedTitle')}</p>
+                    <p className="text-xs text-red-500 mt-0.5">{t('pushDeniedDesc')}</p>
                   </div>
                 </div>
               )}
@@ -420,8 +424,8 @@ export default function SettingsDialog({ open, onClose }: Props) {
                     <Bell size={14} className="text-[var(--app-accent)] group-hover:text-white transition-colors" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">Uključi notifikacije</p>
-                    <p className="text-xs text-gray-400">Poruke klijenata, check-ini i plaćanja</p>
+                    <p className="text-sm font-medium text-gray-800">{t('pushEnable')}</p>
+                    <p className="text-xs text-gray-400">{t('pushEnableDesc')}</p>
                   </div>
                 </button>
               )}
@@ -431,15 +435,15 @@ export default function SettingsDialog({ open, onClose }: Props) {
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-green-50 border border-green-100">
                     <BellRing size={14} className="text-green-500 shrink-0" />
                     <div className="flex-1">
-                      <p className="text-xs font-medium text-green-700">Notifikacije su uključene ✓</p>
-                      <p className="text-xs text-green-600 mt-0.5">Dobivat ćeš obavijesti za poruke i check-ine</p>
+                      <p className="text-xs font-medium text-green-700">{t('pushEnabled')}</p>
+                      <p className="text-xs text-green-600 mt-0.5">{t('pushEnabledDesc')}</p>
                     </div>
                   </div>
                   <button
                     onClick={pushUnsubscribe}
                     className="w-full text-xs text-gray-400 hover:text-red-500 transition-colors text-center py-1"
                   >
-                    Isključi notifikacije
+                    {t('pushDisable')}
                   </button>
                 </div>
               )}
@@ -452,11 +456,11 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-gray-200 border-t-[var(--app-accent)] rounded-full animate-spin" /></div>
               ) : !subData ? (
                 <div className="text-center py-6 space-y-3">
-                  <p className="text-sm text-gray-500">Nemaš aktivnu pretplatu.</p>
+                  <p className="text-sm text-gray-500">{t('billingNoSubscription')}</p>
                   <a href="https://unitlift.com/#cijene" target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
                     style={{ backgroundColor: 'var(--app-accent)' }}>
-                    Odaberi plan
+                    {t('billingChoosePlan')}
                   </a>
                 </div>
               ) : (() => {
@@ -477,27 +481,27 @@ export default function SettingsDialog({ open, onClose }: Props) {
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                         isActive || isTrialing ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
                       }`}>
-                        {isTrialing ? 'Trial' : isActive ? 'Aktivan' : subData.status}
+                        {isTrialing ? t('billingStatusTrial') : isActive ? t('billingStatusActive') : subData.status}
                       </span>
                     </div>
 
                     {isTrialing && subData.trial_end && (
-                      <p className="text-xs text-gray-500 text-center">Trial završava: <strong>{new Date(subData.trial_end).toLocaleDateString('hr')}</strong></p>
+                      <p className="text-xs text-gray-500 text-center">{t('billingTrialEnds')} <strong>{new Date(subData.trial_end).toLocaleDateString(locale)}</strong></p>
                     )}
                     {!isTrialing && subData.current_period_end && !subData.cancel_at_period_end && (
-                      <p className="text-xs text-gray-500 text-center">Sljedeća naplata: <strong>{new Date(subData.current_period_end).toLocaleDateString('hr')}</strong></p>
+                      <p className="text-xs text-gray-500 text-center">{t('billingNextCharge')} <strong>{new Date(subData.current_period_end).toLocaleDateString(locale)}</strong></p>
                     )}
                     {subData.cancel_at_period_end && subData.current_period_end && (
                       <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-100">
                         <TriangleAlert size={12} className="text-amber-500 mt-0.5 shrink-0" />
-                        <p className="text-xs text-amber-700">Otkazuje se {new Date(subData.current_period_end).toLocaleDateString('hr')}</p>
+                        <p className="text-xs text-amber-700">{t('billingCancelingAt')} {new Date(subData.current_period_end).toLocaleDateString(locale)}</p>
                       </div>
                     )}
 
                     {/* Change plan buttons */}
                     {(isActive || isTrialing) && !subData.cancel_at_period_end && (
                       <div className="space-y-1.5 pt-1 border-t border-gray-50">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Promijeni plan</p>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{t('billingChangePlan')}</p>
                         {PLANS_SETTINGS.filter(p => p.key !== subData.plan).map(plan => {
                           const PlanIcon = plan.icon
                           const currPrice = PLANS_SETTINGS.find(p => p.key === subData.plan)?.price ?? 0
@@ -510,29 +514,29 @@ export default function SettingsDialog({ open, onClose }: Props) {
                               className="w-full flex items-center gap-2 py-2 px-3 rounded-xl border transition-colors disabled:opacity-40 hover:bg-gray-50 text-left"
                               style={{ borderColor: tooFew ? '#fca5a5' : '#e5e7eb' }}>
                               <PlanIcon size={12} style={{ color: plan.color }} />
-                              <span className="flex-1 text-xs font-medium text-gray-700">{plan.label} · €{plan.price}/mj · {plan.clients} kl.</span>
+                              <span className="flex-1 text-xs font-medium text-gray-700">{plan.label} · €{plan.price}{t('billingMonthSuffix')} · {plan.clients} {t('billingClientsLabel')}</span>
                               <span className={`text-[10px] font-bold ${isUp ? 'text-green-600' : 'text-blue-600'}`}>
-                                {isUp ? '↑' : '↓'} {isUp ? 'Upgrade' : 'Downgrade'}
+                                {isUp ? '↑' : '↓'} {isUp ? t('billingUpgrade') : t('billingDowngrade')}
                               </span>
                             </button>
                           )
                         })}
-                        <p className="text-[10px] text-gray-400 text-center">Prorate automatski · aktivno odmah</p>
+                        <p className="text-[10px] text-gray-400 text-center">{t('billingProrate')}</p>
 
                         {/* Inline confirm for plan change */}
                         {confirmAction?.type === 'change' && (
                           <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2.5 mt-1">
-                            <p className="text-xs font-semibold text-gray-800">Potvrdi promjenu na {confirmAction.label}</p>
-                            <p className="text-xs text-gray-500">Nova cijena: <strong>€{confirmAction.price}/mj</strong>. Stripe obračunava razliku za tekući period.</p>
+                            <p className="text-xs font-semibold text-gray-800">{t('billingConfirmChangeTo')} {confirmAction.label}</p>
+                            <p className="text-xs text-gray-500">{t('billingNewPrice')} <strong>€{confirmAction.price}{t('billingMonthSuffix')}</strong>. {t('billingStripeNote')}</p>
                             <div className="flex gap-2">
                               <button onClick={() => setConfirmAction(null)}
                                 className="flex-1 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-600 bg-white hover:bg-gray-100 transition-colors">
-                                Odustani
+                                {tCommon('cancel')}
                               </button>
                               <button onClick={executeChangePlan} disabled={cancelingPlan}
                                 className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors disabled:opacity-50"
                                 style={{ backgroundColor: 'var(--app-accent)' }}>
-                                {cancelingPlan ? '...' : 'Potvrdi'}
+                                {cancelingPlan ? '...' : tCommon('confirm')}
                               </button>
                             </div>
                           </div>
@@ -547,33 +551,33 @@ export default function SettingsDialog({ open, onClose }: Props) {
                     {/* Inline confirm for cancel */}
                     {confirmAction?.type === 'cancel' ? (
                       <div className="rounded-xl border border-red-200 bg-red-50 p-3 space-y-2.5">
-                        <p className="text-xs font-semibold text-red-700">Potvrdi otkazivanje</p>
+                        <p className="text-xs font-semibold text-red-700">{t('billingConfirmCancel')}</p>
                         <p className="text-xs text-red-600 leading-relaxed">
                           {subClientCount > 0
-                            ? `Imaš ${subClientCount} aktivnih klijenata. Imat ćeš pristup do kraja perioda.`
-                            : 'Imat ćeš pristup do kraja naplatnog perioda. Nakon toga se pristup blokira.'}
+                            ? t('billingCancelWarningClients', { count: subClientCount })
+                            : t('billingCancelWarningEmpty')}
                         </p>
                         <div className="flex gap-2">
                           <button onClick={() => setConfirmAction(null)}
                             className="flex-1 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 bg-white hover:bg-red-50 transition-colors">
-                            Natrag
+                            {tCommon('back')}
                           </button>
                           <button onClick={executeCancelSubscription} disabled={cancelingPlan}
                             className="flex-1 py-1.5 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50">
-                            {cancelingPlan ? '...' : 'Otkaži pretplatu'}
+                            {cancelingPlan ? t('billingCancelingLoading') : t('billingCancel')}
                           </button>
                         </div>
                       </div>
                     ) : (isActive || isTrialing) && !subData.cancel_at_period_end && (
                       <button onClick={handleCancelSubscription} disabled={cancelingPlan}
                         className="w-full py-2 px-4 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors disabled:opacity-50">
-                        {cancelingPlan ? 'Otkazivanje...' : 'Otkaži pretplatu'}
+                        {cancelingPlan ? t('billingCancelingLoading') : t('billingCancel')}
                       </button>
                     )}
                     {subData.cancel_at_period_end && (isActive || isTrialing) && (
                       <button onClick={handleReactivateSubscription} disabled={cancelingPlan}
                         className="w-full py-2 px-4 rounded-xl border border-green-200 text-green-700 text-xs font-medium hover:bg-green-50 transition-colors disabled:opacity-50">
-                        {cancelingPlan ? '...' : '✓ Poništi otkazivanje'}
+                        {cancelingPlan ? '...' : t('billingReactivate')}
                       </button>
                     )}
                   </div>
@@ -616,7 +620,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
               <div className="pt-3 border-t border-gray-100 text-center space-y-1">
                 <p className="text-xs font-semibold text-gray-500">UnitLift · Coaching Platform</p>
-                <p className="text-xs text-gray-400">UnitLift v2.1 · Alat za profesionalne trenere</p>
+                <p className="text-xs text-gray-400">{t('appVersionLine')}</p>
               </div>
             </div>
           )}
@@ -626,7 +630,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
               <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-100">
                 <TriangleAlert size={14} className="text-red-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-red-700">
-                  Radnje u ovoj sekciji su <strong>trajne i nepovratne</strong>. Podaci će biti obrisani za 30 dana.
+                  {t('dangerWarning')}
                 </p>
               </div>
 
@@ -634,17 +638,16 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 /* Pending deletion state */
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
-                    <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ Zahtjev za brisanje na čekanju</p>
+                    <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ {t('deletionPendingTitle')}</p>
                     <p className="text-xs text-amber-700">
-                      Zahtjev je poslan {new Date(deletionRequestedAt).toLocaleDateString('hr')}.
-                      Svi podaci bit će obrisani za 30 dana.
+                      {t('deletionPendingDesc', { date: new Date(deletionRequestedAt!).toLocaleDateString(locale) })}
                     </p>
                   </div>
                   <button
                     onClick={handleCancelDeletion}
                     className="w-full py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    Poništi zahtjev za brisanje
+                    {t('cancelDeletion')}
                   </button>
                 </div>
               ) : deleteStep === 0 ? (
@@ -657,21 +660,20 @@ export default function SettingsDialog({ open, onClose }: Props) {
                     <Trash2 size={16} className="text-red-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-red-700">Obriši račun</p>
-                    <p className="text-xs text-red-500">Trajno briše sve podatke — tvoje i svih klijenata</p>
+                    <p className="text-sm font-semibold text-red-700">{t('deleteAccount')}</p>
+                    <p className="text-xs text-red-500">{t('deleteAccountDesc')}</p>
                   </div>
                 </button>
               ) : deleteStep === 1 ? (
                 /* Step 1 — Warning 1 */
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-red-50 border border-red-200 space-y-2">
-                    <p className="text-sm font-bold text-red-800">⚠️ Jesi li siguran?</p>
+                    <p className="text-sm font-bold text-red-800">⚠️ {t('deleteStep1Title')}</p>
                     <p className="text-xs text-red-700 leading-relaxed">
-                      Brisanjem računa <strong>trajno se brišu svi podaci</strong> — tvoji i svih {clientCount} klijenta.
-                      To uključuje: treninge, planove prehrane, check-inove, poruke i sve ostalo.
+                      {t('deleteStep1Body', { count: clientCount })}
                     </p>
                     <p className="text-xs text-red-600 font-medium">
-                      Ova radnja je <strong>nepovratna</strong>. Podaci će biti obrisani za 30 dana.
+                      {t('deleteStep1Warning')}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -679,13 +681,13 @@ export default function SettingsDialog({ open, onClose }: Props) {
                       onClick={() => setDeleteStep(0)}
                       className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                     >
-                      Odustani
+                      {tCommon('cancel')}
                     </button>
                     <button
                       onClick={handleDeleteStep2}
                       className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
                     >
-                      Nastavi →
+                      {t('deleteContinue')}
                     </button>
                   </div>
                 </div>
@@ -693,7 +695,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
                 /* Step 2 — Warning 2: type DELETE */
                 <div className="space-y-4">
                   <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-                    <p className="text-xs text-red-700 font-medium">Upiši <code className="bg-red-100 px-1 rounded font-mono">DELETE</code> za potvrdu trajnog brisanja:</p>
+                    <p className="text-xs text-red-700 font-medium">{t('deleteConfirmHint')}</p>
                   </div>
                   <input
                     ref={confirmInputRef}
@@ -711,14 +713,14 @@ export default function SettingsDialog({ open, onClose }: Props) {
                       className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                       disabled={deleteLoading}
                     >
-                      Natrag
+                      {tCommon('back')}
                     </button>
                     <button
                       onClick={handleDeleteConfirm}
                       disabled={deleteLoading || deleteWord.trim() !== 'DELETE'}
                       className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {deleteLoading ? 'Slanje...' : 'Obriši račun'}
+                      {deleteLoading ? t('deleteSending') : t('deleteDeleteBtn')}
                     </button>
                   </div>
                 </div>

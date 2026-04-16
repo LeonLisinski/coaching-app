@@ -64,6 +64,7 @@ function DraggableExerciseCard({
 }
 
 export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 'exercise' | 'template' | null; refreshKey?: number }) {
+  const t = useTranslations('training.exercisesTab')
   const tCommon = useTranslations('common')
 
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -148,7 +149,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       {/* Fixed: header + search */}
       <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{filtered.length} / {exercises.length} vježbi</p>
+          <p className="text-gray-500 text-xs">{filtered.length} / {t('count', { count: exercises.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -156,7 +157,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
               className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-emerald-300 text-emerald-700 bg-emerald-50' : ''}`}
             >
               <SlidersHorizontal size={12} />
-              Filtriraj
+              {t('filterButton')}
               {activeFilterCount > 0 && (
                 <span className="bg-emerald-600 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
                   {activeFilterCount}
@@ -165,14 +166,14 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
               <ChevronDown size={11} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
             </Button>
             <Button onClick={() => setShowAdd(true)} size="sm" className="h-7 text-xs flex items-center gap-1 px-2.5 bg-emerald-600 hover:bg-emerald-700">
-              <Plus size={12} /> Dodaj
+              <Plus size={12} /> {t('add')}
             </Button>
           </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
-            placeholder="Pretraži vježbe..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
@@ -192,7 +193,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       {showFilters && (
         <div className="bg-emerald-50/60 rounded-xl p-3 space-y-3 border border-emerald-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Mišićna grupa</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('muscleGroupHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {['Sve', ...MUSCLE_GROUPS].map(m => (
                 <button key={m} type="button" onClick={() => setActiveMuscle(m)}
@@ -204,7 +205,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Oprema</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('equipmentHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {['Sve', ...EQUIPMENT_CATEGORIES].map(eq => (
                 <button key={eq} type="button" onClick={() => setActiveEquipment(eq)}
@@ -216,12 +217,12 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           </div>
 
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
-                { key: 'name_asc', label: 'A → Z' },
-                { key: 'name_desc', label: 'Z → A' },
-                { key: 'mine_first', label: 'Moje prvo' },
+                { key: 'name_asc', label: t('sortAZ') },
+                { key: 'name_desc', label: t('sortZA') },
+                { key: 'mine_first', label: t('mineFirst') },
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSortKey(opt.key)}
                   className={pillClass(sortKey === opt.key, 'dark')}>
@@ -232,7 +233,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-700">Samo moje vježbe</p>
+            <p className="text-sm text-gray-700">{t('onlyMineToggle')}</p>
             <button type="button" onClick={() => setShowOnlyMine(!showOnlyMine)}
               className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-primary' : 'bg-gray-200'}`}>
               <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-5' : ''}`} />
@@ -241,7 +242,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
           {activeFilterCount > 0 && (
             <button type="button" onClick={clearFilters} className="text-xs text-rose-500 flex items-center gap-1">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -250,7 +251,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFiltersLabel')}</span>
           {activeMuscle !== 'Sve' && (
             <button type="button" onClick={() => setActiveMuscle('Sve')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-600 text-white">
@@ -266,17 +267,17 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           {showOnlyMine && (
             <button type="button" onClick={() => setShowOnlyMine(false)}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-500 text-white">
-              Samo moje <X size={10} />
+              {t('onlyMineChip')} <X size={10} />
             </button>
           )}
           {sortKey !== 'name_asc' && (
             <button type="button" onClick={() => setSortKey('name_asc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-gray-200 text-gray-600 bg-white">
-              Z→A sortirano <X size={10} />
+              {t('sortedChipZA')} <X size={10} />
             </button>
           )}
           <button type="button" onClick={clearFilters} className="text-xs text-gray-400 hover:text-gray-600">
-            Očisti sve
+            {tCommon('clearFilters')}
           </button>
         </div>
       )}
@@ -288,10 +289,10 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-2">
             <Dumbbell size={20} className="text-emerald-400" />
           </div>
-          <p className="text-gray-400 text-sm">Nema vježbi za odabrane filtere</p>
+          <p className="text-gray-400 text-sm">{t('noFilterResults')}</p>
           {activeFilterCount > 0 && (
             <button onClick={clearFilters} className="mt-2 text-xs text-emerald-600 hover:text-emerald-800 font-medium">
-              Očisti filtere
+              {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -308,7 +309,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                   <div
                     className="border border-gray-100 rounded-xl p-2.5 bg-white hover:shadow-sm hover:border-gray-200 transition-all cursor-default select-none"
                     onDoubleClick={() => setEditExercise(ex)}
-                    title="Dvoklik za uređivanje"
+                    title={t('dblClickHint')}
                   >
                     <div className="flex items-center gap-1.5">
                       {/* Drag handle — listeners on the grip, ref on the outer card div */}
@@ -316,7 +317,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                         type="button"
                         {...dragHandleProps}
                         className="text-gray-300 hover:text-emerald-400 shrink-0 cursor-grab active:cursor-grabbing touch-none transition-colors"
-                        title="Povuci u trening"
+                        title={t('dragTooltip')}
                       >
                         <GripVertical size={14} />
                       </button>
@@ -334,7 +335,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                           {ex.is_default && <span className="text-[10px] text-gray-400">(default)</span>}
                           {ex.exercise_type === 'endurance' && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
-                              Izdržljivost
+                              {t('enduranceBadge')}
                             </span>
                           )}
                         </div>
@@ -398,8 +399,8 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši vježbu"
-        description="Jesi li siguran da želiš obrisati ovu vježbu?"
+        title={tCommon('deleteExercise')}
+        description={tCommon('deleteExerciseConfirm')}
         onConfirm={() => confirmDelete && deleteExercise(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
         confirmLabel={tCommon('delete')}

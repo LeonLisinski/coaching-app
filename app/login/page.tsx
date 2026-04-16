@@ -347,9 +347,9 @@ export default function LoginPage() {
 
             {/* Register link */}
             <p className="text-center text-xs text-gray-400 mt-5">
-              Nemaš račun?{' '}
+              {t('noAccountQuestion')}{' '}
               <Link href="/register" className="font-semibold transition-colors hover:underline" style={{ color: 'var(--app-accent)' }}>
-                Kreiraj račun
+                {t('createAccount')}
               </Link>
             </p>
           </div>

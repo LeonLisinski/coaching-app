@@ -86,6 +86,7 @@ export default function CheckinStatsTab() {
   const tDays = useTranslations('daysShort')
   const tMonths = useTranslations('common.months')
   const t = useTranslations('checkins.statsTab')
+  const t2 = useTranslations('checkins2')
 
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ submitted: 0, late: 0, neutral: 0, total: 0 })
@@ -195,7 +196,7 @@ export default function CheckinStatsTab() {
       const configured = configs?.length || 1
       const rate = Math.round((uniqueClients / Math.max(configured, 1)) * 100)
       weekRates.push({
-        week: i === 0 ? 'Ovaj' : `T-${i}`,
+        week: i === 0 ? t2('thisWeekLabel') : `T-${i}`,
         rate: Math.min(rate, 100),
       })
     }
@@ -342,7 +343,7 @@ export default function CheckinStatsTab() {
                   <span className="flex-1 text-sm text-gray-700 font-medium truncate">{c.name}</span>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
                     style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
-                    {c.count} check-ina
+                    {String(c.count) + ' ' + t2('checkinCountSuffix')}
                   </span>
                   <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500" />
                 </button>

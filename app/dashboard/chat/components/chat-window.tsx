@@ -6,14 +6,6 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Send, Zap, ArrowLeft } from 'lucide-react'
 
-const QUICK_TEMPLATES = [
-  { label: 'Podsjetnik check-in', text: 'Ne zaboravi predati check-in ovaj tjedan! 💪' },
-  { label: 'Bravo na napretku', text: 'Odlično si napredovao/la — nastavi tako! 🎉' },
-  { label: 'Kako se osjećaš?', text: 'Kako se osjećaš nakon posljednjeg treninga?' },
-  { label: 'Trening sutra', text: 'Podsjetnik: trening sutra — ne zaboravi se zagrijati! 🔥' },
-  { label: 'Provjera prehrane', text: 'Javi mi kako ide s prehranom ovaj tjedan.' },
-  { label: 'Motivacija', text: 'Svaki korak naprijed je napredak. Nastavi raditi, rezultati dolaze! 💯' },
-]
 
 type Props = {
   clientId: string
@@ -53,8 +45,18 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
 
 export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed', onMessageSent, onBack }: Props) {
   const t = useTranslations('chat')
+  const tChat = useTranslations('chatPage')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+
+  const QUICK_TEMPLATES = [
+    { label: tChat('tpl1Label'), text: tChat('tpl1Text') },
+    { label: tChat('tpl2Label'), text: tChat('tpl2Text') },
+    { label: tChat('tpl3Label'), text: tChat('tpl3Text') },
+    { label: tChat('tpl4Label'), text: tChat('tpl4Text') },
+    { label: tChat('tpl5Label'), text: tChat('tpl5Text') },
+    { label: tChat('tpl6Label'), text: tChat('tpl6Text') },
+  ]
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -244,8 +246,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     const d = new Date(t)
     const now = new Date()
     const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
-    if (diff === 0) return 'Danas'
-    if (diff === 1) return 'Jučer'
+    if (diff === 0) return tChat('today')
+    if (diff === 1) return tChat('yesterdayFmt')
     return d.toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric' })
   }
 
@@ -282,7 +284,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
           <p className="text-sm font-bold text-white truncate">{clientName}</p>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-            <p className="text-xs text-white/70">Klijent</p>
+            <p className="text-xs text-white/70">{tChat('clientSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -298,7 +300,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
               <Send size={18} className="text-gray-400" />
             </div>
-            <p className="text-sm font-medium text-gray-500">Nema poruka</p>
+            <p className="text-sm font-medium text-gray-500">{tChat('noMessages')}</p>
             <p className="text-xs text-gray-400">{t('window.startOfConversation')}</p>
           </div>
         ) : (
@@ -352,7 +354,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
         {showTemplates && (
           <div ref={templatesRef} className="mb-2 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden shadow-sm">
             <div className="px-3 py-2 border-b border-gray-100">
-              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Brze poruke</span>
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{tChat('quickTemplatesTitle')}</span>
             </div>
             <div className="flex flex-col">
               {QUICK_TEMPLATES.map(tpl => (
@@ -377,7 +379,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
               ? { backgroundColor: `${accentHex}20`, color: accentHex }
               : { color: '#9ca3af' }
             }
-            title="Brze poruke"
+            title={tChat('quickTemplatesTitle')}
           >
             <Zap size={14} />
           </button>
@@ -406,7 +408,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <Send size={13} />
           </button>
         </div>
-        <p className="hidden lg:block text-[10px] text-gray-400 text-center mt-1.5">Enter za slanje · Shift+Enter za novi red</p>
+        <p className="hidden lg:block text-[10px] text-gray-400 text-center mt-1.5">{tChat('enterHint')}</p>
       </div>
     </div>
   )

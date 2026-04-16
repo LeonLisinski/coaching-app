@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Search, MessageSquare, X, ChevronRight, Users, AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 type CheckinStatus = 'submitted' | 'late' | 'neutral'
@@ -34,11 +35,10 @@ function avatarCls(gender: string | null) {
   return 'bg-gradient-to-br from-gray-400 to-gray-500'
 }
 
-const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
-const STATUS_CFG = {
-  submitted: { dot: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Predano' },
-  late:      { dot: 'bg-red-500',     text: 'text-red-600',     bg: 'bg-red-50',     label: 'Kasni'   },
-  neutral:   { dot: 'bg-gray-300',    text: 'text-gray-400',    bg: 'bg-gray-50',    label: 'Na čekanju' },
+const STATUS_CFG_STYLES = {
+  submitted: { dot: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-50' },
+  late:      { dot: 'bg-red-500',     text: 'text-red-600',     bg: 'bg-red-50'     },
+  neutral:   { dot: 'bg-gray-300',    text: 'text-gray-400',    bg: 'bg-gray-50'    },
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -60,6 +60,17 @@ const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', sc
 
 export default function MobileClientsView() {
   const router = useRouter()
+  const t = useTranslations('clientsPage')
+
+  const DAY_NAMES = [
+    t('dayAbbr0'), t('dayAbbr1'), t('dayAbbr2'), t('dayAbbr3'),
+    t('dayAbbr4'), t('dayAbbr5'), t('dayAbbr6'),
+  ]
+  const STATUS_CFG: Record<CheckinStatus, { dot: string; text: string; bg: string; label: string }> = {
+    submitted: { ...STATUS_CFG_STYLES.submitted, label: t('statusSubmitted') },
+    late:      { ...STATUS_CFG_STYLES.late,      label: t('statusLate')      },
+    neutral:   { ...STATUS_CFG_STYLES.neutral,   label: t('statusNeutral')   },
+  }
   const [clients, setClients]   = useState<MobileClient[]>([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
@@ -113,7 +124,7 @@ export default function MobileClientsView() {
       const lastCheckin = ciMap[c.id] ?? null
       return {
         id: c.id,
-        full_name: c.profiles?.full_name || 'Bez imena',
+        full_name: c.profiles?.full_name || t('noName'),
         email: c.profiles?.email || '',
         gender: c.gender || null,
         active: c.active,
@@ -139,9 +150,9 @@ export default function MobileClientsView() {
     <div className="space-y-4 pb-4">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Klijenti</h1>
+        <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">{t('title')}</h1>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <p className="text-sm text-gray-400">{clients.length} aktivnih klijenata</p>
+          <p className="text-sm text-gray-400">{t('activeClientsCount', { count: clients.length })}</p>
           {subscription && (
             <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
               clients.length >= subscription.client_limit
@@ -161,7 +172,7 @@ export default function MobileClientsView() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Pretraži klijente..."
+          placeholder={t('searchPlaceholder')}
           className="w-full h-10 pl-9 pr-9 rounded-xl border border-gray-200 text-sm bg-white outline-none focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
         />
         {search && (
@@ -178,14 +189,14 @@ export default function MobileClientsView() {
           className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${filter === 'all' ? 'text-white' : 'bg-gray-100 text-gray-500'}`}
           style={filter === 'all' ? { backgroundColor: 'var(--app-accent)' } : {}}
         >
-          Svi ({clients.length})
+          {t('filterAll')} ({clients.length})
         </button>
         {lateCount > 0 && (
           <button
             onClick={() => setFilter('late')}
             className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${filter === 'late' ? 'bg-red-500 text-white' : 'bg-red-50 text-red-500'}`}
           >
-            Kasne ({lateCount})
+            {t('filterLate', { count: lateCount })}
           </button>
         )}
       </div>
@@ -203,7 +214,7 @@ export default function MobileClientsView() {
             <Users size={24} className="text-gray-300" />
           </div>
           <p className="text-sm font-semibold text-gray-500">
-            {search ? 'Nema rezultata' : 'Nema klijenata'}
+            {search ? t('noResults') : t('noClients')}
           </p>
         </div>
       ) : (

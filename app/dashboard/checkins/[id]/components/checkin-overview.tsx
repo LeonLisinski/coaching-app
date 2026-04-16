@@ -36,6 +36,7 @@ function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
 export default function CheckinOverview({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.overview')
+  const t2 = useTranslations('checkins2')
   const tDays = useTranslations('days')
   const tDaysShort = useTranslations('daysShort')
   const [dailyParams, setDailyParams] = useState<Parameter[]>([])
@@ -163,7 +164,7 @@ export default function CheckinOverview({ clientId }: Props) {
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-800">{fmt(days[0])} — {fmt(days[6])}</p>
           {weekOffset === 0 && <p className="text-[11px] text-teal-500 font-medium">{t('thisWeek')}</p>}
-          {weekOffset < 0 && <p className="text-[11px] text-gray-400">{Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? 'tjedan ranije' : 'tjedna ranije'}</p>}
+          {weekOffset < 0 && <p className="text-[11px] text-gray-400">{Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}</p>}
         </div>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
@@ -197,11 +198,11 @@ export default function CheckinOverview({ clientId }: Props) {
                   {/* Remind button — shown when check-in is missing for this week */}
                   {!checkin && weekOffset === 0 && (
                     <button
-                      onClick={() => pingClient('Hej! Nezaboravi poslati tjedni check-in 💪')}
+                      onClick={() => pingClient(t2('remindMessage'))}
                       disabled={pinging || pinged}
                       className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border transition-all ${pinged ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
                     >
-                      {pinged ? '✓ Poslano' : pinging ? '...' : '🔔 Podsjeti'}
+                      {pinged ? t2('remindSent') : pinging ? '...' : t2('remindBtn')}
                     </button>
                   )}
                   <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${checkin ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>

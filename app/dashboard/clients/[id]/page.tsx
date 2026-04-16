@@ -60,25 +60,10 @@ import ClientHistory from '@/app/dashboard/clients/[id]/components/client-histor
 import ClientOverview from '@/app/dashboard/clients/[id]/components/client-overview'
 import ClientCalculator from '@/app/dashboard/clients/[id]/components/client-calculator'
 import ClientTimeline from '@/app/dashboard/clients/[id]/components/client-timeline'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
-const ACTIVITY_LABELS: Record<string, string> = {
-  sedentary:   'Sjedilački',
-  light:       'Lagano aktivan',
-  moderate:    'Umjereno aktivan',
-  active:      'Jako aktivan',
-  very_active: 'Izuzetno aktivan',
-}
-
-const ACTIVITY_OPTIONS: { value: Exclude<ActivityLevel, ''>; label: string; desc: string }[] = [
-  { value: 'sedentary',   label: 'Sjedilački',       desc: 'Malo ili bez vježbanja' },
-  { value: 'light',       label: 'Lagano aktivan',   desc: '1–3× tjedno' },
-  { value: 'moderate',    label: 'Umjereno aktivan', desc: '3–5× tjedno' },
-  { value: 'active',      label: 'Jako aktivan',     desc: '6–7× tjedno' },
-  { value: 'very_active', label: 'Izuzetno aktivan', desc: 'Fizički posao + trening' },
-]
 
 type Client = {
   id: string
@@ -119,15 +104,26 @@ type EditForm = {
   notes: string
 }
 
-function formatDate(dateStr: string | null) {
+function formatDate(dateStr: string | null, locale: string) {
   if (!dateStr) return null
   const d = new Date(dateStr)
-  return d.toLocaleDateString('hr-HR')
+  return d.toLocaleDateString(locale)
 }
 
 function ClientDetailPageContent() {
   const t = useTranslations('clients.detail')
   const tCommon = useTranslations('common')
+  const tDetail = useTranslations('clientDetail')
+  const tAdd = useTranslations('addClient')
+  const locale = useLocale()
+
+  const ACTIVITY_LABELS: Record<string, string> = {
+    sedentary:   tAdd('activitySedentary'),
+    light:       tAdd('activityLight'),
+    moderate:    tAdd('activityModerate'),
+    active:      tAdd('activityActive'),
+    very_active: tAdd('activityVeryActive'),
+  }
 
   const { id } = useParams()
   const router = useRouter()
@@ -216,7 +212,7 @@ function ClientDetailPageContent() {
   }
 
   if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
-  if (!client) return <p className="text-gray-500 text-sm p-8">Klijent nije pronađen</p>
+  if (!client) return <p className="text-gray-500 text-sm p-8">{tDetail('notFound')}</p>
 
   const initials = client.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
   const headerGradient = client.gender === 'F'
@@ -245,7 +241,7 @@ function ClientDetailPageContent() {
               <h1 className="text-white font-bold text-lg leading-tight">{client.full_name}</h1>
               {client.gender && <span className="text-white/60">{client.gender === 'M' ? '♂' : '♀'}</span>}
               {!client.active && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white/80 font-medium">Neaktivan</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-white/20 text-white/80 font-medium">{tDetail('inactiveLabel')}</span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -255,7 +251,7 @@ function ClientDetailPageContent() {
                   <CreditCard size={10} />
                   {activePackage.name}
                   {activePackage.end_date && (
-                    <span className="opacity-70"> · do {formatDate(activePackage.end_date)}</span>
+                    <span className="opacity-70"> · do {formatDate(activePackage.end_date, locale)}</span>
                   )}
                 </span>
               )}
@@ -265,14 +261,14 @@ function ClientDetailPageContent() {
             <button
               onClick={() => setShowEditDialog(true)}
               className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-              title="Uredi podatke"
+              title={tDetail('editTooltip')}
             >
               <Pencil size={14} className="text-white" />
             </button>
             <button
               onClick={() => setConfirmDelete(true)}
               className="w-8 h-8 rounded-xl bg-black/10 hover:bg-red-500/40 flex items-center justify-center transition-colors"
-              title="Obriši klijenta"
+              title={tDetail('deleteTooltip')}
             >
               <Trash2 size={14} className="text-white" />
             </button>
@@ -297,7 +293,7 @@ function ClientDetailPageContent() {
                   <Stat label={t('stats.goal')} value={client.goal} />
                 )}
                 {client.gender && (
-                  <Stat label="Spol" value={client.gender === 'M' ? 'Muško' : 'Žensko'} />
+                  <Stat label={tDetail('genderLabel')} value={client.gender === 'M' ? tDetail('genderMale') : tDetail('genderFemale')} />
                 )}
                 <Stat
                   label={t('stats.status')}
@@ -306,32 +302,32 @@ function ClientDetailPageContent() {
                 />
                 {(client.weight || client.height) && (
                   <>
-                    {client.weight && <Stat label={t('stats.weight')} value={`${client.weight} kg`} />}
-                    {client.height && <Stat label={t('stats.height')} value={`${client.height} cm`} />}
+                    {client.weight && <Stat label={t('stats.weight')} value={`${client.weight}${tDetail('weightUnitFull')}`} />}
+                    {client.height && <Stat label={t('stats.height')} value={`${client.height}${tDetail('heightUnitFull')}`} />}
                   </>
                 )}
                 {client.date_of_birth && (
                   <Stat
                     label={t('stats.dateOfBirth')}
-                    value={formatDate(client.date_of_birth)!}
-                    sub={`${calcAge(client.date_of_birth)} god.`}
+                    value={formatDate(client.date_of_birth, locale)!}
+                    sub={`${calcAge(client.date_of_birth)}${tDetail('ageUnit')}`}
                   />
                 )}
                 {client.start_date && (
-                  <Stat label={t('stats.startDate')} value={formatDate(client.start_date)!} />
+                  <Stat label={t('stats.startDate')} value={formatDate(client.start_date, locale)!} />
                 )}
                 {client.activity_level && (
-                  <Stat label="Razina aktivnosti" value={ACTIVITY_LABELS[client.activity_level] || client.activity_level} />
+                  <Stat label={tDetail('activityLabel')} value={ACTIVITY_LABELS[client.activity_level] || client.activity_level} />
                 )}
                 {client.step_goal && (
-                  <Stat label="Dnevni cilj koraka" value={`${client.step_goal.toLocaleString('hr-HR')} koraka`} />
+                  <Stat label={tDetail('dailyStepsLabel')} value={`${client.step_goal.toLocaleString('hr-HR')} ${tDetail('stepsUnit')}`} />
                 )}
               </div>
 
               {/* Notes */}
               {client.notes && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 mb-1">Bilješke</p>
+                  <p className="text-xs text-gray-400 mb-1">{tDetail('notesLabel')}</p>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{client.notes}</p>
                 </div>
               )}
@@ -354,7 +350,7 @@ function ClientDetailPageContent() {
           <div className="flex items-center gap-2">
             <TabsList className="flex-nowrap overflow-x-auto sm:flex-wrap h-auto gap-1 bg-gray-100/80 scrollbar-hide">
               <TabsTrigger value="pregled" className="flex items-center gap-1.5">
-                <LayoutDashboard size={13} />Pregled
+                <LayoutDashboard size={13} />{tDetail('overviewTab')}
               </TabsTrigger>
               <TabsTrigger value="pracenje" className="flex items-center gap-1.5">
                 <ActivitySquare size={13} />{t('tabs.pracenje')}
@@ -378,7 +374,7 @@ function ClientDetailPageContent() {
                 <Package size={13} />{t('tabs.packages')}
               </TabsTrigger>
               <TabsTrigger value="timeline" className="flex items-center gap-1.5">
-                <GitCommitHorizontal size={13} />Timeline
+                <GitCommitHorizontal size={13} />{tDetail('timelineTab')}
               </TabsTrigger>
             </TabsList>
             <button
@@ -432,7 +428,7 @@ function ClientDetailPageContent() {
 
       <ConfirmDialog
         open={confirmDelete}
-        title={`Brisanje klijenta: ${client.full_name}`}
+        title={tDetail('deleteDialogTitle', { name: client.full_name })}
         description={
           <div className="space-y-3">
             <p>Brisanjem ovog klijenta trajno će se ukloniti <span className="font-semibold text-gray-800">svi podaci vezani za njega</span>:</p>
@@ -445,7 +441,7 @@ function ClientDetailPageContent() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex gap-2">
               <span className="text-amber-500 text-base leading-none mt-0.5">💡</span>
               <p className="text-xs text-amber-800">
-                <span className="font-semibold">Preporuka:</span> Umjesto brisanja, razmotrite{' '}
+                <span className="font-semibold">{tDetail('deleteDialogRecommend')}:</span> Umjesto brisanja, razmotrite{' '}
                 <button
                   type="button"
                   className="underline font-semibold hover:text-amber-900"
@@ -460,14 +456,14 @@ function ClientDetailPageContent() {
                 . Na taj način zadržavate sve podatke i povijest, ali klijent više nije aktivan.
               </p>
             </div>
-            <p className="font-bold text-red-600">Ova radnja je nepovratna i ne može se poništiti.</p>
+            <p className="font-bold text-red-600">{tDetail('deleteDialogWarning')}</p>
             <p className="text-gray-700">Želite li nastaviti s brisanjem klijenta?</p>
           </div>
         }
         onConfirm={deleteClient}
         onCancel={() => setConfirmDelete(false)}
-        confirmLabel="Da, obriši"
-        cancelLabel="Ne, odustani"
+        confirmLabel={tDetail('deleteDialogConfirm')}
+        cancelLabel={tDetail('deleteDialogCancel')}
         destructive
       />
     </div>

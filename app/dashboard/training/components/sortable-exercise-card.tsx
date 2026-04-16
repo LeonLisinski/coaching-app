@@ -6,6 +6,7 @@ import { GripVertical, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useTranslations } from 'next-intl'
 
 export type PlanExercise = {
   exercise_id: string
@@ -36,6 +37,7 @@ type Props = {
 export default function SortableExerciseCard({
   ex, index, onUpdate, onRemove, labelSets, labelRest, labelNotes, activeExerciseFields = [],
 }: Props) {
+  const t = useTranslations('training.dialogs.template')
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
 
@@ -62,7 +64,7 @@ export default function SortableExerciseCard({
           <span className="text-sm font-medium text-gray-800 truncate">{index + 1}. {ex.name}</span>
           {isEndurance && (
             <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 shrink-0">
-              Izdržljivost
+              {t('enduranceBadge')}
             </span>
           )}
         </div>
@@ -79,7 +81,7 @@ export default function SortableExerciseCard({
             className="h-7 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">{isEndurance ? 'Trajanje' : 'Ponav.'}</Label>
+          <Label className="text-xs">{isEndurance ? t('durationLabel') : t('reps')}</Label>
           <Input value={ex.reps}
             onChange={e => onUpdate('reps', e.target.value)}
             className="h-7 text-xs"

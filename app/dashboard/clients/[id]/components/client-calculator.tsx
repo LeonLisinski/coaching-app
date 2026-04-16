@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Calculator, Check } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 type Gender = 'M' | 'F'
@@ -39,11 +39,12 @@ function round(n: number, dec = 0) {
 }
 
 function MacroBar({ p, c, f }: { p: number; c: number; f: number }) {
+  const tCalc = useTranslations('clientCalculator')
   return (
     <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
-      <div className="bg-red-400 transition-all" style={{ width: `${p}%` }} title={`Proteini ${p}%`} />
-      <div className="bg-amber-400 transition-all" style={{ width: `${c}%` }} title={`Ugljikohidrati ${c}%`} />
-      <div className="bg-blue-400 transition-all" style={{ width: `${f}%` }} title={`Masti ${f}%`} />
+      <div className="bg-red-400 transition-all" style={{ width: `${p}%` }} title={tCalc('proteinPct', { pct: p })} />
+      <div className="bg-amber-400 transition-all" style={{ width: `${c}%` }} title={tCalc('carbsPct', { pct: c })} />
+      <div className="bg-blue-400 transition-all" style={{ width: `${f}%` }} title={tCalc('fatPct', { pct: f })} />
     </div>
   )
 }
@@ -66,6 +67,8 @@ type Tab = 'tdee' | 'macros' | 'steps'
 export default function ClientCalculator({ clientId, client, onSaved }: Props) {
   const t = useTranslations('clients.calculator')
   const tCommon = useTranslations('common')
+  const tCalc = useTranslations('clientCalculator')
+  const locale = useLocale()
   const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
     sedentary:   t('activity.sedentary'),
     light:       t('activity.light'),
@@ -184,7 +187,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
         ? supabase.from('meal_plans').select('id, name').eq('trainer_id', user.id).eq('is_template', true).order('name')
         : Promise.resolve({ data: [] }),
     ])
-    setActivePlan(active ? { id: active.id, meal_plan_id: active.meal_plan_id, name: (active.meal_plan as any)?.name || 'Aktivni plan' } : null)
+    setActivePlan(active ? { id: active.id, meal_plan_id: active.meal_plan_id, name: (active.meal_plan as any)?.name || tCalc('activePlanFallback') } : null)
     if (plans) setAvailablePlans(plans)
   }
 
@@ -196,7 +199,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
     try {
       const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-      if (!user) throw new Error('Nije autentificiran')
+      if (!user) throw new Error(tCalc('errNotAuth'))
 
       const targets = {
         calories_target: round(targetKcal),
@@ -227,15 +230,15 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
         setPlanCreateMode(null)
       } else {
         // Create brand new plan + assign
-        const GOAL_NAMES: Record<Goal, string> = { loss: 'Gubitak masti', maintain: 'Maintain', gain: 'Nabijanje mase' }
-        const planName = `${GOAL_NAMES[macroGoal]} — ${new Date().toLocaleDateString('hr-HR')}`
+        const GOAL_NAMES: Record<Goal, string> = { loss: tCalc('goalLoss'), maintain: tCalc('goalMaintain'), gain: tCalc('goalGain') }
+        const planName = `${GOAL_NAMES[macroGoal]} — ${new Date().toLocaleDateString(locale)}`
 
         const { data: plan, error: insertError } = await supabase
           .from('meal_plans')
           .insert({ trainer_id: user.id, name: planName, ...targets, meals: [], is_template: false })
           .select('id')
           .single()
-        if (insertError || !plan) throw insertError ?? new Error('Insert nije vratio ID')
+        if (insertError || !plan) throw insertError ?? new Error(tCalc('errNoInsertId'))
 
         const { error: assignError } = await supabase.from('client_meal_plans').insert({
           trainer_id: user.id,
@@ -255,7 +258,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
       onSaved?.()
     } catch (err: any) {
       setPlanAction('error')
-      setPlanActionError(err?.message || 'Nepoznata greška')
+      setPlanActionError(err?.message || tCalc('errUnknown'))
       setTimeout(() => { setPlanAction('idle'); setPlanActionError('') }, 4000)
     }
   }
@@ -272,7 +275,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
         type="button"
         onClick={() => { setOpen(true); fetchActivePlan() }}
         className="p-1 text-gray-400 hover:text-gray-600"
-        title="Kalkulatori"
+        title={t('title')}
       >
         <Calculator size={14} />
       </button>
@@ -418,11 +421,11 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                     <div className="flex flex-col items-end gap-1">
                       <button type="button" className="text-[11px] text-primary underline"
                         onClick={() => { setSelectedScenario(null); setCustomKcal('') }}>
-                        Promijeni
+                        {tCalc('changePlanBtn')}
                       </button>
                       <button type="button" className="text-[11px] text-gray-400 underline"
                         onClick={() => setTab('tdee')}>
-                        ← BMR/TDEE
+                        {tCalc('backToBmr')}
                       </button>
                     </div>
                   </div>
@@ -430,7 +433,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                   <div className="flex gap-2 items-center">
                     <Input
                       type="number"
-                      placeholder={tdee ? `${tdee} (iz TDEE)` : 'Upiši ručno'}
+                      placeholder={tdee ? tCalc('tdeeLabel', { tdee }) : tCalc('enterManually')}
                       value={customKcal}
                       onChange={e => setCustomKcal(e.target.value)}
                       className="h-8"
@@ -438,13 +441,13 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                     {tdee && (
                       <button type="button" className="text-xs text-primary underline shrink-0 whitespace-nowrap"
                         onClick={() => setCustomKcal(tdee.toString())}>
-                        Koristi TDEE
+                        {tCalc('useTdee')}
                       </button>
                     )}
                     {!tdee && (
                       <button type="button" className="text-xs text-gray-400 underline shrink-0 whitespace-nowrap"
                         onClick={() => setTab('tdee')}>
-                        Izračunaj
+                        {tCalc('calcBtn')}
                       </button>
                     )}
                   </div>
@@ -453,12 +456,12 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
 
               {/* Goal */}
               <div className="space-y-1">
-                <Label className="text-xs">Cilj</Label>
+                <Label className="text-xs">{tCalc('goalLabel')}</Label>
                 <div className="flex gap-2">
                   {([
-                    { value: 'loss',     label: 'Gubitak masti' },
-                    { value: 'maintain', label: 'Maintain' },
-                    { value: 'gain',     label: 'Masa' },
+                    { value: 'loss',     label: tCalc('goalLoss') },
+                    { value: 'maintain', label: tCalc('goalMaintain') },
+                    { value: 'gain',     label: tCalc('goalGain') },
                   ] as { value: Goal; label: string }[]).map(g => (
                     <button key={g.value} type="button"
                       onClick={() => handleGoalChange(g.value)}
@@ -474,15 +477,13 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
               {/* Split inputs */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs">Raspodjela makrosa (%)</Label>
+                  <Label className="text-xs">{tCalc('macroSplit')}</Label>
                   {/* Quick presets */}
                   <div className="flex gap-1">
-                    {[
-                      { label: '30/45/25', p: 30, c: 45, f: 25 },
-                      { label: '35/40/25', p: 35, c: 40, f: 25 },
-                      { label: '40/35/25', p: 40, c: 35, f: 25 },
-                      { label: '30/50/20', p: 30, c: 50, f: 20 },
-                    ].map(preset => (
+                    {(tCalc.raw('splitPresets') as string[]).map((label, i) => {
+                      const [p, c, f] = label.split('/').map(Number)
+                      const preset = { label, p, c, f }
+                      return (
                       <button
                         key={preset.label}
                         type="button"
@@ -491,7 +492,8 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       >
                         {preset.label}
                       </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -499,9 +501,9 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
 
                 <div className="grid grid-cols-3 gap-3">
                   {([
-                    { key: 'p' as const, label: 'Proteini', color: 'text-red-500', border: 'focus:border-red-400' },
-                    { key: 'c' as const, label: 'Ugljik.', color: 'text-amber-500', border: 'focus:border-amber-400' },
-                    { key: 'f' as const, label: 'Masti', color: 'text-blue-500', border: 'focus:border-blue-400' },
+                    { key: 'p' as const, label: tCalc('proteinLabel'), color: 'text-red-500', border: 'focus:border-red-400' },
+                    { key: 'c' as const, label: tCalc('carbsLabel'), color: 'text-amber-500', border: 'focus:border-amber-400' },
+                    { key: 'f' as const, label: tCalc('fatLabel'), color: 'text-blue-500', border: 'focus:border-blue-400' },
                   ]).map(m => (
                     <div key={m.key} className="space-y-1">
                       <p className={`text-xs font-medium ${m.color}`}>{m.label}</p>
@@ -530,7 +532,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                   const ok = total === 100
                   return (
                     <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                      <span className="font-medium">Ukupno</span>
+                      <span className="font-medium">{tCalc('totalLabel')}</span>
                       <div className="flex items-center gap-2">
                         <span className="font-bold">{total}%</span>
                         {!ok && (
@@ -542,7 +544,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                               setMacroSplit(s => ({ ...s, c: Math.max(1, s.c + diff) }))
                             }}
                           >
-                            Ispravi na 100
+                            {tCalc('fixTo100')}
                           </button>
                         )}
                       </div>
@@ -555,11 +557,11 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
               {targetKcal && proteinG !== null ? (
                 <>
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                    <p className="text-xs text-gray-400 text-center mb-3">Dnevni makrosi za {round(targetKcal)} kcal</p>
+                    <p className="text-xs text-gray-400 text-center mb-3">{tCalc('dailyMacros', { kcal: round(targetKcal) })}</p>
                     {[
-                      { label: 'Proteini', g: proteinG, kcal: round(proteinG * 4), color: 'bg-red-100 text-red-700' },
-                      { label: 'Ugljik.',  g: carbG!,   kcal: round(carbG! * 4),   color: 'bg-amber-100 text-amber-700' },
-                      { label: 'Masti',    g: fatG!,    kcal: round(fatG! * 9),    color: 'bg-blue-100 text-blue-700' },
+                      { label: tCalc('proteinLabel'), g: proteinG, kcal: round(proteinG * 4), color: 'bg-red-100 text-red-700' },
+                      { label: tCalc('carbsLabel'),   g: carbG!,   kcal: round(carbG! * 4),   color: 'bg-amber-100 text-amber-700' },
+                      { label: tCalc('fatLabel'),     g: fatG!,    kcal: round(fatG! * 9),    color: 'bg-blue-100 text-blue-700' },
                     ].map(row => (
                       <div key={row.label} className="flex items-center justify-between">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${row.color}`}>{row.label}</span>
@@ -580,12 +582,12 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       {activePlan && (
                         <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                           <span className="text-xs text-blue-700 flex-1 min-w-0">
-                            Aktivan: <span className="font-semibold">{activePlan.name}</span>
+                            {tCalc('currentPlan')} <span className="font-semibold">{activePlan.name}</span>
                           </span>
                           <Button size="sm" variant="outline" className="text-xs shrink-0 h-7"
                             onClick={() => handlePlanAction('update')}
                             disabled={planAction === 'loading'}>
-                            {planAction === 'done' ? <><Check size={11} className="mr-1" />Ažurirano</> : 'Ažuriraj ciljeve'}
+                            {planAction === 'done' ? <><Check size={11} className="mr-1" />{tCalc('updated')}</> : tCalc('updateGoals')}
                           </Button>
                         </div>
                       )}
@@ -596,30 +598,30 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                           onClick={() => setPlanCreateMode('choosing')}
                           disabled={planAction === 'loading' || planAction === 'done'}>
                           {planAction === 'done'
-                            ? <><Check size={14} className="mr-1.5" />Plan dodijeljen</>
-                            : activePlan ? 'Dodijeli još jedan plan' : 'Dodijeli plan prehrane'}
+                            ? <><Check size={14} className="mr-1.5" />{tCalc('assignedPlan')}</>
+                            : activePlan ? tCalc('assignAnother') : tCalc('assignMealPlan')}
                         </Button>
                       )}
 
                       {/* Step 1: new or existing? */}
                       {planCreateMode === 'choosing' && (
                         <div className="border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50">
-                          <p className="text-xs font-medium text-gray-600 text-center">Koji plan dodijeliti?</p>
+                          <p className="text-xs font-medium text-gray-600 text-center">{tCalc('whichPlan')}</p>
                           <div className="grid grid-cols-2 gap-2">
                             <button type="button"
                               onClick={() => handlePlanAction('create_new')}
                               disabled={planAction === 'loading'}
                               className="flex flex-col items-center gap-1 px-3 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-primary hover:bg-white transition-colors text-center">
                               <span className="text-lg">+</span>
-                              <span className="text-xs font-medium text-gray-700">Novi prazan plan</span>
-                              <span className="text-[10px] text-gray-400">Kreiraj s ovim ciljevima</span>
+                              <span className="text-xs font-medium text-gray-700">{tCalc('newEmptyPlan')}</span>
+                              <span className="text-[10px] text-gray-400">{tCalc('createWithGoals')}</span>
                             </button>
                             <button type="button"
                               onClick={() => setPlanCreateMode('existing')}
                               className="flex flex-col items-center gap-1 px-3 py-3 rounded-lg border-2 border-dashed border-gray-300 hover:border-primary hover:bg-white transition-colors text-center">
                               <span className="text-lg">📋</span>
-                              <span className="text-xs font-medium text-gray-700">Postojeći plan</span>
-                              <span className="text-[10px] text-gray-400">Iz baze prehrane</span>
+                              <span className="text-xs font-medium text-gray-700">{tCalc('existingPlan')}</span>
+                              <span className="text-[10px] text-gray-400">{tCalc('fromLibrary')}</span>
                             </button>
                           </div>
                           <button type="button" onClick={() => setPlanCreateMode(null)}
@@ -632,10 +634,10 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       {/* Step 2: pick existing plan */}
                       {planCreateMode === 'existing' && (
                         <div className="border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50">
-                          <p className="text-xs font-medium text-gray-600">Odaberi plan iz baze</p>
+                          <p className="text-xs font-medium text-gray-600">{tCalc('selectPlan')}</p>
                           <div className="max-h-40 overflow-y-auto space-y-1">
                             {availablePlans.length === 0 ? (
-                              <p className="text-xs text-gray-400 text-center py-3">Nema dostupnih planova</p>
+                              <p className="text-xs text-gray-400 text-center py-3">{tCalc('noPlans')}</p>
                             ) : availablePlans.map(p => (
                               <button key={p.id} type="button"
                                 onClick={() => setSelectedExistingPlanId(p.id)}
@@ -651,12 +653,12 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                           <div className="flex gap-2 pt-1">
                             <button type="button" onClick={() => setPlanCreateMode('choosing')}
                               className="flex-1 text-xs text-gray-400 hover:text-gray-600">
-                              ← Natrag
+                              {tCalc('backBtn')}
                             </button>
                             <Button size="sm" className="flex-1 text-xs"
                               onClick={() => handlePlanAction('assign_existing')}
                               disabled={!selectedExistingPlanId || planAction === 'loading'}>
-                              {planAction === 'loading' ? 'Dodjeljujem...' : 'Dodijeli plan'}
+                              {planAction === 'loading' ? tCalc('assigning') : tCalc('assignBtn')}
                             </Button>
                           </div>
                         </div>
@@ -670,7 +672,7 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                 </>
               ) : (
                 <div className="bg-gray-50 rounded-xl p-4 text-center text-sm text-gray-400">
-                  Upiši kalorije ili izračunaj TDEE
+                  {tCalc('enterKcalHint')}
                 </div>
               )}
             </div>

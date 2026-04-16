@@ -13,7 +13,9 @@ const PHOTO_POSITIONS = ['front', 'side', 'back'] as const
 
 export default function CheckinConfig({ clientId }: Props) {
   const t = useTranslations('checkins')
+  const t2 = useTranslations('checkins2')
   const tDays = useTranslations('days')
+  const tDaysShort = useTranslations('daysShort')
   const tCommon = useTranslations('common')
 
   const tConfig = (key: string) => t(`detail.config.${key}` as any)
@@ -100,7 +102,7 @@ export default function CheckinConfig({ clientId }: Props) {
     </div>
   )
 
-  const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
+  const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
 
   return (
     <div className="space-y-3 max-w-lg">
@@ -109,7 +111,7 @@ export default function CheckinConfig({ clientId }: Props) {
       <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-3">
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('checkinDay')}</p>
-          <p className="text-[11px] text-gray-400">Dan kada klijent šalje tjedni check-in</p>
+          <p className="text-[11px] text-gray-400">{t2('checkinDayHint')}</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {[0, 1, 2, 3, 4, 5, 6].map(i => (
@@ -129,7 +131,7 @@ export default function CheckinConfig({ clientId }: Props) {
       <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-3">
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('photoFrequency')}</p>
-          <p className="text-[11px] text-gray-400">Koliko često klijent šalje fotografije napretka</p>
+          <p className="text-[11px] text-gray-400">{t2('photoFreqHint')}</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {PHOTO_FREQUENCIES.map(f => (
@@ -167,7 +169,7 @@ export default function CheckinConfig({ clientId }: Props) {
       <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-2">
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('clientInstructions')}</p>
-          <p className="text-[11px] text-gray-400">Upute vidljive klijentu u aplikaciji</p>
+          <p className="text-[11px] text-gray-400">{t2('instructionsHint')}</p>
         </div>
         <textarea
           value={config.notes}

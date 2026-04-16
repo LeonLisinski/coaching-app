@@ -162,12 +162,12 @@ function ParamCard({
           </span>
           {param.required && (
             <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-rose-50 text-rose-600 border-rose-200 shrink-0">
-              Obavezno
+              {t('required')}
             </span>
           )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
-          <button type="button" title="Uredi (ili dvoklik)" onClick={onEdit}
+          <button type="button" title={t('editTooltip')} onClick={onEdit}
             className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-50 transition-colors"
             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = accentHex }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '' }}>
@@ -285,11 +285,11 @@ export default function ParametersTab() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-xs">{parameters.length} parametara · dvoklik za uređivanje</p>
+        <p className="text-gray-500 text-xs">{t('paramCount', { count: parameters.length })} · {t('dblClickHint')}</p>
         <Button onClick={() => { setShowAddForm(v => !v); setEditingId(null) }} size="sm"
           className="h-7 text-xs flex items-center gap-1 px-2.5"
           style={showAddForm ? {} : { backgroundColor: accentHex, border: 'none' }}>
-          {showAddForm ? <><X size={12} /> Zatvori</> : <><Plus size={12} /> {t('add')}</>}
+          {showAddForm ? <><X size={12} /> {t('close')}</> : <><Plus size={12} /> {t('add')}</>}
         </Button>
       </div>
 
@@ -297,7 +297,7 @@ export default function ParametersTab() {
       {showAddForm && (
         <div className="rounded-xl border px-4 pt-3 pb-4 space-y-0" style={{ borderColor: `${accentHex}40`, backgroundColor: `${accentHex}06` }}>
           <p className="text-xs font-semibold mb-3 flex items-center gap-1.5" style={{ color: accentHex }}>
-            <Settings2 size={12} /> Novi parametar
+            <Settings2 size={12} /> {t('newParam')}
           </p>
           <InlineForm
             form={addForm}

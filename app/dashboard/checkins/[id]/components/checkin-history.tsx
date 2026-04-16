@@ -54,6 +54,7 @@ function getWeekBounds(date: string, checkinDay: number): { start: string; end: 
 export default function CheckinHistory({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.history')
+  const t2 = useTranslations('checkins2')
   const [params, setParams] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
@@ -164,7 +165,7 @@ export default function CheckinHistory({ clientId }: Props) {
             className="flex items-center gap-1.5 text-xs"
           >
             <ArrowUpDown size={12} />
-            {sortDesc ? 'Najnoviji prvo' : 'Najstariji prvo'}
+            {sortDesc ? t2('sortNewest') : t2('sortOldest')}
           </Button>
           {checkinsWithPhotos.length >= 1 && (
             <Button
@@ -174,7 +175,7 @@ export default function CheckinHistory({ clientId }: Props) {
               className="flex items-center gap-1.5"
             >
               <GitCompare size={13} />
-              {compareMode ? 'Zatvori usporedbu' : 'Usporedi fotografije'}
+              {compareMode ? t2('closeCompare') : t2('comparePhotos')}
             </Button>
           )}
         </div>
@@ -187,11 +188,11 @@ export default function CheckinHistory({ clientId }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Odaberi tjedne za usporedbu</p>
+              <p className="text-sm font-medium">{t2('selectWeeks')}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {compareSelected.length === 0
-                  ? `Klikni na tjedan — do ${MAX_COMPARE} tjedana`
-                  : `${compareSelected.length} odabrano${compareSelected.length < 2 ? ' — odaberi još najmanje jedan' : ''}`}
+                  ? t2('clickWeekHint', { max: MAX_COMPARE })
+                  : `${t2('selectedCount', { count: compareSelected.length })}${compareSelected.length < 2 ? ' ' + t2('selectMoreHint') : ''}`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -202,14 +203,14 @@ export default function CheckinHistory({ clientId }: Props) {
                   setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date])
                 }}
                   className="text-xs text-primary underline font-medium whitespace-nowrap">
-                  Prva ↔ Zadnja
+                  {t2('firstToLast')}
                 </button>
               )}
               {compareSelected.length > 0 && (
                 <button type="button"
                   onClick={() => setCompareSelected([])}
                   className="text-xs text-gray-400 underline whitespace-nowrap">
-                  Poništi
+                  {t2('clearSelection')}
                 </button>
               )}
             </div>
@@ -230,7 +231,7 @@ export default function CheckinHistory({ clientId }: Props) {
                     key={c.date}
                     type="button"
                     onClick={() => !atMax && toggleCompareSelect(c.date)}
-                    title={atMax ? `Maksimalno ${MAX_COMPARE} tjedana` : fmtDateYear(c.date)}
+                    title={atMax ? t2('maxWeeks', { max: MAX_COMPARE }) : fmtDateYear(c.date)}
                     className={`relative rounded-lg overflow-hidden border-2 transition-all ${
                       selected
                         ? 'border-primary shadow-md ring-2 ring-primary/30'
@@ -247,7 +248,7 @@ export default function CheckinHistory({ clientId }: Props) {
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-4 pb-1">
-                      <p className="text-[11px] text-white font-bold leading-tight">{weekNum}. tjedan</p>
+                      <p className="text-[11px] text-white font-bold leading-tight">{t2('weekLabel', { n: weekNum })}</p>
                       <p className="text-[9px] text-white/60 leading-tight">{fmtDate(c.date)}</p>
                     </div>
                     {selected && (
@@ -275,7 +276,7 @@ export default function CheckinHistory({ clientId }: Props) {
                       return (
                         <div key={checkin.date} className="flex-none w-40">
                           <div className="text-center mb-1">
-                            <p className="text-xs font-bold text-gray-800">{weekNum}. tjedan</p>
+                            <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
                             <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
                           </div>
                           {photo ? (
@@ -300,7 +301,7 @@ export default function CheckinHistory({ clientId }: Props) {
           )}
 
           {compareCheckins.length === 1 && (
-            <p className="text-xs text-center text-gray-400 pt-2">Odaberi još jedan tjedan za prikaz usporedbe</p>
+            <p className="text-xs text-center text-gray-400 pt-2">{t2('selectAnotherWeek')}</p>
           )}
         </div>
       )}
@@ -328,7 +329,7 @@ export default function CheckinHistory({ clientId }: Props) {
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold">{weekNum}. tjedan</p>
+                  <p className="text-sm font-semibold">{t2('weekLabel', { n: weekNum })}</p>
                   <p className="text-xs text-gray-400">
                     {fmtDate(weekStart)} — {fmtDateYear(weekEnd)}
                     {photos.length > 0 && ` · ${photos.length} ${t('foto')}`}
@@ -372,7 +373,7 @@ export default function CheckinHistory({ clientId }: Props) {
                       if (!a) return null
                       return (
                         <div key={p.id} className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-center min-w-[72px]">
-                          <p className="text-xs text-blue-400">{p.name} <span className="text-blue-300">avg</span></p>
+                          <p className="text-xs text-blue-400">{p.name} <span className="text-blue-300">{t2('avgSuffix')}</span></p>
                           <p className="font-bold text-sm mt-0.5 text-blue-700">
                             {a}{p.unit ? ` ${p.unit}` : ''}
                           </p>

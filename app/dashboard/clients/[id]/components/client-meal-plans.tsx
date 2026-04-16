@@ -93,6 +93,7 @@ function SortableMealCard({
   onUpdate: (field: string, val: any) => void
   onRemove: () => void
 }) {
+  const t = useTranslations('clients.mealPlans')
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: meal.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
 
@@ -130,10 +131,10 @@ function SortableMealCard({
           onUpdate('fat', recipe?.total_fat || 0)
         }}>
           <SelectTrigger className="h-8 text-sm border-gray-200">
-            <SelectValue placeholder="Odaberi recept..." />
+            <SelectValue placeholder={t('selectRecipePlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">— Bez recepta —</SelectItem>
+            <SelectItem value="__none__">{t('noRecipeOption')}</SelectItem>
             {recipes.map(r => (
               <SelectItem key={r.id} value={r.id}>
                 {r.name} · {Math.round(r.total_calories)} kcal
@@ -145,10 +146,10 @@ function SortableMealCard({
         {/* Manual macro inputs */}
         <div className="grid grid-cols-4 gap-1.5">
           {[
-            { key: 'calories', label: 'Kcal', color: 'text-orange-500' },
-            { key: 'protein',  label: 'Prot', color: 'text-rose-500'   },
-            { key: 'carbs',    label: 'Ugljik', color: 'text-amber-500' },
-            { key: 'fat',      label: 'Masti', color: 'text-emerald-500'},
+            { key: 'calories', label: t('mealMacroKcal'),  color: 'text-orange-500' },
+            { key: 'protein',  label: t('mealMacroProt'),  color: 'text-rose-500'   },
+            { key: 'carbs',    label: t('mealMacroCarbs'), color: 'text-amber-500'  },
+            { key: 'fat',      label: t('mealMacroFat'),   color: 'text-emerald-500'},
           ].map(f => (
             <div key={f.key}>
               <p className={`text-[10px] font-semibold mb-0.5 ${f.color}`}>{f.label}</p>
@@ -183,6 +184,7 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
   extrasTargets?: Record<string, number | null> | null
 }) {
+  const t = useTranslations('clients.mealPlans')
   const totals = meals.reduce((acc, m) => ({
     calories: acc.calories + (m.calories || 0),
     protein:  acc.protein  + (m.protein  || 0),
@@ -193,10 +195,10 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   if (totals.calories === 0 && totals.protein === 0) return null
 
   const items = [
-    { label: 'Kcal',     val: Math.round(totals.calories), target: caloriesTarget, unit: ''  },
-    { label: 'Proteini', val: Math.round(totals.protein),  target: proteinTarget,  unit: 'g' },
-    { label: 'Ugljik.',  val: Math.round(totals.carbs),    target: carbsTarget,    unit: 'g' },
-    { label: 'Masti',    val: Math.round(totals.fat),      target: fatTarget,      unit: 'g' },
+    { label: t('kcalSummaryLabel'),    val: Math.round(totals.calories), target: caloriesTarget, unit: ''  },
+    { label: t('proteinSummaryLabel'), val: Math.round(totals.protein),  target: proteinTarget,  unit: 'g' },
+    { label: t('carbsSummaryLabel'),   val: Math.round(totals.carbs),    target: carbsTarget,    unit: 'g' },
+    { label: t('fatSummaryLabel'),     val: Math.round(totals.fat),      target: fatTarget,      unit: 'g' },
   ]
 
   const getMealExtra = (m: any, key: string): number => {
@@ -713,7 +715,7 @@ export default function ClientMealPlans({ clientId }: Props) {
                           </span>
                           {isPersonalized && (
                             <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
-                              Personalizirano
+                              {t('personalizedBadge')}
                             </Badge>
                           )}
                         </div>
@@ -742,12 +744,12 @@ export default function ClientMealPlans({ clientId }: Props) {
                           <Button variant="ghost" size="sm"
                             onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
                             className="text-xs h-7 px-3 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100">
-                            Aktivno
+                            {t('activeStatusBtn')}
                           </Button>
                           <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
                             <span className="text-xs text-gray-400">{t('typeLabel')}</span>
                           </Button>
-                          <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                          <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
                             onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
                             disabled={savingTemplate === assigned.id}>
                             <BookMarked size={14} className="text-violet-400" />
@@ -808,9 +810,9 @@ export default function ClientMealPlans({ clientId }: Props) {
                     <Button variant="ghost" size="sm"
                       onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
                       className="text-xs h-7 px-3 rounded-full border text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100">
-                      Neaktivno
+                      {t('inactiveStatusBtn')}
                     </Button>
-                    <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                    <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
                       onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
                       disabled={savingTemplate === assigned.id}>
                       <BookMarked size={14} className="text-violet-400" />
@@ -838,8 +840,8 @@ export default function ClientMealPlans({ clientId }: Props) {
         }}
       >
         <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0" showCloseButton={false}>
-          <DialogTitle className="sr-only">Dodijeli plan prehrane</DialogTitle>
-          <DialogDescription className="sr-only">Dodijeli plan prehrane</DialogDescription>
+          <DialogTitle className="sr-only">{t('assignDialogTitle')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('assignDialogTitle')}</DialogDescription>
 
           {/* Gradient header */}
           <div className="bg-gradient-to-r from-orange-500 to-rose-500 px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg">
@@ -847,8 +849,8 @@ export default function ClientMealPlans({ clientId }: Props) {
               <UtensilsCrossed size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-white font-bold text-base">Dodijeli plan prehrane</h2>
-              <p className="text-orange-100/70 text-xs">Odaberi i prilagodi plan za klijenta</p>
+              <h2 className="text-white font-bold text-base">{t('assignDialogTitle')}</h2>
+              <p className="text-orange-100/70 text-xs">{t('assignDialogSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -863,10 +865,10 @@ export default function ClientMealPlans({ clientId }: Props) {
           <div className="space-y-5 pt-4">
             {/* Plan select */}
             <div className="space-y-1.5">
-              <Label>Plan</Label>
+              <Label>{t('planLabel')}</Label>
               <Select value={selectedPlanId} onValueChange={handleSelectPlan}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Odaberi plan..." />
+                  <SelectValue placeholder={t('selectPlanPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availablePlans.map(p => (
@@ -881,7 +883,7 @@ export default function ClientMealPlans({ clientId }: Props) {
             {/* Plan type */}
             {selectedPlanId && (
               <div className="space-y-1.5">
-                <Label>Tip plana</Label>
+                <Label>{t('planTypeLabel')}</Label>
                 <div className="flex gap-2">
                   {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
                     <button
@@ -904,13 +906,13 @@ export default function ClientMealPlans({ clientId }: Props) {
             {/* Nutritivni ciljevi */}
             {selectedPlanId && (
               <div className="space-y-1.5">
-                <Label>Nutritivni ciljevi <span className="text-gray-400 font-normal text-xs">(prilagodi za klijenta)</span></Label>
+                <Label>{t('nutritionGoalsLabel')} <span className="text-gray-400 font-normal text-xs">{t('nutritionGoalsNote')}</span></Label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
-                    { key: 'calories', label: 'Kcal' },
-                    { key: 'protein', label: 'Proteini (g)' },
-                    { key: 'carbs', label: 'Ugljik. (g)' },
-                    { key: 'fat', label: 'Masti (g)' },
+                    { key: 'calories', label: t('kcalLabel')         },
+                    { key: 'protein',  label: t('proteinInputLabel') },
+                    { key: 'carbs',    label: t('carbsInputLabel')   },
+                    { key: 'fat',      label: t('fatInputLabel')     },
                   ].map(f => (
                     <div key={f.key}>
                       <p className="text-xs text-gray-400 mb-0.5">{f.label}</p>
@@ -930,10 +932,10 @@ export default function ClientMealPlans({ clientId }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Obroci {assignMeals.length > 0 && `(${assignMeals.length})`}
+                  {t('mealsHeaderLabel')} {assignMeals.length > 0 && `(${assignMeals.length})`}
                 </p>
                 <Button variant="outline" size="sm" onClick={addAssignMeal} className="flex items-center gap-1 h-7 text-xs">
-                  <Plus size={12} /> Dodaj obrok
+                  <Plus size={12} /> {t('addMealBtn')}
                 </Button>
               </div>
 
@@ -943,7 +945,7 @@ export default function ClientMealPlans({ clientId }: Props) {
                   onClick={addAssignMeal}
                   className="w-full py-6 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-orange-300 hover:text-orange-500 transition-colors"
                 >
-                  + Dodaj prvi obrok
+                  {t('addFirstMealBtn')}
                 </button>
               )}
 
@@ -967,10 +969,10 @@ export default function ClientMealPlans({ clientId }: Props) {
               {assignTotals.calories > 0 && (
                 <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 grid grid-cols-4 gap-2">
                   {[
-                    { label: 'Kcal', val: Math.round(assignTotals.calories), color: 'text-orange-600' },
-                    { label: 'Proteini', val: Math.round(assignTotals.protein), color: 'text-rose-600', unit: 'g' },
-                    { label: 'Ugljik.', val: Math.round(assignTotals.carbs), color: 'text-amber-600', unit: 'g' },
-                    { label: 'Masti', val: Math.round(assignTotals.fat), color: 'text-emerald-600', unit: 'g' },
+                    { label: t('kcalSummaryLabel'),    val: Math.round(assignTotals.calories), color: 'text-orange-600' },
+                    { label: t('proteinSummaryLabel'), val: Math.round(assignTotals.protein),  color: 'text-rose-600',    unit: 'g' },
+                    { label: t('carbsSummaryLabel'),   val: Math.round(assignTotals.carbs),    color: 'text-amber-600',   unit: 'g' },
+                    { label: t('fatSummaryLabel'),     val: Math.round(assignTotals.fat),      color: 'text-emerald-600', unit: 'g' },
                   ].map(item => (
                     <div key={item.label} className="text-center">
                       <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
@@ -1034,7 +1036,7 @@ export default function ClientMealPlans({ clientId }: Props) {
           if (conflicting) {
             setActivateConflict({
               existingName: conflicting.meal_plan.name,
-              typeLabel: PLAN_TYPE_LABELS['default']?.label ?? 'Standardni',
+              typeLabel: PLAN_TYPE_LABELS['default']?.label ?? t('planTypeDefault'),
               execute: () => deactivateSameTypeAndRun('default', null, doInsert),
             })
           } else {
@@ -1076,15 +1078,15 @@ export default function ClientMealPlans({ clientId }: Props) {
       {/* Conflict: same plan-type already active */}
       <ConfirmDialog
         open={activateConflict !== null}
-        title="Zamjena aktivnog plana"
-        description={`Plan "${activateConflict?.existingName}" je trenutno aktivan kao ${activateConflict?.typeLabel}. Želiš li ga deaktivirati i aktivirati novi plan?`}
+        title={t('replacePlanTitle')}
+        description={t('replacePlanConfirm', { name: activateConflict?.existingName || '', type: activateConflict?.typeLabel || '' })}
         onConfirm={async () => {
           if (activateConflict) await activateConflict.execute()
           setActivateConflict(null)
         }}
         onCancel={() => setActivateConflict(null)}
-        confirmLabel="Da, zamijeni"
-        cancelLabel="Odustani"
+        confirmLabel={t('replaceConfirmBtn')}
+        cancelLabel={tCommon('cancel')}
       />
     </div>
   )

@@ -17,19 +17,7 @@ const ACCENT_HEX: Record<string, string> = {
   orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
-const GOAL_CHIPS = ['Mršavljenje', 'Mišićna masa', 'Kondicija', 'Snaga', 'Fleksibilnost', 'Opće zdravlje']
-
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
-
-const ACTIVITY_OPTIONS: { value: Exclude<ActivityLevel, ''>; label: string; desc: string }[] = [
-  { value: 'sedentary',   label: 'Sjedilački',       desc: 'Malo ili bez vježbanja' },
-  { value: 'light',       label: 'Lagano aktivan',   desc: '1–3× tjedno' },
-  { value: 'moderate',    label: 'Umjereno aktivan', desc: '3–5× tjedno' },
-  { value: 'active',      label: 'Jako aktivan',     desc: '6–7× tjedno' },
-  { value: 'very_active', label: 'Izuzetno aktivan', desc: 'Fizički posao + trening' },
-]
-
-const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
 
@@ -49,8 +37,22 @@ function dobToIso(display: string): string {
 export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const t = useTranslations('clients.dialogs.add')
   const tCommon = useTranslations('common')
+  const tAdd = useTranslations('addClient')
+  const tDaysShort = useTranslations('daysShort')
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+
+  const GOAL_CHIPS = tAdd.raw('goalChips') as string[]
+
+  const ACTIVITY_OPTIONS: { value: Exclude<ActivityLevel, ''>; label: string; desc: string }[] = [
+    { value: 'sedentary',   label: tAdd('activitySedentary'),   desc: tAdd('activitySedentaryDesc') },
+    { value: 'light',       label: tAdd('activityLight'),       desc: tAdd('activityLightDesc') },
+    { value: 'moderate',    label: tAdd('activityModerate'),    desc: tAdd('activityModerateDesc') },
+    { value: 'active',      label: tAdd('activityActive'),      desc: tAdd('activityActiveDesc') },
+    { value: 'very_active', label: tAdd('activityVeryActive'),  desc: tAdd('activityVeryActiveDesc') },
+  ]
+
+  const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
 
   const [step, setStep]       = useState<Step>('account')
   const [loading, setLoading] = useState(false)
@@ -148,7 +150,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const goNext = () => {
     setError('')
     if (step === 'account') {
-      if (!full_name || !email || !password) { setError('Ime, email i lozinka su obavezni.'); return }
+      if (!full_name || !email || !password) { setError(tAdd('errRequired')); return }
       setStep('profile')
     } else if (step === 'profile') {
       setStep('plans')
@@ -160,9 +162,9 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
     try {
     const { data: { user: trainer } } = await supabase.auth.getUser()
-    if (!trainer) { setError('Nisi prijavljen.'); setLoading(false); return }
+    if (!trainer) { setError(tAdd('errNotLoggedIn')); setLoading(false); return }
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.access_token) { setError('Sesija je istekla. Osvježi stranicu.'); setLoading(false); return }
+    if (!session?.access_token) { setError(tAdd('errSessionExpired')); setLoading(false); return }
 
     let result: any
     try {
@@ -186,7 +188,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
       )
       result = await response.json()
     } catch {
-      setError('Greška pri spajanju. Provjeri internet vezu i pokušaj ponovo.')
+      setError(tAdd('errConnection'))
       setLoading(false)
       return
     }
@@ -253,15 +255,15 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     // Small delay so Supabase has time to commit before parent re-fetches
     setTimeout(onSuccess, 250)
     } catch (err: any) {
-      setError('Neočekivana greška. Pokušaj ponovo.')
+      setError(tAdd('errUnknown'))
       setLoading(false)
     }
   }
 
   const STEPS: { key: Step; label: string }[] = [
-    { key: 'account', label: 'Račun' },
-    { key: 'profile', label: 'Profil' },
-    { key: 'plans',   label: 'Planovi' },
+    { key: 'account', label: tAdd('stepAccount') },
+    { key: 'profile', label: tAdd('stepProfile') },
+    { key: 'plans',   label: tAdd('stepPlans') },
   ]
 
 
@@ -313,7 +315,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           {limitChecking && (
             <div className="flex-1 flex flex-col items-center justify-center py-12 gap-3">
               <span className="w-8 h-8 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-              <p className="text-sm text-gray-400">Provjera plana...</p>
+              <p className="text-sm text-gray-400">{tAdd('checkingPlan')}</p>
             </div>
           )}
 
@@ -324,7 +326,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 <AlertTriangle size={26} className="text-amber-500" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-gray-900 text-base">Dostignut limit klijenata</h3>
+                <h3 className="font-bold text-gray-900 text-base">{tAdd('limitTitle')}</h3>
                 <p className="text-gray-500 text-sm">
                   Na vašem <span className="font-semibold">{PLAN_LABELS[limitInfo.plan] ?? limitInfo.plan}</span> planu možete imati
                   maksimalno <span className="font-semibold">{limitInfo.limit} klijenata</span>.
@@ -342,7 +344,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 className="w-full h-10 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
                 style={{ backgroundColor: accentHex }}
               >
-                <TrendingUp size={15} /> Nadogradi plan
+                <TrendingUp size={15} /> {tAdd('limitUpgrade')}
               </a>
             </div>
           )}
@@ -371,9 +373,9 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
               {/* Spol */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Spol</Label>
+                <Label className="text-xs font-medium text-gray-600">{tAdd('genderLabel')}</Label>
                 <div className="flex gap-2">
-                  {([['M', '♂ Muško'], ['F', '♀ Žensko']] as const).map(([g, lbl]) => (
+                  {([['M', tAdd('genderMale')], ['F', tAdd('genderFemale')]] as const).map(([g, lbl]) => (
                     <button key={g} type="button"
                       onClick={() => setGender(gender === g ? '' : g)}
                       className="flex-1 py-2 rounded-xl border text-sm font-medium transition-all"
@@ -402,7 +404,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                     </button>
                   ))}
                 </div>
-                <Input value={goal} onChange={e => setGoal(e.target.value)} placeholder="Ili upiši vlastiti cilj..." onFocus={inputFocus} onBlur={inputBlur} />
+                <Input value={goal} onChange={e => setGoal(e.target.value)} placeholder={tAdd('customGoalPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
               </div>
 
               {/* Tjelesne mjere */}
@@ -457,7 +459,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-600">Bilješke</Label>
                 <Textarea value={notes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                  placeholder="Ozljede, alergije, posebni zahtjevi..." rows={3} className="resize-none text-sm" />
+                  placeholder={tAdd('notesPlaceholder')} rows={3} className="resize-none text-sm" />
               </div>
             </div>
           )}
@@ -475,16 +477,16 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <Dumbbell size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">Plan treninga</p>
+                      <p className="text-xs font-semibold text-gray-700">{tAdd('trainingPlanLabel')}</p>
                     </div>
                     <Select value={selectedWorkout || '_none'} onValueChange={v => setSelectedWorkout(v === '_none' ? '' : v)}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Odaberi plan treninga..." />
+                        <SelectValue placeholder={tAdd('selectTrainingPlan')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">{tAdd('noPlans')}</span></SelectItem>
                         {workoutPlans.length === 0
-                          ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                          ? <SelectItem value="_empty" disabled>{tAdd('noPlansAvailable')}</SelectItem>
                           : workoutPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
                         }
                       </SelectContent>
@@ -497,26 +499,26 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <UtensilsCrossed size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">Plan prehrane</p>
+                      <p className="text-xs font-semibold text-gray-700">{tAdd('mealPlanLabel')}</p>
                     </div>
                     <div className="flex gap-2">
-                      {([['default', 'Standardni'], ['split', 'Trening / Odmor']] as const).map(([m, lbl]) => (
+                      {(['default', 'split'] as const).map((m) => (
                         <button key={m} type="button" onClick={() => setMealPlanMode(m)}
                           className="flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all"
                           style={mealPlanMode === m ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
-                          {lbl}
+                          {m === 'default' ? tAdd('standardType') : tAdd('splitType')}
                         </button>
                       ))}
                     </div>
                     {mealPlanMode === 'default' ? (
                       <Select value={selectedMeal || '_none'} onValueChange={v => setSelectedMeal(v === '_none' ? '' : v)}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Odaberi plan prehrane..." />
+                          <SelectValue placeholder={tAdd('selectMealPlan')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">{tAdd('noPlans')}</span></SelectItem>
                           {mealPlans.length === 0
-                            ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                            ? <SelectItem value="_empty" disabled>{tAdd('noPlansAvailable')}</SelectItem>
                             : mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)
                           }
                         </SelectContent>
@@ -524,25 +526,25 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                     ) : (
                       <div className="space-y-2">
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">Dani treninga</p>
+                          <p className="text-[11px] text-gray-500 mb-1">{tAdd('trainingDaysLabel')}</p>
                           <Select value={selectedMeal || '_none'} onValueChange={v => setSelectedMeal(v === '_none' ? '' : v)}>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Plan za dane treninga..." />
+                              <SelectValue placeholder={tAdd('trainingDayPlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">{tAdd('noPlans')}</span></SelectItem>
                               {mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">Dani odmora</p>
+                          <p className="text-[11px] text-gray-500 mb-1">{tAdd('restDaysLabel')}</p>
                           <Select value={selectedMealRest || '_none'} onValueChange={v => setSelectedMealRest(v === '_none' ? '' : v)}>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Plan za dane odmora..." />
+                              <SelectValue placeholder={tAdd('restDayPlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">{tAdd('noPlans')}</span></SelectItem>
                               {mealPlans.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
@@ -557,16 +559,16 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <CreditCard size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">Paket plaćanja</p>
+                      <p className="text-xs font-semibold text-gray-700">{tAdd('packageLabel')}</p>
                     </div>
                     <Select value={selectedPackage || '_none'} onValueChange={v => setSelectedPackage(v === '_none' ? '' : v)}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Odaberi paket..." />
+                        <SelectValue placeholder={tAdd('selectPackage')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez paketa</span></SelectItem>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">{tAdd('noPlans')}</span></SelectItem>
                         {trainerPackages.length === 0
-                          ? <SelectItem value="_empty" disabled>Nema kreiranih paketa</SelectItem>
+                          ? <SelectItem value="_empty" disabled>{tAdd('noPlansAvailable')}</SelectItem>
                           : trainerPackages.map(p => (
                             <SelectItem key={p.id} value={p.id}>
                               <span className="flex items-center gap-2">
@@ -586,7 +588,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <CalendarDays size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">Dan check-ina</p>
+                      <p className="text-xs font-semibold text-gray-700">{tAdd('checkinDayLabel')}</p>
                       {checkinDay !== null && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ backgroundColor: accentHex }}>{DAY_NAMES[checkinDay]}</span>}
                     </div>
                     <div className="grid grid-cols-7 gap-1">
@@ -626,7 +628,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 {step !== 'account' ? (
                   <button type="button" onClick={() => setStep(step === 'plans' ? 'profile' : 'account')}
                     className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                    ← Natrag
+                    {tAdd('prevStep')}
                   </button>
                 ) : (
                   <button type="button" onClick={onClose} className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
@@ -637,14 +639,14 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   <button type="button" onClick={goNext}
                     className="flex-1 h-9 rounded-lg text-white text-sm font-semibold flex items-center justify-center gap-1.5"
                     style={{ backgroundColor: accentHex }}>
-                    Dalje <ChevronRight size={14} />
+                    {tAdd('nextStep')} <ChevronRight size={14} />
                   </button>
                 ) : (
                   <button type="button" onClick={handleSubmit} disabled={loading}
                     className="flex-1 h-9 rounded-lg text-white text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ backgroundColor: accentHex }}>
                     {loading
-                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Kreiranje...</>
+                      ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {tAdd('creating')}</>
                       : t('submit')}
                   </button>
                 )}

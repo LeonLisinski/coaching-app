@@ -161,8 +161,8 @@ function TrainingPageContent() {
               : 'bg-indigo-50 border-indigo-200 text-indigo-700'
           }`}>
             {activeDrag.type === 'exercise'
-              ? '💪 Ispusti vježbu na trening da je dodaš'
-              : '📋 Ispusti trening na plan da dodaš novi dan'
+              ? t('dragHintExercise')
+              : t('dragHintTemplate')
             }
           </div>
         )}
@@ -182,7 +182,7 @@ function TrainingPageContent() {
                   </div>
                   <h3 className="text-sm font-bold text-white">{t('tabs.exercises')}</h3>
                 </div>
-                <span className="text-[10px] text-emerald-100/80 font-medium">povuci u trening →</span>
+                <span className="text-[10px] text-emerald-100/80 font-medium">{t('dragToExercise')}</span>
               </div>
             </div>
             <div className="flex flex-col flex-1 min-h-0 bg-white">
@@ -205,8 +205,8 @@ function TrainingPageContent() {
                   <h3 className="text-sm font-bold text-white">{t('tabs.templates')}</h3>
                 </div>
                 {activeType === 'exercise'
-                  ? <span className="text-[10px] text-white font-bold animate-pulse">⬇ ispusti ovdje</span>
-                  : <span className="text-[10px] text-blue-100/80 font-medium">← prima vježbe · povuci u plan →</span>
+                  ? <span className="text-[10px] text-white font-bold animate-pulse">{t('dropHereExercise')}</span>
+                  : <span className="text-[10px] text-blue-100/80 font-medium">{t('acceptsExercises')}</span>
                 }
               </div>
             </div>
@@ -230,8 +230,8 @@ function TrainingPageContent() {
                   <h3 className="text-sm font-bold text-white">{t('tabs.plans')}</h3>
                 </div>
                 {activeType === 'template'
-                  ? <span className="text-[10px] text-white font-bold animate-pulse">⬇ ispusti ovdje</span>
-                  : <span className="text-[10px] text-indigo-100/80 font-medium">← prima treninge</span>
+                  ? <span className="text-[10px] text-white font-bold animate-pulse">{t('dropHereTemplate')}</span>
+                  : <span className="text-[10px] text-indigo-100/80 font-medium">{t('acceptsTemplates')}</span>
                 }
               </div>
             </div>
@@ -266,11 +266,16 @@ function TrainingPageContent() {
   )
 }
 
+function TrainingPageMobileTitle() {
+  const t = useTranslations('training.page')
+  return <MobileUnavailable title={t('mobileUnavailable')} />
+}
+
 export default function TrainingPage() {
   return (
     <>
       <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><TrainingPageContent /></div>
-      <div className="lg:hidden"><MobileUnavailable title="Upravljanje treninzima" /></div>
+      <div className="lg:hidden"><TrainingPageMobileTitle /></div>
     </>
   )
 }

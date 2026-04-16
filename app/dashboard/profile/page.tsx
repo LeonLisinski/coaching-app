@@ -53,15 +53,6 @@ type Profile = {
   tiktok: string | null; facebook: string | null; avatar_url: string | null
 }
 
-// Social link definitions
-const SOCIAL_LINKS = [
-  { key: 'email',     label: 'Email',     Icon: Mail,       prefix: '' },
-  { key: 'phone',     label: 'Telefon',   Icon: Phone,      prefix: '' },
-  { key: 'website',   label: 'Web',       Icon: Globe,      prefix: '' },
-  { key: 'instagram', label: 'Instagram', Icon: Instagram,  prefix: '@' },
-  { key: 'facebook',  label: 'Facebook',  Icon: FacebookIcon, prefix: '' },
-  { key: 'tiktok',    label: 'TikTok',    Icon: TikTokIcon, prefix: '@' },
-] as const
 type Pkg = {
   id: string; name: string; description: string | null
   price: number; duration_days: number; color: string; active: boolean
@@ -78,10 +69,20 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
 }
 
 export default function ProfilePage() {
-  const t       = useTranslations('profile')
-  const tPkg    = useTranslations('profile.packages')
-  const tCommon = useTranslations('common')
+  const t        = useTranslations('profile')
+  const tPkg     = useTranslations('profile.packages')
+  const tCommon  = useTranslations('common')
+  const tProfile = useTranslations('profilePage')
   const { accent } = useAppTheme()
+
+  const SOCIAL_LINKS = [
+    { key: 'email',     label: tProfile('socialEmail'),     Icon: Mail,         prefix: '' },
+    { key: 'phone',     label: tProfile('socialPhone'),     Icon: Phone,        prefix: '' },
+    { key: 'website',   label: tProfile('socialWeb'),       Icon: Globe,        prefix: '' },
+    { key: 'instagram', label: tProfile('socialInstagram'), Icon: Instagram,    prefix: '@' },
+    { key: 'facebook',  label: tProfile('socialFacebook'),  Icon: FacebookIcon, prefix: '' },
+    { key: 'tiktok',    label: tProfile('socialTikTok'),    Icon: TikTokIcon,   prefix: '@' },
+  ] as const
   const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
   const { refresh: refreshTrainerSettings } = useTrainerSettingsContext()
 
@@ -180,10 +181,10 @@ export default function ProfilePage() {
     setCropFile(null)
     const fileName = `${profile.id}-${Date.now()}.jpg`
     const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { upsert: true, contentType: 'image/jpeg' })
-    if (uploadError) { alert('Greška pri uploadu slike: ' + uploadError.message); return }
+    if (uploadError) { alert(tProfile('uploadError', { err: uploadError.message })); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
-    if (updateError) { alert('Greška pri spremanju slike: ' + updateError.message); return }
+    if (updateError) { alert(tProfile('saveImgError', { err: updateError.message })); return }
     fetchData()
   }
 
@@ -230,7 +231,7 @@ export default function ProfilePage() {
     if (error) {
       console.error('[saveSettings] error:', error.message)
       setSavingSettings(false)
-      alert('Greška pri spremanju: ' + error.message)
+      alert(tProfile('saveError', { err: error.message }))
       return
     }
     // Refresh the shared context so dialogs immediately get the new defaults
@@ -316,7 +317,7 @@ export default function ProfilePage() {
 
       {/* ── SECTION: Profile info ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <SectionHeader title="Informacije o profilu" />
+        <SectionHeader title={tProfile('sectionInfo')} />
 
         {editMode ? (
           <div className="space-y-4">
@@ -328,14 +329,14 @@ export default function ProfilePage() {
 
             {/* Contact links */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kontakt i mreže</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tProfile('sectionContact')}</p>
               <div className="space-y-2">
                 {[
                   { key: 'phone',     Icon: Phone,     label: 'Telefon',   placeholder: '+385 99 123 4567' },
                   { key: 'website',   Icon: Globe,     label: 'Web',       placeholder: 'https://...' },
-                  { key: 'instagram', Icon: Instagram, label: 'Instagram', placeholder: '@korisničkoime' },
+                  { key: 'instagram', Icon: Instagram, label: 'Instagram', placeholder: tProfile('usernamePlaceholder') },
                   { key: 'facebook',  Icon: FacebookIcon, label: 'Facebook',  placeholder: 'https://facebook.com/...' },
-                  { key: 'tiktok',    Icon: TikTokIcon, label: 'TikTok',    placeholder: '@korisničkoime' },
+                  { key: 'tiktok',    Icon: TikTokIcon, label: 'TikTok',    placeholder: tProfile('usernamePlaceholder') },
                 ].map(({ key, Icon, label, placeholder }) => (
                   <div key={key} className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
@@ -351,7 +352,7 @@ export default function ProfilePage() {
                     {/* Visibility toggle */}
                     <button
                       type="button"
-                      title={socialVisibility.includes(key) ? 'Vidljivo na mobilnoj app' : 'Skriveno na mobilnoj app'}
+                      title={socialVisibility.includes(key) ? tProfile('visibleToClients') : tProfile('hiddenFromClients')}
                       onClick={() => toggleVisibility(key)}
                       className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${socialVisibility.includes(key) ? 'border-transparent text-white' : 'border-gray-200 text-gray-300 hover:text-gray-500'}`}
                       style={socialVisibility.includes(key) ? { backgroundColor: accentHex } : {}}>
@@ -361,7 +362,7 @@ export default function ProfilePage() {
                 ))}
               </div>
               <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1">
-                <Eye size={10} /> Ikona oka označava što se prikazuje klijentima na mobilnoj aplikaciji.
+                <Eye size={10} /> {tProfile('visibilityHint')}
               </p>
             </div>
 
@@ -382,7 +383,7 @@ export default function ProfilePage() {
               <button onClick={() => setEditMode(false)} className="h-9 px-4 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                 {tCommon('cancel')}
               </button>
-              {saved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> Spremljeno</span>}
+              {saved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> {tProfile('saved')}</span>}
             </div>
           </div>
         ) : (
@@ -414,7 +415,7 @@ export default function ProfilePage() {
                   </div>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${visible ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
                     {visible ? <Eye size={9} /> : <EyeOff size={9} />}
-                    {visible ? 'Vidljivo' : 'Skriveno'}
+                    {visible ? tProfile('visibleLabel') : tProfile('hiddenLabel')}
                   </span>
                 </div>
               )
@@ -426,7 +427,7 @@ export default function ProfilePage() {
                   <FileText size={13} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Biografija</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{tProfile('bioLabel')}</p>
                   <p className="text-sm text-gray-700 leading-relaxed mt-0.5">{form.bio}</p>
                 </div>
               </div>
@@ -444,7 +445,7 @@ export default function ProfilePage() {
       {/* ── SECTION: Paketi (right column) ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <SectionHeader
-          title={`Paketi (${packages.length})`}
+          title={tProfile('packagesCount', { count: packages.length })}
           action={
             <button onClick={openNewPkg}
               className="h-8 px-3 rounded-lg text-white text-xs font-semibold flex items-center gap-1.5"
@@ -464,9 +465,9 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">{tPkg('name')}</Label>
                 <Input value={pkgForm.name} onChange={e => setPkgForm({ ...pkgForm, name: e.target.value })} placeholder={tPkg('namePlaceholder')} className="h-8 text-sm" /></div>
-              <div className="space-y-1"><Label className="text-xs">{tPkg('price')} (€)</Label>
+              <div className="space-y-1"><Label className="text-xs">{tPkg('price')}</Label>
                 <Input type="number" value={pkgForm.price} onChange={e => setPkgForm({ ...pkgForm, price: e.target.value })} placeholder="150" className="h-8 text-sm" /></div>
-              <div className="space-y-1"><Label className="text-xs">Trajanje (mjeseci)</Label>
+              <div className="space-y-1"><Label className="text-xs">{tProfile('durationMonths')}</Label>
                 <Input type="number" min="1" max="24" value={pkgForm.duration_months} onChange={e => setPkgForm({ ...pkgForm, duration_months: e.target.value })} className="h-8 text-sm" /></div>
               <div className="space-y-1"><Label className="text-xs">{tPkg('color')}</Label>
                 <div className="flex items-center gap-2">
@@ -532,12 +533,12 @@ export default function ProfilePage() {
 
       {/* ── SECTION: Postavke ── */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-5">
-        <SectionHeader title="Postavke prikaza" />
+        <SectionHeader title={tProfile('displaySettings')} />
 
         {/* Nutrition fields */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">Dodatna nutritivna polja</p>
-          <p className="text-xs text-gray-400 mb-3">Odabrana polja bit će dostupna pri unosu namirnica.</p>
+          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('nutritionFields')}</p>
+          <p className="text-xs text-gray-400 mb-3">{tProfile('nutritionFieldsHint')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {NUTRITION_FIELD_OPTIONS.map(opt => {
               const active = nutritionFields.includes(opt.key)
@@ -546,7 +547,7 @@ export default function ProfilePage() {
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all"
                   style={active ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' } : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
                   <div>
-                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p className="text-sm font-medium">{tProfile(`nutField_${opt.key}_label` as any)}</p>
                     <p className="text-xs opacity-60">{opt.unit}</p>
                   </div>
                   <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0"
@@ -561,8 +562,8 @@ export default function ProfilePage() {
 
         {/* Exercise fields */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">Metrike za vježbe</p>
-          <p className="text-xs text-gray-400 mb-3">Odabrane metrike bit će dostupne pri kreiranju vježbi.</p>
+          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('exerciseMetrics')}</p>
+          <p className="text-xs text-gray-400 mb-3">{tProfile('exerciseMetricsHint')}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {EXERCISE_FIELD_OPTIONS.map(opt => {
               const active = exerciseFields.includes(opt.key)
@@ -571,8 +572,8 @@ export default function ProfilePage() {
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all"
                   style={active ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' } : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
                   <div className="min-w-0 pr-2">
-                    <p className="text-sm font-medium">{opt.label}</p>
-                    <p className="text-xs truncate opacity-60">{opt.desc}</p>
+                    <p className="text-sm font-medium">{tProfile(`exField_${opt.key}_label` as any)}</p>
+                    <p className="text-xs truncate opacity-60">{tProfile(`exField_${opt.key}_desc` as any)}</p>
                   </div>
                   <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0"
                     style={active ? { backgroundColor: 'white', borderColor: 'white' } : { borderColor: '#d1d5db' }}>
@@ -586,13 +587,13 @@ export default function ProfilePage() {
 
         {/* Workout defaults */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">Zadane vrijednosti vježbi</p>
+          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('exerciseDefaults')}</p>
           <p className="text-xs text-gray-400 mb-2">
-            Ove vrijednosti koriste se kao početne postavke pri dodavanju vježbi u planove i predloške.
+            {tProfile('exerciseDefaultsHint')}
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">Serije (sets)</label>
+              <label className="text-xs font-medium text-gray-600">{tProfile('setsLabel')}</label>
               <input
                 type="number" min="1"
                 value={workoutDefaults.sets}
@@ -601,17 +602,17 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">Ponavljanja (reps)</label>
+              <label className="text-xs font-medium text-gray-600">{tProfile('repsLabel')}</label>
               <input
                 type="text"
                 value={workoutDefaults.reps}
                 onChange={e => setWorkoutDefaults(prev => ({ ...prev, reps: e.target.value }))}
-                placeholder="npr. 10 ili 8-12"
+                placeholder={tProfile('repPlaceholder')}
                 className="w-full h-8 border border-input rounded-md px-3 text-sm"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">Pauza (s)</label>
+              <label className="text-xs font-medium text-gray-600">{tProfile('restLabel')}</label>
               <input
                 type="number" min="0"
                 value={workoutDefaults.rest_seconds}
@@ -626,12 +627,12 @@ export default function ProfilePage() {
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {EXERCISE_FIELD_OPTIONS.filter(f => exerciseFields.includes(f.key)).map(f => (
                 <div key={f.key} className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">{f.label} {f.unit ? `(${f.unit})` : ''}</label>
+                  <label className="text-xs font-medium text-gray-600">{tProfile(`exField_${f.key}_label` as any)} {f.unit ? `(${f.unit})` : ''}</label>
                   <input
                     type="text"
                     value={workoutDefaults[f.key as keyof typeof workoutDefaults] as string}
                     onChange={e => setWorkoutDefaults(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    placeholder={`zadani ${f.label}`}
+                    placeholder={`${tProfile('defaultValuePrefix')} ${tProfile(`exField_${f.key}_label` as any)}`}
                     className="w-full h-8 border border-input rounded-md px-3 text-sm"
                   />
                 </div>

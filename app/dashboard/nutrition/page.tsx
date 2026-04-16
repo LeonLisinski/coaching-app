@@ -2,6 +2,7 @@
 import MobileUnavailable from '@/app/components/mobile-unavailable'
 export const dynamic = 'force-dynamic'
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import {
@@ -25,6 +26,7 @@ type ActiveDrag = {
 }
 
 function NutritionPageContent() {
+  const t = useTranslations('nutrition.page')
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
   const [activeType, setActiveType] = useState<'food' | 'recipe' | null>(null)
   const [foodRefreshKey, setFoodRefreshKey] = useState(0)
@@ -155,19 +157,19 @@ function NutritionPageContent() {
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden p-4 lg:p-8 gap-3">
         <div className="shrink-0">
-          <h1 className="text-2xl font-bold">Prehrana</h1>
-          <p className="text-gray-500">Namirnice, recepti i planovi prehrane</p>
+          <h1 className="text-2xl font-bold">{t('title')}</h1>
+          <p className="text-gray-500">{t('subtitle')}</p>
         </div>
 
         {/* Hint bar while dragging */}
         {activeDrag?.type === 'food' && (
           <div className="shrink-0 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
-            🥗 Ispusti namirnicu na recept da je dodaš (100g — možeš urediti u receptu)
+            {t('dragHintFood')}
           </div>
         )}
         {activeDrag?.type === 'recipe' && (
           <div className="shrink-0 bg-purple-50 border border-purple-200 text-purple-700 rounded-xl px-4 py-2 text-xs font-medium flex items-center gap-2">
-            📋 Ispusti recept na plan prehrane da ga dodaš kao obrok
+            {t('dragHintRecipe')}
           </div>
         )}
 
@@ -182,9 +184,9 @@ function NutritionPageContent() {
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <UtensilsCrossed size={13} className="text-white" />
                   </div>
-                  <h3 className="text-sm font-bold text-white">Namirnice</h3>
+                  <h3 className="text-sm font-bold text-white">{t('foodsColumn')}</h3>
                 </div>
-                <span className="text-[10px] text-orange-100/80 font-medium">povuci u recept →</span>
+                <span className="text-[10px] text-orange-100/80 font-medium">{t('dragToRecipe')}</span>
               </div>
             </div>
             <div className="flex flex-col flex-1 min-h-0 bg-white">
@@ -202,11 +204,11 @@ function NutritionPageContent() {
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <BookOpen size={13} className="text-white" />
                   </div>
-                  <h3 className="text-sm font-bold text-white">Recepti</h3>
+                  <h3 className="text-sm font-bold text-white">{t('recipesColumn')}</h3>
                 </div>
                 {activeType === 'food'
-                  ? <span className="text-[10px] text-white font-bold animate-pulse">⬇ ispusti ovdje</span>
-                  : <span className="text-[10px] text-rose-100/80 font-medium">← prima namirnice · povuci u plan →</span>
+                  ? <span className="text-[10px] text-white font-bold animate-pulse">{t('dropHereFood')}</span>
+                  : <span className="text-[10px] text-rose-100/80 font-medium">{t('acceptsFoods')}</span>
                 }
               </div>
             </div>
@@ -225,11 +227,11 @@ function NutritionPageContent() {
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <CalendarDays size={13} className="text-white" />
                   </div>
-                  <h3 className="text-sm font-bold text-white">Planovi</h3>
+                  <h3 className="text-sm font-bold text-white">{t('plansColumn')}</h3>
                 </div>
                 {activeType === 'recipe'
-                  ? <span className="text-[10px] text-white font-bold animate-pulse">⬇ ispusti ovdje</span>
-                  : <span className="text-[10px] text-purple-100/80 font-medium">← prima recepte</span>
+                  ? <span className="text-[10px] text-white font-bold animate-pulse">{t('dropHereRecipe')}</span>
+                  : <span className="text-[10px] text-purple-100/80 font-medium">{t('acceptsRecipes')}</span>
                 }
               </div>
             </div>
@@ -244,9 +246,9 @@ function NutritionPageContent() {
         <div className="xl:hidden flex-1 min-h-0 overflow-y-auto">
           <Tabs value={mobileTab} onValueChange={setMobileTab}>
             <TabsList>
-              <TabsTrigger value="foods">Namirnice</TabsTrigger>
-              <TabsTrigger value="recipes">Recepti</TabsTrigger>
-              <TabsTrigger value="plans">Planovi</TabsTrigger>
+              <TabsTrigger value="foods">{t('tabs.foods')}</TabsTrigger>
+              <TabsTrigger value="recipes">{t('tabs.recipes')}</TabsTrigger>
+              <TabsTrigger value="plans">{t('tabs.plans')}</TabsTrigger>
             </TabsList>
             <TabsContent value="foods" className="mt-4">
               <FoodsTab activeType={activeType} refreshKey={foodRefreshKey} onFoodCreated={() => setFoodRefreshKey(k => k + 1)} />
@@ -264,11 +266,16 @@ function NutritionPageContent() {
   )
 }
 
+function NutritionPageMobileTitle() {
+  const t = useTranslations('nutrition.page')
+  return <MobileUnavailable title={t('mobileUnavailable')} />
+}
+
 export default function NutritionPage() {
   return (
     <>
       <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><NutritionPageContent /></div>
-      <div className="lg:hidden"><MobileUnavailable title="Upravljanje prehranom" /></div>
+      <div className="lg:hidden"><NutritionPageMobileTitle /></div>
     </>
   )
 }

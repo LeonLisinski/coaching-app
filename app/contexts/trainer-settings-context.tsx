@@ -40,9 +40,9 @@ export const NUTRITION_FIELD_OPTIONS = [
 export const EXERCISE_FIELD_OPTIONS: { key: string; label: string; desc: string; unit?: string }[] = [
   { key: 'rir',      label: 'RIR',      desc: 'Reps In Reserve' },
   { key: 'rpe',      label: 'RPE',      desc: 'Rate of Perceived Exertion' },
-  { key: 'tempo',    label: 'Tempo',    desc: 'Brzina izvođenja (npr. 3-1-2)' },
-  { key: 'duration', label: 'Trajanje', desc: 'Trajanje vježbe (minute)', unit: 'min' },
-  { key: 'distance', label: 'Distanca', desc: 'Prijeđena distanca (km/m)', unit: 'km/m' },
+  { key: 'tempo',    label: 'Tempo',    desc: 'Tempo' },
+  { key: 'duration', label: 'Duration', desc: 'Duration', unit: 'min' },
+  { key: 'distance', label: 'Distance', desc: 'Distance', unit: 'km/m' },
 ]
 
 // ── Context ───────────────────────────────────────────────────────────────────

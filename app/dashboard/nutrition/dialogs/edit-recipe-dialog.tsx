@@ -153,8 +153,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
-        <DialogTitle className="sr-only">Uredi recept</DialogTitle>
-        <DialogDescription className="sr-only">Uredi recept</DialogDescription>
+        <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
         {/* Rose header */}
         <div className="bg-gradient-to-r from-rose-500 to-pink-400 px-6 py-4 shrink-0 flex items-center gap-3">
@@ -162,8 +162,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
             <BookOpen size={16} className="text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-white font-bold text-base">Uredi recept</h2>
-            <p className="text-rose-100/70 text-xs">Uredi sastojke i podatke recepta</p>
+            <h2 className="text-white font-bold text-base">{t('editTitle')}</h2>
+            <p className="text-rose-100/70 text-xs">{t('editSubtitle')}</p>
           </div>
           <button type="button" onClick={onClose} className="text-white/60 hover:text-white transition-colors">
             <X size={18} />
@@ -203,12 +203,12 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
               {showDropdown && (
                 <div className="border border-rose-100 rounded-xl bg-white shadow-md overflow-hidden mt-1">
                   {!foodsLoaded ? (
-                    <p className="px-4 py-3 text-xs text-gray-400 text-center">Učitavanje namirnica...</p>
+                    <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingFoods')}</p>
                   ) : (
                     <div className="overflow-y-auto max-h-44">
                       {filteredFoods.length === 0 ? (
                         <p className="px-4 py-3 text-xs text-gray-400 text-center">
-                          {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
+                          {search ? t('noResults', { search }) : t('allAdded')}
                         </p>
                       ) : filteredFoods.map((f, i) => (
                         <button key={f.id} type="button"

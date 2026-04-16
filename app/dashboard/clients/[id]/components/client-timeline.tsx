@@ -6,6 +6,7 @@ import {
   ClipboardList, CreditCard, Dumbbell, UtensilsCrossed, Package,
   TrendingDown, TrendingUp, Minus,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 type TimelineEvent = {
   id: string
@@ -24,6 +25,7 @@ function formatDate(iso: string) {
 }
 
 export default function ClientTimeline({ clientId }: { clientId: string }) {
+  const t = useTranslations('clientDetail')
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -72,13 +74,13 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
       const weightDiff = prevWeight !== null && weight ? weight - prevWeight : null
       prevWeight = weight ?? prevWeight
       const parts: string[] = []
-      if (weight) parts.push(`${weight} kg`)
-      if (bodyFat) parts.push(`${bodyFat}% masti`)
+      if (weight) parts.push(t('timelineWeightEntry', { weight }))
+      if (bodyFat) parts.push(t('timelineBodyFat', { fat: bodyFat }))
       all.push({
         id: `ci-${c.id}`,
         date: c.date,
         type: 'checkin',
-        title: 'Tjedni check-in',
+        title: t('timelineWeeklyCheckin'),
         subtitle: parts.join(' · ') || undefined,
         meta: weightDiff !== null
           ? weightDiff > 0 ? `+${weightDiff.toFixed(1)} kg`
@@ -92,14 +94,19 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
 
     // Packages
     ;(packages || []).forEach((pkg: any) => {
-      const pkgName = pkg.packages?.name || 'Paket'
+      const pkgName = pkg.packages?.name || t('timelinePackage')
       const pkgColor = pkg.packages?.color || '#7c3aed'
+      const statusLabel = pkg.status === 'active'
+        ? t('timelineActiveStatus')
+        : pkg.status === 'expired'
+          ? t('timelineExpiredStatus')
+          : pkg.status
       all.push({
         id: `pkg-${pkg.id}`,
         date: pkg.start_date,
         type: 'package',
-        title: `Paket: ${pkgName}`,
-        subtitle: `${pkg.price} € · ${pkg.status === 'active' ? 'Aktivan' : pkg.status === 'expired' ? 'Istekao' : pkg.status}`,
+        title: `${t('timelinePackage')}: ${pkgName}`,
+        subtitle: `${pkg.price} € · ${statusLabel}`,
         color: pkgColor,
         icon: Package,
       })
@@ -110,7 +117,7 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
           id: `pay-${pkg.id}`,
           date: payment.paid_at,
           type: 'payment',
-          title: `Plaćanje: ${pkgName}`,
+          title: `${t('timelinePayment')} ${pkgName}`,
           subtitle: `${payment.amount || pkg.price} €`,
           color: '#059669',
           icon: CreditCard,
@@ -120,12 +127,12 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
 
     // Workout plans
     ;(workoutPlans || []).forEach((wp: any) => {
-      const planName = (wp.workout_plan as any)?.name || 'Plan treninga'
+      const planName = (wp.workout_plan as any)?.name || t('timelineTrainingFallback')
       all.push({
         id: `wp-${wp.id}`,
         date: (wp.assigned_at || '').split('T')[0],
         type: 'workout_plan',
-        title: `Dodijeljen plan treninga`,
+        title: t('timelineAssignedTraining'),
         subtitle: planName,
         color: '#4f46e5',
         icon: Dumbbell,
@@ -134,12 +141,12 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
 
     // Meal plans
     ;(mealPlans || []).forEach((mp: any) => {
-      const planName = (mp.meal_plan as any)?.name || 'Plan prehrane'
+      const planName = (mp.meal_plan as any)?.name || t('timelineMealFallback')
       all.push({
         id: `mp-${mp.id}`,
         date: (mp.assigned_at || '').split('T')[0],
         type: 'meal_plan',
-        title: `Dodijeljen plan prehrane`,
+        title: t('timelineAssignedMeal'),
         subtitle: planName,
         color: '#ea580c',
         icon: UtensilsCrossed,
@@ -172,8 +179,8 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
     return (
       <div className="text-center py-16">
         <ClipboardList size={32} className="mx-auto text-gray-200 mb-3" />
-        <p className="text-sm text-gray-400">Nema aktivnosti za prikaz</p>
-        <p className="text-xs text-gray-300 mt-1">Aktivnosti će se pojaviti čim klijent počne slati check-ine</p>
+        <p className="text-sm text-gray-400">{t('timelineEmpty')}</p>
+        <p className="text-xs text-gray-300 mt-1">{t('timelineEmptyHint')}</p>
       </div>
     )
   }

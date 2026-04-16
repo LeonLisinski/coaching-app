@@ -11,6 +11,7 @@ import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
 } from 'recharts'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTranslations } from 'next-intl'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -25,24 +26,25 @@ function fmtDate(d: string | null) {
   return new Date(d).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function fmtRelTime(dateStr: string) {
-  const now = new Date()
-  const d = new Date(dateStr)
-  const diffMs = now.getTime() - d.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffMins < 60) return `prije ${diffMins}m`
-  if (diffHours < 24) return `prije ${diffHours}h`
-  if (diffDays === 1) return 'jučer'
-  if (diffDays < 7) return `prije ${diffDays}d`
-  return fmtDate(dateStr.split('T')[0])
-}
-
 export default function ClientOverview({ clientId }: Props) {
   const router = useRouter()
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const t = useTranslations('clientDetail')
+
+  function fmtRelTime(dateStr: string) {
+    const now = new Date()
+    const d = new Date(dateStr)
+    const diffMs = now.getTime() - d.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffMins < 60) return t('timeMinutes', { n: diffMins })
+    if (diffHours < 24) return t('timeHours', { n: diffHours })
+    if (diffDays === 1) return t('timeYesterday')
+    if (diffDays < 7) return t('timeDays', { n: diffDays })
+    return fmtDate(dateStr.split('T')[0])
+  }
 
   const [loading, setLoading] = useState(true)
   const [weightData, setWeightData] = useState<{ date: string; w: number }[]>([])
@@ -127,10 +129,10 @@ export default function ClientOverview({ clientId }: Props) {
               <Scale size={14} style={{ color: accentHex }} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Tjelesna masa</p>
+              <p className="text-sm font-semibold text-gray-900">{t('weightCard')}</p>
               {weightData.length > 0 && (
                 <p className="text-xs text-gray-400">
-                  Zadnje mjerenje: <span className="font-medium text-gray-600">{weightData[weightData.length - 1]?.w} kg</span>
+                  {t('lastMeasurement')} <span className="font-medium text-gray-600">{weightData[weightData.length - 1]?.w} kg</span>
                 </p>
               )}
             </div>
@@ -139,7 +141,7 @@ export default function ClientOverview({ clientId }: Props) {
             <div className={`flex items-center gap-1 text-xs font-medium ${trendColor}`}>
               <TrendIcon size={14} />
               <span>{weightTrend > 0 ? '+' : ''}{weightTrend.toFixed(1)} kg</span>
-              <span className="text-gray-400 font-normal">({weightData.length} mjerenja)</span>
+              <span className="text-gray-400 font-normal">{t('measurementsCount', { count: weightData.length })}</span>
             </div>
           )}
         </div>
@@ -168,7 +170,7 @@ export default function ClientOverview({ clientId }: Props) {
                 <Tooltip
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
                   labelFormatter={d => fmtDate(d)}
-                  formatter={(v: any) => [`${v} kg`, 'Masa']}
+                  formatter={(v: any) => [`${v} kg`, t('weightCard')]}
                 />
                 <Area
                   type="monotone"
@@ -183,7 +185,7 @@ export default function ClientOverview({ clientId }: Props) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-xs text-gray-400 py-4 text-center">Nema dostupnih mjerenja mase</p>
+          <p className="text-xs text-gray-400 py-4 text-center">{t('noWeightData')}</p>
         )}
       </div>
 
@@ -197,7 +199,7 @@ export default function ClientOverview({ clientId }: Props) {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-teal-50">
               <ClipboardCheck size={14} className="text-teal-600" />
             </div>
-            <p className="text-sm font-semibold text-gray-900">Zadnji check-in</p>
+            <p className="text-sm font-semibold text-gray-900">{t('lastCheckin')}</p>
           </div>
           <ArrowRight size={14} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
         </div>
@@ -207,7 +209,7 @@ export default function ClientOverview({ clientId }: Props) {
             <span className="text-sm text-gray-700 font-medium">{fmtDate(lastCheckin.date)}</span>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">Nema predanih check-inova</p>
+          <p className="text-xs text-gray-400">{t('noCheckins')}</p>
         )}
       </div>
 
@@ -217,7 +219,7 @@ export default function ClientOverview({ clientId }: Props) {
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
             <Dumbbell size={14} style={{ color: accentHex }} />
           </div>
-          <p className="text-sm font-semibold text-gray-900">Aktivni planovi</p>
+          <p className="text-sm font-semibold text-gray-900">{t('activePlans')}</p>
         </div>
         <div className="space-y-1.5">
           {activeWorkout ? (
@@ -231,7 +233,7 @@ export default function ClientOverview({ clientId }: Props) {
             </div>
           ) : (
             <p className="text-xs text-gray-400 flex items-center gap-1.5 px-2 py-1">
-              <Dumbbell size={11} /> Nema aktivnog plana treninga
+              <Dumbbell size={11} /> {t('noTrainingPlan')}
             </p>
           )}
           {activeMeal ? (
@@ -245,7 +247,7 @@ export default function ClientOverview({ clientId }: Props) {
             </div>
           ) : (
             <p className="text-xs text-gray-400 flex items-center gap-1.5 px-2 py-1">
-              <UtensilsCrossed size={11} /> Nema aktivnog plana prehrane
+              <UtensilsCrossed size={11} /> {t('noMealPlan')}
             </p>
           )}
         </div>
@@ -261,10 +263,10 @@ export default function ClientOverview({ clientId }: Props) {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-sky-50">
               <MessageSquare size={14} className="text-sky-600" />
             </div>
-            <p className="text-sm font-semibold text-gray-900">Zadnja poruka</p>
+            <p className="text-sm font-semibold text-gray-900">{t('lastMessage')}</p>
           </div>
           <span className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: accentHex }}>
-            Otvori chat <ArrowRight size={11} />
+            {t('openChat')} <ArrowRight size={11} />
           </span>
         </div>
         {lastMessage ? (
@@ -272,7 +274,7 @@ export default function ClientOverview({ clientId }: Props) {
             <div className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
               lastMessage.isTrainer ? 'bg-gray-100 text-gray-500' : 'bg-sky-100 text-sky-700'
             }`}>
-              {lastMessage.isTrainer ? 'Ti' : 'Klijent'}
+              {lastMessage.isTrainer ? t('senderYou') : t('senderClient')}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm text-gray-700 truncate">{lastMessage.content}</p>
@@ -280,7 +282,7 @@ export default function ClientOverview({ clientId }: Props) {
             </div>
           </div>
         ) : (
-          <p className="text-xs text-gray-400">Nema poruka u chatu</p>
+          <p className="text-xs text-gray-400">{t('noMessages')}</p>
         )}
       </div>
 

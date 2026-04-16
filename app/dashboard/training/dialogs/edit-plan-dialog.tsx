@@ -294,7 +294,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
           {isClientEdit && (
             <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 shrink-0">
               <p className="text-xs text-amber-700">
-                Promjene vrijede samo za ovog klijenta. Originalni plan ostaje nepromijenjen.
+                {t('form.clientEditNotice')}
               </p>
             </div>
           )}
@@ -346,9 +346,9 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                         {isDayExpanded(index) ? <ChevronUp size={14} className="text-gray-400 shrink-0" /> : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
                         <span className="font-medium text-sm">{t('form.dayLabel')} {day.day_number}</span>
                         <span className="text-xs text-gray-400">{day.name !== `${t('form.dayLabel')} ${day.day_number}` ? `· ${day.name}` : ''}</span>
-                        {!isDayExpanded(index) && <span className="text-xs text-gray-400 ml-auto shrink-0">{day.exercises.length} vježbi</span>}
+                        {!isDayExpanded(index) && <span className="text-xs text-gray-400 ml-auto shrink-0">{day.exercises.length} {t('form.exercisesCollapsed')}</span>}
                       </button>
-                      <button type="button" title="Kopiraj dan" onClick={() => copyDay(index)} className="p-1 text-gray-400 hover:text-gray-600">
+                      <button type="button" title={t('form.copyDayTooltip')} onClick={() => copyDay(index)} className="p-1 text-gray-400 hover:text-gray-600">
                         <Copy size={13} />
                       </button>
                       <button type="button" onClick={() => setConfirmDay(index)} className="p-1">
@@ -423,7 +423,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                                   }`}>
                                   <span className="font-medium">{e.name}</span>
                                   <div className="flex items-center gap-1.5">
-                                    {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">Izdržljivost</span>}
+                                    {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t('form.enduranceBadge')}</span>}
                                     <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200">{e.category}</span>
                                   </div>
                                 </button>
@@ -480,15 +480,15 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog open={confirmDay !== null} title="Obriši dan"
-        description={`Sigurno želiš ukloniti Dan ${confirmDay !== null ? confirmDay + 1 : ''}? Sve vježbe bit će izgubljene.`}
+      <ConfirmDialog open={confirmDay !== null} title={t('form.deleteDayTitle')}
+        description={confirmDay !== null ? t('form.deleteDayConfirm', { num: confirmDay + 1 }) : ''}
         onConfirm={() => confirmDay !== null && removeDay(confirmDay)} onCancel={() => setConfirmDay(null)}
-        confirmLabel="Obriši" destructive />
+        confirmLabel={tCommon('delete')} destructive />
 
-      <ConfirmDialog open={confirmEx !== null} title="Ukloni vježbu"
-        description="Sigurno želiš ukloniti ovu vježbu iz dana?"
+      <ConfirmDialog open={confirmEx !== null} title={t('form.removeExerciseDayTitle')}
+        description={t('form.removeExerciseDayConfirm')}
         onConfirm={() => confirmEx && removeExercise(confirmEx.day, confirmEx.id)} onCancel={() => setConfirmEx(null)}
-        confirmLabel="Ukloni" destructive />
+        confirmLabel={tCommon('remove')} destructive />
     </>
   )
 }

@@ -128,6 +128,7 @@ function FinancijePageContent() {
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const tRaw = useTranslations()
   const t = (key: string, values?: any) => tRaw(key as any, values)
+  const tF = useTranslations('finance2')
   const tMonths = useTranslations('common.months')
   const tMonthsFull = useTranslations('common.monthsFull')
 
@@ -367,7 +368,7 @@ function FinancijePageContent() {
       setShowPayDialog(false)
       await fetchData()
     } catch (err: any) {
-      alert(`Greška pri spremanju: ${err?.message || 'Nepoznata greška'}`)
+      alert(tF('saveError', { err: err?.message || '' }))
     } finally {
       setSaving(false)
     }
@@ -403,7 +404,7 @@ function FinancijePageContent() {
       setTimeout(() => setJustMarkedId(null), 3000)
       await fetchData()
     } catch (err: any) {
-      alert(`Greška pri označavanju: ${err?.message || 'Nepoznata greška'}`)
+      alert(tF('markError', { err: err?.message || '' }))
     }
   }
 
@@ -591,7 +592,7 @@ function FinancijePageContent() {
                     </button>
                     <button
                       onClick={() => setConfirmDeleteId(cp.id)}
-                      title="Obriši"
+                      title={tF('deleteTooltip')}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                     >
                       <Trash2 size={13} />
@@ -649,11 +650,11 @@ function FinancijePageContent() {
                     <span className="text-xs text-gray-500">{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
                     {justMarkedId === cp.id ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
-                        <Check size={10} /> Plaćeno ✓
+                        <Check size={10} /> {tF('paidLabel')}
                       </span>
                     ) : s !== 'paid' ? (
                       <button
-                        title="Klikni za označi kao plaćeno"
+                        title={tF('markPaidTooltip')}
                         onClick={() => inlineMarkPaid(cp)}
                         className="cursor-pointer transition-all hover:scale-105"
                       >
@@ -671,14 +672,14 @@ function FinancijePageContent() {
                         </button>
                       ) : (
                         <button onClick={() => markUnpaid(cp)}
-                          title="Označi kao neplaćeno"
+                          title={tF('markUnpaidTooltip')}
                           className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-colors whitespace-nowrap">
-                          <RotateCcw size={11} /> Neplaćeno
+                          <RotateCcw size={11} /> {tF('unpaidLabel')}
                         </button>
                       )}
                       <button
                         onClick={() => setConfirmDeleteId(cp.id)}
-                        title="Obriši"
+                        title={tF('deleteTooltip')}
                         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
                         <Trash2 size={13} />
                       </button>
@@ -692,7 +693,7 @@ function FinancijePageContent() {
             {allHistory.length > HIST_PER_PAGE && (
               <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between bg-gray-50/40">
                 <p className="text-xs text-gray-400">
-                  {histPage * HIST_PER_PAGE + 1}–{Math.min((histPage + 1) * HIST_PER_PAGE, allHistory.length)} od {allHistory.length}
+                  {histPage * HIST_PER_PAGE + 1}–{Math.min((histPage + 1) * HIST_PER_PAGE, allHistory.length)} {tF('paginationOf')} {allHistory.length}
                 </p>
                 <div className="flex gap-2">
                   <button disabled={histPage === 0} onClick={() => setHistPage(p => p - 1)}
@@ -750,9 +751,9 @@ function FinancijePageContent() {
                 <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2.5">
                   <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-amber-700">Kasno plaćanje</p>
+                    <p className="text-xs font-semibold text-amber-700">{tF('latePaymentWarning')}</p>
                     <p className="text-xs text-amber-600 mt-0.5">
-                      Sljedeće fakturno razdoblje treba početi od{' '}
+                      {tF('nextPeriodWarning')}{' '}
                       <span className="font-bold">{fmtDate(selectedCp.end_date)}</span>, a ne od danas.
                     </p>
                   </div>
@@ -783,19 +784,19 @@ function FinancijePageContent() {
               <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={20} className="text-red-500" />
               </div>
-              <h3 className="text-center text-sm font-bold text-gray-900">Obriši zapis?</h3>
+              <h3 className="text-center text-sm font-bold text-gray-900">{tF('deleteConfirmTitle')}</h3>
               <p className="text-center text-xs text-gray-500 mt-1.5">
-                Ovo će trajno obrisati paket i sve vezane uplate. Radnja se ne može poništiti.
+                {tF('deleteConfirmDesc')}
               </p>
             </div>
             <div className="flex gap-2 p-4">
               <button onClick={() => deletePkg(confirmDeleteId)}
                 className="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-colors">
-                Obriši
+                {tF('deleteBtn')}
               </button>
               <button onClick={() => setConfirmDeleteId(null)}
                 className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">
-                Odustani
+                {t('common.cancel')}
               </button>
             </div>
           </div>

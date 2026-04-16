@@ -114,6 +114,7 @@ function calcTotals(ings: Ingredient[]) {
 export default function MealSlotEditor({ meal, index, recipes, foods, nutritionFields = [], onChange, onRemove, onCopy, dragHandleProps, isDragging }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
+  const tCommon = useTranslations('common')
 
   const [mode, setMode] = useState<'existing' | 'custom'>(
     meal.custom_ingredients?.length ? 'custom' : 'existing'
@@ -421,12 +422,12 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             ? <ChevronUp   size={14} className="text-gray-400 shrink-0" />
             : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
           {expanded ? (
-            <span className="text-sm font-medium text-gray-700 truncate">{meal.meal_type || 'Obrok'}</span>
+            <span className="text-sm font-medium text-gray-700 truncate">{meal.meal_type || t('mealFallback')}</span>
           ) : (
             <span className="text-xs text-gray-500 truncate min-w-0">
               {(meal.calories > 0 || meal.protein > 0)
                 ? `🔥 ${Math.round(meal.calories)} kcal · P: ${Math.round(meal.protein)}g · U: ${Math.round(meal.carbs)}g · M: ${Math.round(meal.fat)}g`
-                : <span className="text-gray-400">Prazan obrok</span>}
+                : <span className="text-gray-400">{t('emptyMeal')}</span>}
             </span>
           )}
         </button>
@@ -442,7 +443,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             </SelectContent>
           </Select>
           {onCopy && (
-            <button type="button" title="Kopiraj obrok" onClick={() => onCopy(index)} className="p-1">
+            <button type="button" title={t('copyMealTooltip')} onClick={() => onCopy(index)} className="p-1">
               <Copy size={13} className="text-gray-400 hover:text-gray-600" />
             </button>
           )}
@@ -478,10 +479,10 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             onValueChange={handleSelectRecipe}
           >
             <SelectTrigger className="text-sm">
-              <SelectValue placeholder="Odaberi jelo..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Odaberi jelo...</SelectItem>
+            <SelectValue placeholder={t('selectDishPlaceholder')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{t('selectDishPlaceholder')}</SelectItem>
               {recipes.map(r => (
                 <SelectItem key={r.id} value={r.id}>
                   {r.name} ({Math.round(r.total_calories)} kcal)
@@ -499,8 +500,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                 className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                Uredi namirnice ({recipeIngredients.length})
-                <span className="text-gray-300 ml-1">· ne utječe na originalni recept</span>
+                {t('editIngredientsLabel', { count: recipeIngredients.length })}
+                <span className="text-gray-300 ml-1">· {t('doesNotAffectOriginal')}</span>
               </button>
               {showIngredients && (
                 <div className="space-y-1 pt-1">
@@ -528,16 +529,16 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                       }}
                       onBlur={() => { blurTimer.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
                       onKeyDown={handleSearchKeyDown}
-                      placeholder="Dodaj namirnicu..."
-                      className="h-7 text-xs"
-                    />
-                    {showDropdown && (
-                      <div className="border rounded-md bg-white shadow-sm overflow-hidden absolute z-10 w-full" onWheel={e => e.stopPropagation()}>
-                        <div className="overflow-y-auto max-h-36">
-                          {filteredRecipeFoods.length === 0 ? (
-                            <p className="px-3 py-2 text-xs text-gray-400 text-center">
-                              {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
-                            </p>
+                    placeholder={t('addIngredientPlaceholder')}
+                    className="h-7 text-xs"
+                  />
+                  {showDropdown && (
+                    <div className="border rounded-md bg-white shadow-sm overflow-hidden absolute z-10 w-full" onWheel={e => e.stopPropagation()}>
+                      <div className="overflow-y-auto max-h-36">
+                        {filteredRecipeFoods.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-gray-400 text-center">
+                            {search ? t('noIngredientResults', { search }) : t('allIngredientsAdded')}
+                          </p>
                           ) : filteredRecipeFoods.slice(0, 20).map((f, i) => (
                             <button key={f.id} type="button"
                               onMouseDown={e => e.preventDefault()}
@@ -577,7 +578,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                 className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                Uredi namirnice ({ingredients.length})
+                {t('editIngredientsLabel', { count: ingredients.length })}
               </button>
               {showIngredients && (
                 <div className="space-y-1 pt-1">
@@ -596,7 +597,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                     <input type="checkbox" checked={saveAsRecipe}
                       onChange={e => { setSaveAsRecipe(e.target.checked); updateCustomTotals(ingredients, customName, e.target.checked) }}
                       className="rounded" />
-                    Spremi kao jelo u bazu
+                    {t('saveAsDishLabel')}
                   </label>
                 </div>
               )}
@@ -624,7 +625,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                 <div className="overflow-y-auto max-h-44">
                   {filteredFoods.length === 0 ? (
                     <p className="px-3 py-2 text-xs text-gray-400 text-center">
-                      {search ? `Nema rezultata za "${search}"` : 'Sve namirnice su već dodane'}
+                      {search ? t('noIngredientResults', { search }) : t('allIngredientsAdded')}
                     </p>
                   ) : filteredFoods.slice(0, 20).map((f, i) => (
                     <button key={f.id} type="button"
@@ -667,11 +668,11 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
 
       <ConfirmDialog
         open={confirmRemove}
-        title="Ukloni obrok"
-        description={`Sigurno želiš ukloniti obrok "${meal.meal_type}"?`}
+        title={t('removeMealTitle')}
+        description={t('removeMealConfirm', { mealType: meal.meal_type })}
         onConfirm={() => { setConfirmRemove(false); onRemove(index) }}
         onCancel={() => setConfirmRemove(false)}
-        confirmLabel="Ukloni"
+        confirmLabel={tCommon('remove')}
         destructive
       />
     </div>

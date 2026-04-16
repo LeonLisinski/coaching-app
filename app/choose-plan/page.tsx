@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Loader2, AlertTriangle, Clock, CreditCard, XCircle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 function GradientLogo({ height = 32 }: { height?: number }) {
   return (
@@ -28,43 +29,6 @@ const BLUE  = '#0066FF'
 const NAVY  = '#0A1024'
 const GREEN = '#44cc88'
 
-const FEATURES_COMMON = [
-  'Planovi treninga i prehrane',
-  'Prati što ti je važno — koraci, san, težina, raspoloženje',
-  'Chat s klijentima',
-  'Mobilna app za klijente (besplatna)',
-  'Vidi odmah tko je platio i koliko si zaradio',
-]
-
-const PLANS = [
-  {
-    key:     'starter',
-    label:   'STARTER',
-    price:   29,
-    clients: 'Do 15 klijenata',
-    popular: false,
-    feats:   ['Do 15 aktivnih klijenata'],
-    note:    null,
-  },
-  {
-    key:     'pro',
-    label:   'PRO',
-    price:   59,
-    clients: 'Do 50 klijenata',
-    popular: true,
-    feats:   ['Do 50 aktivnih klijenata', 'Vlastiti logo i boje u klijentskoj app'],
-    note:    null,
-  },
-  {
-    key:     'scale',
-    label:   'SCALE',
-    price:   99,
-    clients: 'Do 150 klijenata',
-    popular: false,
-    feats:   ['Do 150 aktivnih klijenata', 'Vlastiti logo i boje u klijentskoj app'],
-    note:    'Više od 150 klijenata? +€10/mj za svakih dodatnih 25.',
-  },
-]
 
 const Chk = () => (
   <span style={{
@@ -77,43 +41,82 @@ const Chk = () => (
 
 type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked' | null
 
-const STATUS_BANNER: Record<NonNullable<SubStatus>, { icon: React.ReactNode; bg: string; border: string; text: string; label: string; sub: string }> = {
-  trialing: {
-    icon: <Clock size={16} color="#d97706" />,
-    bg: '#fffbeb', border: '#fde68a', text: '#92400e',
-    label: 'Probni period je završio',
-    sub: 'Odaberi plan da nastaviš koristiti UnitLift bez prekida.',
-  },
-  past_due: {
-    icon: <CreditCard size={16} color="#dc2626" />,
-    bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
-    label: 'Neuspjela naplata',
-    sub: 'Nismo uspjeli naplatiti pretplatu. Odaberi plan i ažuriraj platnu karticu da nastaviš.',
-  },
-  canceled: {
-    icon: <XCircle size={16} color="#6b7280" />,
-    bg: '#f9fafb', border: '#e5e7eb', text: '#374151',
-    label: 'Pretplata je otkazana',
-    sub: 'Tvoja pretplata je istekla. Aktiviraj novi plan da nastaviš s radom.',
-  },
-  locked: {
-    icon: <AlertTriangle size={16} color="#dc2626" />,
-    bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
-    label: 'Račun je privremeno zaključan',
-    sub: 'Pretplata nije plaćena. Aktiviraj plan za povratak pristupa.',
-  },
-  active: {
-    icon: null, bg: '', border: '', text: '',
-    label: '', sub: '',
-  },
-}
-
 export default function ChoosePlanPage() {
   const router = useRouter()
+  const t = useTranslations('choosePlan')
   const [loading, setLoading]   = useState<string | null>(null)
   const [error, setError]       = useState('')
   const [subStatus, setSubStatus] = useState<SubStatus>(null)
   const [subLoading, setSubLoading] = useState(true)
+
+  const FEATURES_COMMON = [
+    t('featureTrainingMeal'),
+    t('featureTracking'),
+    t('featureChat'),
+    t('featureMobileApp'),
+    t('featureFinance'),
+  ]
+
+  const PLANS = [
+    {
+      key:     'starter',
+      label:   'STARTER',
+      price:   29,
+      clients: t('clientLimitStarter'),
+      popular: false,
+      feats:   [t('clientLimitStarter')],
+      note:    null,
+    },
+    {
+      key:     'pro',
+      label:   'PRO',
+      price:   59,
+      clients: t('clientLimitPro'),
+      popular: true,
+      feats:   [t('clientLimitPro'), t('featOwnBranding')],
+      note:    null,
+    },
+    {
+      key:     'scale',
+      label:   'SCALE',
+      price:   99,
+      clients: t('clientLimitScale'),
+      popular: false,
+      feats:   [t('clientLimitScale'), t('featOwnBranding')],
+      note:    t('scalePlus'),
+    },
+  ]
+
+  const STATUS_BANNER: Record<NonNullable<SubStatus>, { icon: React.ReactNode; bg: string; border: string; text: string; label: string; sub: string }> = {
+    trialing: {
+      icon: <Clock size={16} color="#d97706" />,
+      bg: '#fffbeb', border: '#fde68a', text: '#92400e',
+      label: t('statusTrialingTitle'),
+      sub:   t('statusTrialingDesc'),
+    },
+    past_due: {
+      icon: <CreditCard size={16} color="#dc2626" />,
+      bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
+      label: t('statusPastDueTitle'),
+      sub:   t('statusPastDueDesc'),
+    },
+    canceled: {
+      icon: <XCircle size={16} color="#6b7280" />,
+      bg: '#f9fafb', border: '#e5e7eb', text: '#374151',
+      label: t('statusCanceledTitle'),
+      sub:   t('statusCanceledDesc'),
+    },
+    locked: {
+      icon: <AlertTriangle size={16} color="#dc2626" />,
+      bg: '#fef2f2', border: '#fecaca', text: '#991b1b',
+      label: t('statusLockedTitle'),
+      sub:   t('statusLockedDesc'),
+    },
+    active: {
+      icon: null, bg: '', border: '', text: '',
+      label: '', sub: '',
+    },
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -150,10 +153,10 @@ export default function ChoosePlanPage() {
         body: JSON.stringify({ plan: planKey }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Greška pri kreiranju pretplate.'); setLoading(null); return }
+      if (!res.ok) { setError(data.error || t('errorCreate')); setLoading(null); return }
       window.location.href = data.checkout_url
     } catch {
-      setError('Greška pri spajanju na server.')
+      setError(t('errorServer'))
       setLoading(null)
     }
   }
@@ -195,10 +198,10 @@ export default function ChoosePlanPage() {
           {/* Headline */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 900, color: NAVY, lineHeight: 1.1, margin: '0 0 10px' }}>
-              {subLoading ? ' ' : subStatus ? 'Odaberi plan za nastavak' : 'Odaberi plan za početak'}
+              {subLoading ? ' ' : subStatus ? t('titleExisting') : t('titleNew')}
             </h1>
             <p style={{ fontSize: '.9rem', color: '#6b7a99', margin: 0 }}>
-              Aktiviraj pretplatu i nastavi s radom. Otkaži kad hoćeš — bez skrivenih troškova.
+              {t('subtitle')}
             </p>
           </div>
 
@@ -240,7 +243,7 @@ export default function ChoosePlanPage() {
                       padding: '5px 17px', borderRadius: 20, whiteSpace: 'nowrap',
                       letterSpacing: '.05em', textTransform: 'uppercase',
                     }}>
-                      Najpopularniji
+                      {t('mostPopular')}
                     </div>
                   )}
 
@@ -251,7 +254,7 @@ export default function ChoosePlanPage() {
 
                   {/* Price */}
                   <div style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY, marginBottom: 4 }}>
-                    €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>/mj</span>
+                    €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>{t('monthSuffix')}</span>
                   </div>
 
                   {/* Clients */}
@@ -288,8 +291,8 @@ export default function ChoosePlanPage() {
                       transition: 'opacity .15s',
                     }}>
                     {isLoading
-                      ? <><Loader2 size={15} className="animate-spin" /> Učitavanje...</>
-                      : 'Aktiviraj plan →'
+                      ? <><Loader2 size={15} className="animate-spin" /> {t('activateBtn')}</>
+                      : t('activateBtn')
                     }
                   </button>
                 </div>
@@ -300,13 +303,13 @@ export default function ChoosePlanPage() {
           {/* Footer note */}
           <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: 16, paddingBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <p style={{ color: '#6b7a99', fontSize: '0.9rem', margin: 0 }}>
-              Naplata počinje odmah · Otkaži kad hoćeš · Bez skrivenih troškova
+              {t('footer')}
             </p>
             <p style={{ fontSize: '0.9rem', color: '#9ca3af', margin: 0 }}>
-              Pogrešan račun?{' '}
+              {t('wrongAccount')}{' '}
               <button onClick={() => supabase.auth.signOut().then(() => { window.location.href = '/login' })}
                 style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit', padding: 0 }}>
-                Prijavi se drugim računom
+                {t('switchAccount')}
               </button>
               {' · '}
               <a href="https://unitlift.com" style={{ color: BLUE, textDecoration: 'underline' }}>

@@ -50,6 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const tNav    = useTranslations('nav')
   const tApp    = useTranslations('app')
   const tCommon = useTranslations('common')
+  const tLayout = useTranslations('layout')
   const pathname = usePathname()
   const router   = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -245,21 +246,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const diffMs = now.getTime() - d.getTime()
       const diffH = Math.floor(diffMs / 3600000)
       const diffD = Math.floor(diffH / 24)
-      if (diffH < 1) return 'upravo sada'
-      if (diffH < 24) return `prije ${diffH}h`
-      if (diffD === 1) return 'jučer'
-      return `prije ${diffD}d`
+      if (diffH < 1) return tLayout('timeJustNow')
+      if (diffH < 24) return tLayout('timeHours', { n: diffH })
+      if (diffD === 1) return tLayout('timeYesterday')
+      return tLayout('timeDays', { n: diffD })
     }
 
     const notifs: typeof notifications = []
 
     ;(msgs || []).forEach((m: any) => {
-      const name = m.clients?.profiles?.full_name || 'Klijent'
+      const name = m.clients?.profiles?.full_name || tLayout('fallbackClient')
       const id = `msg-${m.id}`
       notifs.push({
         id,
         title: name,
-        subtitle: m.content?.slice(0, 55) || 'Nova poruka',
+        subtitle: m.content?.slice(0, 55) || tLayout('notifNewMessage'),
         time: formatTime(m.created_at),
         type: 'message',
         href: `/dashboard/chat?clientId=${m.client_id}`,
@@ -268,12 +269,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })
 
     ;(checkins || []).forEach((c: any) => {
-      const name = c.clients?.profiles?.full_name || 'Klijent'
+      const name = c.clients?.profiles?.full_name || tLayout('fallbackClient')
       const id = `ci-${c.id}`
       notifs.push({
         id,
         title: name,
-        subtitle: 'predao/la check-in',
+        subtitle: tLayout('notifSubmittedCheckin'),
         time: formatTime(c.date),
         type: 'checkin',
         href: `/dashboard/checkins/${c.client_id}`,
@@ -282,21 +283,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })
 
     ;(pkgAlerts || []).forEach((cp: any) => {
-      const name = cp.clients?.profiles?.full_name || 'Klijent'
-      const pkgName = (cp.packages as any)?.name || 'Paket'
+      const name = cp.clients?.profiles?.full_name || tLayout('fallbackClient')
+      const pkgName = (cp.packages as any)?.name || tLayout('fallbackPackage')
       const endDate = cp.end_date as string
       const daysLeft = Math.ceil((new Date(endDate).getTime() - now.getTime()) / 86400000)
       const id = `pkg-${cp.id}-${endDate}`
       const subtitle = daysLeft < 0
-        ? `${pkgName} — paket je istekao`
+        ? tLayout('notifPackageExpired', { name: pkgName })
         : daysLeft === 0
-        ? `${pkgName} — istječe danas`
-        : `${pkgName} — istječe za ${daysLeft} ${daysLeft === 1 ? 'dan' : 'dana'}`
+        ? tLayout('notifPackageExpiresToday', { name: pkgName })
+        : tLayout('notifPackageExpiresIn', { name: pkgName, days: daysLeft, unit: daysLeft === 1 ? tLayout('notifDaysSingular') : tLayout('notifDaysPlural') })
       notifs.push({
         id,
         title: name,
         subtitle,
-        time: daysLeft < 0 ? `${Math.abs(daysLeft)}d isteklo` : daysLeft === 0 ? 'danas' : `za ${daysLeft}d`,
+        time: daysLeft < 0 ? tLayout('notifTimeExpiredDays', { n: Math.abs(daysLeft) }) : daysLeft === 0 ? tLayout('notifTimeToday') : tLayout('notifTimeIn', { n: daysLeft }),
         type: 'package',
         href: `/dashboard/clients/${cp.client_id}?tab=paketi`,
         isNew: !storedSeen.has(id),
@@ -429,7 +430,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {!collapsed && (
                 <div className="flex-1 min-w-0">
                   <p className="text-white/80 text-xs font-medium truncate">{userName}</p>
-                  <p className="text-white/35 text-[10px]">Moj profil</p>
+                  <p className="text-white/35 text-[10px]">{tLayout('myProfile')}</p>
                 </div>
               )}
             </div>
@@ -471,18 +472,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="hdr-search flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs flex-1 lg:flex-none lg:min-w-[180px]"
           >
             <Search size={13} />
-            <span className="flex-1 text-left">Pretraži...</span>
+            <span className="flex-1 text-left">{tLayout('searchPlaceholder')}</span>
             <kbd className="hidden lg:block text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded border border-gray-200 font-mono leading-none">⌘K</kbd>
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            {/* <LocaleSwitcher /> */}
+            <LocaleSwitcher />
             {/* Notification bell */}
             <div className="relative">
               <button
                 onClick={() => setShowNotifs(v => !v)}
                 className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors relative"
-                title="Obavijesti"
+                title={tLayout('notificationsTitle')}
               >
                 <Bell size={16} />
                 {notifCount > 0 && (
@@ -500,7 +501,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900">Obavijesti</p>
+                        <p className="text-sm font-semibold text-gray-900">{tLayout('notificationsTitle')}</p>
                         {notifCount > 0 && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: 'var(--app-accent)' }}>
                             {notifCount}
@@ -509,14 +510,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </div>
                       {notifCount > 0 && (
                         <button onClick={markAllSeen} className="text-[11px] font-medium text-gray-400 hover:text-gray-700 transition-colors">
-                          Označi sve pročitanim
+                          {tLayout('markAllRead')}
                         </button>
                       )}
                     </div>
                     {/* Scrollable list */}
                     <div className="flex-1 overflow-y-auto">
                       {notifications.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-8">Nema obavijesti</p>
+                        <p className="text-xs text-gray-400 text-center py-8">{tLayout('noNotifications')}</p>
                       ) : (
                         notifications.map(n => {
                           const isMsg = n.type === 'message'
@@ -561,7 +562,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           router.push('/dashboard/chat')
                           setShowNotifs(false)
                         }}>
-                        Idi na poruke →
+                        {tLayout('goToMessages')}
                       </button>
                     </div>
                   </div>
@@ -571,7 +572,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               onClick={() => setShowSettings(true)}
               className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-              title="Postavke"
+              title={tLayout('settingsTooltip')}
             >
               <Settings size={16} />
             </button>
@@ -589,7 +590,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             onClick={() => router.push('/dashboard/clients?action=add')}
             className="w-12 h-12 rounded-2xl text-white shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
             style={{ backgroundColor: 'var(--app-accent)' }}
-            title="Novi klijent"
+            title={tLayout('newClientTooltip')}
           >
             <UserPlus size={20} />
           </button>

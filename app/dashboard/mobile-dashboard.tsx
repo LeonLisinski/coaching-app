@@ -7,6 +7,7 @@ import {
   ChevronRight, CheckCircle2, Clock, UserPlus, ClipboardList,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTranslations } from 'next-intl'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -48,6 +49,8 @@ export default function MobileDashboard() {
   const router = useRouter()
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const t2 = useTranslations('dashboard2')
+  const tNav = useTranslations('nav')
 
   const [trainerName, setTrainerName] = useState('')
   const [totalClients, setTotalClients] = useState(0)
@@ -69,7 +72,7 @@ export default function MobileDashboard() {
       .select('full_name')
       .eq('id', user.id)
       .maybeSingle()
-    setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'Trener')
+    setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || t2('fallbackTrainer'))
 
     const [{ data: clients }, { data: payments }] = await Promise.all([
       supabase.from('clients')
@@ -115,7 +118,7 @@ export default function MobileDashboard() {
   }
 
   const now = new Date()
-  const greeting = now.getHours() < 12 ? 'Dobro jutro' : now.getHours() < 18 ? 'Dobar dan' : 'Dobra večer'
+  const greeting = now.getHours() < 12 ? t2('greetingMorning') : now.getHours() < 18 ? t2('greetingAfternoon') : t2('greetingEvening')
 
   if (loading) return (
     <div className="space-y-4 animate-pulse">
@@ -127,10 +130,10 @@ export default function MobileDashboard() {
   )
 
   const stats = [
-    { label: 'Aktivnih klijenata', value: totalClients, icon: Users,         color: accentHex     },
-    { label: 'Kasne check-ine',    value: lateClients.length, icon: AlertTriangle, color: lateClients.length > 0 ? '#dc2626' : '#16a34a' },
-    { label: 'Predano ovaj tjedan', value: submittedToday, icon: CheckCircle2, color: '#16a34a'  },
-    { label: 'Nenaplaćeno',        value: unpaidCount,    icon: Banknote,      color: unpaidCount > 0 ? '#d97706' : '#6b7280' },
+    { label: t2('mobileStat1'), value: totalClients,        icon: Users,          color: accentHex     },
+    { label: t2('mobileStat2'), value: lateClients.length,  icon: AlertTriangle,  color: lateClients.length > 0 ? '#dc2626' : '#16a34a' },
+    { label: t2('mobileStat3'), value: submittedToday,      icon: CheckCircle2,   color: '#16a34a'  },
+    { label: t2('mobileStat4'), value: unpaidCount,         icon: Banknote,       color: unpaidCount > 0 ? '#d97706' : '#6b7280' },
   ]
 
   return (
@@ -146,12 +149,12 @@ export default function MobileDashboard() {
         </p>
         <div className="flex items-center gap-4 mt-4">
           <div>
-            <p className="text-white/60 text-xs">Prihod (naplaćeno)</p>
+            <p className="text-white/60 text-xs">{t2('mobileRevenue')}</p>
             <p className="text-white font-black text-lg leading-tight">{revenueMonth.toLocaleString('hr-HR')} €</p>
           </div>
           {unpaidCount > 0 && (
             <div>
-              <p className="text-white/60 text-xs">Na čekanju</p>
+              <p className="text-white/60 text-xs">{t2('mobilePending')}</p>
               <p className="text-yellow-300 font-black text-lg leading-tight">{unpaidCount} pl.</p>
             </div>
           )}
@@ -180,7 +183,7 @@ export default function MobileDashboard() {
         <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
           <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-gray-50">
             <AlertTriangle size={15} className="text-red-500" />
-            <p className="text-sm font-bold text-gray-900">Kasne check-ini ({lateClients.length})</p>
+            <p className="text-sm font-bold text-gray-900">{t2('mobileLateTitle', { count: lateClients.length })}</p>
           </div>
           <div className="divide-y divide-gray-50">
             {lateClients.slice(0, 5).map(c => (
@@ -208,7 +211,7 @@ export default function MobileDashboard() {
             <button onClick={() => router.push('/dashboard/clients')}
               className="w-full py-3 text-xs font-semibold text-center border-t border-gray-50"
               style={{ color: accentHex }}>
-              Vidi sve ({lateClients.length}) →
+              {t2('mobileSeeAll', { count: lateClients.length })}
             </button>
           )}
         </div>
@@ -218,13 +221,13 @@ export default function MobileDashboard() {
       {lateClients.length === 0 && submittedToday > 0 && (
         <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3.5">
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-          <p className="text-sm font-semibold text-emerald-700">{submittedToday} klijenata predalo check-in ovaj tjedan</p>
+          <p className="text-sm font-semibold text-emerald-700">{t2('mobileSubmittedCount', { count: submittedToday })}</p>
         </div>
       )}
 
       {/* Quick actions */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Brze akcije</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t2('mobileQuickActions')}</p>
         <div className="grid grid-cols-2 gap-3">
           <button onClick={() => router.push('/dashboard/clients?action=add')}
             className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
@@ -232,28 +235,28 @@ export default function MobileDashboard() {
               style={{ backgroundColor: `${accentHex}18` }}>
               <UserPlus size={16} style={{ color: accentHex }} />
             </div>
-            <span className="text-sm font-semibold text-gray-700">Novi klijent</span>
+            <span className="text-sm font-semibold text-gray-700">{t2('mobileNewClient')}</span>
           </button>
           <button onClick={() => router.push('/dashboard/chat')}
             className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50">
               <MessageSquare size={16} className="text-blue-500" />
             </div>
-            <span className="text-sm font-semibold text-gray-700">Chat</span>
+            <span className="text-sm font-semibold text-gray-700">{tNav('chat')}</span>
           </button>
           <button onClick={() => router.push('/dashboard/clients')}
             className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-50">
               <Users size={16} className="text-gray-500" />
             </div>
-            <span className="text-sm font-semibold text-gray-700">Klijenti</span>
+            <span className="text-sm font-semibold text-gray-700">{tNav('clients')}</span>
           </button>
           <button onClick={() => router.push('/dashboard/financije')}
             className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50">
               <Banknote size={16} className="text-emerald-500" />
             </div>
-            <span className="text-sm font-semibold text-gray-700">Financije</span>
+            <span className="text-sm font-semibold text-gray-700">{tNav('finance')}</span>
           </button>
         </div>
       </div>

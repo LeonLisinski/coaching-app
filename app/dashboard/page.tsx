@@ -130,11 +130,12 @@ function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
 function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => void }) {
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const t2 = useTranslations('dashboard2')
 
   const STATUS = {
-    submitted: { label: 'Predano',   cls: 'bg-emerald-50 text-emerald-700' },
-    late:      { label: 'Kasni',     cls: 'bg-rose-50 text-rose-600' },
-    neutral:   { label: 'Bez rasporeda', cls: 'bg-gray-100 text-gray-500' },
+    submitted: { label: t2('statusSubmitted'), cls: 'bg-emerald-50 text-emerald-700' },
+    late:      { label: t2('statusLate'),      cls: 'bg-rose-50 text-rose-600' },
+    neutral:   { label: t2('statusNoSchedule'), cls: 'bg-gray-100 text-gray-500' },
   }
   const s = STATUS[client.status]
   const rateColor = client.checkin_rate >= 70 ? 'bg-emerald-400' : client.checkin_rate >= 40 ? 'bg-amber-400' : 'bg-rose-400'
@@ -166,6 +167,7 @@ function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => voi
 function SetupBanner({ onReady }: { onReady: () => void }) {
   const [ready, setReady] = useState(false)
   const [timedOut, setTimedOut] = useState(false)
+  const t2 = useTranslations('dashboard2')
 
   useEffect(() => {
     let attempts = 0
@@ -195,7 +197,7 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
   if (ready) return (
     <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-5 py-3.5 mb-5">
       <PartyPopper size={18} className="text-emerald-500 shrink-0" />
-      <p className="text-sm font-semibold text-emerald-700">Dobrodošao! Tvoj trial je aktivan. 14 dana besplatno. 🎉</p>
+      <p className="text-sm font-semibold text-emerald-700">{t2('setupTrialActive')}</p>
     </div>
   )
 
@@ -203,8 +205,8 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
     <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3.5 mb-5">
       <AlertTriangle size={16} className="text-amber-500 shrink-0" />
       <p className="text-sm text-amber-700">
-        Postavljanje pretplate traje malo duže nego očekivano.{' '}
-        <button onClick={() => window.location.reload()} className="font-semibold underline">Osvježi stranicu</button>.
+        {t2('setupSlowSetup')}{' '}
+        <button onClick={() => window.location.reload()} className="font-semibold underline">{t2('setupRefresh')}</button>.
       </p>
     </div>
   )
@@ -212,7 +214,7 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
   return (
     <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 mb-5">
       <Loader2 size={16} className="animate-spin text-blue-500 shrink-0" />
-      <p className="text-sm text-blue-700">Postavljamo tvoj račun i aktiviramo trial...</p>
+      <p className="text-sm text-blue-700">{t2('setupSettingUp')}</p>
     </div>
   )
 }
@@ -221,6 +223,8 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
 
 function DashboardPageContent() {
   const t      = useTranslations('dashboard')
+  const t2     = useTranslations('dashboard2')
+  const tDays  = useTranslations('days')
   const locale = useLocale()
   const router = useRouter()
   const { accent } = useAppTheme()
@@ -309,7 +313,7 @@ function DashboardPageContent() {
       const rate        = getCheckinRate(total, c.start_date)
       return {
         id: c.id,
-        full_name: c.profiles?.full_name || 'Bez imena',
+        full_name: c.profiles?.full_name || t2('fallbackNoName'),
         start_date: c.start_date,
         checkin_day: checkinDay,
         last_checkin: lastCheckin,
@@ -444,11 +448,11 @@ function DashboardPageContent() {
       const diffMins = Math.floor(diffMs / 60000)
       const diffHours = Math.floor(diffMins / 60)
       const diffDays = Math.floor(diffHours / 24)
-      if (diffMins < 2) return 'upravo sada'
-      if (diffMins < 60) return `prije ${diffMins}m`
-      if (diffHours < 24) return `prije ${diffHours}h`
-      if (diffDays === 1) return 'jučer'
-      return `prije ${diffDays}d`
+      if (diffMins < 2) return t2('timeJustNow')
+      if (diffMins < 60) return t2('timeMinutes', { n: diffMins })
+      if (diffHours < 24) return t2('timeHours', { n: diffHours })
+      if (diffDays === 1) return t2('timeYesterday')
+      return t2('timeDays', { n: diffDays })
     }
 
     // Reuse allCheckins already fetched — filter to last 7 days
@@ -458,8 +462,8 @@ function DashboardPageContent() {
       .map((c, i) => ({
         id: `checkin-${c.client_id}-${c.date}`,
         type: 'checkin' as const,
-        title: clientNameMap[c.client_id] || 'Klijent',
-        subtitle: 'predao/la check-in',
+        title: clientNameMap[c.client_id] || t2('fallbackClient'),
+        subtitle: t2('activitySubmittedCheckin'),
         time: '',
         ts: new Date(c.date).getTime() - i, // offset to preserve order for same-day
         clientId: c.client_id,
@@ -468,8 +472,8 @@ function DashboardPageContent() {
     const recentMsgActivities = (recentMsgs || []).map((m: any) => ({
       id: `msg-${m.id}`,
       type: 'message' as const,
-      title: clientNameMap[m.client_id] || 'Klijent',
-      subtitle: (m.content as string)?.slice(0, 50) || 'Poruka',
+      title: clientNameMap[m.client_id] || t2('fallbackClient'),
+      subtitle: (m.content as string)?.slice(0, 50) || t2('activityNewMessage'),
       time: '',
       ts: new Date(m.created_at).getTime(),
       clientId: m.client_id as string,
@@ -480,8 +484,8 @@ function DashboardPageContent() {
       .map((p: any) => ({
         id: `pay-${p.id}`,
         type: 'payment' as const,
-        title: clientNameMap[p.client_packages?.client_id] || 'Klijent',
-        subtitle: `uplata ${p.amount}€`,
+        title: clientNameMap[p.client_packages?.client_id] || t2('fallbackClient'),
+        subtitle: t2('activityPayment', { amount: p.amount }),
         time: '',
         ts: new Date(p.paid_at).getTime(),
         clientId: p.client_packages?.client_id as string,
@@ -495,7 +499,7 @@ function DashboardPageContent() {
   }
 
   const now = new Date()
-  const greeting = now.getHours() < 12 ? 'Dobro jutro' : now.getHours() < 18 ? 'Dobar dan' : 'Dobra večer'
+  const greeting = now.getHours() < 12 ? t2('greetingMorning') : now.getHours() < 18 ? t2('greetingAfternoon') : t2('greetingEvening')
   const dateStr = now.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
   const pieData = [{ value: progressPercent }, { value: 100 - progressPercent }]
 
@@ -505,8 +509,8 @@ function DashboardPageContent() {
     ? Math.round(((stats.collectedMonth - lastMonthCollected) / lastMonthCollected) * 100)
     : null
   const revTrendLabel = revTrendPct !== null
-    ? `${revTrendPct >= 0 ? '↑' : '↓'}${Math.abs(revTrendPct)}% vs prošli mj.`
-    : (stats.expectedMonth > 0 ? `+ ${stats.expectedMonth}€ očekivano` : '')
+    ? (revTrendPct >= 0 ? t2('revTrendUp', { pct: Math.abs(revTrendPct) }) : t2('revTrendDown', { pct: Math.abs(revTrendPct) }))
+    : (stats.expectedMonth > 0 ? t2('revExpectedSub', { amount: stats.expectedMonth }) : '')
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">
@@ -539,20 +543,20 @@ function DashboardPageContent() {
             onClick={() => setDashView('today')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${dashView === 'today' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Sun size={13} /> Danas
+            <Sun size={13} /> {t2('viewToday')}
           </button>
           <button
             onClick={() => setDashView('global')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${dashView === 'global' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            <Globe size={13} /> Globalno
+            <Globe size={13} /> {t2('viewGlobal')}
           </button>
         </div>
       </div>
 
       {/* ── TODAY VIEW ── */}
       {dashView === 'today' && (() => {
-        const todayDayName = ['nedjelja','ponedjeljak','utorak','srijeda','četvrtak','petak','subota'][new Date().getDay()]
+        const todayDayName = (tDays as any)(String(new Date().getDay()))
         const submittedCount = todayCheckinClients.filter(c => c.submitted).length
         const waitingCount   = todayCheckinClients.filter(c => !c.submitted).length
         return (
@@ -561,10 +565,10 @@ function DashboardPageContent() {
             {/* Mini stat row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Check-ini danas', value: todayCheckinClients.length, icon: CalendarDays, color: accentHex, bg: `${accentHex}12` },
-                { label: 'Predano', value: submittedCount, icon: Check, color: '#16a34a', bg: '#dcfce7' },
-                { label: 'Čeka', value: waitingCount, icon: Clock, color: '#d97706', bg: '#fef3c7' },
-                { label: 'Paketi ističu', value: expiringPackages.length, icon: AlertTriangle, color: expiringPackages.length > 0 ? '#dc2626' : '#9ca3af', bg: expiringPackages.length > 0 ? '#fee2e2' : '#f9fafb' },
+                { label: t2('miniStatCheckins'), value: todayCheckinClients.length, icon: CalendarDays, color: accentHex, bg: `${accentHex}12` },
+                { label: t2('miniStatSubmitted'), value: submittedCount, icon: Check, color: '#16a34a', bg: '#dcfce7' },
+                { label: t2('miniStatWaiting'), value: waitingCount, icon: Clock, color: '#d97706', bg: '#fef3c7' },
+                { label: t2('miniStatExpiring'), value: expiringPackages.length, icon: AlertTriangle, color: expiringPackages.length > 0 ? '#dc2626' : '#9ca3af', bg: expiringPackages.length > 0 ? '#fee2e2' : '#f9fafb' },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.bg }}>
@@ -586,14 +590,14 @@ function DashboardPageContent() {
                     <CalendarDays size={15} style={{ color: accentHex }} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">Check-ini danas</p>
+                    <p className="text-sm font-semibold text-gray-900">{t2('miniStatCheckins')}</p>
                     <p className="text-xs text-gray-400 capitalize">{todayDayName}</p>
                   </div>
                   {todayCheckinClients.length > 0 && (
                     <button onClick={() => router.push('/dashboard/checkins')}
                       className="flex items-center gap-1 text-xs font-medium transition-colors"
                       style={{ color: accentHex }}>
-                      Svi <ChevronRight size={12} />
+                      {t2('allLink')} <ChevronRight size={12} />
                     </button>
                   )}
                 </div>
@@ -602,8 +606,8 @@ function DashboardPageContent() {
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}10` }}>
                       <CalendarDays size={22} style={{ color: accentHex, opacity: 0.4 }} />
                     </div>
-                    <p className="text-sm font-medium text-gray-500">Nema check-ina danas</p>
-                    <p className="text-xs text-gray-400 mt-1">Klijenti s check-inom u {todayDayName}</p>
+                    <p className="text-sm font-medium text-gray-500">{t2('noCheckinsToday')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t2('clientsWithCheckinOn')} {todayDayName}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-50">
@@ -621,11 +625,11 @@ function DashboardPageContent() {
                         <span className="flex-1 text-sm font-medium text-gray-800">{c.full_name}</span>
                         {c.submitted ? (
                           <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            <Check size={10} /> Predano
+                            <Check size={10} /> {t2('miniStatSubmitted')}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                            <Clock size={10} /> Čeka
+                            <Clock size={10} /> {t2('miniStatWaiting')}
                           </span>
                         )}
                         <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors ml-1" />
@@ -642,8 +646,8 @@ function DashboardPageContent() {
                     <Package size={15} className="text-amber-500" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">Paketi ističu</p>
-                    <p className="text-xs text-gray-400">≤ 7 dana do isteka</p>
+                    <p className="text-sm font-semibold text-gray-900">{t2('packagesExpiringTitle')}</p>
+                    <p className="text-xs text-gray-400">{t2('expiresIn7Days')}</p>
                   </div>
                   {expiringPackages.length > 0 && (
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
@@ -656,8 +660,8 @@ function DashboardPageContent() {
                     <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
                       <Package size={22} className="text-amber-300" />
                     </div>
-                    <p className="text-sm font-medium text-gray-500">Nema paketa koji ističu</p>
-                    <p className="text-xs text-gray-400 mt-1">Svi paketi su aktivni ovaj tjedan</p>
+                    <p className="text-sm font-medium text-gray-500">{t2('noExpiringPackages')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{t2('allPackagesActiveThisWeek')}</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-gray-50 max-h-[416px] overflow-y-auto">
@@ -684,7 +688,7 @@ function DashboardPageContent() {
                               urgent ? 'bg-red-50 text-red-600 border-red-100' :
                               'bg-amber-50 text-amber-700 border-amber-100'
                             }`}>
-                              {pkg.days_left === 0 ? 'Danas istječe!' : `${pkg.days_left}d`}
+                              {pkg.days_left === 0 ? t2('expiresToday') : `${pkg.days_left}d`}
                             </span>
                           </div>
                           <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
@@ -701,14 +705,14 @@ function DashboardPageContent() {
 
       {/* Stat cards — 2 rows × 4 */}
       <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${dashView === 'today' ? 'hidden' : ''}`}>
-        <StatCard icon={Users}         label="Aktivni klijenti"         value={stats.activeClients}     color="accent"  onClick={() => router.push('/dashboard/clients')} />
-        <StatCard icon={CheckCircle2}  label="Check-in ovaj tjedan"     value={stats.submitted}         color="emerald" sub={`${stats.late} kasni`} onClick={() => router.push('/dashboard/checkins')} />
-        <StatCard icon={AlertCircle}   label="Kasni check-in"           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
-        <StatCard icon={TrendingUp}    label="Prosj. redovitost"        value={`${stats.avgCheckinRate}%`} color="sky"  sub="check-in stopa" />
-        <StatCard icon={Banknote}      label="Prihod ovaj mjesec"       value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} onClick={() => router.push('/dashboard/financije')} />
-        <StatCard icon={AlertCircle}   label="Kasna plaćanja"           value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/financije')} />
-        <StatCard icon={MessageSquare} label="Nepročitane poruke"       value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
-        <StatCard icon={TrendingUp}    label="Prihod ove godine"        value={`${yearRevenue}€`}       color="emerald" sub={stats.totalMonth > 0 ? `${stats.paidByStart}€ / ${stats.totalMonth}€ ovaj mj.` : ''} onClick={() => router.push('/dashboard/financije')} />
+        <StatCard icon={Users}         label={t2('statActiveClients')}         value={stats.activeClients}     color="accent"  onClick={() => router.push('/dashboard/clients')} />
+        <StatCard icon={CheckCircle2}  label={t2('statCheckinThisWeek')}       value={stats.submitted}         color="emerald" sub={t2('statLateCount', { count: stats.late })} onClick={() => router.push('/dashboard/checkins')} />
+        <StatCard icon={AlertCircle}   label={t2('statLateCheckin')}           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
+        <StatCard icon={TrendingUp}    label={t2('statAvgRegularity')}         value={`${stats.avgCheckinRate}%`} color="sky"  sub={t2('statCheckinRate')} />
+        <StatCard icon={Banknote}      label={t2('statRevenueThisMonth')}      value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} onClick={() => router.push('/dashboard/financije')} />
+        <StatCard icon={AlertCircle}   label={t2('statLatePayments')}          value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/financije')} />
+        <StatCard icon={MessageSquare} label={t2('statUnreadMessages')}        value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
+        <StatCard icon={TrendingUp}    label={t2('statRevenueThisYear')}       value={`${yearRevenue}€`}       color="emerald" sub={stats.totalMonth > 0 ? t2('revThisMonthSub', { paid: stats.paidByStart, total: stats.totalMonth }) : ''} onClick={() => router.push('/dashboard/financije')} />
       </div>
 
       {/* Charts + checkin list */}
@@ -719,7 +723,7 @@ function DashboardPageContent() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <p className="text-sm font-semibold text-gray-900">{t('revenue.title')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Zadnjih 6 mjeseci</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t2('revenueLastSixMonths')}</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
@@ -768,7 +772,7 @@ function DashboardPageContent() {
             <span className="text-gray-400 font-normal">{stats.totalMonth}€</span>
           </p>
           {stats.latePayments > 0 && (
-            <p className="text-xs text-rose-500 mt-1.5 font-medium">{stats.latePayments} kasno plaćanje</p>
+            <p className="text-xs text-rose-500 mt-1.5 font-medium">{t2('latePaymentCount', { count: stats.latePayments })}</p>
           )}
         </div>
       </div>
@@ -782,8 +786,8 @@ function DashboardPageContent() {
                 <Activity size={14} style={{ color: accentHex }} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Nedavna aktivnost</p>
-                <p className="text-xs text-gray-400 mt-0.5">Zadnjih 7 dana</p>
+                <p className="text-sm font-semibold text-gray-900">{t2('activityFeedTitle')}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t2('activityFeedSub')}</p>
               </div>
             </div>
           </div>
@@ -824,13 +828,13 @@ function DashboardPageContent() {
       {dashView === 'global' && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Status check-ina</p>
-            <p className="text-xs text-gray-400 mt-0.5">{stats.submitted} predano · {stats.late} kasni · {stats.neutral} bez rasporeda</p>
+            <p className="text-sm font-semibold text-gray-900">{t2('checkinStatusTitle')}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t2('checkinStatusSummary', { submitted: stats.submitted, late: stats.late, neutral: stats.neutral })}</p>
           </div>
           <button type="button" onClick={() => router.push('/dashboard/checkins')}
             className="flex items-center gap-1 text-xs font-medium transition-colors"
             style={{ color: accentHex }}>
-            Svi check-ini <ArrowRight size={12} />
+            {t2('allCheckinsLink')} <ArrowRight size={12} />
           </button>
         </div>
 

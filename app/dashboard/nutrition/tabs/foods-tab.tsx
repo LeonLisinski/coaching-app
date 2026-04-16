@@ -149,7 +149,7 @@ export default function FoodsTab({
       {/* Fixed: header + search */}
       <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{filtered.length} / {foods.length} namirnica</p>
+          <p className="text-gray-500 text-xs">{filtered.length} / {t('count', { count: foods.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -157,7 +157,7 @@ export default function FoodsTab({
               className={`flex items-center gap-1.5 h-7 text-xs px-2.5 ${activeFilterCount > 0 ? 'border-orange-300 text-orange-700 bg-orange-50' : ''}`}
             >
               <SlidersHorizontal size={12} />
-              Filtriraj
+              {t('filterButton')}
               {activeFilterCount > 0 && (
                 <span className="bg-orange-600 text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
                   {activeFilterCount}
@@ -173,7 +173,7 @@ export default function FoodsTab({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
           <Input
-            placeholder="Pretraži namirnice..."
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
@@ -193,7 +193,7 @@ export default function FoodsTab({
       {showFilters && (
         <div className="bg-orange-50/60 rounded-xl p-3 space-y-3 border border-orange-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Kategorija</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('categoryHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {['Sve', ...FOOD_CATEGORIES].map(cat => (
                 <button key={cat} type="button" onClick={() => setActiveCategory(cat)}
@@ -204,14 +204,14 @@ export default function FoodsTab({
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Sortiraj po</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByLabel')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
-                { key: 'name_asc', label: 'Naziv A→Z' },
-                { key: 'name_desc', label: 'Naziv Z→A' },
-                { key: 'calories_asc', label: 'Kalorije ↑' },
-                { key: 'calories_desc', label: 'Kalorije ↓' },
-                { key: 'protein_desc', label: 'Proteini ↓' },
+                { key: 'name_asc', label: t('sortNameAZ') },
+                { key: 'name_desc', label: t('sortNameZA') },
+                { key: 'calories_asc', label: t('sortCaloriesAsc') },
+                { key: 'calories_desc', label: t('sortCaloriesDesc') },
+                { key: 'protein_desc', label: t('sortProteinDesc') },
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSortKey(opt.key)}
                   className={pillClass(sortKey === opt.key)}>
@@ -221,7 +221,7 @@ export default function FoodsTab({
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-600 font-medium">Samo moje namirnice</p>
+            <p className="text-xs text-gray-600 font-medium">{t('onlyMineToggle')}</p>
             <button type="button" onClick={() => setShowOnlyMine(!showOnlyMine)}
               className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-orange-500' : 'bg-gray-200'}`}>
               <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-4' : ''}`} />
@@ -229,7 +229,7 @@ export default function FoodsTab({
           </div>
           {activeFilterCount > 0 && (
             <button type="button" onClick={clearFilters} className="text-xs text-orange-600 flex items-center gap-1 hover:text-orange-800">
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCommon('clearFilters')}
             </button>
           )}
         </div>
@@ -238,7 +238,7 @@ export default function FoodsTab({
       {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">Aktivni filteri:</span>
+          <span className="text-xs text-gray-400">{t('activeFiltersLabel')}</span>
           {activeCategory !== 'Sve' && (
             <button type="button" onClick={() => setActiveCategory('Sve')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-600 text-white">
@@ -248,13 +248,13 @@ export default function FoodsTab({
           {showOnlyMine && (
             <button type="button" onClick={() => setShowOnlyMine(false)}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-orange-500 text-white">
-              Samo moje <X size={10} />
+              {t('onlyMineChip')} <X size={10} />
             </button>
           )}
           {sortKey !== 'name_asc' && (
             <button type="button" onClick={() => setSortKey('name_asc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white text-gray-700 border border-gray-200">
-              Sortirano <X size={10} />
+              {t('sortedChip')} <X size={10} />
             </button>
           )}
         </div>
@@ -285,14 +285,14 @@ export default function FoodsTab({
                 <div
                   className="border border-gray-100 rounded-xl p-2.5 bg-white hover:shadow-sm hover:border-gray-200 transition-all cursor-default select-none"
                   onDoubleClick={() => setEditFood(food)}
-                  title="Dvoklik za uređivanje"
+                  title={t('dblClickHint')}
                 >
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       {...dragHandleProps}
                       className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-orange-400 shrink-0 touch-none transition-colors"
-                      title="Povuci u recept"
+                      title={t('dragTooltip')}
                       onDoubleClick={e => e.stopPropagation()}
                     >
                       <GripVertical size={14} />
@@ -353,11 +353,11 @@ export default function FoodsTab({
       )}
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Obriši namirnicu"
-        description="Jesi li siguran da želiš obrisati ovu namirnicu?"
+        title={t('deleteTitle')}
+        description={t('deleteConfirm')}
         onConfirm={() => confirmDelete && deleteFood(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Obriši"
+        confirmLabel={tCommon('delete')}
         destructive
       />
       </div>

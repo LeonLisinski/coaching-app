@@ -29,6 +29,7 @@ function round(n: number, dec = 1) { return Math.round(n * 10 ** dec) / 10 ** de
 export default function CheckinGraphs({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.graphs')
+  const t2 = useTranslations('checkins2')
   const [params, setParams] = useState<Parameter[]>([])
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
@@ -133,8 +134,8 @@ export default function CheckinGraphs({ clientId }: Props) {
     <div className="text-center py-12 text-gray-400"><p className="text-sm">{t('noNumericParams')}</p></div>
   )
 
-  const rangeLabels: Record<Range, string> = { '7d': '7 dana', '30d': '30 dana', '90d': '3 mj.', 'all': 'Sve' }
-  const groupingLabels: Record<Grouping, string> = { daily: 'Dnevno', weekly: 'Tjedno', monthly: 'Mjesečno' }
+  const rangeLabels: Record<Range, string> = { '7d': t2('range7'), '30d': t2('range30'), '90d': t2('range3m'), 'all': t2('rangeAll') }
+  const groupingLabels: Record<Grouping, string> = { daily: t2('groupDaily'), weekly: t2('groupWeekly'), monthly: t2('groupMonthly') }
 
   return (
     <div className="space-y-4">
@@ -161,7 +162,7 @@ export default function CheckinGraphs({ clientId }: Props) {
         ))}
       </div>
     </div>
-    <p className="text-xs text-gray-400">{filteredPoints.length} unosa</p>
+    <p className="text-xs text-gray-400">{t2('entriesCount', { count: filteredPoints.length })}</p>
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {numericParams.map((param, idx) => {
         const data = getChartData(param.id)
@@ -184,7 +185,7 @@ export default function CheckinGraphs({ clientId }: Props) {
                       {fmt(stats.last)}{param.unit ? ` ${param.unit}` : ''}
                     </p>
                     <p className={`text-xs ${stats.trend > 0 ? 'text-green-500' : stats.trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                      {stats.trend > 0 ? '↑' : stats.trend < 0 ? '↓' : '→'} {fmt(Math.abs(stats.trend))} ukupno
+                      {stats.trend > 0 ? t2('trendUp') : stats.trend < 0 ? t2('trendDown') : t2('trendNeutral')} {fmt(Math.abs(stats.trend))} {t2('trendTotal')}
                     </p>
                   </div>
                 )}
@@ -217,22 +218,22 @@ export default function CheckinGraphs({ clientId }: Props) {
                 <div className="h-16 flex items-center justify-center">
                   <div className="text-center">
                     <p className="text-3xl font-bold" style={{ color }}>{fmt(data[0].value)}{param.unit ? ` ${param.unit}` : ''}</p>
-                    <p className="text-xs text-gray-400 mt-1">1 unos · treba još za trend</p>
+                    <p className="text-xs text-gray-400 mt-1">{t2('oneEntry')}</p>
                   </div>
                 </div>
               ) : (
                 <div className="h-10 flex items-center">
-                  <p className="text-xs text-gray-300">Nema podataka</p>
+                  <p className="text-xs text-gray-300">{t2('noData')}</p>
                 </div>
               )}
 
               {/* Bottom stats strip */}
               {stats && stats.count >= 2 && (
                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500">
-                  <span>min <strong className="text-gray-700">{fmt(stats.min)}</strong></span>
-                  <span>avg <strong className="text-gray-700">{fmt(stats.avg)}</strong></span>
-                  <span>max <strong className="text-gray-700">{fmt(stats.max)}</strong></span>
-                  <span className="text-gray-400">{stats.count} unosa</span>
+                  <span>{t2('statsMin')} <strong className="text-gray-700">{fmt(stats.min)}</strong></span>
+                  <span>{t2('statsAvg')} <strong className="text-gray-700">{fmt(stats.avg)}</strong></span>
+                  <span>{t2('statsMax')} <strong className="text-gray-700">{fmt(stats.max)}</strong></span>
+                  <span className="text-gray-400">{t2('entriesCount', { count: stats.count })}</span>
                 </div>
               )}
             </div>

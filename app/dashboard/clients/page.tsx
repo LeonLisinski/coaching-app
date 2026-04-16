@@ -11,7 +11,7 @@ import AddClientDialog from '@/app/dashboard/clients/add-client-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 import CopyClientDialog from '@/app/dashboard/clients/copy-client-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 type Client = {
   id: string
@@ -38,7 +38,6 @@ function calcPackageDaysLeft(endDate: string | null | undefined): number | null 
   return diff
 }
 
-const DAY_NAMES = ['Ned', 'Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub']
 
 type Package = { id: string; name: string; color: string }
 type SortKey = 'name_asc' | 'name_desc' | 'date_asc' | 'date_desc' | 'weight_asc' | 'weight_desc' | 'age_asc' | 'age_desc' | 'checkin_day_asc' | 'checkin_day_desc'
@@ -64,7 +63,10 @@ function avatarStyle(gender: string | null): string {
 function ClientsPageContent() {
   const t = useTranslations('clients.page')
   const tCommon = useTranslations('common')
-  const tDetail = useTranslations('clients.detail')
+  const tDetail = useTranslations('clientDetail')
+  const tCP = useTranslations('clientsPage')
+  const tDaysShort = useTranslations('daysShort')
+  const locale = useLocale()
 
   const [clients, setClients] = useState<Client[]>([])
   const [packages, setPackages] = useState<Package[]>([])
@@ -206,11 +208,11 @@ function ClientsPageContent() {
   }
 
   const sortLabels: Record<SortKey, string> = {
-    name_asc: 'Ime A → Z', name_desc: 'Ime Z → A',
-    date_desc: 'Datum (najnoviji)', date_asc: 'Datum (najstariji)',
+    name_asc: tCP('sortAZ'), name_desc: tCP('sortZA'),
+    date_desc: tCP('sortNewest'), date_asc: tCP('sortOldest'),
     weight_desc: 'Težina ↓', weight_asc: 'Težina ↑',
     age_asc: 'Dob (mlađi)', age_desc: 'Dob (stariji)',
-    checkin_day_asc: 'Check-in dan ↑', checkin_day_desc: 'Check-in dan ↓',
+    checkin_day_asc: `${tCP('sortCheckinDay')} ↑`, checkin_day_desc: `${tCP('sortCheckinDay')} ↓`,
   }
 
   const activeFilterCount = [
@@ -308,7 +310,7 @@ function ClientsPageContent() {
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#b45309')}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#d97706')}
           >
-            <TrendingUp size={13} /> Nadogradi plan
+            <TrendingUp size={13} /> {tCP('upgradePlan')}
           </Button>
         ) : (
           <Button onClick={() => setShowAdd(true)} size="sm"
@@ -347,7 +349,7 @@ function ClientsPageContent() {
           className="flex items-center gap-1.5 h-7 text-xs px-2.5"
           style={activeFilterCount > 0 ? { borderColor: 'var(--app-accent-muted)', color: 'var(--app-accent)', backgroundColor: 'var(--app-accent-muted)' } : {}}>
           <SlidersHorizontal size={12} />
-          Filteri
+          {tCP('filterLabel')}
           {activeFilterCount > 0 && (
             <span className="text-white text-[10px] rounded-full w-3.5 h-3.5 flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent)' }}>
               {activeFilterCount}
@@ -386,9 +388,13 @@ function ClientsPageContent() {
         <div className="rounded-xl p-3 space-y-3 border" style={{ backgroundColor: 'var(--app-accent-muted)', borderColor: 'color-mix(in srgb, var(--app-accent) 20%, transparent)' }}>
           {/* Gender */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Spol</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tCP('filterGender')}</p>
             <div className="flex gap-1.5">
-              {([['', 'Svi'], ['M', '♂ Muško'], ['F', '♀ Žensko']] as const).map(([val, lbl]) => (
+              {([
+                ['', tCP('filterGenderAll')],
+                ['M', tCP('filterGenderMale')],
+                ['F', tCP('filterGenderFemale')],
+              ] as const).map(([val, lbl]) => (
                 <button key={val} type="button" onClick={() => setGenderFilter(val)}
                   className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
                   style={genderFilter === val
@@ -404,7 +410,7 @@ function ClientsPageContent() {
           {/* Package */}
           {packages.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Paket</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tCP('filterPackage')}</p>
               <div className="flex gap-1.5 flex-wrap">
                 <button type="button" onClick={() => setPackageFilter('')}
                   className="text-xs px-3 py-1 rounded-full border font-medium transition-colors"
@@ -412,7 +418,7 @@ function ClientsPageContent() {
                     ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
                     : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
                   }>
-                  Svi paketi
+                  {tCP('filterAllPackages')}
                 </button>
                 {packages.map(p => (
                   <button key={p.id} type="button" onClick={() => setPackageFilter(p.id)}
@@ -430,19 +436,19 @@ function ClientsPageContent() {
 
           {/* Age range */}
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dob (godine)</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tCP('filterAge')}</p>
             <div className="flex items-center gap-2">
-              <Input type="number" min="1" max="120" placeholder="Od" value={ageFrom}
+              <Input type="number" min="1" max="120" placeholder={tCP('filterAgeFrom')} value={ageFrom}
                 onChange={e => setAgeFrom(e.target.value)} className="h-8 text-sm w-24 focus:border-violet-300" />
               <span className="text-gray-400 text-sm">–</span>
-              <Input type="number" min="1" max="120" placeholder="Do" value={ageTo}
+              <Input type="number" min="1" max="120" placeholder={tCP('filterAgeTo')} value={ageTo}
                 onChange={e => setAgeTo(e.target.value)} className="h-8 text-sm w-24 focus:border-violet-300" />
             </div>
           </div>
 
           {activeFilterCount > 0 && (
             <button type="button" onClick={clearFilters} className="text-xs flex items-center gap-1" style={{ color: 'var(--app-accent)' }}>
-              <X size={11} /> Očisti filtere
+              <X size={11} /> {tCP('clearFilters')}
             </button>
           )}
         </div>
@@ -451,10 +457,10 @@ function ClientsPageContent() {
       {/* Active filter chips */}
       {activeFilterCount > 0 && !showFilters && (
         <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-xs text-gray-400">Filteri:</span>
+          <span className="text-xs text-gray-400">{tCP('activeFilters')}</span>
           {genderFilter && (
             <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--app-accent-muted)', color: 'var(--app-accent)' }}>
-              {genderFilter === 'M' ? '♂ Muško' : '♀ Žensko'}
+              {genderFilter === 'M' ? tCP('filterGenderMale') : tCP('filterGenderFemale')}
               <button type="button" onClick={() => setGenderFilter('')}><X size={9} /></button>
             </span>
           )}
@@ -466,7 +472,7 @@ function ClientsPageContent() {
           )}
           {(ageFrom || ageTo) && (
             <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--app-accent-muted)', color: 'var(--app-accent)' }}>
-              Dob: {ageFrom || '?'}–{ageTo || '?'} god.
+              {tCP('filterAge')}: {ageFrom || '?'}–{ageTo || '?'}{tDetail('ageUnit')}
               <button type="button" onClick={() => { setAgeFrom(''); setAgeTo('') }}><X size={9} /></button>
             </span>
           )}
@@ -475,9 +481,9 @@ function ClientsPageContent() {
 
       {/* Count */}
       <p className="text-xs text-gray-500">
-        {filtered.length} / {clients.length} klijenata
+        {tCP('clientCount', { filtered: filtered.length, total: clients.length })}
         {isAtLimit && (
-          <span className="ml-2 text-amber-600 font-medium">· Limit dostignut</span>
+          <span className="ml-2 text-amber-600 font-medium">{tCP('limitReached')}</span>
         )}
       </p>
 
@@ -494,7 +500,7 @@ function ClientsPageContent() {
           <p className="text-gray-400 text-sm">{t('noClients')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs font-medium flex items-center gap-1 mx-auto" style={{ color: 'var(--app-accent)' }}>
-              <Plus size={11} /> Dodaj prvog klijenta
+              <Plus size={11} /> {tCP('addFirstClient')}
             </button>
           )}
         </div>
@@ -561,23 +567,23 @@ function ClientsPageContent() {
                       )}
                       {expiryExpired && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600 border border-red-200">
-                          Paket istekao
+                          {tCP('packageExpired')}
                         </span>
                       )}
                       {!expiryExpired && expiryUrgent && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          Istječe za {daysLeft}d
+                          {tCP('packageExpiresIn', { days: daysLeft! })}
                         </span>
                       )}
                     </div>
                     <div className="flex items-center text-[11px] text-gray-400 flex-wrap gap-0">
                       <span>{client.email}</span>
                       {client.goal && <><span className="mx-1.5 text-gray-200">·</span><span>{client.goal}</span></>}
-                      {client.weight && <><span className="mx-1.5 text-gray-200">·</span><span>{client.weight} kg</span></>}
-                      {client.height && <><span className="mx-1.5 text-gray-200">·</span><span>{client.height} cm</span></>}
-                      {age !== null && <><span className="mx-1.5 text-gray-200">·</span><span>{age} god.</span></>}
-                      {client.start_date && <><span className="mx-1.5 text-gray-200">·</span><span>od {new Date(client.start_date).toLocaleDateString('hr-HR')}</span></>}
-                      {client.checkin_day != null && <><span className="mx-1.5 text-gray-200">·</span><span>check-in: {DAY_NAMES[client.checkin_day]}</span></>}
+                      {client.weight && <><span className="mx-1.5 text-gray-200">·</span><span>{client.weight}{tDetail('weightUnitFull')}</span></>}
+                      {client.height && <><span className="mx-1.5 text-gray-200">·</span><span>{client.height}{tDetail('heightUnitFull')}</span></>}
+                      {age !== null && <><span className="mx-1.5 text-gray-200">·</span><span>{age}{tDetail('ageUnit')}</span></>}
+                      {client.start_date && <><span className="mx-1.5 text-gray-200">·</span><span>{tCP('datePrefix')} {new Date(client.start_date).toLocaleDateString(locale)}</span></>}
+                      {client.checkin_day != null && <><span className="mx-1.5 text-gray-200">·</span><span>{tCP('checkinDayPrefix')} {tDaysShort(String(client.checkin_day) as any)}</span></>}
                     </div>
                     {client.notes && (
                       <p className="text-[11px] text-gray-400 truncate max-w-[380px] italic" title={client.notes}>
@@ -592,7 +598,7 @@ function ClientsPageContent() {
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-300 transition-colors group-hover:[color:var(--app-accent)]">
                       {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                     </button>
-                    <button type="button" title="Kopiraj plan" onClick={(e) => { e.stopPropagation(); setCopyClient(client) }}
+                    <button type="button" title={tCP('copyPlanTooltip')} onClick={(e) => { e.stopPropagation(); setCopyClient(client) }}
                       className="h-7 w-7 flex items-center justify-center rounded-md text-gray-400 transition-colors hover:[color:var(--app-accent)] hover:[background-color:var(--app-accent-muted)]">
                       <Copy size={13} />
                     </button>
@@ -621,12 +627,12 @@ function ClientsPageContent() {
                       {/* Tab shortcuts */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {([
-                          { label: 'Pregled',   tab: 'pregled',   icon: LayoutDashboard,  color: '#7c3aed' },
-                          { label: 'Trening',   tab: 'treninzi',  icon: Dumbbell,         color: '#4f46e5' },
-                          { label: 'Prehrana',  tab: 'prehrana',  icon: UtensilsCrossed,  color: '#ea580c' },
-                          { label: 'Check-in',  tab: 'checkin',   icon: ClipboardList,    color: '#0d9488' },
-                          { label: 'Paketi',    tab: 'paketi',    icon: Package,          color: '#059669' },
-                        ] as const).map(({ label, tab, icon: Icon, color }) => (
+                          { label: tCP('quickOverview'),   tab: 'pregled',   icon: LayoutDashboard,  color: '#7c3aed' },
+                          { label: tCP('quickTraining'),   tab: 'treninzi',  icon: Dumbbell,         color: '#4f46e5' },
+                          { label: tCP('quickNutrition'),  tab: 'prehrana',  icon: UtensilsCrossed,  color: '#ea580c' },
+                          { label: tCP('quickCheckin'),    tab: 'checkin',   icon: ClipboardList,    color: '#0d9488' },
+                          { label: tCP('quickPackages'),   tab: 'paketi',    icon: Package,          color: '#059669' },
+                        ] as { label: string; tab: string; icon: typeof LayoutDashboard; color: string }[]).map(({ label, tab, icon: Icon, color }) => (
                           <button
                             key={tab}
                             type="button"
@@ -650,8 +656,8 @@ function ClientsPageContent() {
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           }`}>
                             {expiryExpired
-                              ? `Paket istekao ${Math.abs(daysLeft!)}d`
-                              : `Paket istječe ${new Date(client.packageEndDate).toLocaleDateString('hr-HR')}`
+                              ? `${tCP('packageExpired')} ${Math.abs(daysLeft!)}d`
+                              : `${tCP('packageExpiresFull')} ${new Date(client.packageEndDate).toLocaleDateString(locale)}`
                             }
                           </span>
                         )}
@@ -663,7 +669,7 @@ function ClientsPageContent() {
                           onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent)')}
                         >
-                          Otvori profil
+                          {tCP('openProfile')}
                           <ChevronRight size={12} />
                         </button>
                       </div>
@@ -713,7 +719,7 @@ function ClientsPageContent() {
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title={`Brisanje klijenta: ${confirmDelete?.full_name || ''}`}
+        title={tDetail('deleteDialogTitle', { name: confirmDelete?.full_name || '' })}
         description={
           <div className="space-y-3">
             <p>Brisanjem ovog klijenta trajno će se ukloniti <span className="font-semibold text-gray-800">svi podaci vezani za njega</span>:</p>
@@ -726,7 +732,7 @@ function ClientsPageContent() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex gap-2">
               <span className="text-amber-500 text-base leading-none mt-0.5">💡</span>
               <p className="text-xs text-amber-800">
-                <span className="font-semibold">Preporuka:</span> Umjesto brisanja, razmotrite{' '}
+                <span className="font-semibold">{tDetail('deleteDialogRecommend').split(':')[0]}:</span> Umjesto brisanja, razmotrite{' '}
                 <button
                   type="button"
                   className="underline font-semibold hover:text-amber-900"
@@ -740,14 +746,14 @@ function ClientsPageContent() {
                 . Na taj način zadržavate sve podatke i povijest, ali klijent više nije aktivan.
               </p>
             </div>
-            <p className="font-bold text-red-600">Ova radnja je nepovratna i ne može se poništiti.</p>
+            <p className="font-bold text-red-600">{tDetail('deleteDialogWarning')}</p>
             <p className="text-gray-700">Želite li nastaviti s brisanjem klijenta?</p>
           </div>
         }
         onConfirm={() => confirmDelete && deleteClient(confirmDelete)}
         onCancel={() => setConfirmDelete(null)}
-        confirmLabel="Da, obriši"
-        cancelLabel="Ne, odustani"
+        confirmLabel={tDetail('deleteDialogConfirm')}
+        cancelLabel={tDetail('deleteDialogCancel')}
         destructive
       />
     </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Users, Dumbbell, UtensilsCrossed, ArrowRight, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { useTranslations } from 'next-intl'
 
 const ACCENT_HEX_MAP: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -21,12 +22,13 @@ type SearchResult = {
 }
 
 const TYPE_CONFIG = {
-  client:   { label: 'Klijenti',   icon: Users,           color: '#3b82f6' },
-  exercise: { label: 'Vježbe',     icon: Dumbbell,        color: '#8b5cf6' },
-  food:     { label: 'Namirnice',  icon: UtensilsCrossed, color: '#10b981' },
+  client:   { labelKey: 'groupClients',   icon: Users,           color: '#3b82f6' },
+  exercise: { labelKey: 'groupExercises', icon: Dumbbell,        color: '#8b5cf6' },
+  food:     { labelKey: 'groupFoods',     icon: UtensilsCrossed, color: '#10b981' },
 } as const
 
 export default function GlobalSearch() {
+  const tSearch = useTranslations('globalSearch')
   const [open, setOpen]           = useState(false)
   const [query, setQuery]         = useState('')
   const [results, setResults]     = useState<SearchResult[]>([])
@@ -92,7 +94,7 @@ export default function GlobalSearch() {
         .slice(0, 5)
         .forEach(c => {
           const p = c.profiles as any
-          r.push({ id: c.id, type: 'client', title: p?.full_name || 'Nepoznat', subtitle: p?.email, href: `/dashboard/clients/${c.id}` })
+          r.push({ id: c.id, type: 'client', title: p?.full_name || tSearch('fallbackUnknown'), subtitle: p?.email, href: `/dashboard/clients/${c.id}` })
         })
 
       exercises?.forEach((e: any) => {
@@ -158,7 +160,7 @@ export default function GlobalSearch() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Pretraži klijente, vježbe, namirnice..."
+            placeholder={tSearch('placeholder')}
             className="flex-1 text-sm text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
           />
           {loading && (
@@ -180,8 +182,8 @@ export default function GlobalSearch() {
               <div className="w-11 h-11 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-3 border border-gray-100">
                 <Search size={18} className="text-gray-300" />
               </div>
-              <p className="text-sm font-semibold text-gray-700">Pretraži UnitLift</p>
-              <p className="text-xs text-gray-400 mt-1">Klijenti · Vježbe · Namirnice</p>
+              <p className="text-sm font-semibold text-gray-700">{tSearch('title')}</p>
+              <p className="text-xs text-gray-400 mt-1">{tSearch('subtitle')}</p>
               <div className="hidden sm:flex items-center gap-1.5 justify-center mt-5">
                 <kbd className="px-1.5 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded border border-gray-200 font-mono">⌘ K</kbd>
                 <span className="text-[11px] text-gray-400">ili</span>
@@ -191,21 +193,21 @@ export default function GlobalSearch() {
             </div>
           ) : results.length === 0 && !loading ? (
             <div className="px-5 py-9 text-center">
-              <p className="text-sm text-gray-500">Nema rezultata za <span className="font-medium text-gray-700">"{query}"</span></p>
-              <p className="text-xs text-gray-400 mt-1">Pokušaj s drugačijim pojmom</p>
+              <p className="text-sm text-gray-500">{tSearch('noResults')} <span className="font-medium text-gray-700">"{query}"</span></p>
+              <p className="text-xs text-gray-400 mt-1">{tSearch('noResultsHint')}</p>
             </div>
           ) : (
             <div className="py-2">
               {(['client', 'exercise', 'food'] as const).map(type => {
                 const items = byType[type]
                 if (!items?.length) return null
-                const { label, icon: Icon, color } = TYPE_CONFIG[type]
+                const { labelKey, icon: Icon, color } = TYPE_CONFIG[type]
                 return (
                   <div key={type} className="mb-1">
                     {/* Category header */}
                     <div className="px-4 py-1.5 flex items-center gap-2">
                       <Icon size={11} style={{ color }} />
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tSearch(labelKey as any)}</span>
                     </div>
                     {/* Items */}
                     {items.map(item => {
@@ -249,15 +251,15 @@ export default function GlobalSearch() {
           <div className="flex items-center gap-1 text-gray-400">
             <kbd className="px-1 py-0.5 text-[10px] bg-white text-gray-500 rounded border border-gray-200 font-mono">↑</kbd>
             <kbd className="px-1 py-0.5 text-[10px] bg-white text-gray-500 rounded border border-gray-200 font-mono">↓</kbd>
-            <span className="text-[10px] ml-1">navigacija</span>
+            <span className="text-[10px] ml-1">{tSearch('navHint')}</span>
           </div>
           <div className="flex items-center gap-1 text-gray-400">
             <kbd className="px-1.5 py-0.5 text-[10px] bg-white text-gray-500 rounded border border-gray-200 font-mono">↵</kbd>
-            <span className="text-[10px] ml-1">otvori</span>
+            <span className="text-[10px] ml-1">{tSearch('openHint')}</span>
           </div>
           <div className="flex items-center gap-1 text-gray-400 ml-auto">
             <kbd className="px-1.5 py-0.5 text-[10px] bg-white text-gray-500 rounded border border-gray-200 font-mono">Esc</kbd>
-            <span className="text-[10px] ml-1">zatvori</span>
+            <span className="text-[10px] ml-1">{tSearch('closeHint')}</span>
           </div>
         </div>
       </div>

@@ -90,6 +90,7 @@ type PlanDay = {
 
 
 function DayAccordion({ days }: { days: any[] }) {
+  const t = useTranslations('clients.workoutPlans')
   const [openDays, setOpenDays] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenDays(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
   return (
@@ -103,7 +104,7 @@ function DayAccordion({ days }: { days: any[] }) {
           >
             {openDays[dayIdx] ? <ChevronUp size={12} className="text-gray-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />}
             <span className="text-xs font-semibold text-gray-600">{day.name}</span>
-            <span className="text-xs text-gray-400 ml-1">{day.exercises?.length || 0} vježbi</span>
+            <span className="text-xs text-gray-400 ml-1">{t('exerciseCountBadge', { count: day.exercises?.length || 0 })}</span>
           </button>
           {openDays[dayIdx] && (
             <div className="px-2 pb-2">
@@ -438,14 +439,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          {assignedPlans.length === 0 ? 'Nema dodijeljenih planova' : `${assignedPlans.length} ${assignedPlans.length === 1 ? 'plan' : 'planova'}`}
+          {assignedPlans.length === 0 ? t('noAssignedPlans') : t('assigned', { count: assignedPlans.length })}
         </p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(true)} className="flex items-center gap-2">
-            <Plus size={14} /> Kreiraj novi
+            <Plus size={14} /> {t('createNew')}
           </Button>
           <Button size="sm" onClick={() => setShowAssignDialog(true)} className="flex items-center gap-2">
-            <Plus size={14} /> Dodijeli postojeći
+            <Plus size={14} /> {t('assignExisting')}
           </Button>
         </div>
       </div>
@@ -455,9 +456,9 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         <Card>
           <CardContent className="py-12 text-center">
             <Dumbbell size={24} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500 mb-1">Klijent nema dodijeljenih trening planova</p>
+            <p className="text-sm text-gray-500 mb-1">{t('clientNoPlans')}</p>
             <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-              Dodijeli prvi plan →
+              {t('assignFirst')}
             </button>
           </CardContent>
         </Card>
@@ -518,14 +519,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm">{assigned.workout_plan.name}</span>
-                        {isPersonalized && (
+                          {isPersonalized && (
                           <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
-                            Personalizirano
+                            {t('personalizedBadge')}
                           </Badge>
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {days.length} dana · {totalExercises} vježbi · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                        {t('days', { count: days.length })} · {t('exerciseCountBadge', { count: totalExercises })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                         {assigned.notes && <> · {assigned.notes}</>}
                       </p>
                     </div>
@@ -539,12 +540,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
                           : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}>
-                      {assigned.active ? 'Aktivan' : 'Neaktivan'}
+                      {assigned.active ? t('activeStatusLabel') : t('inactiveStatusLabel')}
                     </Button>
-                    <Button variant="ghost" size="sm" title="Preimenuj plan" onClick={() => { setRenameTarget(assigned); setRenameName(assigned.workout_plan.name) }}>
+                    <Button variant="ghost" size="sm" title={t('renameTooltip')} onClick={() => { setRenameTarget(assigned); setRenameName(assigned.workout_plan.name) }}>
                       <span className="text-[11px] text-gray-400">Abc</span>
                     </Button>
-                    <Button variant="ghost" size="sm" title="Spremi kao predložak"
+                    <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
                       onClick={() => saveAsTemplate(assigned)}
                       disabled={savingTemplate === assigned.id}>
                       <BookMarked size={14} className="text-violet-400" />
@@ -571,7 +572,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: `${accentHex}18` }}>
                             <BarChart2 size={11} style={{ color: accentHex }} />
                           </div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Analiza opterećenja</p>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{t('analysisTitle')}</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -579,9 +580,9 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           <div className="space-y-3">
                             <div className="grid grid-cols-3 gap-2">
                               {[
-                                { label: 'Dana',    value: days.length },
-                                { label: 'Vježbi',  value: totalExercises },
-                                { label: 'Serija',  value: totalSets },
+                                { label: t('analysisDays'),      value: days.length },
+                                { label: t('analysisExercises'), value: totalExercises },
+                                { label: t('analysisSets'),      value: totalSets },
                               ].map(({ label, value }) => (
                                 <div key={label} className="rounded-lg px-2 py-2 text-center" style={{ backgroundColor: `${accentHex}0d` }}>
                                   <p className="text-base font-black" style={{ color: accentHex }}>{value}</p>
@@ -606,15 +607,15 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           {muscleData.length > 0 && (
                             <div>
                               <div className="flex items-center justify-between mb-3">
-                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Grupe mišića</p>
+                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{t('muscleGroupsTitle')}</p>
                                 <div className="flex items-center gap-3">
                                   <span className="flex items-center gap-1 text-[10px] text-gray-500">
                                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex }} />
-                                    Primarni
+                                    {t('primaryLegend')}
                                   </span>
                                   <span className="flex items-center gap-1 text-[10px] text-gray-500">
                                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.3 }} />
-                                    Sekundarni
+                                    {t('secondaryLegend')}
                                   </span>
                                 </div>
                               </div>
@@ -631,8 +632,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                                       return (
                                         <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs space-y-0.5">
                                           <p className="font-bold text-gray-800 mb-1">{label}</p>
-                                          {pri > 0 && <p style={{ color: accentHex }} className="font-semibold">Primarni: {pri} ser.</p>}
-                                          {sec > 0 && <p style={{ color: accentHex, opacity: 0.6 }} className="font-semibold">Sekundarni: {sec} ser.</p>}
+                                          {pri > 0 && <p style={{ color: accentHex }} className="font-semibold">{t('primaryTooltip', { count: pri })}</p>}
+                                          {sec > 0 && <p style={{ color: accentHex, opacity: 0.6 }} className="font-semibold">{t('secondaryTooltip', { count: sec })}</p>}
                                         </div>
                                       )
                                     }}
@@ -851,8 +852,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         }}
       >
         <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0" showCloseButton={false}>
-          <DialogTitle className="sr-only">Dodijeli plan klijentu</DialogTitle>
-          <DialogDescription className="sr-only">Dodijeli plan klijentu</DialogDescription>
+          <DialogTitle className="sr-only">{t('assignDialogTitle')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('assignDialogTitle')}</DialogDescription>
 
           {/* Gradient header */}
           <div className="px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg" style={{ background: `linear-gradient(135deg, ${accentHex}ee, ${accentHex}cc)` }}>
@@ -860,8 +861,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
               <Dumbbell size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-white font-bold text-base">Dodijeli trening plan</h2>
-              <p className="text-white/60 text-xs">Odaberi i prilagodi plan za klijenta</p>
+              <h2 className="text-white font-bold text-base">{t('assignDialogTitle')}</h2>
+              <p className="text-white/60 text-xs">{t('assignDialogSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -876,16 +877,16 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
           <div className="space-y-5 pt-4">
             {/* Plan select */}
             <div className="space-y-1.5">
-              <Label>Plan</Label>
+              <Label>{t('planLabel')}</Label>
               <Select value={selectedPlanId} onValueChange={handleSelectPlan}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Odaberi plan..." />
+                  <SelectValue placeholder={t('selectPlanPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availablePlans.map(p => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
-                      <span className="text-gray-400 text-xs ml-1">· {p.days?.length || 0} dana</span>
+                      <span className="text-gray-400 text-xs ml-1">· {t('days', { count: p.days?.length || 0 })}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -895,7 +896,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
             {/* Editable days */}
             {assignDays.length > 0 && (
               <div className="space-y-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Prilagodi za ovog klijenta</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('customizeLabel')}</p>
                 {assignDays.map((day, dayIdx) => (
                   <Card key={dayIdx}>
                     <CardContent className="py-0">
@@ -903,7 +904,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                       <div className="py-3 flex items-center gap-2 border-b border-gray-100">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-gray-300" />
                         <span className="text-sm font-medium">{day.name}</span>
-                        <span className="text-xs text-gray-400">{day.exercises.length} vježbi</span>
+                        <span className="text-xs text-gray-400">{t('exerciseCountBadge', { count: day.exercises.length })}</span>
                       </div>
 
                       {/* Exercises with DnD */}
@@ -1030,50 +1031,50 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
       <ConfirmDialog
         open={confirmDeleteId !== null}
-        title="Ukloni plan"
-        description="Sigurno želiš ukloniti ovaj plan od klijenta?"
+        title={t('removePlanTitle')}
+        description={t('removePlanConfirm')}
         onConfirm={() => confirmDeleteId && deletePlan(confirmDeleteId)}
         onCancel={() => setConfirmDeleteId(null)}
-        confirmLabel="Ukloni"
+        confirmLabel={tCommon('remove')}
         destructive
       />
 
       {/* Conflict: another plan is already active */}
       <ConfirmDialog
         open={activateConflict !== null}
-        title="Zamjena aktivnog plana"
-        description={`Plan "${activateConflict?.existingName}" je trenutno aktivan. Želiš li ga deaktivirati i aktivirati novi plan?`}
+        title={t('replacePlanTitle')}
+        description={t('replacePlanConfirm', { name: activateConflict?.existingName || '' })}
         onConfirm={async () => {
           if (activateConflict) await activateConflict.execute()
           setActivateConflict(null)
         }}
         onCancel={() => setActivateConflict(null)}
-        confirmLabel="Da, zamijeni"
-        cancelLabel="Odustani"
+        confirmLabel={t('replaceConfirmBtn')}
+        cancelLabel={tCommon('cancel')}
       />
 
       {/* Rename plan (for this client only — creates a copy) */}
       <Dialog open={!!renameTarget} onOpenChange={open => { if (!open) setRenameTarget(null) }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Preimenuj plan</DialogTitle>
-            <DialogDescription>Novi naziv vrijedi samo za ovog klijenta. Originalni plan ostaje nepromijenjen.</DialogDescription>
+            <DialogTitle>{t('renamePlanTitle')}</DialogTitle>
+            <DialogDescription>{t('renamePlanDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5">
-              <Label className="text-sm">Naziv plana</Label>
+              <Label className="text-sm">{t('renamePlanNameLabel')}</Label>
               <Input
                 value={renameName}
                 onChange={e => setRenameName(e.target.value)}
-                placeholder="Upiši novi naziv..."
+                placeholder={t('renamePlaceholder')}
                 onKeyDown={e => { if (e.key === 'Enter') renamePlan() }}
                 autoFocus
               />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setRenameTarget(null)}>Odustani</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setRenameTarget(null)}>{tCommon('cancel')}</Button>
               <Button className="flex-1" disabled={!renameName.trim() || renaming} onClick={renamePlan}>
-                {renaming ? 'Spremanje...' : 'Spremi'}
+                {renaming ? t('renameSaving') : t('renameSave')}
               </Button>
             </div>
           </div>

@@ -74,6 +74,7 @@ function PaymentStatusBadge({ status, daysLeftVal }: { status: 'paid' | 'upcomin
 export default function ClientPackages({ clientId }: Props) {
   const t = useTranslations('clients.packages')
   const tCommon = useTranslations('common')
+  const tPkg = useTranslations('clientPackages')
 
   const [clientPackages, setClientPackages]     = useState<ClientPackage[]>([])
   const [availablePackages, setAvailablePackages] = useState<Package[]>([])
@@ -455,7 +456,7 @@ export default function ClientPackages({ clientId }: Props) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t('startDate')}</Label>
-              <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+              <Input type="text" inputMode="numeric" placeholder={tPkg('dateFormatPlaceholder')} maxLength={10}
                 value={assignForm.start_disp}
                 onChange={e => {
                   const disp = fmtDateInput(e.target.value)
@@ -546,21 +547,21 @@ export default function ClientPackages({ clientId }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Pencil size={15} className="text-gray-500" /> Uredi datume paketa
+              <Pencil size={15} className="text-gray-500" /> {tPkg('editDatesTitle')}
             </DialogTitle>
-            <DialogDescription className="sr-only">Uredi datume paketa</DialogDescription>
+            <DialogDescription className="sr-only">{tPkg('editDatesTitle')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {editDatesCp && (
               <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-                Paket: <span className="font-medium text-gray-700">{editDatesCp.packages?.name}</span>
+                {t('currentPackage')} <span className="font-medium text-gray-700">{editDatesCp.packages?.name}</span>
               </p>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">{t('startDate')}</Label>
                 <Input
-                  type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  type="text" inputMode="numeric" placeholder={tPkg('dateFormatPlaceholder')} maxLength={10}
                   value={editDatesForm.start_disp}
                   onChange={e => {
                     const disp = fmtDateInput(e.target.value)
@@ -570,9 +571,9 @@ export default function ClientPackages({ clientId }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Datum isteka</Label>
+                <Label className="text-xs">{tPkg('expiryDateLabel')}</Label>
                 <Input
-                  type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                  type="text" inputMode="numeric" placeholder={tPkg('dateFormatPlaceholder')} maxLength={10}
                   value={editDatesForm.end_disp}
                   onChange={e => {
                     const disp = fmtDateInput(e.target.value)
@@ -582,7 +583,7 @@ export default function ClientPackages({ clientId }: Props) {
                 />
               </div>
             </div>
-            <p className="text-[11px] text-gray-400">Možeš slobodno postaviti oba datuma neovisno o trajanju paketa.</p>
+            <p className="text-[11px] text-gray-400">{tPkg('editDatesNote')}</p>
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={savePackageDates} disabled={!editDatesForm.start_date || !editDatesForm.end_date}>
                 <Check size={13} className="mr-1" /> {tCommon('save')}
@@ -620,7 +621,7 @@ export default function ClientPackages({ clientId }: Props) {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">{t('paymentDate')}</Label>
-                <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
+                <Input type="text" inputMode="numeric" placeholder={tPkg('dateFormatPlaceholder')} maxLength={10}
                   value={paymentForm.paid_at_disp}
                   onChange={e => {
                     const disp = fmtDateInput(e.target.value)
@@ -639,7 +640,7 @@ export default function ClientPackages({ clientId }: Props) {
               <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                 <AlertTriangle size={13} className="text-amber-500 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-700">
-                  <span className="font-semibold">Kasno plaćanje.</span> Plaćanje je stiglo {Math.abs(daysLeft(selectedCp.end_date))} {Math.abs(daysLeft(selectedCp.end_date)) === 1 ? 'dan' : 'dana'} nakon isteka.
+                  <span className="font-semibold">{tPkg('latePaymentNote')}</span> Plaćanje je stiglo {Math.abs(daysLeft(selectedCp.end_date))} {Math.abs(daysLeft(selectedCp.end_date)) === 1 ? 'dan' : 'dana'} nakon isteka.
                 </p>
               </div>
             )}
@@ -659,9 +660,9 @@ export default function ClientPackages({ clientId }: Props) {
                   {autoRenew && <Check size={10} className="text-white" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-800">Kreiraj sljedeće razdoblje</p>
+                  <p className="text-xs font-semibold text-gray-800">{tPkg('createNextPeriod')}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Automatski dodaj{' '}
+                    {tPkg('autoAddLabel')}{' '}
                     <span className="font-medium text-gray-700">{selectedCp.packages?.name}</span>{' '}
                     od{' '}
                     <span className="font-medium text-gray-700">{fmtDate(selectedCp.end_date)}</span>
@@ -697,6 +698,7 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onMarkUnpaid, o
 }) {
   const t = useTranslations('clients.packages')
   const tCommon = useTranslations('common')
+  const tPkg = useTranslations('clientPackages')
   const left     = daysLeft(cp.end_date)
   const progress = Math.max(0, Math.min(100,
     ((Date.now() - new Date(cp.start_date).getTime()) /
@@ -724,7 +726,7 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onMarkUnpaid, o
                 <RefreshCw size={12} />
               </button>
             )}
-            <button onClick={onEditDates} title="Uredi datume"
+            <button onClick={onEditDates} title={tPkg('editDatesTooltip')}
               className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors">
               <Pencil size={12} />
             </button>
@@ -746,7 +748,7 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onMarkUnpaid, o
             left >= 0 ? (
               <span className="text-gray-400">{t('daysLeft', { days: left })}</span>
             ) : payStatus === 'paid' ? (
-              <span className="text-gray-400">Isteklo</span>
+              <span className="text-gray-400">{tPkg('statusExpired')}</span>
             ) : (
               <span className="text-red-500 font-medium">{t('daysOverdue', { days: Math.abs(left) })}</span>
             )
@@ -786,7 +788,7 @@ function PackageCard({ cp, expanded, onToggle, payStatus, onPay, onMarkUnpaid, o
                 </Button>
               ) : (
                 <Button size="sm" variant="outline" onClick={onMarkUnpaid} className="h-7 text-xs gap-1 shrink-0 text-amber-600 border-amber-200 hover:bg-amber-50">
-                  <AlertTriangle size={11} /> Neplaćeno
+                  <AlertTriangle size={11} /> {tPkg('statusUnpaid')}
                 </Button>
               )}
             </div>

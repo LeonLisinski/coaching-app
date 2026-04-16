@@ -28,7 +28,7 @@ function CheckinsPageContent() {
           </TabsTrigger>
           <TabsTrigger value="stats" className="flex items-center gap-1.5">
             <BarChart2 size={13} />
-            Statistike
+            {t('page.tabs.stats')}
           </TabsTrigger>
           <TabsTrigger value="parameters" className="flex items-center gap-1.5">
             <Settings2 size={13} />

@@ -6,6 +6,7 @@ import {
   ArrowLeft, MessageSquare, Package, Calendar, Mail,
   Phone, ClipboardCheck, AlertTriangle, CheckCircle2, Clock, Monitor,
 } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function isoDate(d: Date) {
@@ -32,13 +33,6 @@ function avatarGrad(gender: string | null) {
   return 'linear-gradient(135deg, #374151, #1f2937)'
 }
 
-const DAY_NAMES_FULL = ['Nedjelja', 'Ponedjeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota']
-const STATUS_CFG = {
-  submitted: { icon: CheckCircle2, color: '#16a34a', bg: '#f0fdf4', label: 'Check-in predan' },
-  late:      { icon: AlertTriangle, color: '#dc2626', bg: '#fef2f2', label: 'Check-in kasni' },
-  neutral:   { icon: Clock,        color: '#6b7280', bg: '#f9fafb', label: 'Na čekanju' },
-}
-
 // ── types ─────────────────────────────────────────────────────────────────────
 type ClientDetail = {
   id: string; full_name: string; email: string; phone?: string | null
@@ -53,6 +47,17 @@ type ClientDetail = {
 export default function MobileClientDetail() {
   const { id } = useParams()
   const router  = useRouter()
+  const tDetail = useTranslations('clientDetail')
+  const tDays   = useTranslations('days')
+  const tCheckins2 = useTranslations('checkins2')
+  const locale = useLocale()
+
+  const STATUS_CFG = {
+    submitted: { icon: CheckCircle2, color: '#16a34a', bg: '#f0fdf4', label: tCheckins2('statusSubmitted') },
+    late:      { icon: AlertTriangle, color: '#dc2626', bg: '#fef2f2', label: tCheckins2('statusLate') },
+    neutral:   { icon: Clock,        color: '#6b7280', bg: '#f9fafb', label: tCheckins2('statusWaiting') },
+  }
+
   const [client, setClient] = useState<ClientDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -84,7 +89,7 @@ export default function MobileClientDetail() {
 
     setClient({
       id: data.id,
-      full_name: (data.profiles as any)?.full_name || 'Bez imena',
+      full_name: (data.profiles as any)?.full_name || tDetail('mobileNoName'),
       email: (data.profiles as any)?.email || '',
       phone: (data.profiles as any)?.phone || null,
       gender: (data as any).gender || null,
@@ -109,7 +114,7 @@ export default function MobileClientDetail() {
       <div className="h-24 bg-gray-100 rounded-2xl" />
     </div>
   )
-  if (!client) return <p className="text-center text-gray-400 py-16">Klijent nije pronađen</p>
+  if (!client) return <p className="text-center text-gray-400 py-16">{tDetail('notFound')}</p>
 
   const sc = STATUS_CFG[client.checkinStatus]
   const StatusIcon = sc.icon
@@ -160,12 +165,12 @@ export default function MobileClientDetail() {
           <p className="text-sm font-bold text-gray-900">{sc.label}</p>
           {client.checkinDay !== null && (
             <p className="text-xs text-gray-400 mt-0.5">
-              Check-in dan: {DAY_NAMES_FULL[client.checkinDay]}
-              {client.lastCheckin && ` · Zadnji: ${new Date(client.lastCheckin).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' })}`}
+              {tDetail('mobileCheckinDay')} {tDays(String(client.checkinDay) as any)}
+              {client.lastCheckin && `${tDetail('mobileLast')}${new Date(client.lastCheckin).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`}
             </p>
           )}
           {client.checkinDay === null && (
-            <p className="text-xs text-gray-400 mt-0.5">Check-in nije konfiguriran</p>
+            <p className="text-xs text-gray-400 mt-0.5">{tDetail('mobileCheckinNotConfigured')}</p>
           )}
         </div>
       </div>
@@ -181,8 +186,11 @@ export default function MobileClientDetail() {
             <p className="text-sm font-bold text-gray-900 truncate">{client.packageName}</p>
             {daysLeft !== null && (
               <p className={`text-xs mt-0.5 font-medium ${daysLeft <= 7 ? 'text-red-500' : 'text-gray-400'}`}>
-                {daysLeft <= 0 ? 'Istekao' : `Istječe za ${daysLeft} dana`}
-                {client.packageEnd && ` · ${new Date(client.packageEnd).toLocaleDateString('hr-HR')}`}
+                {daysLeft <= 0
+                  ? tDetail('mobilePackageExpired')
+                  : tDetail('mobilePackageExpiresIn', { days: daysLeft })
+                }
+                {client.packageEnd && ` · ${new Date(client.packageEnd).toLocaleDateString(locale)}`}
               </p>
             )}
           </div>
@@ -192,7 +200,7 @@ export default function MobileClientDetail() {
           <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
             <Package size={18} className="text-gray-400" />
           </div>
-          <p className="text-sm text-gray-400">Nema aktivnog paketa</p>
+          <p className="text-sm text-gray-400">{tDetail('mobileNoPackage')}</p>
         </div>
       )}
 
@@ -220,13 +228,13 @@ export default function MobileClientDetail() {
               <Calendar size={14} className="text-gray-400" />
             </div>
             <p className="text-sm text-gray-700">
-              Suradnja od {new Date(client.start_date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {tDetail('collabSince')} {new Date(client.start_date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </p>
           </div>
         )}
         {client.notes && (
           <div className="pt-2 border-t border-gray-50">
-            <p className="text-xs text-gray-400 font-medium mb-1">Bilješke</p>
+            <p className="text-xs text-gray-400 font-medium mb-1">{tDetail('notesLabel')}</p>
             <p className="text-sm text-gray-600 leading-relaxed">{client.notes}</p>
           </div>
         )}
@@ -247,7 +255,7 @@ export default function MobileClientDetail() {
         style={{ backgroundColor: 'var(--app-accent)' }}
       >
         <MessageSquare size={18} />
-        Pošalji poruku
+        {tDetail('mobileSendMessage')}
       </button>
     </div>
   )

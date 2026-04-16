@@ -19,13 +19,6 @@ const ACCENT_HEX_MAP: Record<string, string> = {
 }
 
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
-const ACTIVITY_OPTIONS: { value: Exclude<ActivityLevel, ''>; label: string; desc: string }[] = [
-  { value: 'sedentary',   label: 'Sjedilački',       desc: 'Malo ili bez vježbanja' },
-  { value: 'light',       label: 'Lagano aktivan',   desc: '1–3× tjedno' },
-  { value: 'moderate',    label: 'Umjereno aktivan', desc: '3–5× tjedno' },
-  { value: 'active',      label: 'Jako aktivan',     desc: '6–7× tjedno' },
-  { value: 'very_active', label: 'Izuzetno aktivan', desc: 'Fizički posao + trening' },
-]
 
 type Client = {
   id: string; full_name: string; goal: string | null; date_of_birth: string | null
@@ -67,10 +60,19 @@ function isoToDisplay(iso: string | null): string {
 
 export default function EditClientDialog({ client, open, onClose, onSuccess }: Props) {
   const t = useTranslations('clients.dialogs.edit')
-  const tAdd = useTranslations('clients.dialogs.add')
+  const tAdd = useTranslations('addClient')
+  const tEdit = useTranslations('editClient')
   const tCommon = useTranslations('common')
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
+
+  const ACTIVITY_OPTIONS: { value: Exclude<ActivityLevel, ''>; label: string; desc: string }[] = [
+    { value: 'sedentary',   label: tAdd('activitySedentary'),   desc: tAdd('activitySedentaryDesc') },
+    { value: 'light',       label: tAdd('activityLight'),       desc: tAdd('activityLightDesc') },
+    { value: 'moderate',    label: tAdd('activityModerate'),    desc: tAdd('activityModerateDesc') },
+    { value: 'active',      label: tAdd('activityActive'),      desc: tAdd('activityActiveDesc') },
+    { value: 'very_active', label: tAdd('activityVeryActive'),  desc: tAdd('activityVeryActiveDesc') },
+  ]
 
   const validActivityLevels = ['sedentary', 'light', 'moderate', 'active', 'very_active']
   const [tab, setTab] = useState<'profile' | 'plans'>('profile')
@@ -343,8 +345,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
         {/* Tabs */}
         <div className="flex shrink-0 border-b border-gray-100 bg-white">
           {[
-            { key: 'profile', label: 'Profil', icon: UserCog },
-            { key: 'plans',   label: 'Planovi', icon: Dumbbell },
+            { key: 'profile', label: tEdit('tabProfile'), icon: UserCog },
+            { key: 'plans',   label: tEdit('tabPlans'),   icon: Dumbbell },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} type="button"
               onClick={() => setTab(key as typeof tab)}
@@ -368,9 +370,9 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
 
               {/* Gender */}
               <div className="space-y-2">
-                <Label>Spol</Label>
+                <Label>{tEdit('genderLabel')}</Label>
                 <div className="flex gap-2">
-                  {([['M', '♂ Muško', 'from-sky-400 to-blue-500'], ['F', '♀ Žensko', 'from-rose-400 to-pink-500']] as const).map(([g, lbl, grad]) => (
+                  {([['M', tEdit('genderMale'), 'from-sky-400 to-blue-500'], ['F', tEdit('genderFemale'), 'from-rose-400 to-pink-500']] as const).map(([g, lbl, grad]) => (
                     <button key={g} type="button"
                       onClick={() => setForm({ ...form, gender: form.gender === g ? '' : g })}
                       className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${form.gender === g ? `bg-gradient-to-r ${grad} text-white border-transparent shadow-sm` : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
@@ -388,7 +390,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
 
               {/* Activity level */}
               <div className="space-y-2">
-                <Label>Razina aktivnosti</Label>
+                <Label>{tEdit('activityLabel')}</Label>
                 <div className="grid grid-cols-1 gap-1.5">
                   {ACTIVITY_OPTIONS.map(opt => (
                     <button key={opt.value} type="button"
@@ -438,14 +440,14 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
               </div>
 
               <div className="space-y-2">
-                <Label>Dnevni cilj koraka</Label>
+                <Label>{tEdit('stepsLabel')}</Label>
                 <Input type="number" min="0" max="50000" step="500" value={form.step_goal}
                   onChange={e => setForm({ ...form, step_goal: e.target.value })}
-                  placeholder="npr. 8000" onFocus={inputFocus} onBlur={inputBlur} />
+                  placeholder={tEdit('stepsPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
               </div>
 
               <div className="space-y-2">
-                <Label>Bilješke</Label>
+                <Label>{tEdit('notesLabel')}</Label>
                 <Textarea value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })}
                   placeholder="Veganska prehrana, ozljede, alergije..." rows={3}
@@ -479,16 +481,16 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <Dumbbell size={13} />
                       </div>
-                      <Label className="text-sm font-semibold text-gray-800">Plan treninga</Label>
+                      <Label className="text-sm font-semibold text-gray-800">{tEdit('trainingPlanLabel')}</Label>
                     </div>
                     <Select value={selectedWorkout ?? '_none'} onValueChange={v => setSelectedWorkout(v === '_none' ? null : v)}>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Odaberi plan treninga..." />
+                        <SelectValue placeholder={tEdit('selectTrainingPlan')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                        <SelectItem value="_none"><span className="text-gray-400 italic">{tEdit('noPlans')}</span></SelectItem>
                         {workoutPlans.length === 0
-                          ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                          ? <SelectItem value="_empty" disabled>{tEdit('noPlansAvailable')}</SelectItem>
                           : workoutPlans.map(wp => <SelectItem key={wp.id} value={wp.id}>{wp.name}</SelectItem>)
                         }
                       </SelectContent>
@@ -501,26 +503,26 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <UtensilsCrossed size={13} />
                       </div>
-                      <Label className="text-sm font-semibold text-gray-800">Plan prehrane</Label>
+                      <Label className="text-sm font-semibold text-gray-800">{tEdit('mealPlanLabel')}</Label>
                     </div>
                     <div className="flex gap-2">
-                      {([['default', 'Standardni'], ['split', 'Trening / Odmor']] as const).map(([m, lbl]) => (
+                      {(['default', 'split'] as const).map((m) => (
                         <button key={m} type="button" onClick={() => setMealPlanMode(m)}
                           className="flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all"
                           style={mealPlanMode === m ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
-                          {lbl}
+                          {m === 'default' ? tEdit('standardType') : tEdit('splitType')}
                         </button>
                       ))}
                     </div>
                     {mealPlanMode === 'default' ? (
                       <Select value={selectedMealDefault ?? '_none'} onValueChange={v => setSelectedMealDefault(v === '_none' ? null : v)}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Odaberi plan prehrane..." />
+                          <SelectValue placeholder={tEdit('selectMealPlan')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">{tEdit('noPlans')}</span></SelectItem>
                           {mealPlans.length === 0
-                            ? <SelectItem value="_empty" disabled>Nema kreiranih planova</SelectItem>
+                            ? <SelectItem value="_empty" disabled>{tEdit('noPlansAvailable')}</SelectItem>
                             : mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)
                           }
                         </SelectContent>
@@ -528,25 +530,25 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                     ) : (
                       <div className="space-y-2">
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">Dani treninga</p>
+                          <p className="text-[11px] text-gray-500 mb-1">{tEdit('trainingDaysLabel')}</p>
                           <Select value={selectedMealTraining ?? '_none'} onValueChange={v => setSelectedMealTraining(v === '_none' ? null : v)}>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Plan za dane treninga..." />
+                              <SelectValue placeholder={tAdd('trainingDayPlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">{tEdit('noPlans')}</span></SelectItem>
                               {mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">Dani odmora</p>
+                          <p className="text-[11px] text-gray-500 mb-1">{tEdit('restDaysLabel')}</p>
                           <Select value={selectedMealRest ?? '_none'} onValueChange={v => setSelectedMealRest(v === '_none' ? null : v)}>
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Plan za dane odmora..." />
+                              <SelectValue placeholder={tAdd('restDayPlaceholder')} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="_none"><span className="text-gray-400 italic">Bez plana</span></SelectItem>
+                              <SelectItem value="_none"><span className="text-gray-400 italic">{tEdit('noPlans')}</span></SelectItem>
                               {mealPlans.map(mp => <SelectItem key={mp.id} value={mp.id}>{mp.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
@@ -561,7 +563,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
                         <CreditCard size={13} />
                       </div>
-                      <Label className="text-sm font-semibold text-gray-800">Paket plaćanja</Label>
+                      <Label className="text-sm font-semibold text-gray-800">{tEdit('packageLabel')}</Label>
                     </div>
 
                     {activeCp && (
@@ -569,24 +571,24 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeCp.pkg_color }} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800">{activeCp.pkg_name}</p>
-                          <p className="text-xs text-gray-400">Aktivan · do {fmtDate(activeCp.end_date)} · {activeCp.price} €</p>
+                          <p className="text-xs text-gray-400">{tEdit('activePackage')} {fmtDate(activeCp.end_date)} · {activeCp.price} €</p>
                         </div>
                       </div>
                     )}
                     {!activeCp && (
-                      <p className="text-xs text-gray-400 px-1">Klijent nema aktivnog paketa.</p>
+                      <p className="text-xs text-gray-400 px-1">{tEdit('noActivePackage')}</p>
                     )}
 
                     <div className="space-y-2">
-                      <p className="text-xs text-gray-500">{activeCp ? 'Zamijeni s novim paketom:' : 'Dodjeli paket:'}</p>
+                      <p className="text-xs text-gray-500">{activeCp ? tEdit('replacePackage') : tEdit('assignPackage')}</p>
                       <Select value={selectedPkg ?? '_none'} onValueChange={v => setSelectedPkg(v === '_none' ? null : v)}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Odaberi paket..." />
+                          <SelectValue placeholder={tEdit('selectPackage')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="_none"><span className="text-gray-400 italic">Bez paketa</span></SelectItem>
+                          <SelectItem value="_none"><span className="text-gray-400 italic">{tEdit('noPackage')}</span></SelectItem>
                           {pkgTemplates.length === 0
-                            ? <SelectItem value="_empty" disabled>Nema kreiranih paketa</SelectItem>
+                            ? <SelectItem value="_empty" disabled>{tEdit('noPackagesAvailable')}</SelectItem>
                             : pkgTemplates.map(pkg => (
                               <SelectItem key={pkg.id} value={pkg.id}>
                                 <span className="flex items-center gap-2">
@@ -604,7 +606,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                       <Button type="button" onClick={assignOrReplacePkg} disabled={savingPkg}
                         className="h-8 text-xs gap-1.5 text-white" style={{ backgroundColor: accentHex }}>
                         <RefreshCw size={12} />
-                        {savingPkg ? 'Sprema...' : activeCp ? 'Zamijeni paket' : 'Dodjeli paket'}
+                        {savingPkg ? tEdit('saving') : activeCp ? tEdit('replaceBtn') : tEdit('assignBtn')}
                         {pkgSaved && <Check size={12} />}
                       </Button>
                     )}
