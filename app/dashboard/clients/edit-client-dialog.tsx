@@ -255,7 +255,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     // Handle workout plan change
     if (selectedWorkout !== currentWorkout) {
       if (currentWorkout) {
-        await supabase.from('client_workout_plans').update({ active: false })
+        await supabase.from('client_workout_plans').update({ active: false, ended_at: new Date().toISOString() })
           .eq('client_id', client.id).eq('workout_plan_id', currentWorkout)
       }
       if (selectedWorkout) {
@@ -263,7 +263,7 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
         const { data: existing } = await supabase.from('client_workout_plans')
           .select('id').eq('client_id', client.id).eq('workout_plan_id', selectedWorkout).maybeSingle()
         if (existing) {
-          await supabase.from('client_workout_plans').update({ active: true }).eq('id', existing.id)
+          await supabase.from('client_workout_plans').update({ active: true, ended_at: null }).eq('id', existing.id)
         } else {
           await supabase.from('client_workout_plans').insert({
             client_id: client.id, workout_plan_id: selectedWorkout, trainer_id: user.id, active: true,

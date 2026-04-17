@@ -320,7 +320,11 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         {isDayExpanded(index) ? <ChevronUp size={14} className="text-gray-400 shrink-0" /> : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
                         <span className="font-medium text-sm">{t('form.dayLabel')} {day.day_number}</span>
                         <span className="text-xs text-gray-400 truncate">{day.name !== `${t('form.dayLabel')} ${day.day_number}` ? `· ${day.name}` : ''}</span>
-                        {!isDayExpanded(index) && <span className="text-xs text-gray-400 ml-auto shrink-0">{day.exercises.length} {t('form.exercisesCollapsed')}</span>}
+                        {!isDayExpanded(index) && (
+                          <span className="text-xs text-gray-400 ml-auto shrink-0">
+                            {t('form.exercisesCollapsed', { count: day.exercises.length })}
+                          </span>
+                        )}
                       </button>
                       <button type="button" title={t('form.copyDayTooltip')} onClick={() => copyDay(index)} className="p-1 text-gray-400 hover:text-gray-600">
                         <Copy size={13} />

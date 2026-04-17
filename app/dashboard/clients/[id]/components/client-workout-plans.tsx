@@ -57,6 +57,7 @@ type AssignedPlan = {
   id: string
   active: boolean
   assigned_at: string
+  ended_at: string | null
   notes: string | null
   days: any[] | null
   workout_plan: WorkoutPlan
@@ -89,10 +90,22 @@ type PlanDay = {
 
 
 
-function DayAccordion({ days }: { days: any[] }) {
+function DayAccordion({
+  days,
+  trackedExerciseIds,
+  onToggleTracked,
+  togglingId,
+}: {
+  days: any[]
+  trackedExerciseIds: string[]
+  onToggleTracked: (exerciseId: string) => void
+  togglingId: string | null
+}) {
   const t = useTranslations('clients.workoutPlans')
   const [openDays, setOpenDays] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenDays(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
+  const tracked = new Set(trackedExerciseIds)
+  const atLimit = trackedExerciseIds.length >= 10
   return (
     <div className="border-t border-gray-100 divide-y divide-gray-50">
       {days.map((day: any, dayIdx: number) => (
@@ -108,17 +121,50 @@ function DayAccordion({ days }: { days: any[] }) {
           </button>
           {openDays[dayIdx] && (
             <div className="px-2 pb-2">
-              {(day.exercises || []).map((ex: any, exIdx: number) => (
-                <div key={ex.exercise_id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-300 w-4 text-right tabular-nums">{exIdx + 1}</span>
-                    <span className="text-sm text-gray-800">{ex.name}</span>
+              {(day.exercises || []).map((ex: any, exIdx: number) => {
+                const isOn = tracked.has(ex.exercise_id)
+                const disabled = !isOn && atLimit
+                return (
+                  <div
+                    key={ex.exercise_id}
+                    className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="text-xs text-gray-300 w-4 text-right tabular-nums shrink-0">{exIdx + 1}</span>
+                      <span className="text-sm text-gray-800 truncate">{ex.name}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 tabular-nums shrink-0 hidden sm:inline">
+                      {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] text-gray-400 max-w-[72px] leading-tight text-right hidden sm:block">
+                        {t('trackInAnalyticsShort')}
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isOn}
+                        aria-label={t('trackInAnalyticsAria')}
+                        disabled={disabled || togglingId === ex.exercise_id}
+                        title={disabled ? t('trackLimitReached') : isOn ? t('trackRemoveHint') : t('trackAddHint')}
+                        onClick={e => {
+                          e.stopPropagation()
+                          onToggleTracked(ex.exercise_id)
+                        }}
+                        className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+                          isOn ? 'bg-violet-600' : 'bg-gray-200'
+                        } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            isOn ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-400 tabular-nums">
-                    {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -165,6 +211,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const [renaming, setRenaming] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState<string | null>(null)
+  const [trackedExerciseIds, setTrackedExerciseIds] = useState<string[]>([])
+  const [togglingTrackedId, setTogglingTrackedId] = useState<string | null>(null)
 
   // Conflict: trying to activate a plan while another is already active
   const [activateConflict, setActivateConflict] = useState<{
@@ -192,7 +240,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     const [{ data: assigned }, { data: available }, { data: trainerEx }, { data: defaultEx }] = await Promise.all([
       supabase
         .from('client_workout_plans')
-        .select(`id, active, assigned_at, notes, days, workout_plan:workout_plans(id, name, description, days)`)
+        .select(`id, active, assigned_at, ended_at, notes, days, workout_plan:workout_plans(id, name, description, days)`)
         .eq('client_id', clientId)
         .order('assigned_at', { ascending: false }),
       supabase
@@ -218,7 +266,58 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     if (assigned) setAssignedPlans(assigned as any)
     if (available) setAvailablePlans(available)
     if (exercises) setAllExercises(exercises)
+
+    const { data: trackedRows, error: trackedErr } = await supabase
+      .from('client_tracked_exercises')
+      .select('exercise_id')
+      .eq('client_id', clientId)
+      .order('sort_order', { ascending: true })
+    if (!trackedErr) {
+      setTrackedExerciseIds((trackedRows || []).map((r: { exercise_id: string }) => r.exercise_id))
+    } else {
+      setTrackedExerciseIds([])
+    }
+
     setLoading(false)
+  }
+
+  const toggleTrackedExercise = async (exerciseId: string) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user) return
+    const isOn = trackedExerciseIds.includes(exerciseId)
+    setTogglingTrackedId(exerciseId)
+    try {
+      if (isOn) {
+        const { error } = await supabase
+          .from('client_tracked_exercises')
+          .delete()
+          .eq('client_id', clientId)
+          .eq('exercise_id', exerciseId)
+        if (!error) setTrackedExerciseIds(prev => prev.filter(id => id !== exerciseId))
+      } else {
+        if (trackedExerciseIds.length >= 10) return
+        const { error } = await supabase.from('client_tracked_exercises').insert({
+          client_id: clientId,
+          exercise_id: exerciseId,
+          sort_order: trackedExerciseIds.length,
+        })
+        if (error) {
+          if (
+            error.message?.includes('client_tracked_exercises_limit') ||
+            error.code === '23514' ||
+            error.code === 'P0001'
+          ) {
+            setSavedMsg(t('trackLimitToast'))
+            setTimeout(() => setSavedMsg(null), 4000)
+          }
+          return
+        }
+        setTrackedExerciseIds(prev => [...prev, exerciseId])
+      }
+    } finally {
+      setTogglingTrackedId(null)
+    }
   }
 
   const handleSelectPlan = (planId: string) => {
@@ -284,10 +383,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   }
 
   // Deactivate all other plans for this client, then run the provided action
+  const nowIso = () => new Date().toISOString()
+
   const deactivateOthersAndRun = async (exceptId: string | null, action: () => Promise<void>) => {
     const others = assignedPlans.filter(p => p.active && p.id !== exceptId)
     for (const p of others) {
-      await supabase.from('client_workout_plans').update({ active: false }).eq('id', p.id)
+      await supabase.from('client_workout_plans').update({ active: false, ended_at: nowIso() }).eq('id', p.id)
     }
     await action()
     fetchData()
@@ -355,8 +456,9 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const toggleActive = async (id: string, current: boolean) => {
     // Deactivating — always allowed
     if (current) {
-      await supabase.from('client_workout_plans').update({ active: false }).eq('id', id)
-      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: false } : p))
+      const ended = nowIso()
+      await supabase.from('client_workout_plans').update({ active: false, ended_at: ended }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: false, ended_at: ended } : p))
       return
     }
     // Activating — check if another plan is already active
@@ -365,19 +467,25 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
       setActivateConflict({
         existingName: currentActive.workout_plan.name,
         execute: () => deactivateOthersAndRun(id, async () => {
-          await supabase.from('client_workout_plans').update({ active: true }).eq('id', id)
+          await supabase.from('client_workout_plans').update({ active: true, ended_at: null }).eq('id', id)
         }),
       })
     } else {
-      await supabase.from('client_workout_plans').update({ active: true }).eq('id', id)
-      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: true } : p))
+      await supabase.from('client_workout_plans').update({ active: true, ended_at: null }).eq('id', id)
+      setAssignedPlans(prev => prev.map(p => p.id === id ? { ...p, active: true, ended_at: null } : p))
     }
   }
 
   const deletePlan = async (id: string) => {
-    await supabase.from('client_workout_plans').delete().eq('id', id)
-    setAssignedPlans(prev => prev.filter(p => p.id !== id))
+    const { count } = await supabase.from('workout_logs').select('id', { count: 'exact', head: true }).eq('plan_id', id)
+    if (count && count > 0) {
+      await supabase.from('client_workout_plans').update({ active: false, ended_at: nowIso() }).eq('id', id)
+    } else {
+      await supabase.from('client_workout_plans').delete().eq('id', id)
+      setAssignedPlans(prev => prev.filter(p => p.id !== id))
+    }
     setConfirmDeleteId(null)
+    fetchData()
   }
 
   const renamePlan = async () => {
@@ -563,7 +671,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                 {isOpen && (
                   <>
                     {/* Days accordion */}
-                    {days.length > 0 && <DayAccordion days={days} />}
+                    {days.length > 0 && (
+                      <DayAccordion
+                        days={days}
+                        trackedExerciseIds={trackedExerciseIds}
+                        onToggleTracked={toggleTrackedExercise}
+                        togglingId={togglingTrackedId}
+                      />
+                    )}
 
                     {/* Per-plan analysis */}
                     {hasAnalysis && (
