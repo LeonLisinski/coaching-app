@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, ChevronRight, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { edgeFunctionUrl } from '@/lib/supabase-edge'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -52,7 +53,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     { value: 'very_active', label: tAdd('activityVeryActive'),  desc: tAdd('activityVeryActiveDesc') },
   ]
 
-  const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
+  const DAY_NAMES = (['0', '1', '2', '3', '4', '5', '6'] as const).map((k) => tDaysShort(k))
 
   const [step, setStep]       = useState<Step>('account')
   const [loading, setLoading] = useState(false)
@@ -63,7 +64,6 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   // Step 1
   const [full_name, setFullName]         = useState('')
   const [email, setEmail]               = useState('')
-  const [password, setPassword]         = useState('')
   const [gender, setGender]             = useState<'' | 'M' | 'F'>('')
   // Step 2
   const [goal, setGoal]                 = useState('')
@@ -89,18 +89,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
   const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', scale: 'Scale' }
 
-  // Reset on open + check limit
-  useEffect(() => {
-    if (open) {
-      setStep('account'); setError(''); setLimitInfo(null)
-      setFullName(''); setEmail(''); setPassword(''); setGender('')
-      setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
-      setSelectedWorkout(''); setSelectedMeal(''); setSelectedMealRest(''); setMealPlanMode('default'); setSelectedPackage(''); setCheckinDay(null)
-      checkLimit()
-    }
-  }, [open])
-
-  const checkLimit = async () => {
+  const checkLimit = useCallback(async () => {
     setLimitChecking(true)
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
@@ -113,20 +102,13 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
       setLimitInfo({ current: count, limit: sub.client_limit, plan: sub.plan })
     }
     setLimitChecking(false)
-  }
+  }, [])
 
-  // Load plans when reaching step 3
-  useEffect(() => {
-    if (step === 'plans' && workoutPlans.length === 0 && mealPlans.length === 0) {
-      fetchPlans()
-    }
-  }, [step])
-
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     setPlansLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setPlansLoading(false); return }
     const [{ data: wp }, { data: mp }, { data: pkgs }] = await Promise.all([
       supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).order('name'),
       supabase.from('meal_plans').select('id, name').eq('trainer_id', user.id).order('name'),
@@ -136,7 +118,27 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     setMealPlans(mp || [])
     setTrainerPkgs(pkgs || [])
     setPlansLoading(false)
-  }
+  }, [])
+
+  /* eslint-disable react-hooks/set-state-in-effect -- dialog open / step-3 lazy load */
+  // Reset on open + check limit
+  useEffect(() => {
+    if (open) {
+      setStep('account'); setError(''); setLimitInfo(null)
+      setFullName(''); setEmail(''); setGender('')
+      setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
+      setSelectedWorkout(''); setSelectedMeal(''); setSelectedMealRest(''); setMealPlanMode('default'); setSelectedPackage(''); setCheckinDay(null)
+      void checkLimit()
+    }
+  }, [open, checkLimit])
+
+  // Load plans when reaching step 3
+  useEffect(() => {
+    if (step === 'plans' && workoutPlans.length === 0 && mealPlans.length === 0) {
+      void fetchPlans()
+    }
+  }, [step, workoutPlans.length, mealPlans.length, fetchPlans])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.currentTarget.style.borderColor = accentHex
@@ -150,7 +152,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const goNext = () => {
     setError('')
     if (step === 'account') {
-      if (!full_name || !email || !password) { setError(tAdd('errRequired')); return }
+      if (!full_name || !email) { setError(tAdd('errRequired')); return }
       setStep('profile')
     } else if (step === 'profile') {
       setStep('plans')
@@ -166,16 +168,18 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.access_token) { setError(tAdd('errSessionExpired')); setLoading(false); return }
 
-    let result: any
+    type CreateClientResult = { error?: string; client_id?: string }
+    let result: CreateClientResult
     try {
       const response = await fetch(
-        'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',
+        edgeFunctionUrl('create-client'),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
           body: JSON.stringify({
             trainer_id: trainer.id,
-            email, password, full_name,
+            email,
+            full_name,
             goal: goal || null,
             date_of_birth: date_of_birth || null,
             weight: weight ? parseFloat(weight) : null,
@@ -186,7 +190,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           }),
         }
       )
-      result = await response.json()
+      result = (await response.json()) as CreateClientResult
     } catch {
       setError(tAdd('errConnection'))
       setLoading(false)
@@ -254,7 +258,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     onClose()
     // Small delay so Supabase has time to commit before parent re-fetches
     setTimeout(onSuccess, 250)
-    } catch (err: any) {
+    } catch {
       setError(tAdd('errUnknown'))
       setLoading(false)
     }
@@ -363,12 +367,9 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-gray-600">{t('email')} <span className="text-rose-400">*</span></Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="new-password" />
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="email" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('password')} <span className="text-rose-400">*</span></Label>
-                  <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('passwordPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="new-password" />
-                </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed">{tAdd('inviteEmailHint')}</p>
               </div>
 
               {/* Spol */}

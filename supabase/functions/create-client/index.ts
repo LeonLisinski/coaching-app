@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendClientInviteEmail } from '../_shared/client-invite-email.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +41,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, password, gender, notes, activity_level } = await req.json()
+    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, gender, notes, activity_level } = await req.json()
 
     // Ensure the caller is the trainer they claim to be
     if (callerUser.id !== trainer_id) {
@@ -76,17 +77,36 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const clientAuthRedirect =
+      Deno.env.get('CLIENT_AUTH_REDIRECT_URL') ?? 'https://app.unitlift.com/client-auth'
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
       email,
-      password: password || Math.random().toString(36).slice(-8) + 'Aa1!',
-      email_confirm: true,
-      user_metadata: {
-        full_name,
-        role: 'client'
-      }
+      options: {
+        redirectTo: clientAuthRedirect,
+        data: {
+          full_name,
+          role: 'client',
+        },
+      },
     })
 
-    if (authError) throw authError
+    if (linkError) throw linkError
+
+    const actionLink = linkData?.properties?.action_link
+    const newUser = linkData?.user
+    if (!actionLink || !newUser?.id) {
+      throw new Error('generateLink did not return action_link or user id')
+    }
+
+    const { data: trainerProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', trainer_id)
+      .maybeSingle()
+
+    const trainerName = trainerProfile?.full_name?.trim() || 'Tvoj trener'
 
     // Pričekaj da trigger kreira profil, pa update
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -94,13 +114,13 @@ Deno.serve(async (req) => {
     await supabaseAdmin
       .from('profiles')
       .update({ full_name, role: 'client' })
-      .eq('id', authData.user.id)
+      .eq('id', newUser.id)
 
     const { data: clientData, error: clientError } = await supabaseAdmin
       .from('clients')
       .insert({
         trainer_id,
-        user_id: authData.user.id,
+        user_id: newUser.id,
         goal: goal || null,
         date_of_birth: date_of_birth || null,
         weight: weight || null,
@@ -114,8 +134,15 @@ Deno.serve(async (req) => {
 
     if (clientError) throw clientError
 
+    await sendClientInviteEmail({
+      to: email,
+      clientName: full_name || email.split('@')[0] || 'klijent',
+      trainerName,
+      actionLink,
+    })
+
     return new Response(
-      JSON.stringify({ success: true, user_id: authData.user.id, client_id: clientData?.id }),
+      JSON.stringify({ success: true, user_id: newUser.id, client_id: clientData?.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

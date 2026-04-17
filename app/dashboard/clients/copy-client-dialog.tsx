@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { edgeFunctionUrl } from '@/lib/supabase-edge'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -46,6 +48,40 @@ function calcAge(dob: string): number {
   return age
 }
 
+type CopyCheckRowProps = {
+  accentHex: string
+  checked: boolean
+  onToggle: (v: boolean) => void
+  icon: LucideIcon
+  label: string
+  /** Shown when the row is available (or always as primary detail). */
+  sub: string
+  available: boolean
+  /** Shown in gray when the row cannot be copied (e.g. no plan on source). */
+  unavailableHint: string
+}
+
+function CopyCheckRow({ accentHex, checked, onToggle, icon: Icon, label, sub, available, unavailableHint }: CopyCheckRowProps) {
+  return (
+    <button type="button" onClick={() => available && onToggle(!checked)}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${!available ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+      style={checked && available ? { borderColor: accentHex, backgroundColor: `${accentHex}08` } : { borderColor: '#e5e7eb' }}>
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+        style={checked && available ? { backgroundColor: `${accentHex}18`, color: accentHex } : { backgroundColor: '#f3f4f6', color: '#9ca3af' }}>
+        <Icon size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800">{label}</p>
+        <p className="text-xs text-gray-400">{available ? sub : unavailableHint}</p>
+      </div>
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${checked && available ? 'border-current text-white' : 'border-gray-200'}`}
+        style={checked && available ? { backgroundColor: accentHex, borderColor: accentHex } : {}}>
+        {checked && available && <Check size={11} />}
+      </div>
+    </button>
+  )
+}
+
 export default function CopyClientDialog({ open, onClose, onSuccess, sourceClientId, sourceClientName }: Props) {
   const { accent } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
@@ -59,7 +95,7 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
   const [error, setError] = useState('')
   const [sourceData, setSourceData] = useState<SourceData | null>(null)
 
-  const [form, setForm] = useState({ full_name: '', email: '', password: '', weight: '', height: '', dob: '', gender: '' as '' | 'M' | 'F' })
+  const [form, setForm] = useState({ full_name: '', email: '', weight: '', height: '', dob: '', gender: '' as '' | 'M' | 'F' })
   const [copyWorkout, setCopyWorkout]   = useState(true)
   const [copyMeal, setCopyMeal]         = useState(true)
   const [copyCheckin, setCopyCheckin]   = useState(true)
@@ -93,19 +129,15 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
     return { kcal, protein: p, fat: f, carbs: c }
   })()
 
-  useEffect(() => {
-    if (open) { setStep('info'); setError(''); setSelectedPackage(''); fetchSource(); fetchPackages() }
-  }, [open, sourceClientId])
-
-  const fetchPackages = async () => {
+  const fetchPackages = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
     const { data } = await supabase.from('packages').select('id, name, price, duration_days, color').eq('trainer_id', user.id).eq('active', true).order('name')
     setTrainerPkgs(data || [])
-  }
+  }, [])
 
-  const fetchSource = async () => {
+  const fetchSource = useCallback(async () => {
     setLoadingSource(true)
     const [{ data: client }, { data: workout }, { data: meal }, { data: cc }] = await Promise.all([
       supabase.from('clients')
@@ -119,8 +151,8 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
         .select('id').eq('client_id', sourceClientId).limit(1).maybeSingle(),
     ])
     setSourceData({
-      workout_plan_name: (workout?.workout_plan as any)?.name || null,
-      meal_plan_name: (meal?.meal_plan as any)?.name || null,
+      workout_plan_name: (workout?.workout_plan as { name?: string } | null)?.name ?? null,
+      meal_plan_name: (meal?.meal_plan as { name?: string } | null)?.name ?? null,
       has_checkin_config: !!cc,
       weight: client?.weight || null,
       height: client?.height || null,
@@ -129,24 +161,35 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
       activity_level: client?.activity_level || null,
     })
     setLoadingSource(false)
-  }
+  }, [sourceClientId])
+
+  /* Reset step when dialog opens; async fetches run after. */
+  /* eslint-disable react-hooks/set-state-in-effect -- dialog open lifecycle */
+  useEffect(() => {
+    if (!open) return
+    setStep('info')
+    setError('')
+    setSelectedPackage('')
+    void fetchSource()
+    void fetchPackages()
+  }, [open, sourceClientId, fetchSource, fetchPackages])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleCreate = async () => {
-    if (!form.full_name || !form.email || !form.password) { setError(`${t('fullName')}, ${t('email')}, ${t('password')}`); return }
+    if (!form.full_name || !form.email) { setError(`${t('fullName')}, ${t('email')}`); return }
     setLoading(true); setError('')
 
     const { data: { user: trainer } } = await supabase.auth.getUser()
     const { data: { session } } = await supabase.auth.getSession()
-    if (!trainer || !session) return
+    if (!trainer || !session) { setLoading(false); return }
 
     // Create new client account via edge function
-    const res = await fetch('https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client', {
+    const res = await fetch(edgeFunctionUrl('create-client'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
       body: JSON.stringify({
         trainer_id: trainer.id,
         email: form.email,
-        password: form.password,
         full_name: form.full_name,
         gender: form.gender || null,
         weight: form.weight ? parseFloat(form.weight) : null,
@@ -254,25 +297,6 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = accentHex; e.currentTarget.style.boxShadow = `0 0 0 3px ${accentHex}20` }
   const inputBlur  = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.boxShadow = '' }
 
-  const CheckRow = ({ checked, onToggle, icon: Icon, label, sub, available }: any) => (
-    <button type="button" onClick={() => available && onToggle(!checked)}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${!available ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-      style={checked && available ? { borderColor: accentHex, backgroundColor: `${accentHex}08` } : { borderColor: '#e5e7eb' }}>
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-        style={checked && available ? { backgroundColor: `${accentHex}18`, color: accentHex } : { backgroundColor: '#f3f4f6', color: '#9ca3af' }}>
-        <Icon size={14} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-800">{label}</p>
-        <p className="text-xs text-gray-400">{available ? sub : t('noWorkout')}</p>
-      </div>
-      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${checked && available ? 'border-current text-white' : 'border-gray-200'}`}
-        style={checked && available ? { backgroundColor: accentHex, borderColor: accentHex } : {}}>
-        {checked && available && <Check size={11} />}
-      </div>
-    </button>
-  )
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
@@ -317,10 +341,7 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
                   <Label className="text-xs font-medium text-gray-600">{t('email')} <span className="text-rose-400">*</span></Label>
                   <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('password')} <span className="text-rose-400">*</span></Label>
-                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder={t('passwordPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
-                </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed">{t('inviteEmailHint')}</p>
               </div>
 
               {/* Gender */}
@@ -400,12 +421,12 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
                 <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}</div>
               ) : (
                 <>
-                  <CheckRow checked={copyWorkout} onToggle={setCopyWorkout} icon={Dumbbell} label={t('copyWorkout')}
-                    sub={sourceData?.workout_plan_name || t('noWorkout')} available={!!sourceData?.workout_plan_name} />
-                  <CheckRow checked={copyMeal} onToggle={setCopyMeal} icon={UtensilsCrossed} label={t('copyMeal')}
-                    sub={sourceData?.meal_plan_name || t('noMeal')} available={!!sourceData?.meal_plan_name} />
-                  <CheckRow checked={copyCheckin} onToggle={setCopyCheckin} icon={ClipboardCheck} label={t('copyCheckin')}
-                    sub={t('noCheckin')} available={sourceData?.has_checkin_config ?? false} />
+                  <CopyCheckRow accentHex={accentHex} checked={copyWorkout} onToggle={setCopyWorkout} icon={Dumbbell} label={t('copyWorkout')}
+                    sub={sourceData?.workout_plan_name || t('noWorkout')} available={!!sourceData?.workout_plan_name} unavailableHint={t('noWorkout')} />
+                  <CopyCheckRow accentHex={accentHex} checked={copyMeal} onToggle={setCopyMeal} icon={UtensilsCrossed} label={t('copyMeal')}
+                    sub={sourceData?.meal_plan_name || t('noMeal')} available={!!sourceData?.meal_plan_name} unavailableHint={t('noMeal')} />
+                  <CopyCheckRow accentHex={accentHex} checked={copyCheckin} onToggle={setCopyCheckin} icon={ClipboardCheck} label={t('copyCheckin')}
+                    sub={t('noCheckin')} available={sourceData?.has_checkin_config ?? false} unavailableHint={t('noCheckin')} />
 
                   {goalMacros && copyMeal && sourceData?.meal_plan_name && (
                     <div className="rounded-xl px-3 py-2 text-xs text-gray-500 flex items-start gap-2"
@@ -470,7 +491,7 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
           {step === 'info' ? (
             <button type="button"
               onClick={() => {
-                if (!form.full_name || !form.email || !form.password) { setError(`${t('fullName')}, ${t('email')}, ${t('password')}`); return }
+                if (!form.full_name || !form.email) { setError(`${t('fullName')}, ${t('email')}`); return }
                 setError(''); setStep('copy')
               }}
               className="flex-1 h-9 rounded-lg text-white text-sm font-semibold transition-opacity"

@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase'
+import { edgeFunctionUrl } from '@/lib/supabase-edge'
 import { writeOnboardingComplete } from '@/lib/trainer-onboarding-storage'
 
 type Step = 1 | 2 | 3
@@ -13,11 +14,6 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onFinished: () => void
-}
-
-function randomTempPassword() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
 export default function TrainerOnboardingWizard({ open, onOpenChange, onFinished }: Props) {
@@ -77,7 +73,7 @@ export default function TrainerOnboardingWizard({ open, onOpenChange, onFinished
         return
       }
       const response = await fetch(
-        'https://nvlrlubvxelrwdzggmno.supabase.co/functions/v1/create-client',
+        edgeFunctionUrl('create-client'),
         {
           method: 'POST',
           headers: {
@@ -87,7 +83,6 @@ export default function TrainerOnboardingWizard({ open, onOpenChange, onFinished
           body: JSON.stringify({
             trainer_id: trainer.id,
             email: email.trim(),
-            password: randomTempPassword(),
             full_name: fullName.trim(),
             goal: null,
             date_of_birth: null,
