@@ -5,6 +5,18 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Routes accessible even when subscription is locked/canceled
 const SUBSCRIPTION_FREE_PATHS = ['/dashboard/profile', '/dashboard/billing', '/login', '/register']
 
+/** Paths that must work without a session (email links carry tokens in #hash or ?code — not visible to middleware). */
+const PUBLIC_UNAUTH_PATHS = ['/login', '/register', '/client-auth', '/reset-password'] as const
+
+function allowsUnauthenticated(pathname: string): boolean {
+  return PUBLIC_UNAUTH_PATHS.some((p) => pathname.startsWith(p))
+}
+
+/** Logged-in users hitting these get sent to the dashboard (not client-auth / reset-password — different roles). */
+function isAuthLandingPath(pathname: string): boolean {
+  return pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')
+}
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -25,24 +37,26 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
-  const isPublicPath = pathname.startsWith('/login') || pathname.startsWith('/register')
-
-  // Unauthenticated → login
-  if (!user && !isPublicPath) {
+  // Unauthenticated → login (except public pages; client-auth must load to read #access_token from email)
+  if (!user && !allowsUnauthenticated(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  // Authenticated on root/login/register → dashboard
-  if (user && (pathname === '/' || isPublicPath)) {
+  // Authenticated on root/login/register → dashboard (not /client-auth or /reset-password)
+  if (user && isAuthLandingPath(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // ── Subscription guard for authenticated users ───────────────────────────
-  if (user && !SUBSCRIPTION_FREE_PATHS.some(p => pathname.startsWith(p))) {
+  // ── Subscription guard (trainers only; skip client-auth / reset-password / login-area) ──
+  if (
+    user &&
+    !allowsUnauthenticated(pathname) &&
+    !SUBSCRIPTION_FREE_PATHS.some((p) => pathname.startsWith(p))
+  ) {
     const adminDb = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
