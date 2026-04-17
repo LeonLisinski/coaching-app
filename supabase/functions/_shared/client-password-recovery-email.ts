@@ -1,3 +1,4 @@
+/// <reference path="./deno.d.ts" />
 /**
  * Password reset email for clients only — link must point at /client-auth (web).
  * Sent via Resend; same secrets as client-invite-email.ts.

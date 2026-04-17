@@ -1,3 +1,4 @@
+/// <reference path="./deno.d.ts" />
 /**
  * Custom invite email for clients (separate from trainer / default Supabase templates).
  * Sent via Resend — set RESEND_API_KEY and RESEND_FROM on the edge function.
