@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket, Sparkles } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboarding-storage'
 
 const ACCENT_COLORS: { key: AccentColor; hex: string }[] = [
   { key: 'violet', hex: '#7c3aed' },
@@ -32,6 +34,7 @@ interface Props {
 }
 
 export default function SettingsDialog({ open, onClose }: Props) {
+  const router = useRouter()
   const t = useTranslations('settings')
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -588,6 +591,45 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
           {tab === 'contact' && (
             <div className="space-y-4">
+              <div className="relative overflow-hidden rounded-2xl border border-gray-100/90 bg-white p-5 shadow-sm ring-1 ring-black/[0.04] dark:border-white/10 dark:bg-[oklch(0.18_0.02_264)] dark:ring-white/8">
+                <div
+                  className="absolute inset-x-0 top-0 h-1 opacity-90"
+                  style={{
+                    background: `linear-gradient(90deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 65%, #a78bfa), var(--app-accent))`,
+                  }}
+                />
+                <div className="flex items-start gap-3">
+                  <div
+                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 14%, transparent)' }}
+                  >
+                    <Sparkles size={18} className="text-[var(--app-accent)]" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold tracking-tight text-gray-900 dark:text-white">{t('tutorialTitle')}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{t('tutorialDesc')}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem(LS_ONBOARDING_COMPLETE)
+                      localStorage.removeItem(LS_TOUR_COMPLETE)
+                      window.dispatchEvent(new Event('unitlift-restart-onboarding'))
+                    }
+                    onClose()
+                    router.push('/dashboard')
+                  }}
+                  className="mt-4 w-full rounded-xl py-3 text-sm font-semibold text-white shadow-md transition-[transform,box-shadow] hover:shadow-lg active:scale-[0.99]"
+                  style={{
+                    background: `linear-gradient(135deg, var(--app-accent), color-mix(in srgb, var(--app-accent) 88%, #1e1b4b))`,
+                  }}
+                >
+                  {t('tutorialButton')}
+                </button>
+              </div>
+
               <p className="text-sm text-gray-500">{t('contactDesc')}</p>
 
               <a

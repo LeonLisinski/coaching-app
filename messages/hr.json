@@ -1419,6 +1419,9 @@
     "modeLight": "Svjetlo",
     "modeDark": "Tamno",
     "contactDesc": "Trebate pomoć? Kontaktirajte nas putem nekog od kanala ispod.",
+    "tutorialTitle": "Ponovi uvodni tutorial",
+    "tutorialDesc": "Prikaži tooltip tour po dashboardu.",
+    "tutorialButton": "Pokreni tutorial",
     "website": "Web stranica",
     "madeWith": "Napravljeno s",
     "tabs": {
@@ -1506,6 +1509,7 @@
     "noNotifications": "Nema obavijesti",
     "goToMessages": "Idi na poruke →",
     "settingsTooltip": "Postavke",
+    "helpTooltip": "Pomoć",
     "newClientTooltip": "Novi klijent",
     "searchPlaceholder": "Pretraži...",
     "fallbackClient": "Klijent",
@@ -2134,5 +2138,45 @@
     "tpl5Text": "Javi mi kako ide s prehranom ovaj tjedan.",
     "tpl6Label": "Motivacija",
     "tpl6Text": "Svaki korak naprijed je napredak. Nastavi raditi, rezultati dolaze! 💯"
+  },
+  "onboarding": {
+    "wizard": {
+      "step1Title": "Dobrodošao/la u UnitLift",
+      "step1Body": "Za početak, dodaj svog prvog klijenta.",
+      "ctaStart": "Kreni",
+      "step2Title": "Dodaj klijenta",
+      "step2Hint": "Stvorit ćemo račun — klijent može postaviti lozinku iz pozivnog e-maila.",
+      "step2Name": "Ime i prezime",
+      "step2Email": "E-mail",
+      "skipForNow": "Preskoči za sada",
+      "next": "Dalje",
+      "creating": "Spremanje…",
+      "errRequired": "Unesi ime i e-mail.",
+      "errNotLoggedIn": "Nisi prijavljen/a.",
+      "errSession": "Sesija je istekla. Osvježi stranicu.",
+      "errConnection": "Greška veze. Pokušaj ponovo.",
+      "step3Title": "Spreman/na si!",
+      "step3Body": "Istražuj dashboard. Kad god trebaš pomoć, klikni „?“ u gornjem desnom kutu.",
+      "openDashboard": "Otvori dashboard",
+      "closeAria": "Zatvori uvod"
+    },
+    "tour": {
+      "step1Title": "Navigacija",
+      "step1Desc": "Ovdje se krećeš između sekcija aplikacije.",
+      "step2Title": "Dodaj klijenta",
+      "step2Desc": "Dodaj i upravljaj svim klijentima.",
+      "step3Title": "Pregled",
+      "step3Desc": "Pregled svih aktivnosti i statistika.",
+      "step4Title": "Chat",
+      "step4Desc": "Direktna komunikacija s klijentima.",
+      "step5Title": "Financije",
+      "step5Desc": "Prati plaćanja i pretplate klijenata.",
+      "step6Title": "Profil",
+      "step6Desc": "Postavke tvog računa i pretplate.",
+      "prevBtn": "Prethodna",
+      "nextBtn": "Dalje",
+      "doneBtn": "Gotovo",
+      "farewell": "Sve je spremno! Sretno s treningom."
+    }
   }
 }

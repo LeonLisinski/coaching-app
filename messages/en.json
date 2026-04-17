@@ -1419,6 +1419,9 @@
     "modeLight": "Light",
     "modeDark": "Dark",
     "contactDesc": "Need help? Reach out to us through any of the channels below.",
+    "tutorialTitle": "Repeat intro tutorial",
+    "tutorialDesc": "Show the tooltip tour across the dashboard again.",
+    "tutorialButton": "Start tutorial",
     "website": "Website",
     "madeWith": "Made with",
     "tabs": {
@@ -1506,6 +1509,7 @@
     "noNotifications": "No notifications",
     "goToMessages": "Go to messages →",
     "settingsTooltip": "Settings",
+    "helpTooltip": "Help",
     "newClientTooltip": "New client",
     "searchPlaceholder": "Search...",
     "fallbackClient": "Client",
@@ -2134,5 +2138,45 @@
     "tpl5Text": "Let me know how nutrition is going this week.",
     "tpl6Label": "Motivation",
     "tpl6Text": "Every step forward is progress. Keep working, results are coming! 💯"
+  },
+  "onboarding": {
+    "wizard": {
+      "step1Title": "Welcome to UnitLift",
+      "step1Body": "To get started, add your first client.",
+      "ctaStart": "Get started",
+      "step2Title": "Add a client",
+      "step2Hint": "We’ll create their account — they can set a password from the invite email.",
+      "step2Name": "Full name",
+      "step2Email": "Email",
+      "skipForNow": "Skip for now",
+      "next": "Next",
+      "creating": "Creating…",
+      "errRequired": "Enter name and email.",
+      "errNotLoggedIn": "You’re not signed in.",
+      "errSession": "Session expired. Refresh the page.",
+      "errConnection": "Connection error. Try again.",
+      "step3Title": "You’re ready!",
+      "step3Body": "Explore the dashboard. Whenever you need help, click the “?” in the top-right corner.",
+      "openDashboard": "Open dashboard",
+      "closeAria": "Close onboarding"
+    },
+    "tour": {
+      "step1Title": "Navigation",
+      "step1Desc": "Move between app sections from here.",
+      "step2Title": "Add client",
+      "step2Desc": "Add and manage all your clients.",
+      "step3Title": "Overview",
+      "step3Desc": "See activity and stats at a glance.",
+      "step4Title": "Chat",
+      "step4Desc": "Message your clients directly.",
+      "step5Title": "Finance",
+      "step5Desc": "Track payments and client subscriptions.",
+      "step6Title": "Profile",
+      "step6Desc": "Your account settings and subscription.",
+      "prevBtn": "Previous",
+      "nextBtn": "Next",
+      "doneBtn": "Done",
+      "farewell": "You’re all set! Good luck with coaching."
+    }
   }
 }
