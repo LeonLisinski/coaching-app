@@ -5,32 +5,21 @@ import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Send, CalendarCheck, CalendarX } from 'lucide-react'
+import {
+  findWeekOffsetForDate,
+  getWeekDays,
+  isoDate,
+  MAX_WEEK_OFFSET_BACK,
+} from '@/lib/client-tracking-week'
 
 type Props = { clientId: string }
 type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
 type DailyLog = { id: string; date: string; values: Record<string, any> }
 type Checkin = { id: string; date: string; values: Record<string, any>; trainer_note: string | null; trainer_comment: string | null }
 
-function isoDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 function parseVal(v: any): number {
   if (v === undefined || v === null || v === '') return NaN
   return parseFloat(String(v).replace(',', '.'))
-}
-
-function getWeekDays(checkinDay: number, weekOffset: number): Date[] {
-  const today = new Date()
-  const daysUntil = (checkinDay - today.getDay() + 7) % 7
-  const baseEnd = new Date(today)
-  baseEnd.setDate(today.getDate() + daysUntil + weekOffset * 7)
-  baseEnd.setHours(23, 59, 59, 999)
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(baseEnd)
-    d.setDate(baseEnd.getDate() - 6 + i)
-    d.setHours(0, 0, 0, 0)
-    return d
-  })
 }
 
 export default function CheckinOverview({ clientId }: Props) {
@@ -167,28 +156,69 @@ export default function CheckinOverview({ clientId }: Props) {
   const days = getWeekDays(checkinDay, weekOffset)
   const fmt = (d: Date) => d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
 
+  const jumpToPastDay = (daysAgo: number) => {
+    if (checkinDay === null) return
+    const d = new Date()
+    d.setHours(12, 0, 0, 0)
+    d.setDate(d.getDate() - daysAgo)
+    const w = findWeekOffsetForDate(checkinDay, d, Math.abs(MAX_WEEK_OFFSET_BACK))
+    if (w !== null) setWeekOffset(w)
+  }
+
   return (
     <div className="space-y-4">
-      {/* Week navigator */}
-      <div className="flex items-center justify-between bg-gray-50/80 rounded-xl px-4 py-2.5 border border-gray-100">
-        <button
-          onClick={() => setWeekOffset(w => w - 1)}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition-all text-gray-500"
-        >
-          <ChevronLeft size={15} />
-        </button>
-        <div className="text-center">
-          <p className="text-sm font-semibold text-gray-800">{fmt(days[0])} — {fmt(days[6])}</p>
-          {weekOffset === 0 && <p className="text-[11px] text-teal-500 font-medium">{t('thisWeek')}</p>}
-          {weekOffset < 0 && <p className="text-[11px] text-gray-400">{Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}</p>}
+      {/* Week navigator — mora biti jasno na mobitelu (strelica lijevo = prošlost) */}
+      <div className="rounded-2xl border-2 border-teal-200/80 bg-gradient-to-b from-teal-50/90 to-white px-3 py-3 sm:px-4 shadow-sm">
+        <div className="mb-2">
+          <p className="text-sm font-bold text-gray-900">{t('weekRangeTitle')}</p>
+          <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{t('weekRangeSubtitle')}</p>
         </div>
-        <button
-          onClick={() => setWeekOffset(w => w + 1)}
-          disabled={weekOffset >= 0}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white border border-transparent hover:border-gray-200 transition-all text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronRight size={15} />
-        </button>
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            aria-label={t('weekBackAria')}
+            onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
+            disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
+            className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-white border-2 border-teal-200 text-teal-700 shadow-sm hover:bg-teal-50 active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white"
+          >
+            <ChevronLeft size={22} strokeWidth={2.5} />
+          </button>
+          <div className="text-center min-w-0 flex-1 px-1">
+            <p className="text-sm sm:text-base font-bold text-gray-900 tabular-nums">{fmt(days[0])} — {fmt(days[6])}</p>
+            {weekOffset === 0 && <p className="text-[11px] text-teal-600 font-semibold mt-0.5">{t('thisWeek')}</p>}
+            {weekOffset < 0 && (
+              <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+                {Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={t('weekForwardAria')}
+            onClick={() => setWeekOffset(w => w + 1)}
+            disabled={weekOffset >= 0}
+            className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-white border-2 border-gray-200 text-gray-600 shadow-sm hover:bg-gray-50 active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={22} strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('quickJumpPastDays')}</p>
+        <div className="flex flex-wrap gap-2">
+          {([1, 2, 3] as const).map(daysAgo => (
+            <button
+              key={daysAgo}
+              type="button"
+              onClick={() => jumpToPastDay(daysAgo)}
+              className="text-[11px] px-3 py-1.5 rounded-full font-medium border border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
+            >
+              {daysAgo === 1 ? t('jumpYesterday') : daysAgo === 2 ? t('jumpTwoDaysAgo') : t('jumpThreeDaysAgo')}
+            </button>
+          ))}
+        </div>
+        <p className="text-[10px] text-gray-400 leading-snug">{t('maxPastWeeksHint', { n: Math.abs(MAX_WEEK_OFFSET_BACK) })}</p>
       </div>
 
       {loading ? (

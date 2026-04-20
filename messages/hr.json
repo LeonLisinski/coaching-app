@@ -638,6 +638,10 @@
       "fat": "Masti",
       "average": "Ø Prosjek",
       "checkinDayLegend": "● = check-in dan",
+      "quickJumpWeeks": "Brzi skok (tjedni unazad)",
+      "weeksAgo1": "1 tj",
+      "weeksAgo2": "2 tj",
+      "weeksAgo3": "3 tj",
       "noWorkouts": "Nema zabilježenih treninga",
       "last": "zadnji:",
       "doneTimes": "× odrađeno",
@@ -1275,7 +1279,16 @@
         "day": "Dan",
         "average": "Prosjek",
         "checkinDayLegend": "● = dan check-ina",
-        "loading": "Učitava..."
+        "loading": "Učitava...",
+        "weekRangeTitle": "Koji tjedan?",
+        "weekRangeSubtitle": "Strelicama ← → mijenjaš tjedan; gumbi ispod skaču na zadnja 2–3 dana.",
+        "weekBackAria": "Prošli tjedan",
+        "weekForwardAria": "Noviji tjedan (prema danas)",
+        "quickJumpPastDays": "Brzi skok (dnevni unosi)",
+        "jumpYesterday": "Jučer",
+        "jumpTwoDaysAgo": "Prekjučer",
+        "jumpThreeDaysAgo": "Prije 3 dana",
+        "maxPastWeeksHint": "Možeš ići do {n} tjedana unazad — isti prozor kao prehrana i trening."
       },
       "form": {
         "date": "Datum",

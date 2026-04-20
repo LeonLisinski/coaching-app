@@ -638,6 +638,10 @@
       "fat": "Fat",
       "average": "Ø Average",
       "checkinDayLegend": "● = check-in day",
+      "quickJumpWeeks": "Quick jump (weeks back)",
+      "weeksAgo1": "1 wk",
+      "weeksAgo2": "2 wk",
+      "weeksAgo3": "3 wk",
       "noWorkouts": "No workouts recorded",
       "last": "last:",
       "doneTimes": "× done",
@@ -1275,7 +1279,16 @@
         "day": "Day",
         "average": "Average",
         "checkinDayLegend": "● = check-in day",
-        "loading": "Loading..."
+        "loading": "Loading...",
+        "weekRangeTitle": "Which week?",
+        "weekRangeSubtitle": "Use ← → to move between weeks, or the shortcuts below for recent days.",
+        "weekBackAria": "Previous week",
+        "weekForwardAria": "Next week (toward today)",
+        "quickJumpPastDays": "Quick jump (fill daily rows)",
+        "jumpYesterday": "Yesterday",
+        "jumpTwoDaysAgo": "2 days ago",
+        "jumpThreeDaysAgo": "3 days ago",
+        "maxPastWeeksHint": "You can go back up to {n} weeks — same week window as nutrition & training."
       },
       "form": {
         "date": "Date",

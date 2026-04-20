@@ -11,7 +11,7 @@ import ClientWorkoutDetailSheetContent from '@/app/dashboard/clients/[id]/compon
 import ClientTrainingProgress from '@/app/dashboard/clients/[id]/components/client-training-progress'
 import ClientTrainingOverview from '@/app/dashboard/clients/[id]/components/client-training-overview'
 import ClientTrainingPlanHistory from '@/app/dashboard/clients/[id]/components/client-training-plan-history'
-import { getWeekDays, isoDate } from '@/lib/client-tracking-week'
+import { getWeekDays, isoDate, MAX_WEEK_OFFSET_BACK } from '@/lib/client-tracking-week'
 import { buildPlannedRows, logVolume, TrainingAssignment, TrainingWorkoutLog } from '@/lib/training-metrics'
 import { findAssignmentForPlanId } from '@/lib/workout-log-sets'
 
@@ -140,7 +140,12 @@ export default function ClientTrainingTracking({
       {subTab === 'week' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-1">
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w - 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
+              disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
+            >
               <ChevronLeft size={14} />
             </Button>
             <div className="text-center">
@@ -152,6 +157,22 @@ export default function ClientTrainingTracking({
             <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
               <ChevronRight size={14} />
             </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('quickJumpWeeks')}</p>
+            <div className="flex flex-wrap gap-2">
+              {([1, 2, 3] as const).map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWeekOffset(-n)}
+                  className="text-[11px] px-3 py-1.5 rounded-full font-medium border border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50/40 transition-colors"
+                >
+                  {n === 1 ? t('weeksAgo1') : n === 2 ? t('weeksAgo2') : t('weeksAgo3')}
+                </button>
+              ))}
+            </div>
           </div>
 
           <Card className="overflow-hidden border-gray-200/80 shadow-sm">

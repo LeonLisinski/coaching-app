@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { UtensilsCrossed, ChevronLeft, ChevronRight, Dumbbell } from 'lucide-react'
 import ClientTrainingTracking from '@/app/dashboard/clients/[id]/components/client-training-tracking'
-import { getWeekDays, isoDate } from '@/lib/client-tracking-week'
+import { getWeekDays, isoDate, MAX_WEEK_OFFSET_BACK } from '@/lib/client-tracking-week'
 
 type Props = { clientId: string }
 
@@ -102,7 +102,12 @@ export default function ClientHistory({ clientId }: Props) {
       {tab === 'Prehrana' && (
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-1">
-            <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w - 1)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
+              disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
+            >
               <ChevronLeft size={14} />
             </Button>
             <div className="text-center">
@@ -112,6 +117,22 @@ export default function ClientHistory({ clientId }: Props) {
             <Button variant="outline" size="sm" onClick={() => setWeekOffset(w => w + 1)} disabled={weekOffset >= 0}>
               <ChevronRight size={14} />
             </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5 mb-3">
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('quickJumpWeeks')}</p>
+            <div className="flex flex-wrap gap-2">
+              {([1, 2, 3] as const).map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWeekOffset(-n)}
+                  className="text-[11px] px-3 py-1.5 rounded-full font-medium border border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50/40 transition-colors"
+                >
+                  {n === 1 ? t('weeksAgo1') : n === 2 ? t('weeksAgo2') : t('weeksAgo3')}
+                </button>
+              ))}
+            </div>
           </div>
 
           <Card className="overflow-hidden">
