@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import { sendResendEmail } from '@/lib/resend-server'
 import { escapeHtml } from '@/lib/html-escape'
 import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
+import {
+  manualReminderEmail,
+  parseReminderLocale,
+  reminderGreetingLine,
+} from '@/lib/reminder-email-copy'
 
 // Manual reminder: Resend email + optional push (Edge Function) in parallel.
 
@@ -22,8 +27,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { client_id, message } = await req.json()
+  const { client_id, message, locale: localeRaw } = await req.json()
   if (!client_id) return NextResponse.json({ error: 'Missing client_id' }, { status: 400 })
+  const locale = parseReminderLocale(localeRaw)
+  const copy = manualReminderEmail[locale]
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,15 +52,17 @@ export async function POST(req: NextRequest) {
   const rawProf = row.profiles as { email?: string | null; full_name?: string | null } | { email?: string | null; full_name?: string | null }[] | null
   const profile = Array.isArray(rawProf) ? rawProf[0] : rawProf
   const clientEmail = profile?.email?.trim()
-  const firstNameRaw = profile?.full_name?.split(' ')[0] || 'korisniče'
-  const safeMsg = escapeHtml(message || 'Podsjetnik za check-in.')
+  const firstNameRaw = profile?.full_name?.split(' ')[0] || ''
+  const safeMsg = escapeHtml(message || copy.defaultMessage)
+  const greeting = reminderGreetingLine(locale, firstNameRaw)
+  const bodyInner = `<p style="margin:0 0 10px 0;font-size:15px;color:#334155;line-height:1.55;">${greeting}</p><p style="margin:0;font-size:15px;color:#334155;line-height:1.55;">${safeMsg.replace(/\n/g, '<br/>')}</p>`
   const edgeUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-client-push`
 
   const html = clientEmail
     ? buildCheckinReminderEmailHtml({
-        clientName: firstNameRaw,
-        title: 'Podsjetnik za check-in',
-        bodyHtml: `<p style="margin:0;">${safeMsg.replace(/\n/g, '<br/>')}</p>`,
+        lang: locale,
+        title: copy.title,
+        bodyHtml: bodyInner,
       })
     : ''
 
@@ -65,7 +74,7 @@ export async function POST(req: NextRequest) {
     const [emailR, pushOk] = await Promise.all([
       sendResendEmail({
         to: clientEmail,
-        subject: 'Podsjetnik: check-in – UnitLift',
+        subject: copy.subject,
         html,
       }),
       fetch(edgeUrl, {

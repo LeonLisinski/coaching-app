@@ -8,6 +8,7 @@ import {
 } from '@/lib/reminder-calendar'
 import { escapeHtml } from '@/lib/html-escape'
 import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
+import { cronCheckinReminder, reminderGreetingLine } from '@/lib/reminder-email-copy'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -107,18 +108,18 @@ export async function GET(req: NextRequest) {
         const inserted = await tryInsertDedupe(supabase, 'checkin', dedupeKey)
         if (!inserted) continue
 
-        const nameRaw = c.name?.split(' ')[0] || 'korisniče'
+        const nameRaw = c.name?.split(' ')[0] || ''
+        const greet = reminderGreetingLine('hr', nameRaw)
+        const line2 = escapeHtml(cronCheckinReminder.bodyLine)
         const html = buildCheckinReminderEmailHtml({
-          clientName: nameRaw,
-          title: 'Tjedni check-in',
-          bodyHtml: `<p style="margin:0;">${escapeHtml(
-            'Danas je dan za check-in — predaj ga u aplikaciji kad stigneš.',
-          )}</p>`,
+          lang: 'hr',
+          title: cronCheckinReminder.title,
+          bodyHtml: `<p style="margin:0 0 10px 0;font-size:15px;color:#334155;line-height:1.55;">${greet}</p><p style="margin:0;font-size:15px;color:#334155;line-height:1.55;">${line2}</p>`,
         })
 
         const r = await sendResendEmail({
           to: c.email!,
-          subject: 'Podsjetnik: tjedni check-in – UnitLift',
+          subject: cronCheckinReminder.subject,
           html,
         })
         if (r.ok) checkinSent++

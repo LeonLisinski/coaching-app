@@ -1,22 +1,24 @@
 /**
- * Kratki podsjetnik na check-in — svijetla plava kartica (slično transakcijskim mailovima), bez gumba i linkova.
+ * Kratki podsjetnik na check-in — svijetla plava kartica, bez gumba i linkova.
+ * Tijelo (pozdrav + poruka) dolazi kao jedan HTML blok iz pozivatelja.
  */
 
 import { escapeHtml } from '@/lib/html-escape'
 
 export function buildCheckinReminderEmailHtml(opts: {
-  clientName: string
-  /** Već escapiran HTML (npr. odlomci s <br/>) */
-  bodyHtml: string
+  /** Lang atribut za <html> */
+  lang: 'hr' | 'en'
   title: string
   subtitle?: string
+  /** Cijeli sadržaj ispod naslova (pozdrav + poruka, već siguran HTML) */
+  bodyHtml: string
 }): string {
-  const safeName = escapeHtml(opts.clientName || 'korisniče')
   const title = escapeHtml(opts.title)
   const subtitle = opts.subtitle ? escapeHtml(opts.subtitle) : ''
+  const lang = opts.lang
 
   return `<!DOCTYPE html>
-<html lang="hr">
+<html lang="${lang}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -40,12 +42,7 @@ export function buildCheckinReminderEmailHtml(opts: {
           </tr>
           <tr>
             <td style="padding:4px 24px 26px 24px;">
-              <p style="margin:0 0 12px 0;font-size:15px;color:#334155;line-height:1.55;">
-                Bok <strong style="color:#0f172a;">${safeName}</strong>,
-              </p>
-              <div style="margin:0;font-size:15px;color:#334155;line-height:1.55;">
-                ${opts.bodyHtml}
-              </div>
+              ${opts.bodyHtml}
             </td>
           </tr>
         </table>

@@ -135,7 +135,7 @@ export default function CheckinOverview({ clientId }: Props) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ client_id: clientId, message }),
+        body: JSON.stringify({ client_id: clientId, message, locale }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {
