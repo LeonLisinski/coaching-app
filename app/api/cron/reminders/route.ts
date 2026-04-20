@@ -7,6 +7,7 @@ import {
   getReminderCalendar,
 } from '@/lib/reminder-calendar'
 import { escapeHtml } from '@/lib/html-escape'
+import { buildCheckinReminderEmailHtml, getCheckinReminderAppUrl } from '@/lib/email-checkin-reminder-html'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -106,16 +107,21 @@ export async function GET(req: NextRequest) {
         const inserted = await tryInsertDedupe(supabase, 'checkin', dedupeKey)
         if (!inserted) continue
 
-        const safeName = escapeHtml(c.name?.split(' ')[0] || 'korisniče')
-        const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0b0a12;color:#e4e4e7;padding:24px;">
-<p>Bok <strong>${safeName}</strong>,</p>
-<p>Danas je dan za <strong>tjedni check-in</strong> u UnitLiftu. Otvori mobilnu aplikaciju i predaj check-in kad stigneš.</p>
-<p style="margin-top:24px;"><a href="${escapeHtml(url)}" style="color:#a78bfa;">Otvori UnitLift</a></p>
-</body></html>`
+        const nameRaw = c.name?.split(' ')[0] || 'korisniče'
+        const html = buildCheckinReminderEmailHtml({
+          clientName: nameRaw,
+          title: 'Tjedni check-in',
+          subtitle: 'Podsjetnik',
+          bodyHtml: `<p style="margin:0;">${escapeHtml(
+            'Danas je dan za tjedni check-in. Otvori UnitLift i predaj check-in kad stigneš.',
+          )}</p>`,
+          ctaUrl: getCheckinReminderAppUrl(),
+          ctaLabel: 'Otvori UnitLift',
+        })
 
         const r = await sendResendEmail({
           to: c.email!,
-          subject: 'Podsjetnik: tjedni check-in (UnitLift)',
+          subject: 'Podsjetnik: tjedni check-in – UnitLift',
           html,
         })
         if (r.ok) checkinSent++
