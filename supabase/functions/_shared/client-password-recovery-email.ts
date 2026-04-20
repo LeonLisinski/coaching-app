@@ -87,7 +87,7 @@ export async function sendClientPasswordRecoveryEmail(opts: {
     throw new Error('RESEND_API_KEY is not configured for the send-client-password-reset function')
   }
 
-  const from = Deno.env.get('RESEND_FROM') ?? 'UnitLift <onboarding@resend.dev>'
+  const from = Deno.env.get('RESEND_FROM') ?? 'UnitLift <no-reply@unitlift.com>'
   const subject =
     Deno.env.get('CLIENT_PASSWORD_RESET_EMAIL_SUBJECT') ?? 'Resetiranje lozinke – UnitLift'
 

@@ -3,7 +3,7 @@
  * Normalizes `from` so invalid RESEND_FROM env values don't break sends or leak raw API errors to clients.
  */
 
-const DEFAULT_FROM = 'UnitLift <onboarding@resend.dev>'
+const DEFAULT_FROM = 'UnitLift <no-reply@unitlift.com>'
 
 /** Resend: `email@x` or `Name <email@x>`. Invalid values fall back to DEFAULT_FROM. */
 export function normalizeResendFrom(raw: string | undefined): string {

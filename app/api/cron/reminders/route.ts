@@ -7,7 +7,7 @@ import {
   getReminderCalendar,
 } from '@/lib/reminder-calendar'
 import { escapeHtml } from '@/lib/html-escape'
-import { buildCheckinReminderEmailHtml, getCheckinReminderAppUrl } from '@/lib/email-checkin-reminder-html'
+import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -111,12 +111,9 @@ export async function GET(req: NextRequest) {
         const html = buildCheckinReminderEmailHtml({
           clientName: nameRaw,
           title: 'Tjedni check-in',
-          subtitle: 'Podsjetnik',
           bodyHtml: `<p style="margin:0;">${escapeHtml(
-            'Danas je dan za tjedni check-in. Otvori UnitLift i predaj check-in kad stigneš.',
+            'Danas je dan za check-in — predaj ga u aplikaciji kad stigneš.',
           )}</p>`,
-          ctaUrl: getCheckinReminderAppUrl(),
-          ctaLabel: 'Otvori UnitLift',
         })
 
         const r = await sendResendEmail({

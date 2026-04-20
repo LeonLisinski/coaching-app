@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendResendEmail } from '@/lib/resend-server'
 import { escapeHtml } from '@/lib/html-escape'
-import { buildCheckinReminderEmailHtml, getCheckinReminderAppUrl } from '@/lib/email-checkin-reminder-html'
+import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
 
 // Manual reminder: Resend email + optional push (Edge Function) in parallel.
 
@@ -53,10 +53,7 @@ export async function POST(req: NextRequest) {
     ? buildCheckinReminderEmailHtml({
         clientName: firstNameRaw,
         title: 'Podsjetnik za check-in',
-        subtitle: 'Podsjetnik',
         bodyHtml: `<p style="margin:0;">${safeMsg.replace(/\n/g, '<br/>')}</p>`,
-        ctaUrl: getCheckinReminderAppUrl(),
-        ctaLabel: 'Otvori UnitLift',
       })
     : ''
 

@@ -1,18 +1,8 @@
 /**
- * HTML za podsjetnik na check-in — isti vizualni jezik kao reset lozinke (client-password-recovery-email).
- * Gumb vodi na klijentski web (isti URL kao ostatak appa).
+ * Kratki podsjetnik na check-in — svijetla plava kartica (slično transakcijskim mailovima), bez gumba i linkova.
  */
 
 import { escapeHtml } from '@/lib/html-escape'
-
-/** Baza klijentskog appa (isti fallback kao cron / ostale poveznice). */
-export function getCheckinReminderAppUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.APP_URL?.trim() ||
-    'https://app.unitlift.com'
-  )
-}
 
 export function buildCheckinReminderEmailHtml(opts: {
   clientName: string
@@ -20,14 +10,10 @@ export function buildCheckinReminderEmailHtml(opts: {
   bodyHtml: string
   title: string
   subtitle?: string
-  ctaUrl: string
-  ctaLabel?: string
 }): string {
   const safeName = escapeHtml(opts.clientName || 'korisniče')
-  const safeLink = escapeHtml(opts.ctaUrl)
   const title = escapeHtml(opts.title)
   const subtitle = opts.subtitle ? escapeHtml(opts.subtitle) : ''
-  const ctaLabel = escapeHtml(opts.ctaLabel || 'Otvori UnitLift')
 
   return `<!DOCTYPE html>
 <html lang="hr">
@@ -36,47 +22,34 @@ export function buildCheckinReminderEmailHtml(opts: {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>UnitLift</title>
 </head>
-<body style="margin:0;background:#0b0a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0a12;padding:32px 16px;">
+<body style="margin:0;background:#e8eef5;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#e8eef5;padding:28px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" style="max-width:520px;background:linear-gradient(180deg,#15131f 0%,#0e0c16 100%);border-radius:20px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <table role="presentation" width="100%" style="max-width:480px;background:#ffffff;border-radius:16px;border:1px solid #dbe4f0;box-shadow:0 2px 8px rgba(15,23,42,0.06);overflow:hidden;">
           <tr>
-            <td style="padding:28px 28px 8px 28px;text-align:center;">
-              <div style="display:inline-block;padding:10px 14px;border-radius:14px;background:#5b21b6;margin-bottom:16px;">
-                <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;">UnitLift</span>
+            <td style="padding:24px 24px 12px 24px;text-align:center;">
+              <div style="display:inline-block;padding:8px 14px;border-radius:12px;background:#2563eb;">
+                <span style="font-size:16px;font-weight:800;color:#ffffff;letter-spacing:-0.02em;">UnitLift</span>
               </div>
-              <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#f4f4f5;line-height:1.25;">
+              <h1 style="margin:14px 0 6px 0;font-size:19px;font-weight:700;color:#0f172a;line-height:1.3;">
                 ${title}
               </h1>
-              ${subtitle ? `<p style="margin:0;font-size:14px;color:#a1a1aa;line-height:1.55;">${subtitle}</p>` : ''}
+              ${subtitle ? `<p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">${subtitle}</p>` : ''}
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 28px 24px 28px;">
-              <p style="margin:0 0 16px 0;font-size:15px;color:#d4d4d8;line-height:1.6;">
-                Bok <strong style="color:#fff;">${safeName}</strong>,
+            <td style="padding:4px 24px 26px 24px;">
+              <p style="margin:0 0 12px 0;font-size:15px;color:#334155;line-height:1.55;">
+                Bok <strong style="color:#0f172a;">${safeName}</strong>,
               </p>
-              <div style="margin:0 0 20px 0;font-size:15px;color:#d4d4d8;line-height:1.6;">
+              <div style="margin:0;font-size:15px;color:#334155;line-height:1.55;">
                 ${opts.bodyHtml}
               </div>
-              <div style="text-align:center;margin:28px 0;">
-                <a href="${safeLink}" style="display:inline-block;padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#ffffff !important;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 8px 24px rgba(91,33,182,0.35);">
-                  ${ctaLabel}
-                </a>
-              </div>
-              <p style="margin:0 0 16px 0;font-size:12px;color:#71717a;line-height:1.5;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
-                <strong style="color:#a1a1aa;">English</strong><br/>
-                This is a <strong>UnitLift</strong> check-in reminder. Use the button above to open UnitLift in your browser.
-              </p>
-              <p style="margin:0;font-size:11px;color:#52525b;word-break:break-all;">
-                Ako gumb ne radi, kopiraj ovaj link u preglednik:<br/>
-                <a href="${safeLink}" style="color:#a78bfa;">${safeLink}</a>
-              </p>
             </td>
           </tr>
         </table>
-        <p style="margin:24px 0 0 0;font-size:11px;color:#52525b;text-align:center;">
+        <p style="margin:20px 0 0 0;font-size:11px;color:#94a3b8;text-align:center;">
           © UnitLift · unitlift.com
         </p>
       </td>

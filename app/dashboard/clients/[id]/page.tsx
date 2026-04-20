@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import MobileClientDetail from '@/app/dashboard/clients/[id]/mobile-client-detail'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useLayoutEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { usePersistedTab } from '@/app/contexts/tab-state'
@@ -141,6 +141,15 @@ function ClientDetailPageContent() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Track which tabs have been mounted — once visited, keep alive to avoid re-fetching
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set([urlTab || 'pregled']))
+  // activeTab can be restored from persistence (localStorage / __tabState) while mountedTabs only
+  // knew urlTab||pregled — then the tab header shows e.g. Check-in but content stays empty until
+  // the user switches tabs. Always merge the current active tab before paint.
+  useLayoutEffect(() => {
+    setMountedTabs(prev => {
+      if (prev.has(activeTab)) return prev
+      return new Set([...prev, activeTab])
+    })
+  }, [activeTab])
 
   const noName = t('noName')
 

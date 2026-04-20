@@ -90,7 +90,7 @@ export async function sendClientInviteEmail(opts: {
     throw new Error('RESEND_API_KEY is not configured for the create-client function')
   }
 
-  const from = Deno.env.get('RESEND_FROM') ?? 'UnitLift <onboarding@resend.dev>'
+  const from = Deno.env.get('RESEND_FROM') ?? 'UnitLift <no-reply@unitlift.com>'
   const subject =
     Deno.env.get('CLIENT_INVITE_EMAIL_SUBJECT') ?? 'Postavi svoju UnitLift lozinku'
 
