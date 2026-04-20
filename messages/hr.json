@@ -1936,6 +1936,7 @@
     "remindMessage": "Hej! Nezaboravi poslati tjedni check-in 💪",
     "remindSent": "✓ Poslano",
     "remindBtn": "🔔 Podsjeti",
+    "remindFailed": "Slanje nije uspjelo. Pokušaj ponovo.",
     "sortNewest": "Najnoviji prvo",
     "sortOldest": "Najstariji prvo",
     "closeCompare": "Zatvori usporedbu",

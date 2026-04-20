@@ -53,6 +53,7 @@ export default function CheckinOverview({ clientId }: Props) {
   const [trainerId, setTrainerId] = useState<string | null>(null)
   const [pinging, setPinging] = useState(false)
   const [pinged, setPinged] = useState(false)
+  const [remindError, setRemindError] = useState<string | null>(null)
 
   useEffect(() => { fetchConfig() }, [clientId])
   useEffect(() => { if (checkinDay !== null) fetchData() }, [clientId, weekOffset, checkinDay])
@@ -126,17 +127,28 @@ export default function CheckinOverview({ clientId }: Props) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
     setPinging(true)
-    await fetch('/api/push/notify-client', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ client_id: clientId, message }),
-    })
-    setPinging(false)
-    setPinged(true)
-    setTimeout(() => setPinged(false), 3000)
+    setRemindError(null)
+    try {
+      const res = await fetch('/api/push/notify-client', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ client_id: clientId, message }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) {
+        setRemindError(typeof data.error === 'string' ? data.error : t2('remindFailed'))
+        return
+      }
+      setPinged(true)
+      setTimeout(() => setPinged(false), 4000)
+    } catch {
+      setRemindError(t2('remindFailed'))
+    } finally {
+      setPinging(false)
+    }
   }
 
   const avg = (paramId: string) => {
@@ -194,8 +206,9 @@ export default function CheckinOverview({ clientId }: Props) {
                   <p className="font-semibold text-sm text-gray-800">{t('weeklyCheckin')}</p>
                   <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Remind button — shown when check-in is missing for this week */}
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-2">
+                  {/* Remind: email (Resend) + push; prije je bio samo push */}
                   {!checkin && weekOffset === 0 && (
                     <button
                       onClick={() => pingClient(t2('remindMessage'))}
@@ -211,6 +224,10 @@ export default function CheckinOverview({ clientId }: Props) {
                       : t('notSent')
                     }
                   </span>
+                  </div>
+                  {remindError && (
+                    <p className="text-[10px] text-red-600 max-w-[220px] text-right leading-tight">{remindError}</p>
+                  )}
                 </div>
               </div>
 

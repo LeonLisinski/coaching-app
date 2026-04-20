@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendResendEmail } from '@/lib/resend-server'
-import { isoDateLocal } from '@/lib/checkin-engagement'
+import {
+  daysFromTodayToEndDate,
+  getIsoWeekFromYmd,
+  getReminderCalendar,
+} from '@/lib/reminder-calendar'
+import { escapeHtml } from '@/lib/html-escape'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
-
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function daysFromTodayToEndDate(endDateStr: string, from: Date): number {
-  const [y, m, d] = endDateStr.split('-').map(Number)
-  const end = new Date(y, m - 1, d)
-  const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate())
-  return Math.round((end.getTime() - fromDay.getTime()) / 86400000)
-}
 
 function pickCheckinDay(raw: unknown): number | null {
   if (raw == null) return null
@@ -62,13 +52,13 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const today = new Date()
-  const todayStr = isoDateLocal(today)
-  const todayDow = today.getDay()
+  const tz = process.env.REMINDER_TIMEZONE || 'Europe/Zagreb'
+  const { todayStr, todayDow } = getReminderCalendar(new Date(), tz)
 
   let checkinSent = 0
   let pkgSent = 0
   let paySent = 0
+  let checkinDueCount = 0
   const errors: string[] = []
 
   // ── Check-in reminders (clients) ───────────────────────────────────────────
@@ -97,6 +87,7 @@ export async function GET(req: NextRequest) {
     }))
 
     const due = cfgRows.filter(c => c.checkin_day !== null && c.checkin_day === todayDow && c.email)
+    checkinDueCount = due.length
     if (due.length) {
       const ids = due.map(c => c.id)
       // Samo check-ini za današnji datum — bez učitavanja cijele povijesti za te klijente
@@ -177,7 +168,7 @@ export async function GET(req: NextRequest) {
 
     for (const cp of cps || []) {
       const endDateStr = (cp as any).end_date as string
-      const daysLeft = daysFromTodayToEndDate(endDateStr, today)
+      const daysLeft = daysFromTodayToEndDate(endDateStr, todayStr)
       const milestones = [7, 3, 1, 0]
       if (!milestones.includes(daysLeft)) continue
 
@@ -235,7 +226,7 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error
 
-    const weekKey = `${today.getFullYear()}-W${getIsoWeek(today)}`
+    const weekKey = `${todayStr.slice(0, 4)}-W${getIsoWeekFromYmd(todayStr)}`
     const byTrainer = new Map<string, { email: string; name: string; items: { client: string; amount: number }[] }>()
 
     for (const p of pending || []) {
@@ -282,14 +273,12 @@ export async function GET(req: NextRequest) {
     checkinSent,
     pkgSent,
     paySent,
+    meta: {
+      timeZone: tz,
+      todayStr,
+      todayDow,
+      checkinDueCount,
+    },
     errors: errors.length ? errors : undefined,
   })
-}
-
-function getIsoWeek(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
-  const day = t.getUTCDay() || 7
-  t.setUTCDate(t.getUTCDate() + 4 - day)
-  const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1))
-  return Math.ceil(((+t - +y) / 86400000 + 1) / 7)
 }

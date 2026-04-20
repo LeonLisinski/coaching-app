@@ -1936,6 +1936,7 @@
     "remindMessage": "Hey! Don't forget to send your weekly check-in 💪",
     "remindSent": "✓ Sent",
     "remindBtn": "🔔 Remind",
+    "remindFailed": "Could not send. Try again.",
     "sortNewest": "Newest first",
     "sortOldest": "Oldest first",
     "closeCompare": "Close comparison",
