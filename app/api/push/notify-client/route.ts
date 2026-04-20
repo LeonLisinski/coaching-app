@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!emailSent && !pushSent) {
-    let errorKey: NotifyClientErrorKey
+    let errorKey: 'no_client_email' | 'email_config' | 'send_failed'
     if (!clientEmail) errorKey = 'no_client_email'
     else if (emailErrorKey === 'missing_key') errorKey = 'email_config'
     else errorKey = 'send_failed'
