@@ -1578,6 +1578,7 @@
     "statLateCheckin": "Kasni check-in",
     "statAvgRegularity": "Prosj. redovitost",
     "statCheckinRate": "check-in stopa",
+    "consistencyScoreLabel": "Angažman (0–100): omjer predanih check-inova i tjedana od početka suradnje",
     "statRevenueThisMonth": "Prihod ovaj mjesec",
     "statLatePayments": "Kasna plaćanja",
     "statUnreadMessages": "Nepročitane poruke",
@@ -1667,6 +1668,8 @@
     "measurementsCount": "({count} mjerenja)",
     "noWeightData": "Nema dostupnih mjerenja mase",
     "lastCheckin": "Zadnji check-in",
+    "consistencyTitle": "Angažman",
+    "consistencyHint": "0–100 · check-inovi u odnosu na tjedne od početka",
     "noCheckins": "Nema predanih check-inova",
     "activePlans": "Aktivni planovi",
     "noTrainingPlan": "Nema aktivnog plana treninga",
@@ -1789,7 +1792,10 @@
     "dayAbbr3": "Sri",
     "dayAbbr4": "Čet",
     "dayAbbr5": "Pet",
-    "dayAbbr6": "Sub"
+    "dayAbbr6": "Sub",
+    "consistencyScoreLabel": "Angažman (0–100): omjer predanih check-inova i tjedana od početka",
+    "consistencyScoreShort": "{n}%",
+    "consistencyScoreMeta": "angažman {n}%"
   },
   "addClient": {
     "stepAccount": "Račun",

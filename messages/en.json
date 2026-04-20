@@ -1578,6 +1578,7 @@
     "statLateCheckin": "Late check-in",
     "statAvgRegularity": "Avg. regularity",
     "statCheckinRate": "check-in rate",
+    "consistencyScoreLabel": "Engagement (0–100): check-ins vs. weeks since start",
     "statRevenueThisMonth": "Revenue this month",
     "statLatePayments": "Late payments",
     "statUnreadMessages": "Unread messages",
@@ -1667,6 +1668,8 @@
     "measurementsCount": "({count} measurements)",
     "noWeightData": "No weight measurements available",
     "lastCheckin": "Last check-in",
+    "consistencyTitle": "Engagement",
+    "consistencyHint": "0–100 · check-ins vs. weeks since start",
     "noCheckins": "No check-ins submitted",
     "activePlans": "Active plans",
     "noTrainingPlan": "No active training plan",
@@ -1789,7 +1792,10 @@
     "dayAbbr3": "Wed",
     "dayAbbr4": "Thu",
     "dayAbbr5": "Fri",
-    "dayAbbr6": "Sat"
+    "dayAbbr6": "Sat",
+    "consistencyScoreLabel": "Engagement (0–100): check-ins vs. weeks since start",
+    "consistencyScoreShort": "{n}%",
+    "consistencyScoreMeta": "{n}% engagement"
   },
   "addClient": {
     "stepAccount": "Account",

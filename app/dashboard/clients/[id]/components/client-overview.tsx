@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useTranslations } from 'next-intl'
+import { consistencyScore } from '@/lib/checkin-engagement'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -53,6 +54,7 @@ export default function ClientOverview({ clientId }: Props) {
   const [activeMeal, setActiveMeal] = useState<{ name: string; id: string } | null>(null)
   const [lastMessage, setLastMessage] = useState<{ content: string; created_at: string; isTrainer: boolean } | null>(null)
   const [trainerId, setTrainerId] = useState<string | null>(null)
+  const [engagementScore, setEngagementScore] = useState<number | null>(null)
 
   useEffect(() => { fetchOverview() }, [clientId])
 
@@ -64,15 +66,21 @@ export default function ClientOverview({ clientId }: Props) {
 
     const [
       { data: recentCheckins },
+      { count: checkinTotal },
+      { data: clientRow },
       { data: workout },
       { data: meal },
       { data: msgs },
     ] = await Promise.all([
       supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(12),
+      supabase.from('checkins').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
+      supabase.from('clients').select('start_date').eq('id', clientId).maybeSingle(),
       supabase.from('client_workout_plans').select('id, active, workout_plan:workout_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
       supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ])
+
+    setEngagementScore(consistencyScore(checkinTotal ?? 0, clientRow?.start_date ?? null))
 
     const weightKeys = ['težina', 'tezina', 'weight', 'masa', 'tjelesna_masa', 'tjelesna masa', 'body_weight']
     const pts = (recentCheckins || [])
@@ -210,6 +218,35 @@ export default function ClientOverview({ clientId }: Props) {
           </div>
         ) : (
           <p className="text-xs text-gray-400">{t('noCheckins')}</p>
+        )}
+      </div>
+
+      {/* Consistency / engagement score */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-violet-50">
+              <TrendingUp size={14} className="text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">{t('consistencyTitle')}</p>
+              <p className="text-[11px] text-gray-400 leading-snug">{t('consistencyHint')}</p>
+            </div>
+          </div>
+          {engagementScore !== null && (
+            <span className="text-lg font-extrabold tabular-nums" style={{ color: accentHex }}>{engagementScore}%</span>
+          )}
+        </div>
+        {engagementScore !== null && (
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${engagementScore}%`,
+                backgroundColor: engagementScore >= 70 ? '#34d399' : engagementScore >= 40 ? '#fbbf24' : '#fb7185',
+              }}
+            />
+          </div>
         )}
       </div>
 

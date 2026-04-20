@@ -12,6 +12,7 @@ import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 import CopyClientDialog from '@/app/dashboard/clients/copy-client-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
+import { consistencyScore } from '@/lib/checkin-engagement'
 
 type Client = {
   id: string
@@ -30,6 +31,7 @@ type Client = {
   packageEndDate?: string | null
   packageDaysLeft?: number | null
   checkin_day?: number | null
+  consistency_score?: number
 }
 
 function calcPackageDaysLeft(endDate: string | null | undefined): number | null {
@@ -150,7 +152,7 @@ function ClientsPageContent() {
     const clientIds = rawClients.map(c => c.id)
 
     // Fetch active packages + checkin config in parallel
-    const [{ data: cpData }, { data: ccData }] = await Promise.all([
+    const [{ data: cpData }, { data: ccData }, { data: checkinRows }] = await Promise.all([
       supabase
         .from('client_packages')
         .select('client_id, end_date, packages(name, color)')
@@ -160,7 +162,13 @@ function ClientsPageContent() {
         .from('checkin_config')
         .select('client_id, checkin_day')
         .in('client_id', clientIds),
+      supabase.from('checkins').select('client_id').in('client_id', clientIds),
     ])
+
+    const checkinCountMap: Record<string, number> = {}
+    for (const row of checkinRows || []) {
+      checkinCountMap[row.client_id] = (checkinCountMap[row.client_id] || 0) + 1
+    }
 
     const pkgMap: Record<string, { name: string; color: string; end_date: string }> = {}
     for (const cp of (cpData || [])) {
@@ -175,6 +183,7 @@ function ClientsPageContent() {
     setClients(rawClients.map(c => {
       const pkg = pkgMap[c.id]
       const daysLeft = pkg?.end_date ? calcPackageDaysLeft(pkg.end_date) : null
+      const totalCi = checkinCountMap[c.id] || 0
       return {
         ...c,
         activePackageName: pkg?.name || null,
@@ -182,6 +191,7 @@ function ClientsPageContent() {
         packageEndDate: pkg?.end_date || null,
         packageDaysLeft: daysLeft,
         checkin_day: checkinDayMap[c.id] ?? null,
+        consistency_score: consistencyScore(totalCi, c.start_date),
       }
     }))
     setLoading(false)
@@ -584,6 +594,12 @@ function ClientsPageContent() {
                       {age !== null && <><span className="mx-1.5 text-gray-200">·</span><span>{age}{tDetail('ageUnit')}</span></>}
                       {client.start_date && <><span className="mx-1.5 text-gray-200">·</span><span>{tCP('datePrefix')} {new Date(client.start_date).toLocaleDateString(locale)}</span></>}
                       {client.checkin_day != null && <><span className="mx-1.5 text-gray-200">·</span><span>{tCP('checkinDayPrefix')} {tDaysShort(String(client.checkin_day) as any)}</span></>}
+                      {client.consistency_score != null && (
+                        <>
+                          <span className="mx-1.5 text-gray-200">·</span>
+                          <span title={tCP('consistencyScoreLabel')}>{tCP('consistencyScoreMeta', { n: client.consistency_score })}</span>
+                        </>
+                      )}
                     </div>
                     {client.notes && (
                       <p className="text-[11px] text-gray-400 truncate max-w-[380px] italic" title={client.notes}>

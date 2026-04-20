@@ -18,6 +18,7 @@ import {
   Loader2, PartyPopper,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { isoDateLocal as isoDate, getCheckinStatus, getCheckinRate } from '@/lib/checkin-engagement'
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -45,41 +46,6 @@ type ActivityItem = {
   subtitle: string
   time: string
   clientId?: string
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function isoDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function getCheckinStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
-  if (checkinDay === null) return 'neutral'
-  const today = new Date()
-  const rawDaysBack = (today.getDay() - checkinDay + 7) % 7
-
-  // Today IS the check-in day — neutral until submitted today
-  if (rawDaysBack === 0) {
-    if (!lastCheckin) return 'neutral'
-    return lastCheckin >= isoDate(today) ? 'submitted' : 'neutral'
-  }
-
-  // Check-in day was rawDaysBack days ago — did they submit since then?
-  const expected = new Date(today)
-  expected.setDate(today.getDate() - rawDaysBack)
-  const expectedStr = isoDate(expected)
-
-  if (!lastCheckin) return 'neutral'  // no check-ins yet → neutral, not kasni
-  return lastCheckin >= expectedStr ? 'submitted' : 'late'
-}
-
-function getCheckinRate(totalCheckins: number, startDate: string | null): number {
-  if (!startDate) return 0
-  const start = new Date(startDate)
-  const now = new Date()
-  const msPerWeek = 7 * 24 * 60 * 60 * 1000
-  const weeksActive = Math.max(1, Math.floor((now.getTime() - start.getTime()) / msPerWeek))
-  return Math.min(100, Math.round((totalCheckins / weeksActive) * 100))
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -148,11 +114,11 @@ function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => voi
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-900 truncate">{client.full_name}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <div className="flex-1 max-w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex-1 max-w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden" title={t2('consistencyScoreLabel')}>
             <div className={`h-full rounded-full ${rateColor}`} style={{ width: `${client.checkin_rate}%` }} />
           </div>
-          <span className="text-xs text-gray-400 tabular-nums">{client.checkin_rate}%</span>
+          <span className="text-xs text-gray-400 tabular-nums" title={t2('consistencyScoreLabel')}>{client.checkin_rate}%</span>
         </div>
       </div>
       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${s.cls}`}>{s.label}</span>

@@ -4,27 +4,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Search, MessageSquare, X, ChevronRight, Users, AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { getCheckinStatus, consistencyScore, type CheckinEngagementStatus } from '@/lib/checkin-engagement'
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-type CheckinStatus = 'submitted' | 'late' | 'neutral'
-
-function isoDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function getCheckinStatus(checkinDay: number | null, lastCheckin: string | null): CheckinStatus {
-  if (checkinDay === null) return 'neutral'
-  const today = new Date()
-  const daysBack = (today.getDay() - checkinDay + 7) % 7
-  if (daysBack === 0) {
-    if (!lastCheckin) return 'neutral'
-    return lastCheckin >= isoDate(today) ? 'submitted' : 'neutral'
-  }
-  const expected = new Date(today)
-  expected.setDate(today.getDate() - daysBack)
-  if (!lastCheckin) return 'neutral'
-  return lastCheckin >= isoDate(expected) ? 'submitted' : 'late'
-}
+type CheckinStatus = CheckinEngagementStatus
 
 function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -48,11 +30,13 @@ type MobileClient = {
   email: string
   gender: string | null
   active: boolean
+  startDate: string | null
   packageName: string | null
   packageColor: string | null
   checkinDay: number | null
   lastCheckin: string | null
   checkinStatus: CheckinStatus
+  consistencyScore: number
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -87,7 +71,7 @@ export default function MobileClientsView() {
     const [{ data: clientData }, { data: subData }] = await Promise.all([
       supabase
         .from('clients')
-        .select(`id, gender, active, profiles!clients_user_id_fkey (full_name, email)`)
+        .select(`id, gender, active, start_date, profiles!clients_user_id_fkey (full_name, email)`)
         .eq('trainer_id', user.id)
         .eq('active', true)
         .order('created_at', { ascending: false }),
@@ -110,6 +94,11 @@ export default function MobileClientsView() {
       supabase.from('checkins').select('client_id, date').in('client_id', ids).order('date', { ascending: false }),
     ])
 
+    const checkinCountMap: Record<string, number> = {}
+    for (const row of ciData || []) {
+      checkinCountMap[row.client_id] = (checkinCountMap[row.client_id] || 0) + 1
+    }
+
     const pkgMap: Record<string, { name: string; color: string }> = {}
     for (const p of (pkgData || [])) {
       if (!pkgMap[p.client_id]) pkgMap[p.client_id] = p.packages as any
@@ -122,17 +111,20 @@ export default function MobileClientsView() {
     setClients(clientData.map((c: any) => {
       const checkinDay = cfgMap[c.id] ?? null
       const lastCheckin = ciMap[c.id] ?? null
+      const total = checkinCountMap[c.id] || 0
       return {
         id: c.id,
         full_name: c.profiles?.full_name || t('noName'),
         email: c.profiles?.email || '',
         gender: c.gender || null,
         active: c.active,
+        startDate: c.start_date ?? null,
         packageName: pkgMap[c.id]?.name ?? null,
         packageColor: pkgMap[c.id]?.color ?? null,
         checkinDay,
         lastCheckin,
         checkinStatus: getCheckinStatus(checkinDay, lastCheckin),
+        consistencyScore: consistencyScore(total, c.start_date ?? null),
       }
     }))
     setLoading(false)
@@ -249,6 +241,10 @@ export default function MobileClientsView() {
                         {DAY_NAMES[client.checkinDay]}
                       </span>
                     )}
+
+                    <span className="text-[11px] tabular-nums text-gray-500 font-medium" title={t('consistencyScoreLabel')}>
+                      {t('consistencyScoreShort', { n: client.consistencyScore })}
+                    </span>
 
                     {/* Package */}
                     {client.packageName && (
