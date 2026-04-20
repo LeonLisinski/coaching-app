@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
           html,
         })
         if (r.ok) checkinSent++
-        else if (r.error) errors.push(`checkin ${c.id}: ${r.error}`)
+        else errors.push(`checkin ${c.id}: ${r.errorKey}`)
       }
     }
   } catch (e: any) {
@@ -202,7 +202,7 @@ export async function GET(req: NextRequest) {
         html,
       })
       if (r.ok) pkgSent++
-      else if (r.error) errors.push(`pkg ${(cp as any).id}: ${r.error}`)
+      else errors.push(`pkg ${(cp as any).id}: ${r.errorKey}`)
     }
   } catch (e: any) {
     errors.push(`package block: ${e?.message || e}`)
@@ -262,7 +262,7 @@ export async function GET(req: NextRequest) {
         html,
       })
       if (r.ok) paySent++
-      else if (r.error) errors.push(`pay ${tid}: ${r.error}`)
+      else errors.push(`pay ${tid}: ${r.errorKey}`)
     }
   } catch (e: any) {
     errors.push(`payment block: ${e?.message || e}`)

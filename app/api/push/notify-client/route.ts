@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendResendEmail } from '@/lib/resend-server'
 import { escapeHtml } from '@/lib/html-escape'
 
-// Manual reminder: Resend email + optional push (Edge Function) in parallel for lower latency.
+// Manual reminder: Resend email + optional push (Edge Function) in parallel.
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -58,15 +58,33 @@ export async function POST(req: NextRequest) {
 </body></html>`
     : ''
 
-  const [emailOutcome, pushSent] = await Promise.all([
-    clientEmail
-      ? sendResendEmail({
-          to: clientEmail,
-          subject: 'Podsjetnik: check-in (UnitLift)',
-          html,
-        }).then(r => ({ ok: r.ok, error: r.error }))
-      : Promise.resolve({ ok: false, error: undefined as string | undefined }),
-    fetch(edgeUrl, {
+  let emailSent = false
+  let emailErrorKey: 'missing_key' | 'send_failed' | null = null
+  let pushSent = false
+
+  if (clientEmail) {
+    const [emailR, pushOk] = await Promise.all([
+      sendResendEmail({
+        to: clientEmail,
+        subject: 'Podsjetnik: check-in (UnitLift)',
+        html,
+      }),
+      fetch(edgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-webhook-secret': process.env.WEBHOOK_SECRET ?? '',
+        },
+        body: JSON.stringify({ type: 'manual', client_id, message }),
+      })
+        .then(res => res.ok)
+        .catch(() => false),
+    ])
+    if (emailR.ok) emailSent = true
+    else emailErrorKey = emailR.errorKey
+    pushSent = pushOk
+  } else {
+    pushSent = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,21 +93,21 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ type: 'manual', client_id, message }),
     })
       .then(res => res.ok)
-      .catch(() => false),
-  ])
-
-  const emailSent = emailOutcome.ok
-  const emailError = emailOutcome.error
+      .catch(() => false)
+  }
 
   if (!emailSent && !pushSent) {
+    let errorKey: NotifyClientErrorKey
+    if (!clientEmail) errorKey = 'no_client_email'
+    else if (emailErrorKey === 'missing_key') errorKey = 'email_config'
+    else errorKey = 'send_failed'
+
     return NextResponse.json(
       {
         ok: false,
         emailSent: false,
         pushSent: false,
-        error: clientEmail
-          ? (emailError || 'Email nije poslan. Provjeri Resend.')
-          : 'Klijent nema email na profilu.',
+        errorKey,
       },
       { status: 502 },
     )
@@ -99,6 +117,5 @@ export async function POST(req: NextRequest) {
     ok: true,
     emailSent,
     pushSent,
-    ...(emailError && !emailSent ? { warning: emailError } : {}),
   })
 }

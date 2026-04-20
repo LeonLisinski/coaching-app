@@ -139,7 +139,11 @@ export default function CheckinOverview({ clientId }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.ok) {
-        setRemindError(typeof data.error === 'string' ? data.error : t2('remindFailed'))
+        const ek = data.errorKey as string | undefined
+        if (ek === 'no_client_email') setRemindError(t2('remindErrorNoClientEmail'))
+        else if (ek === 'email_config') setRemindError(t2('remindErrorEmailConfig'))
+        else if (ek === 'send_failed') setRemindError(t2('remindErrorSendFailed'))
+        else setRemindError(t2('remindFailed'))
         return
       }
       setPinged(true)
