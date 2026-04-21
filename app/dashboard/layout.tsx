@@ -40,7 +40,7 @@ const TrainerOnboardingWizard = nextDynamic(
   () => import('@/app/components/onboarding/trainer-onboarding-wizard'),
   { ssr: false },
 )
-import { runTrainerTour } from '@/lib/trainer-tour'
+import { runTrainerTour, type TourStrings } from '@/lib/trainer-tour'
 import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboarding-storage'
 
 const navItems = [
@@ -78,34 +78,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package'; href?: string; isNew?: boolean }[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [tourFarewell, setTourFarewell] = useState(false)
+  const [helpMobileHint, setHelpMobileHint] = useState(false)
+
+  /** Uvijek pokreće vođeni obilazak (driver.js) — nakon onboardinga ili s većeg ekrana. */
+  const startProductTour = useCallback(() => {
+    const strings: TourStrings = {
+      step1Title: tTour('step1Title'),
+      step1Desc: tTour('step1Desc'),
+      step2Title: tTour('step2Title'),
+      step2Desc: tTour('step2Desc'),
+      step3Title: tTour('step3Title'),
+      step3Desc: tTour('step3Desc'),
+      step4Title: tTour('step4Title'),
+      step4Desc: tTour('step4Desc'),
+      step5Title: tTour('step5Title'),
+      step5Desc: tTour('step5Desc'),
+      step6Title: tTour('step6Title'),
+      step6Desc: tTour('step6Desc'),
+      prevBtn: tTour('prevBtn'),
+      nextBtn: tTour('nextBtn'),
+      doneBtn: tTour('doneBtn'),
+    }
+    void runTrainerTour({
+      locale,
+      strings,
+      onFarewell: () => setTourFarewell(true),
+    })
+  }, [locale, tTour])
+
+  /** Gumb „?” u headeru: na mobitelu kratka poruka (tura zahtijeva širinu kao u trainer-tour). */
+  const openHelpFromHeader = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const wideEnough = window.matchMedia('(min-width: 1024px)').matches
+    if (!wideEnough) {
+      setHelpMobileHint(true)
+      return
+    }
+    startProductTour()
+  }, [startProductTour])
 
   const handleWizardFinished = useCallback(() => {
     if (typeof window === 'undefined') return
     if (localStorage.getItem(LS_TOUR_COMPLETE) === 'true') return
-    setTimeout(() => {
-      void runTrainerTour({
-        locale,
-        strings: {
-          step1Title: tTour('step1Title'),
-          step1Desc: tTour('step1Desc'),
-          step2Title: tTour('step2Title'),
-          step2Desc: tTour('step2Desc'),
-          step3Title: tTour('step3Title'),
-          step3Desc: tTour('step3Desc'),
-          step4Title: tTour('step4Title'),
-          step4Desc: tTour('step4Desc'),
-          step5Title: tTour('step5Title'),
-          step5Desc: tTour('step5Desc'),
-          step6Title: tTour('step6Title'),
-          step6Desc: tTour('step6Desc'),
-          prevBtn: tTour('prevBtn'),
-          nextBtn: tTour('nextBtn'),
-          doneBtn: tTour('doneBtn'),
-        },
-        onFarewell: () => setTourFarewell(true),
-      })
-    }, 450)
-  }, [locale, tTour])
+    setTimeout(() => startProductTour(), 450)
+  }, [startProductTour])
 
   const fetchNotifications = useCallback(async (userId: string) => {
     const now = new Date()
@@ -388,6 +404,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearTimeout(tid)
   }, [tourFarewell])
 
+  useEffect(() => {
+    if (!helpMobileHint) return
+    const tid = setTimeout(() => setHelpMobileHint(false), 6000)
+    return () => clearTimeout(tid)
+  }, [helpMobileHint])
+
   const markAllSeen = () => {
     const allIds = notifications.map(n => n.id)
     const newSeen = new Set([...seenIds, ...allIds])
@@ -561,7 +583,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               type="button"
               data-tour="tour-help"
-              onClick={() => setShowSettings(true)}
+              onClick={() => openHelpFromHeader()}
               className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
               title={tLayout('helpTooltip')}
               aria-label={tLayout('helpTooltip')}
@@ -680,6 +702,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             role="status"
           >
             {tTour('farewell')}
+          </div>
+        )}
+        {helpMobileHint && (
+          <div
+            className="fixed bottom-20 left-1/2 z-[100] max-w-[min(100vw-2rem,22rem)] -translate-x-1/2 rounded-2xl border border-gray-100 bg-white px-4 py-3 text-center text-xs leading-snug text-gray-700 shadow-xl dark:border-white/10 dark:bg-[oklch(0.165_0.025_264)] dark:text-gray-100"
+            role="status"
+          >
+            {tLayout('helpTourDesktopOnly')}
           </div>
         )}
         <GlobalSearch />

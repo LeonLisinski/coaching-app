@@ -25,9 +25,18 @@ type Parameter = {
   required: boolean
   order_index: number
   frequency: 'daily' | 'weekly'
+  show_in_overview?: boolean | null
 }
 
-type FormState = { name: string; type: string; unit: string; options: string; required: boolean; frequency: 'daily' | 'weekly' }
+type FormState = {
+  name: string
+  type: string
+  unit: string
+  options: string
+  required: boolean
+  frequency: 'daily' | 'weekly'
+  show_in_overview: boolean
+}
 
 const TYPE_COLORS: Record<string, string> = {
   number:  'bg-sky-50 text-sky-700 border-sky-200',
@@ -36,15 +45,26 @@ const TYPE_COLORS: Record<string, string> = {
   select:  'bg-violet-50 text-violet-700 border-violet-200',
 }
 
-const BLANK_FORM: FormState = { name: '', type: 'number', unit: '', options: '', required: false, frequency: 'daily' }
+const BLANK_FORM: FormState = {
+  name: '', type: 'number', unit: '', options: '', required: false, frequency: 'daily', show_in_overview: false,
+}
 
 function paramToForm(p: Parameter): FormState {
-  return { name: p.name, type: p.type, unit: p.unit || '', options: p.options?.join(', ') || '', required: p.required, frequency: p.frequency }
+  return {
+    name: p.name,
+    type: p.type,
+    unit: p.unit || '',
+    options: p.options?.join(', ') || '',
+    required: p.required,
+    frequency: p.frequency,
+    show_in_overview: p.show_in_overview === true,
+  }
 }
 
 // ─── Inline edit form rendered inside the card ───────────────────────────────
 function InlineForm({
   form, onChange, onSave, onCancel, types, t, isNew,
+  overviewShow, overviewChecked, overviewCheckDisabled, onOverviewChange,
 }: {
   form: FormState
   onChange: (f: FormState) => void
@@ -53,6 +73,10 @@ function InlineForm({
   types: { value: string; label: string }[]
   t: (k: string) => string
   isNew: boolean
+  overviewShow?: boolean
+  overviewChecked?: boolean
+  overviewCheckDisabled?: boolean
+  onOverviewChange?: (next: boolean) => void
 }) {
   const nameRef = useRef<HTMLInputElement>(null)
   useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50) }, [])
@@ -112,6 +136,21 @@ function InlineForm({
         <span className="text-gray-600">{t('requiredLabel')}</span>
       </label>
 
+      {overviewShow && onOverviewChange && (
+        <label
+          className={`flex items-center gap-2 text-xs select-none ${overviewCheckDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        >
+          <input
+            type="checkbox"
+            className="accent-violet-600 w-3.5 h-3.5 shrink-0"
+            checked={overviewChecked === true}
+            disabled={overviewCheckDisabled}
+            onChange={e => !overviewCheckDisabled && onOverviewChange(e.target.checked)}
+          />
+          <span className="text-gray-600">{t('overviewPicker')}</span>
+        </label>
+      )}
+
       <div className="flex gap-1.5">
         <button type="button" onClick={onSave} disabled={!form.name}
           className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors"
@@ -130,6 +169,9 @@ function InlineForm({
 // ─── Single parameter card with optional inline edit ─────────────────────────
 function ParamCard({
   param, isEditing, onDoubleClick, onEdit, onDelete, onSave, onCancel, editForm, onFormChange, types, t,
+  onToggleOverview,
+  overviewDisableCheck,
+  inlineOverviewCheckDisabled,
 }: {
   param: Parameter
   isEditing: boolean
@@ -142,6 +184,9 @@ function ParamCard({
   onFormChange: (f: FormState) => void
   types: { value: string; label: string }[]
   t: (k: string) => string
+  onToggleOverview?: (param: Parameter, next: boolean) => void
+  overviewDisableCheck?: boolean
+  inlineOverviewCheckDisabled?: boolean
 }) {
   const typeLabel = types.find(x => x.value === param.type)?.label || param.type
   const { accent } = useAppTheme()
@@ -180,17 +225,46 @@ function ParamCard({
         </div>
       </div>
 
-      {isEditing && (
-        <InlineForm
-          form={editForm}
-          onChange={onFormChange}
-          onSave={onSave}
-          onCancel={onCancel}
-          types={types}
-          t={t}
-          isNew={false}
-        />
-      )}
+      {(() => {
+        const effType = isEditing ? editForm.type : param.type
+        const effFreq = isEditing ? editForm.frequency : param.frequency
+        const showOverviewRow = effType === 'number' && (effFreq === 'daily' || effFreq === 'weekly')
+        return (
+          <>
+            {!isEditing && showOverviewRow && onToggleOverview && (
+              <label
+                className={`flex items-center gap-2 mt-2 pl-7 select-none ${
+                  overviewDisableCheck ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="accent-violet-600 w-3.5 h-3.5 shrink-0"
+                  checked={param.show_in_overview === true}
+                  disabled={overviewDisableCheck}
+                  onChange={e => !overviewDisableCheck && onToggleOverview(param, e.target.checked)}
+                />
+                <span className="text-[11px] text-gray-600">{t('overviewPicker')}</span>
+              </label>
+            )}
+            {isEditing && (
+              <InlineForm
+                form={editForm}
+                onChange={onFormChange}
+                onSave={onSave}
+                onCancel={onCancel}
+                types={types}
+                t={t}
+                isNew={false}
+                overviewShow={showOverviewRow}
+                overviewChecked={editForm.show_in_overview === true}
+                overviewCheckDisabled={inlineOverviewCheckDisabled}
+                onOverviewChange={next => onToggleOverview?.(param, next)}
+              />
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }
@@ -241,12 +315,22 @@ export default function ParametersTab() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
+    const isNumericOverview =
+      form.type === 'number' && (form.frequency === 'daily' || form.frequency === 'weekly')
+    let showInOverview = false
+    if (isNumericOverview) {
+      const wants = form.show_in_overview === true
+      const othersTrue = parameters.filter(p => p.id !== param.id && p.show_in_overview === true).length
+      if (wants && othersTrue >= 3) return
+      showInOverview = wants
+    }
     await supabase.from('checkin_parameters').update({
       name: form.name, type: form.type,
       unit: form.unit || null,
       options: form.type === 'select' ? form.options.split(',').map(o => o.trim()).filter(Boolean) : null,
       required: form.required, frequency: form.frequency,
       trainer_id: user.id,
+      show_in_overview: showInOverview,
     }).eq('id', param.id)
     setEditingId(null)
     fetchParameters()
@@ -257,12 +341,22 @@ export default function ParametersTab() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
+    const isNumericOverview =
+      addForm.type === 'number' && (addForm.frequency === 'daily' || addForm.frequency === 'weekly')
+    let showInOverview = false
+    if (isNumericOverview) {
+      const wants = addForm.show_in_overview === true
+      const currentTrue = parameters.filter(p => p.show_in_overview === true).length
+      if (wants && currentTrue >= 3) return
+      showInOverview = wants
+    }
     await supabase.from('checkin_parameters').insert({
       trainer_id: user.id, name: addForm.name, type: addForm.type,
       unit: addForm.unit || null,
       options: addForm.type === 'select' ? addForm.options.split(',').map(o => o.trim()).filter(Boolean) : null,
       required: addForm.required, frequency: addForm.frequency,
       order_index: parameters.length,
+      show_in_overview: showInOverview,
     })
     setShowAddForm(false)
     setAddForm(BLANK_FORM)
@@ -275,13 +369,35 @@ export default function ParametersTab() {
     setConfirmDelete(null)
   }
 
+  const toggleOverviewPicker = async (param: Parameter, next: boolean) => {
+    if (next) {
+      const othersTrue = parameters.filter(p => p.id !== param.id && p.show_in_overview === true).length
+      if (othersTrue >= 3) return
+    }
+    const { error } = await supabase
+      .from('checkin_parameters')
+      .update({ show_in_overview: next })
+      .eq('id', param.id)
+    if (!error) {
+      setParameters(prev => prev.map(p => (p.id === param.id ? { ...p, show_in_overview: next } : p)))
+      setEditForms(prev => {
+        const cur = prev[param.id]
+        if (!cur) return prev
+        return { ...prev, [param.id]: { ...cur, show_in_overview: next } }
+      })
+    }
+  }
+
   const daily  = parameters.filter(p => p.frequency === 'daily')
   const weekly = parameters.filter(p => p.frequency === 'weekly')
+  const overviewOnCount = parameters.filter(p => p.show_in_overview === true).length
 
   const tStr = (k: string) => t(k as any)
 
   return (
     <div className="space-y-3">
+
+      <p className="text-xs text-gray-500">{t('overviewHint')}</p>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -307,6 +423,18 @@ export default function ParametersTab() {
             types={TYPES}
             t={tStr}
             isNew
+            overviewShow={
+              addForm.type === 'number' &&
+              (addForm.frequency === 'daily' || addForm.frequency === 'weekly')
+            }
+            overviewChecked={addForm.show_in_overview === true}
+            overviewCheckDisabled={
+              addForm.type === 'number' &&
+              (addForm.frequency === 'daily' || addForm.frequency === 'weekly') &&
+              !addForm.show_in_overview &&
+              overviewOnCount >= 3
+            }
+            onOverviewChange={next => setAddForm(f => ({ ...f, show_in_overview: next }))}
           />
         </div>
       )}
@@ -335,7 +463,12 @@ export default function ParametersTab() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('dailyCount', { count: daily.length })}</p>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
-                {daily.map(param => (
+                {daily.map(param => {
+                  const editF = editForms[param.id] || paramToForm(param)
+                  const inlineOverviewCheckDisabled =
+                    !editF.show_in_overview &&
+                    parameters.filter(p => p.id !== param.id && p.show_in_overview === true).length >= 3
+                  return (
                   <ParamCard
                     key={param.id}
                     param={param}
@@ -345,12 +478,16 @@ export default function ParametersTab() {
                     onDelete={() => setConfirmDelete(param.id)}
                     onSave={() => saveEdit(param)}
                     onCancel={cancelEdit}
-                    editForm={editForms[param.id] || paramToForm(param)}
+                    editForm={editF}
                     onFormChange={f => setEditForms(prev => ({ ...prev, [param.id]: f }))}
                     types={TYPES}
                     t={tStr}
+                    onToggleOverview={toggleOverviewPicker}
+                    overviewDisableCheck={!param.show_in_overview && overviewOnCount >= 3}
+                    inlineOverviewCheckDisabled={inlineOverviewCheckDisabled}
                   />
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -362,7 +499,12 @@ export default function ParametersTab() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('weeklyCount', { count: weekly.length })}</p>
               </div>
               <div className="grid grid-cols-1 gap-1.5">
-                {weekly.map(param => (
+                {weekly.map(param => {
+                  const editF = editForms[param.id] || paramToForm(param)
+                  const inlineOverviewCheckDisabled =
+                    !editF.show_in_overview &&
+                    parameters.filter(p => p.id !== param.id && p.show_in_overview === true).length >= 3
+                  return (
                   <ParamCard
                     key={param.id}
                     param={param}
@@ -372,12 +514,16 @@ export default function ParametersTab() {
                     onDelete={() => setConfirmDelete(param.id)}
                     onSave={() => saveEdit(param)}
                     onCancel={cancelEdit}
-                    editForm={editForms[param.id] || paramToForm(param)}
+                    editForm={editF}
                     onFormChange={f => setEditForms(prev => ({ ...prev, [param.id]: f }))}
                     types={TYPES}
                     t={tStr}
+                    onToggleOverview={toggleOverviewPicker}
+                    overviewDisableCheck={!param.show_in_overview && overviewOnCount >= 3}
+                    inlineOverviewCheckDisabled={inlineOverviewCheckDisabled}
                   />
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

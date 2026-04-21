@@ -61,6 +61,7 @@ import ClientOverview from '@/app/dashboard/clients/[id]/components/client-overv
 import ClientCalculator from '@/app/dashboard/clients/[id]/components/client-calculator'
 import ClientTimeline from '@/app/dashboard/clients/[id]/components/client-timeline'
 import { useTranslations, useLocale } from 'next-intl'
+import { useClientAttentionFlags } from '@/hooks/use-client-attention-flags'
 
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
@@ -126,6 +127,7 @@ function ClientDetailPageContent() {
   }
 
   const { id } = useParams()
+  const attention = useClientAttentionFlags(id as string | undefined)
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlTab = searchParams.get('tab')
@@ -283,6 +285,24 @@ function ClientDetailPageContent() {
             </button>
           </div>
         </div>
+        {!attention.loading && attention.needsAttention && (
+          <div className="bg-amber-50 border-t border-amber-200/70 px-4 py-2.5 sm:px-6 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm">
+            <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 shrink-0 ring-2 ring-amber-200/80" aria-hidden />
+            <span className="text-amber-900/85 text-xs sm:text-sm flex flex-wrap gap-x-2 gap-y-1">
+              {attention.checkinLate && (
+                <span className="inline-flex items-center rounded-full bg-amber-100/90 px-2 py-0.5">{tDetail('attentionReasonLate')}</span>
+              )}
+              {attention.missingPlan && (
+                <span className="inline-flex items-center rounded-full bg-amber-100/90 px-2 py-0.5">{tDetail('attentionReasonNoPlan')}</span>
+              )}
+              {attention.unreadMessages > 0 && (
+                <span className="inline-flex items-center rounded-full bg-amber-100/90 px-2 py-0.5">
+                  {tDetail('attentionReasonUnread', { n: attention.unreadMessages })}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       <Card>

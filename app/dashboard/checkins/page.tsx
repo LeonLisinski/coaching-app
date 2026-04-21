@@ -1,5 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
+import { Suspense, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import MobileCheckinsView from '@/app/dashboard/checkins/mobile-checkins-view'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -9,9 +11,19 @@ import CheckinStatsTab from '@/app/dashboard/checkins/tabs/stats-tab'
 import { ClipboardList, Settings2, BarChart2 } from 'lucide-react'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 
+const TAB_VALUES = ['clients', 'stats', 'parameters'] as const
+
 function CheckinsPageContent() {
   const t = useTranslations('checkins')
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = usePersistedTab('checkins_tab', 'clients')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && TAB_VALUES.includes(tab as (typeof TAB_VALUES)[number])) {
+      setActiveTab(tab)
+    }
+  }, [searchParams, setActiveTab])
 
   return (
     <div className="space-y-5">
@@ -52,7 +64,11 @@ function CheckinsPageContent() {
 export default function CheckinsPage() {
   return (
     <>
-      <div className="hidden lg:block"><CheckinsPageContent /></div>
+      <div className="hidden lg:block">
+        <Suspense fallback={<div className="h-40 rounded-xl bg-gray-100 animate-pulse" />}>
+          <CheckinsPageContent />
+        </Suspense>
+      </div>
       <div className="lg:hidden"><MobileCheckinsView /></div>
     </>
   )

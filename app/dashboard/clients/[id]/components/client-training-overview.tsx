@@ -115,6 +115,9 @@ export default function ClientTrainingOverview({
         ? t('overviewVolumeBaseline')
         : t('overviewVolumeNoCompare')
 
+  const volDiffRounded = Math.round(m.volTrend.thisVol - m.volTrend.lastVol)
+  const hasVolWeekData = m.volTrend.thisVol > 0 || m.volTrend.lastVol > 0
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
@@ -180,8 +183,17 @@ export default function ClientTrainingOverview({
                 {t('overviewVolumeVsLast')}
               </p>
               <p className="text-lg font-bold text-gray-900 tabular-nums mt-0.5">
-                {Math.round(m.volTrend.thisVol)}
-                <span className="text-gray-400 text-sm font-normal ml-1">{t('loadUnit')}</span>
+                {hasVolWeekData ? (
+                  <>
+                    <span>
+                      {volDiffRounded > 0 ? '+' : ''}
+                      {volDiffRounded}
+                    </span>
+                    <span className="text-gray-400 text-sm font-normal ml-1">{t('loadUnit')}</span>
+                  </>
+                ) : (
+                  <span className="text-base font-semibold text-gray-400">—</span>
+                )}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">{volSub}</p>
             </div>

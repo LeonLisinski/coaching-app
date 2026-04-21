@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Send, CalendarCheck, CalendarX } from 'lucide-react'
 import {
-  findWeekOffsetForDate,
   getWeekDays,
   isoDate,
   MAX_WEEK_OFFSET_BACK,
@@ -26,6 +25,7 @@ export default function CheckinOverview({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.overview')
   const t2 = useTranslations('checkins2')
+  const tHist = useTranslations('clients.history')
   const tDays = useTranslations('days')
   const tDaysShort = useTranslations('daysShort')
   const [dailyParams, setDailyParams] = useState<Parameter[]>([])
@@ -156,15 +156,6 @@ export default function CheckinOverview({ clientId }: Props) {
   const days = getWeekDays(checkinDay, weekOffset)
   const fmt = (d: Date) => d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
 
-  const jumpToPastDay = (daysAgo: number) => {
-    if (checkinDay === null) return
-    const d = new Date()
-    d.setHours(12, 0, 0, 0)
-    d.setDate(d.getDate() - daysAgo)
-    const w = findWeekOffsetForDate(checkinDay, d, Math.abs(MAX_WEEK_OFFSET_BACK))
-    if (w !== null) setWeekOffset(w)
-  }
-
   return (
     <div className="space-y-4">
       {/* Week navigator — mora biti jasno na mobitelu (strelica lijevo = prošlost) */}
@@ -205,16 +196,16 @@ export default function CheckinOverview({ clientId }: Props) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{t('quickJumpPastDays')}</p>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{tHist('quickJumpWeeks')}</p>
         <div className="flex flex-wrap gap-2">
-          {([1, 2, 3] as const).map(daysAgo => (
+          {([1, 2, 3] as const).map(n => (
             <button
-              key={daysAgo}
+              key={n}
               type="button"
-              onClick={() => jumpToPastDay(daysAgo)}
+              onClick={() => setWeekOffset(-n)}
               className="text-[11px] px-3 py-1.5 rounded-full font-medium border border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
             >
-              {daysAgo === 1 ? t('jumpYesterday') : daysAgo === 2 ? t('jumpTwoDaysAgo') : t('jumpThreeDaysAgo')}
+              {n === 1 ? tHist('weeksAgo1') : n === 2 ? tHist('weeksAgo2') : tHist('weeksAgo3')}
             </button>
           ))}
         </div>

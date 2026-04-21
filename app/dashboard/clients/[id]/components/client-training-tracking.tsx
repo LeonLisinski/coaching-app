@@ -259,10 +259,7 @@ export default function ClientTrainingTracking({
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {vol != null && vol > 0 ? (
-                          <span>
-                            <span className="font-semibold text-gray-800">{vol}</span>
-                            <span className="text-gray-400 ml-1 text-xs">{tTrack('loadUnit')}</span>
-                          </span>
+                          <span className="font-semibold text-gray-800">{vol}</span>
                         ) : (
                           <span className="text-gray-300 text-xs">—</span>
                         )}
