@@ -2042,7 +2042,8 @@
     "noSearchResults": "No search results",
     "clientCountDisplay": "{filtered} / {total} clients",
     "filterBtn": "Filter",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "noDay": "No schedule"
   },
   "finance2": {
     "periodRange": "from {from} to {to}",
@@ -2081,9 +2082,11 @@
     "mobileLateWarning": "Late payment — next period should start from",
     "mobileMarkPaid": "Mark as paid",
     "mobileMarkUnpaid": "Mark as unpaid",
+    "mobileDefaultPkg": "Package",
     "mobileDeleteRecord": "Delete record",
     "mobileDeleteTitle": "Delete record?",
-    "mobileDeleteDesc": "Permanently deletes the package and all payments. Cannot be undone."
+    "mobileDeleteDesc": "Permanently deletes the package and all payments. Cannot be undone.",
+    "mobileDeleteConfirmDesc": "Permanently deletes the package and all payments. Cannot be undone."
   },
   "profilePage": {
     "socialEmail": "Email",

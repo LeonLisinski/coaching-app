@@ -2042,7 +2042,8 @@
     "noSearchResults": "Nema rezultata za pretragu",
     "clientCountDisplay": "{filtered} / {total} klijenata",
     "filterBtn": "Filtriraj",
-    "clearFilters": "Očisti filtere"
+    "clearFilters": "Očisti filtere",
+    "noDay": "Nema rasporeda"
   },
   "finance2": {
     "periodRange": "od {from} do {to}",
@@ -2083,7 +2084,9 @@
     "mobileMarkUnpaid": "Označi kao neplaćeno",
     "mobileDeleteRecord": "Obriši zapis",
     "mobileDeleteTitle": "Obriši zapis?",
-    "mobileDeleteDesc": "Trajno briše paket i sve uplate. Ne može se poništiti."
+    "mobileDeleteDesc": "Trajno briše paket i sve uplate. Ne može se poništiti.",
+    "mobileDeleteConfirmDesc": "Trajno briše paket i sve uplate. Ne može se poništiti.",
+    "mobileDefaultPkg": "Paket"
   },
   "profilePage": {
     "socialEmail": "Email",
