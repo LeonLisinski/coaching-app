@@ -62,21 +62,21 @@ Deno.serve(async (req) => {
     // Get all clients of this trainer
     const { data: clientRows } = await supabase
       .from('clients')
-      .select('user_id, profiles!clients_user_id_fkey(full_name)')
+      .select('id, user_id, profiles!clients_user_id_fkey(full_name)')
       .eq('trainer_id', user.id)
 
     if (clientRows?.length) {
-      const clientIds = clientRows.map((r: any) => r.user_id)
+      const userIds = clientRows.map((r: any) => r.user_id)
 
       // Mark all clients for deletion too
       await supabase
         .from('profiles')
         .update({ deletion_requested_at: now })
-        .in('id', clientIds)
+        .in('id', userIds)
 
       // Send push notification to each client (mobile)
       for (const row of clientRows) {
-        await notifyClientMobile(supabase, row.user_id)
+        await notifyClientMobile(supabase, row.id)
       }
     }
   }
@@ -122,9 +122,9 @@ async function notifyTrainerWeb(supabase: any, trainerId: string, clientName: st
 // ── Notify client via Expo push token ────────────────────────────────────
 async function notifyClientMobile(supabase: any, clientId: string) {
   const { data: tokenRows } = await supabase
-    .from('push_tokens')
+    .from('expo_push_tokens')
     .select('token')
-    .eq('user_id', clientId)
+    .eq('client_id', clientId)
 
   if (!tokenRows?.length) return
 

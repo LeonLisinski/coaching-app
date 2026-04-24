@@ -310,10 +310,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    // getSession() reads from localStorage — zero network latency
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user
       if (!user) { router.replace('/login'); return }
 
-      // ── Subscription gate ──────────────────────────────────────────────────
+      // Show children immediately — RLS policies enforce security server-side.
+      // Subscription redirect happens in parallel (below) and redirects if needed.
+      setAuthChecked(true)
+
       const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null } | null) => {
         if (!sub) return false
         const now = new Date()
@@ -329,58 +334,41 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return false
       }
 
-      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
-
-      // If coming back from Stripe, sync directly from Stripe (bypasses webhook timing)
-      if (isPending) {
-        try {
-          const { data: { session: authSession } } = await supabase.auth.getSession()
-          if (authSession?.access_token) {
-            const res = await fetch('/api/billing/sync', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${authSession.access_token}` },
-            })
-            const json = await res.json()
-            if (json.hasAccess) {
-              window.history.replaceState({}, '', '/dashboard')
-            }
-          }
-        } catch {
-          // Fallback: poll Supabase for up to 10s
-          const deadline = Date.now() + 10_000
-          while (Date.now() < deadline) {
-            const { data: sub } = await supabase
-              .from('subscriptions')
-              .select('status, trial_end, locked_at')
-              .eq('trainer_id', user.id)
-              .maybeSingle()
-            if (checkAccess(sub)) { window.history.replaceState({}, '', '/dashboard'); break }
-            await new Promise(r => setTimeout(r, 1500))
-          }
-        }
-      }
-
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('status, trial_end, locked_at')
-        .eq('trainer_id', user.id)
-        .maybeSingle()
+      // Run subscription check + profile fetch IN PARALLEL (one RTT instead of two serial)
+      const [{ data: sub }, { data: profileData }] = await Promise.all([
+        supabase.from('subscriptions').select('status, trial_end, locked_at').eq('trainer_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
+      ])
 
       if (!checkAccess(sub)) {
         router.replace('/choose-plan')
         return
       }
-      // ──────────────────────────────────────────────────────────────────────
-      setAuthChecked(true)
 
-      supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single().then(({ data }) => {
-        const name = data?.full_name || user.email || ''
+      if (profileData) {
+        const name = profileData.full_name || user.email || ''
         setUserName(name)
         setUserInitials(name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?')
-        setUserAvatarUrl(data?.avatar_url || null)
-      })
-      // Fetch notifications: unread messages + recent checkins
+        setUserAvatarUrl(profileData.avatar_url || null)
+      }
+
       fetchNotifications(user.id)
+
+      // If coming back from Stripe, sync subscription in background (bypasses webhook timing)
+      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
+      if (isPending) {
+        try {
+          if (session.access_token) {
+            await fetch('/api/billing/sync', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+            window.history.replaceState({}, '', '/dashboard')
+          }
+        } catch {
+          window.history.replaceState({}, '', '/dashboard')
+        }
+      }
     })
   }, [fetchNotifications])
 

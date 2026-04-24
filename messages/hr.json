@@ -2074,6 +2074,7 @@
     "mobileTabUnpaid": "Nenaplaćeno ({count})",
     "mobileTabAll": "Sve ({count})",
     "mobileAllPaid": "Sve je naplaćeno!",
+    "mobileAllPaidMsg": "Nema neplaćenih paketa.",
     "mobilePeriodTo": " · do ",
     "mobilePaidStatus": "Plaćeno",
     "mobilePendingStatus": "Na čekanju",

@@ -243,6 +243,9 @@ function DashboardPageContent() {
     const clientIds = clientsData?.map(c => c.id) || []
 
     // All client-id-dependent and user-id-dependent queries in parallel
+    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const sixMonthsAgoStr = isoDate(sixMonthsAgo)
+
     const [
       { data: checkinConfigs },
       { data: allCheckins },
@@ -253,7 +256,7 @@ function DashboardPageContent() {
     ] = await Promise.all([
       supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
       clientIds.length
-        ? supabase.from('checkins').select('client_id, date').in('client_id', clientIds).order('date', { ascending: false })
+        ? supabase.from('checkins').select('client_id, date').in('client_id', clientIds).gte('date', sixMonthsAgoStr).order('date', { ascending: false }).limit(500)
         : Promise.resolve({ data: [] as any[], error: null }),
       supabase.from('messages').select('*', { count: 'exact', head: true }).eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
       supabase.from('client_packages').select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`).eq('trainer_id', user.id),

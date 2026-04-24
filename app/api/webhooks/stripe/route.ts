@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendResendEmail } from '@/lib/resend-server'
 
 function supabaseAdmin() {
   return createClient(
@@ -207,12 +208,88 @@ export async function POST(req: NextRequest) {
       break
     }
 
-    // ── Trial ending soon (optional: notify trainer 3 days before) ──────────
+    // ── Trial ending soon → notify trainer 3 days before first charge ────────
     case 'customer.subscription.trial_will_end': {
-      const sub   = event.data.object as Stripe.Subscription
-      const custId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id
-      // Could send email notification via Resend here
-      console.log(`[stripe webhook] Trial ending soon for customer ${custId}`)
+      const sub    = event.data.object as Stripe.Subscription
+      const custId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as any)?.id
+      if (!custId) break
+
+      const { data: subRecord } = await db
+        .from('subscriptions')
+        .select('trainer_id')
+        .eq('stripe_customer_id', custId)
+        .maybeSingle()
+
+      if (!subRecord?.trainer_id) break
+
+      const { data: profile } = await db
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', subRecord.trainer_id)
+        .maybeSingle()
+
+      if (!profile?.email) break
+
+      const trialEndTs = (sub as any).trial_end as number | null
+      const trialEndDate = trialEndTs ? new Date(trialEndTs * 1000) : null
+      const daysLeft = trialEndDate
+        ? Math.max(1, Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : 3
+
+      const firstName = profile.full_name?.split(' ')[0] || 'Trener'
+      const plan      = (sub.metadata?.plan ?? 'starter') as string
+      const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
+      const dateStr   = trialEndDate
+        ? trialEndDate.toLocaleDateString('hr-HR', { day: 'numeric', month: 'long', year: 'numeric' })
+        : ''
+      const appUrl = 'https://app.unitlift.com'
+
+      const html = `<!DOCTYPE html>
+<html lang="hr">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>UnitLift</title></head>
+<body style="margin:0;background:#0b0a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0a12;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:520px;background:linear-gradient(180deg,#15131f 0%,#0e0c16 100%);border-radius:20px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <tr><td style="padding:28px 28px 8px 28px;text-align:center;">
+          <div style="display:inline-block;padding:10px 14px;border-radius:14px;background:#5b21b6;margin-bottom:16px;">
+            <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;">UnitLift</span>
+          </div>
+          <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#f4f4f5;line-height:1.25;">
+            Tvoj trial istječe za ${daysLeft} ${daysLeft === 1 ? 'dan' : 'dana'}
+          </h1>
+          <p style="margin:0;font-size:14px;color:#a1a1aa;line-height:1.55;">Plan: <strong style="color:#a78bfa;">${planLabel}</strong></p>
+        </td></tr>
+        <tr><td style="padding:8px 28px 28px 28px;">
+          <p style="margin:0 0 16px 0;font-size:15px;color:#d4d4d8;line-height:1.6;">
+            Bok <strong style="color:#fff;">${firstName}</strong>,<br/><br/>
+            Tvoj 14-dnevni besplatni trial${dateStr ? ` istječe <strong style="color:#e4e4e7;">${dateStr}</strong>` : ' uskoro istječe'}.
+            Nakon toga počinje redovita naplata za plan <strong style="color:#a78bfa;">${planLabel}</strong>.<br/><br/>
+            Ako želiš prilagoditi ili otkazati pretplatu, to možeš napraviti u postavkama naplate.
+          </p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${appUrl}/dashboard/billing" style="display:inline-block;padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#ffffff !important;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 8px 24px rgba(91,33,182,0.35);">
+              Upravljaj pretplatom
+            </a>
+          </div>
+          <p style="margin:0;font-size:12px;color:#71717a;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;line-height:1.5;">
+            Hvala što koristiš UnitLift. Imaš li pitanja, odgovori na ovaj email.
+          </p>
+        </td></tr>
+      </table>
+      <p style="margin:24px 0 0 0;font-size:11px;color:#52525b;text-align:center;">© UnitLift · unitlift.com</p>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+      await sendResendEmail({
+        to: profile.email,
+        subject: `UnitLift: tvoj trial istječe za ${daysLeft} ${daysLeft === 1 ? 'dan' : 'dana'}`,
+        html,
+      })
+
+      console.log(`[stripe webhook] Trial ending email sent to ${profile.email} (${daysLeft}d left)`)
       break
     }
 

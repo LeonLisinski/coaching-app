@@ -2074,6 +2074,7 @@
     "mobileTabUnpaid": "Uncollected ({count})",
     "mobileTabAll": "All ({count})",
     "mobileAllPaid": "Everything collected!",
+    "mobileAllPaidMsg": "No unpaid packages.",
     "mobilePeriodTo": " · until ",
     "mobilePaidStatus": "Paid",
     "mobilePendingStatus": "Pending",

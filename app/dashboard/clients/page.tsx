@@ -204,7 +204,7 @@ function ClientsPageContent() {
   }
 
   const deleteClient = async (client: Client) => {
-    // Delete related data first, then the client record
+    // Delete related data first (safety net in case cascades aren't fully set up)
     await supabase.from('checkins').delete().eq('client_id', client.id)
     await supabase.from('payments').delete().eq('client_id', client.id)
     await supabase.from('client_packages').delete().eq('client_id', client.id)
@@ -213,6 +213,10 @@ function ClientsPageContent() {
     await supabase.from('checkin_config').delete().eq('client_id', client.id)
     await supabase.from('messages').delete().eq('receiver_id', client.id)
     await supabase.from('clients').delete().eq('id', client.id)
+
+    // Hard-delete the client's auth user (removes orphaned Supabase account)
+    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
+
     setClients(prev => prev.filter(c => c.id !== client.id))
     setConfirmDelete(null)
   }
