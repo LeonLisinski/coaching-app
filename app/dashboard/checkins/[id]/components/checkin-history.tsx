@@ -197,28 +197,27 @@ export default function CheckinHistory({ clientId }: Props) {
                 <X size={24} />
               </button>
             </div>
-            {/* Photos */}
-            <div className="flex-1 flex items-center gap-4 px-4 py-4 overflow-x-auto min-h-0">
+            {/* Photos — equal size columns */}
+            <div className="flex-1 flex gap-3 px-4 py-3 overflow-x-auto min-h-0">
               {compareCheckins.map((checkin) => {
                 const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
                 const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
                 return (
-                  <div key={checkin.date} className="flex-none flex flex-col items-center gap-2 h-full">
-                    <div className="text-center">
+                  <div key={checkin.date} className="flex-1 min-w-0 flex flex-col gap-2" style={{ minWidth: `calc((100vw - ${(compareCheckins.length + 1) * 12}px) / ${compareCheckins.length})` }}>
+                    <div className="text-center flex-shrink-0">
                       <p className="text-white text-sm font-bold">{t2('weekLabel', { n: weekNum })}</p>
                       <p className="text-white/50 text-xs">{fmtDate(checkin.date)}</p>
                     </div>
-                    <div className="flex-1 min-h-0 flex items-center">
+                    <div className="flex-1 min-h-0" style={{ height: 'calc(100vh - 160px)' }}>
                       {photo ? (
                         <img
                           src={photo.url}
                           alt={position}
-                          className="max-h-full max-w-[80vw] object-contain rounded-lg cursor-zoom-in"
-                          style={{ maxHeight: 'calc(100vh - 140px)' }}
+                          className="w-full h-full object-contain rounded-lg cursor-zoom-in"
                           onClick={() => setLightbox(photo.url)}
                         />
                       ) : (
-                        <div className="w-48 h-64 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center">
+                        <div className="w-full h-full bg-white/5 rounded-lg border border-white/10 flex items-center justify-center">
                           <p className="text-white/30 text-xs text-center px-3">Nema {position} foto</p>
                         </div>
                       )}
