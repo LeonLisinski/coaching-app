@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, GitCompare, ArrowUpDown } from 'lucide-react'
+import { ChevronDown, ChevronUp, GitCompare, ArrowUpDown, X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react'
 
 type Props = { clientId: string }
 
@@ -70,6 +70,7 @@ export default function CheckinHistory({ clientId }: Props) {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [compareLightbox, setCompareLightbox] = useState<{ positionIdx: number } | null>(null)
   const [compareMode, setCompareMode] = useState(false)
   const [compareSelected, setCompareSelected] = useState<string[]>([])
   const [sortDesc, setSortDesc] = useState(true) // true = newest first (default)
@@ -157,11 +158,97 @@ export default function CheckinHistory({ clientId }: Props) {
 
   return (
     <div className="space-y-3">
+      {/* Single photo lightbox */}
       {lightbox && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
-          <img src={lightbox} className="max-h-[90vh] max-w-[90vw] rounded-lg" />
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
+          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+            <X size={28} />
+          </button>
+          <img src={lightbox} className="max-h-[92vh] max-w-[92vw] rounded-lg object-contain" />
         </div>
       )}
+
+      {/* Compare fullscreen lightbox */}
+      {compareLightbox && comparePositions.length > 0 && (() => {
+        const posIdx = Math.max(0, Math.min(compareLightbox.positionIdx, comparePositions.length - 1))
+        const position = comparePositions[posIdx]
+        const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
+        return (
+          <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <p className="text-white font-semibold text-sm uppercase tracking-wide">{position}</p>
+                <div className="flex gap-1">
+                  {comparePositions.map((pos, i) => (
+                    <button
+                      key={pos}
+                      onClick={() => setCompareLightbox({ positionIdx: i })}
+                      className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors capitalize ${
+                        i === posIdx ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {pos}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={() => setCompareLightbox(null)} className="text-white/70 hover:text-white transition-colors p-1">
+                <X size={24} />
+              </button>
+            </div>
+            {/* Photos */}
+            <div className="flex-1 flex items-center gap-4 px-4 py-4 overflow-x-auto min-h-0">
+              {compareCheckins.map((checkin) => {
+                const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
+                const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
+                return (
+                  <div key={checkin.date} className="flex-none flex flex-col items-center gap-2 h-full">
+                    <div className="text-center">
+                      <p className="text-white text-sm font-bold">{t2('weekLabel', { n: weekNum })}</p>
+                      <p className="text-white/50 text-xs">{fmtDate(checkin.date)}</p>
+                    </div>
+                    <div className="flex-1 min-h-0 flex items-center">
+                      {photo ? (
+                        <img
+                          src={photo.url}
+                          alt={position}
+                          className="max-h-full max-w-[80vw] object-contain rounded-lg cursor-zoom-in"
+                          style={{ maxHeight: 'calc(100vh - 140px)' }}
+                          onClick={() => setLightbox(photo.url)}
+                        />
+                      ) : (
+                        <div className="w-48 h-64 bg-white/5 rounded-lg border border-white/10 flex items-center justify-center">
+                          <p className="text-white/30 text-xs text-center px-3">Nema {position} foto</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* Position nav arrows */}
+            {comparePositions.length > 1 && (
+              <div className="flex justify-center gap-4 pb-4 flex-shrink-0">
+                <button
+                  onClick={() => setCompareLightbox({ positionIdx: posIdx - 1 })}
+                  disabled={posIdx === 0}
+                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors"
+                >
+                  <ChevronLeft size={16} /> Prethodna pozicija
+                </button>
+                <button
+                  onClick={() => setCompareLightbox({ positionIdx: posIdx + 1 })}
+                  disabled={posIdx === comparePositions.length - 1}
+                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors"
+                >
+                  Sljedeća pozicija <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-gray-500">{t('totalCount', { count: checkins.length })}</p>
@@ -272,39 +359,51 @@ export default function CheckinHistory({ clientId }: Props) {
           {/* Comparison result */}
           {compareCheckins.length >= 2 && (
             <div className="border-t border-gray-200 pt-4 space-y-5">
-              {comparePositions.map(position => (
-                <div key={position}>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 capitalize">{position}</p>
-                  {/* Horizontally scrollable row of photos */}
-                  <div className="flex gap-3 overflow-x-auto pb-1">
-                    {compareCheckins.map((checkin, i) => {
-                      const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
-                      const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
-                      const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
-                      return (
-                        <div key={checkin.date} className="flex-none w-40">
-                          <div className="text-center mb-1">
-                            <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
-                            <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
-                          </div>
-                          {photo ? (
-                            <img
-                              src={photo.url}
-                              alt={position}
-                              className="w-full aspect-[3/4] object-cover rounded-lg border cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => setLightbox(photo.url)}
-                            />
-                          ) : (
-                            <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
-                              <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
+              {comparePositions.map((position, posIdx) => {
+                const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
+                return (
+                  <div key={position}>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide capitalize">{position}</p>
+                      <button
+                        type="button"
+                        onClick={() => setCompareLightbox({ positionIdx: posIdx })}
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                      >
+                        <ZoomIn size={13} />
+                        Proširi
+                      </button>
+                    </div>
+                    {/* Horizontally scrollable row of photos */}
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {compareCheckins.map((checkin) => {
+                        const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
+                        const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
+                        return (
+                          <div key={checkin.date} className="flex-none w-40">
+                            <div className="text-center mb-1">
+                              <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
+                              <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
                             </div>
-                          )}
-                        </div>
-                      )
-                    })}
+                            {photo ? (
+                              <img
+                                src={photo.url}
+                                alt={position}
+                                className="w-full aspect-[3/4] object-cover rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity"
+                                onClick={() => setCompareLightbox({ positionIdx: posIdx })}
+                              />
+                            ) : (
+                              <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
+                                <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
