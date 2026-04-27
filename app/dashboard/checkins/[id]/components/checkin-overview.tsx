@@ -21,6 +21,14 @@ function parseVal(v: any): number {
   return parseFloat(String(v).replace(',', '.'))
 }
 
+function formatCheckinVal(raw: any, type: string): string | null {
+  if (raw === undefined || raw === null || raw === '') return null
+  if (type === 'boolean') return raw === true || raw === 'true' ? 'Da' : 'Ne'
+  const num = parseFloat(String(raw).replace(',', '.'))
+  if (!isNaN(num)) return num % 1 === 0 ? String(num) : num.toFixed(1)
+  return String(raw)
+}
+
 export default function CheckinOverview({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.overview')
@@ -261,13 +269,19 @@ export default function CheckinOverview({ clientId }: Props) {
                 <div className="flex gap-2 flex-wrap mb-3">
                   {weeklyParams.map(p => {
                     const raw = checkin?.values?.[p.id]
-                    const val = parseVal(raw)
-                    const hasVal = !isNaN(val)
+                    const display = formatCheckinVal(raw, p.type)
+                    const hasVal = display !== null
+                    const isBoolean = p.type === 'boolean'
+                    const boolYes = isBoolean && (raw === true || raw === 'true')
                     return (
                       <div key={p.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${hasVal ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}`}>
                         <span className="text-[11px] text-gray-400 font-medium">{p.name}</span>
-                        <span className={`text-sm font-bold ${hasVal ? 'text-gray-800' : 'text-gray-300'}`}>
-                          {hasVal ? `${val % 1 === 0 ? val : val.toFixed(1)}${p.unit ? ` ${p.unit}` : ''}` : '—'}
+                        <span className={`text-sm font-bold ${
+                          !hasVal ? 'text-gray-300' :
+                          isBoolean ? (boolYes ? 'text-emerald-600' : 'text-red-500') :
+                          'text-gray-800'
+                        }`}>
+                          {hasVal ? `${display}${!isBoolean && p.unit ? ` ${p.unit}` : ''}` : '—'}
                         </span>
                       </div>
                     )
@@ -347,8 +361,7 @@ export default function CheckinOverview({ clientId }: Props) {
                             </td>
                             {dailyParams.map(p => {
                               const raw = log?.values?.[p.id]
-                              const val = parseVal(raw)
-                              const display = !isNaN(val) ? (val % 1 === 0 ? val : val.toFixed(1)) : (raw !== undefined && raw !== null && raw !== '' ? raw : null)
+                              const display = formatCheckinVal(raw, p.type)
                               return (
                                 <td key={p.id} className="text-center px-4 py-2.5">
                                   {display !== null

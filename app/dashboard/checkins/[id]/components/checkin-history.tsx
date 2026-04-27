@@ -41,6 +41,14 @@ function parseVal(v: any): number {
 
 function fmt(v: number) { return v % 1 === 0 ? String(v) : v.toFixed(1) }
 
+function formatCheckinVal(raw: any, type: string): string | null {
+  if (raw === undefined || raw === null || raw === '') return null
+  if (type === 'boolean') return raw === true || raw === 'true' ? 'Da' : 'Ne'
+  const num = parseFloat(String(raw).replace(',', '.'))
+  if (!isNaN(num)) return num % 1 === 0 ? String(num) : num.toFixed(1)
+  return String(raw)
+}
+
 function getWeekBounds(date: string, checkinDay: number): { start: string; end: string } {
   const d = new Date(date)
   const daysUntil = (checkinDay - d.getDay() + 7) % 7
@@ -338,11 +346,11 @@ export default function CheckinHistory({ clientId }: Props) {
               </div>
               <div className="flex items-center gap-2">
                 {weeklyParams.slice(0, 2).map(p => {
-                  const val = parseVal(c.values?.[p.id])
-                  if (isNaN(val)) return null
+                  const display = formatCheckinVal(c.values?.[p.id], p.type)
+                  if (!display) return null
                   return (
                     <span key={p.id} className="hidden sm:block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                      {p.name}: {fmt(val)}{p.unit ? ` ${p.unit}` : ''}
+                      {p.name}: {display}{p.type !== 'boolean' && p.unit ? ` ${p.unit}` : ''}
                     </span>
                   )
                 })}
@@ -358,12 +366,19 @@ export default function CheckinHistory({ clientId }: Props) {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('weekInNumbers')}</p>
                   <div className="flex gap-2 flex-wrap">
                     {weeklyParams.map(p => {
-                      const val = parseVal(c.values?.[p.id])
+                      const raw = c.values?.[p.id]
+                      const display = formatCheckinVal(raw, p.type)
+                      const isBoolean = p.type === 'boolean'
+                      const boolYes = isBoolean && (raw === true || raw === 'true')
                       return (
                         <div key={p.id} className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center min-w-[72px]">
                           <p className="text-xs text-gray-400">{p.name}</p>
-                          <p className={`font-bold text-sm mt-0.5 ${!isNaN(val) ? 'text-gray-800' : 'text-gray-300'}`}>
-                            {!isNaN(val) ? `${fmt(val)}${p.unit ? ` ${p.unit}` : ''}` : '—'}
+                          <p className={`font-bold text-sm mt-0.5 ${
+                            !display ? 'text-gray-300' :
+                            isBoolean ? (boolYes ? 'text-emerald-600' : 'text-red-500') :
+                            'text-gray-800'
+                          }`}>
+                            {display ? `${display}${!isBoolean && p.unit ? ` ${p.unit}` : ''}` : '—'}
                           </p>
                         </div>
                       )
