@@ -73,6 +73,7 @@ export default function CheckinHistory({ clientId }: Props) {
   const [compareLightbox, setCompareLightbox] = useState<{ positionIdx: number } | null>(null)
   const [compareMode, setCompareMode] = useState(false)
   const [compareSelected, setCompareSelected] = useState<string[]>([])
+  const [compareTab, setCompareTab] = useState<'params' | 'photos'>('params')
   const [sortDesc, setSortDesc] = useState(true) // true = newest first (default)
   const MAX_COMPARE = 5
 
@@ -290,12 +291,12 @@ export default function CheckinHistory({ clientId }: Props) {
               </p>
             </div>
             <div className="flex gap-2">
-              {checkinsWithPhotos.length >= 2 && (
+              {checkins.length >= 2 && (
                 <button type="button"
-              onClick={() => {
-                  const sorted = [...checkinsWithPhotos].sort((a, b) => a.date.localeCompare(b.date))
-                  setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date])
-                }}
+                  onClick={() => {
+                    const sorted = [...checkins].sort((a, b) => a.date.localeCompare(b.date))
+                    setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date])
+                  }}
                   className="text-xs text-primary underline font-medium whitespace-nowrap">
                   {t2('firstToLast')}
                 </button>
@@ -310,16 +311,16 @@ export default function CheckinHistory({ clientId }: Props) {
             </div>
           </div>
 
-          {/* Thumbnail grid — newest (highest week #) first */}
+          {/* Thumbnail grid — all check-ins, newest first */}
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-            {[...checkinsWithPhotos]
+            {[...checkins]
               .sort((a, b) => b.date.localeCompare(a.date))
               .map((c, idx, arr) => {
                 const selected = compareSelected.includes(c.date)
                 const selIdx = compareSelected.indexOf(c.date)
                 const atMax = !selected && compareSelected.length >= MAX_COMPARE
                 const thumbPhoto = (c.photo_urls as any[])?.[0]
-                const weekNum = arr.length - idx  // T(max) first, T1 last
+                const weekNum = arr.length - idx
                 return (
                   <button
                     key={c.date}
@@ -338,7 +339,7 @@ export default function CheckinHistory({ clientId }: Props) {
                       <img src={thumbPhoto.url} alt="" className="w-full aspect-square object-cover" />
                     ) : (
                       <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400 font-bold">{t2('weekLabel', { n: weekNum })}</span>
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-4 pb-1">
@@ -356,55 +357,155 @@ export default function CheckinHistory({ clientId }: Props) {
           </div>
 
           {/* Comparison result */}
-          {compareCheckins.length >= 2 && (
-            <div className="border-t border-gray-200 pt-4 space-y-5">
-              {comparePositions.map((position, posIdx) => {
-                const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
-                return (
-                  <div key={position}>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide capitalize">{position}</p>
-                      <button
-                        type="button"
-                        onClick={() => setCompareLightbox({ positionIdx: posIdx })}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                      >
-                        <ZoomIn size={13} />
-                        Proširi
-                      </button>
-                    </div>
-                    {/* Horizontally scrollable row of photos */}
-                    <div className="flex gap-3 overflow-x-auto pb-1">
-                      {compareCheckins.map((checkin) => {
-                        const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
-                        const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
-                        return (
-                          <div key={checkin.date} className="flex-none w-40">
-                            <div className="text-center mb-1">
-                              <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
-                              <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
-                            </div>
-                            {photo ? (
-                              <img
-                                src={photo.url}
-                                alt={position}
-                                className="w-full aspect-[3/4] object-cover rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity"
-                                onClick={() => setCompareLightbox({ positionIdx: posIdx })}
-                              />
-                            ) : (
-                              <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
-                                <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
+          {compareCheckins.length >= 2 && (() => {
+            const sortedForNum = [...checkins].sort((a, b) => b.date.localeCompare(a.date))
+            const weeklyParams = params.filter(p => p.frequency === 'weekly')
+            return (
+              <div className="border-t border-gray-200 pt-4 space-y-4">
+                {/* Tabs */}
+                <div className="flex gap-1 bg-white border border-gray-200 rounded-lg p-1 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setCompareTab('params')}
+                    className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${compareTab === 'params' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                  >
+                    Parametri
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompareTab('photos')}
+                    className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${compareTab === 'photos' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                  >
+                    Fotografije
+                  </button>
+                </div>
+
+                {/* Params tab */}
+                {compareTab === 'params' && (
+                  <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 bg-gray-50/60">
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 w-36">Parametar</th>
+                          {compareCheckins.map(c => {
+                            const weekNum = sortedForNum.length - sortedForNum.findIndex(x => x.date === c.date)
+                            return (
+                              <th key={c.date} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-600 whitespace-nowrap">
+                                <div>{t2('weekLabel', { n: weekNum })}</div>
+                                <div className="text-gray-400 font-normal">{fmtDate(c.date)}</div>
+                              </th>
+                            )
+                          })}
+                          {compareCheckins.length >= 2 && (
+                            <th className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400 whitespace-nowrap">Promjena</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeklyParams.length === 0 && (
+                          <tr>
+                            <td colSpan={compareCheckins.length + 2} className="text-center py-6 text-xs text-gray-400">
+                              Nema tjednih parametara
+                            </td>
+                          </tr>
+                        )}
+                        {weeklyParams.map((p, i) => {
+                          const vals = compareCheckins.map(c => {
+                            const raw = c.values?.[p.id]
+                            return formatCheckinVal(raw, p.type)
+                          })
+                          const firstNum = parseVal(compareCheckins[0]?.values?.[p.id])
+                          const lastNum = parseVal(compareCheckins[compareCheckins.length - 1]?.values?.[p.id])
+                          const delta = !isNaN(firstNum) && !isNaN(lastNum) ? lastNum - firstNum : null
+                          return (
+                            <tr key={p.id} className={`border-b border-gray-50 last:border-0 ${i % 2 !== 0 ? 'bg-gray-50/40' : ''}`}>
+                              <td className="px-4 py-2.5">
+                                <span className="text-xs font-medium text-gray-700">{p.name}</span>
+                                {p.unit && <span className="text-[11px] text-gray-400 ml-1">({p.unit})</span>}
+                              </td>
+                              {vals.map((v, vi) => (
+                                <td key={vi} className="text-center px-4 py-2.5">
+                                  {v !== null
+                                    ? <span className="font-semibold text-gray-800">{v}</span>
+                                    : <span className="text-gray-300">—</span>
+                                  }
+                                </td>
+                              ))}
+                              {compareCheckins.length >= 2 && (
+                                <td className="text-center px-4 py-2.5">
+                                  {delta !== null ? (
+                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                      delta === 0 ? 'text-gray-500 bg-gray-100' :
+                                      delta > 0 ? 'text-emerald-700 bg-emerald-50' :
+                                      'text-red-600 bg-red-50'
+                                    }`}>
+                                      {delta > 0 ? '+' : ''}{delta % 1 === 0 ? delta : delta.toFixed(1)}{p.unit ? ` ${p.unit}` : ''}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-300 text-xs">—</span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                )
-              })}
-            </div>
-          )}
+                )}
+
+                {/* Photos tab */}
+                {compareTab === 'photos' && (
+                  <div className="space-y-5">
+                    {comparePositions.length === 0 && (
+                      <p className="text-xs text-center text-gray-400 py-4">Odabrani tjedni nemaju fotografije</p>
+                    )}
+                    {comparePositions.map((position, posIdx) => (
+                      <div key={position}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide capitalize">{position}</p>
+                          <button
+                            type="button"
+                            onClick={() => setCompareLightbox({ positionIdx: posIdx })}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                          >
+                            <ZoomIn size={13} />
+                            Proširi
+                          </button>
+                        </div>
+                        <div className="flex gap-3 overflow-x-auto pb-1">
+                          {compareCheckins.map((checkin) => {
+                            const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
+                            const weekNum = sortedForNum.length - sortedForNum.findIndex(c => c.date === checkin.date)
+                            return (
+                              <div key={checkin.date} className="flex-none w-40">
+                                <div className="text-center mb-1">
+                                  <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
+                                  <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
+                                </div>
+                                {photo ? (
+                                  <img
+                                    src={photo.url}
+                                    alt={position}
+                                    className="w-full aspect-[3/4] object-cover rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity"
+                                    onClick={() => setCompareLightbox({ positionIdx: posIdx })}
+                                  />
+                                ) : (
+                                  <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
+                                    <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {compareCheckins.length === 1 && (
             <p className="text-xs text-center text-gray-400 pt-2">{t2('selectAnotherWeek')}</p>
