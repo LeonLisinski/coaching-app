@@ -35,15 +35,15 @@ async function tryInsertDedupe(supabase: any, kind: string, dedupeKey: string): 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
   const auth = req.headers.get('authorization')
-  const vercelCron = req.headers.get('x-vercel-cron')
 
-  // Ako je CRON_SECRET postavljen, prihvati samo ispravan Bearer (Vercel Cron ga šalje automatski).
-  // Bez secreta: dev bez auth-a ili samo Vercelov cron header (legacy).
-  const authorized = secret
-    ? auth === `Bearer ${secret}`
-    : process.env.NODE_ENV === 'development' || !!vercelCron
-
-  if (!authorized) {
+  // U produkciji CRON_SECRET je obavezan — `x-vercel-cron` header je spoofable.
+  if (!secret) {
+    if (process.env.NODE_ENV !== 'development') {
+      console.error('[cron/reminders] CRON_SECRET not configured in production')
+      return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+    }
+    // Dev bez secreta: dopušteno radi lakše lokalne provjere.
+  } else if (auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -65,30 +65,38 @@ export async function GET(req: NextRequest) {
 
   // ── Check-in reminders (clients) ───────────────────────────────────────────
   try {
+    // Filter checkin_day at DB level (avoids loading all active clients globally).
+    // Using checkin_config!inner ensures only clients WITH a matching config row are returned.
     const { data: rows, error } = await supabase
-      .from('clients')
+      .from('checkin_config')
       .select(
         `
-        id,
-        trainer_id,
-        user_id,
-        active,
-        profiles!clients_user_id_fkey (full_name, email),
-        checkin_config ( checkin_day )
+        checkin_day,
+        clients!inner (
+          id,
+          trainer_id,
+          user_id,
+          active,
+          profiles:profiles!clients_user_id_fkey (full_name, email)
+        )
       `,
       )
-      .eq('active', true)
+      .eq('checkin_day', todayDow)
+      .eq('clients.active', true)
 
     if (error) throw error
 
-    const cfgRows = (rows || []).map((r: any) => ({
-      id: r.id as string,
-      email: (r.profiles as any)?.email as string | undefined,
-      name: (r.profiles as any)?.full_name as string | undefined,
-      checkin_day: pickCheckinDay(r.checkin_config),
-    }))
+    const cfgRows = (rows || []).map((r: any) => {
+      const client = r.clients as any
+      return {
+        id: client.id as string,
+        email: client.profiles?.email as string | undefined,
+        name: client.profiles?.full_name as string | undefined,
+        checkin_day: r.checkin_day as number,
+      }
+    }).filter(c => c.email)
 
-    const due = cfgRows.filter(c => c.checkin_day !== null && c.checkin_day === todayDow && c.email)
+    const due = cfgRows
     checkinDueCount = due.length
     if (due.length) {
       const ids = due.map(c => c.id)
@@ -194,7 +202,7 @@ export async function GET(req: NextRequest) {
       const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0b0a12;color:#e4e4e7;padding:24px;">
 <p>Bok ${escapeHtml(trainer.full_name?.split(' ')[0] || 'trener')},</p>
 <p>${line}</p>
-<p><a href="${escapeHtml(url)}/dashboard/clients/${(cp as any).client_id}?tab=packages" style="color:#a78bfa;">Otvori pakete klijenta</a></p>
+<p><a href="${escapeHtml(url)}/dashboard/clients/${(cp as any).client_id}?tab=paketi" style="color:#a78bfa;">Otvori pakete klijenta</a></p>
 </body></html>`
 
       const r = await sendResendEmail({
@@ -251,7 +259,7 @@ export async function GET(req: NextRequest) {
       if (!inserted) continue
 
       const rows = bundle.items
-        .map(i => `<li>${escapeHtml(i.client)} — <strong>${i.amount}€</strong> na čekanju</li>`)
+        .map(i => `<li>${escapeHtml(i.client)} — <strong>${i.amount}€</strong> na čekanju</li>`) 
         .join('')
       const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0b0a12;color:#e4e4e7;padding:24px;">
 <p>Bok ${escapeHtml(bundle.name.split(' ')[0] || 'trener')},</p>

@@ -137,11 +137,14 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
 
   useEffect(() => {
     let attempts = 0
+    let mounted = true
+
     const check = async () => {
+      if (!mounted) return
       attempts++
       const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
-      if (!user) return
+      const user = session?.user
+      if (!user || !mounted) return
 
       const { data: sub } = await supabase
         .from('subscriptions')
@@ -149,15 +152,19 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
         .eq('trainer_id', user.id)
         .maybeSingle()
 
+      if (!mounted) return
+
       if (sub && (sub.status === 'trialing' || sub.status === 'active')) {
         setReady(true)
-        setTimeout(onReady, 1200) // brief "ready" flash before dismissing
+        setTimeout(() => { if (mounted) onReady() }, 1200)
         return
       }
       if (attempts >= 15) { setTimedOut(true); return }
       setTimeout(check, 2000)
     }
     check()
+
+    return () => { mounted = false }
   }, [])
 
   if (ready) return (
@@ -229,9 +236,10 @@ function DashboardPageContent() {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
+    try {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     // Fetch profile + clients in parallel
     const [{ data: profileData }, { data: clientsData }] = await Promise.all([
@@ -464,7 +472,11 @@ function DashboardPageContent() {
     all.sort((a, b) => b.ts - a.ts)
     setRecentActivity(all.slice(0, 8).map(a => ({ ...a, time: formatRelTime(a.ts) })))
 
-    setLoading(false)
+    } catch (err) {
+      console.error('[dashboard] fetchData error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const now = new Date()

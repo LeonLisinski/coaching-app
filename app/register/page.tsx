@@ -23,18 +23,12 @@ const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL || 'https://unitlift.com
 
 type Step = 'validating' | 'form' | 'loading' | 'success' | 'invalid'
 
-// Whether to use the new pre-checkout flow vs. legacy post-checkout flow
-type Mode = 'new' | 'legacy'
-
 function RegisterInner() {
   const t = useTranslations('register')
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const sessionId = searchParams.get('session_id')
-  const plan      = searchParams.get('plan') ?? ''
-
-  const mode: Mode = sessionId ? 'legacy' : 'new'
+  const plan = searchParams.get('plan') ?? ''
 
   const [step, setStep]               = useState<Step>('validating')
   const [fullName, setFullName]       = useState('')
@@ -45,33 +39,15 @@ function RegisterInner() {
   const [showPwd, setShowPwd]         = useState(false)
   const [showCnf, setShowCnf]         = useState(false)
   const [error, setError]             = useState('')
-  const [stripeEmail, setStripeEmail] = useState('')
 
-  // Determine mode and validate on mount
+  // Validate plan on mount
   useEffect(() => {
-    if (mode === 'new') {
-      // New flow: plan in URL → show form immediately
-      if (plan && ['starter', 'pro', 'scale'].includes(plan)) {
-        setStep('form')
-      } else {
-        router.replace(`${LANDING_URL}/cijene`)
-      }
-      return
+    if (plan && ['starter', 'pro', 'scale'].includes(plan)) {
+      setStep('form')
+    } else {
+      router.replace(`${LANDING_URL}/cijene`)
     }
-    // Legacy flow: validate Stripe session
-    fetch(`/api/register/validate-session?session_id=${sessionId}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.valid) {
-          setStripeEmail(data.customer_email || '')
-          setEmail(data.customer_email || '')
-          setStep('form')
-        } else {
-          setStep('invalid')
-        }
-      })
-      .catch(() => setStep('invalid'))
-  }, [sessionId, plan, mode])
+  }, [plan, router])
 
   const planMeta = PLAN_META[plan]
 
@@ -102,47 +78,24 @@ function RegisterInner() {
 
     setStep('loading')
     try {
-      if (mode === 'new') {
-        // New flow: create account first, then redirect to Stripe
-        const res = await fetch('/api/register/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: fullName.trim(),
-            email:     email.trim(),
-            phone:     phone.trim() || null,
-            password,
-            plan,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Greška pri registraciji.')
-          setStep('form')
-        } else if (data.checkout_url) {
-          window.location.href = data.checkout_url
-        }
-      } else {
-        // Legacy flow: account created after Stripe checkout
-        const res = await fetch('/api/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name: fullName.trim(),
-            email:     email.trim(),
-            phone:     phone.trim() || null,
-            password,
-            session_id: sessionId,
-            plan,
-          }),
-        })
-        const data = await res.json()
-        if (!res.ok) {
-          setError(data.error || 'Greška pri registraciji.')
-          setStep('form')
-        } else {
-          setStep('success')
-        }
+      // Create account first, then redirect to Stripe
+      const res = await fetch('/api/register/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName.trim(),
+          email:     email.trim(),
+          phone:     phone.trim() || null,
+          password,
+          plan,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Greška pri registraciji.')
+        setStep('form')
+      } else if (data.checkout_url) {
+        window.location.href = data.checkout_url
       }
     } catch {
       setError('Greška pri spajanju na server.')
@@ -380,9 +333,6 @@ function RegisterInner() {
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                       placeholder="trener@email.com" autoComplete="email" required
                       className={inputClass} />
-                    {mode === 'legacy' && stripeEmail && email !== stripeEmail && (
-                      <p className="text-xs text-amber-500">💡 Stripe email: {stripeEmail}</p>
-                    )}
                   </div>
 
                   {/* Password row */}
@@ -437,8 +387,8 @@ function RegisterInner() {
                     style={{ backgroundColor: BLUE, boxShadow: `0 4px 16px ${BLUE}30` }}
                   >
                     {step === 'loading'
-                      ? <><Loader2 size={15} className="animate-spin" />{mode === 'new' ? 'Kreiranje računa...' : t('loading')}</>
-                      : mode === 'new' ? 'Kreni besplatno →' : t('submit')
+                      ? <><Loader2 size={15} className="animate-spin" />Kreiranje računa...</>
+                      : 'Kreni besplatno →'
                     }
                   </button>
                 </form>

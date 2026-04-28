@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
       const subA = sub as any
       const plan = session.metadata?.plan ?? sub.metadata?.plan ?? 'starter'
 
-      let status: string = sub.status
-      if (status !== 'trialing' && status !== 'active') status = 'trialing'
+      // Persist Stripe's real status — never coerce unknown statuses to trialing.
+      // If Stripe reports incomplete/unpaid/canceled, store that and deny access.
+      const status: string = sub.status
 
       const customerId = typeof session.customer === 'string'
         ? session.customer
@@ -184,9 +185,11 @@ export async function POST(req: NextRequest) {
 
       let status: string = sub.status
       if (status === 'past_due' || status === 'unpaid') status = 'past_due'
+
+      let updErr
       if (status === 'active' || status === 'trialing') {
         // Clear lock if payment recovered
-        await db.from('subscriptions').update({
+        const { error } = await db.from('subscriptions').update({
           status,
           plan,
           client_limit:         CLIENT_LIMITS[plan] ?? 15,
@@ -198,12 +201,18 @@ export async function POST(req: NextRequest) {
           locked_at:            null,
           updated_at:           new Date().toISOString(),
         }).eq('stripe_subscription_id', sub.id)
+        updErr = error
       } else {
-        await db.from('subscriptions').update({
+        const { error } = await db.from('subscriptions').update({
           status,
           cancel_at_period_end: sub.cancel_at_period_end,
           updated_at:           new Date().toISOString(),
         }).eq('stripe_subscription_id', sub.id)
+        updErr = error
+      }
+      if (updErr) {
+        console.error('[stripe webhook] subscription.updated DB failed:', updErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
       }
       break
     }
@@ -213,6 +222,14 @@ export async function POST(req: NextRequest) {
       const sub    = event.data.object as Stripe.Subscription
       const custId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as any)?.id
       if (!custId) break
+
+      // Idempotency: skip if this event was already processed (Stripe retries on timeout)
+      const { data: alreadySent } = await db
+        .from('processed_webhook_events')
+        .select('id')
+        .eq('stripe_event_id', event.id)
+        .maybeSingle()
+      if (alreadySent) break
 
       const { data: subRecord } = await db
         .from('subscriptions')
@@ -282,6 +299,19 @@ export async function POST(req: NextRequest) {
   </table>
 </body>
 </html>`
+
+      // Mark event as processed BEFORE sending email.
+      // If the upsert fails, we skip the send (better to miss once than spam on retries).
+      const { error: upsertErr } = await db.from('processed_webhook_events').upsert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        processed_at: new Date().toISOString(),
+      }, { onConflict: 'stripe_event_id', ignoreDuplicates: true })
+
+      if (upsertErr) {
+        console.error('[stripe webhook] processed_webhook_events upsert failed:', upsertErr)
+        return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
 
       await sendResendEmail({
         to: profile.email,

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes accessible even when subscription is locked/canceled
-const SUBSCRIPTION_FREE_PATHS = ['/dashboard/profile', '/dashboard/billing', '/login', '/register']
+const SUBSCRIPTION_FREE_PATHS = ['/dashboard/profile', '/dashboard/billing', '/choose-plan', '/login', '/register']
 
 /** Paths that must work without a session (email links carry tokens in #hash or ?code — not visible to middleware). */
 const PUBLIC_UNAUTH_PATHS = ['/login', '/register', '/client-auth', '/reset-password'] as const
@@ -17,7 +17,7 @@ function isAuthLandingPath(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -48,6 +48,14 @@ export async function proxy(request: NextRequest) {
   if (user && isAuthLandingPath(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // Require verified email before allowing dashboard access
+  if (user && !user.email_confirmed_at && pathname.startsWith('/dashboard')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('verify', 'required')
     return NextResponse.redirect(url)
   }
 
@@ -84,7 +92,7 @@ export async function proxy(request: NextRequest) {
     // Block access if locked or canceled
     if (effectiveStatus === 'locked' || effectiveStatus === 'canceled') {
       const url = request.nextUrl.clone()
-      url.pathname = '/dashboard/billing'
+      url.pathname = '/choose-plan'
       return NextResponse.redirect(url)
     }
   }
@@ -94,6 +102,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api|login|register|site.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png|sw.js|manifest.json).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|site.webmanifest|icon-192.png|icon-512.png|apple-touch-icon.png|sw.js|manifest.json).*)',
   ],
 }

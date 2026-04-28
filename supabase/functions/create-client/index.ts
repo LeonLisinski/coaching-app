@@ -41,7 +41,11 @@ Deno.serve(async (req) => {
       )
     }
 
-    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, gender, notes, activity_level } = await req.json()
+    let body: any
+    try { body = await req.json() } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+    const { trainer_id, email, full_name, goal, date_of_birth, weight, height, gender, notes, activity_level } = body
 
     // Ensure the caller is the trainer they claim to be
     if (callerUser.id !== trainer_id) {
@@ -51,30 +55,37 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check subscription client limit before creating
+    // Check subscription client limit before creating.
+    // No subscription row, or non-active/trialing status = no access to add clients.
     const { data: subscription } = await supabaseAdmin
       .from('subscriptions')
-      .select('client_limit, plan')
+      .select('client_limit, plan, status')
       .eq('trainer_id', trainer_id)
-      .single()
+      .maybeSingle()
 
-    if (subscription) {
-      const { count: clientCount } = await supabaseAdmin
-        .from('clients')
-        .select('id', { count: 'exact', head: true })
-        .eq('trainer_id', trainer_id)
+    const activeStatuses = ['active', 'trialing', 'past_due']
+    if (!subscription || !activeStatuses.includes(subscription.status)) {
+      return new Response(
+        JSON.stringify({ error: 'CLIENT_LIMIT_REACHED', current: 0, limit: 0, plan: subscription?.plan ?? null }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-      if (clientCount !== null && clientCount >= subscription.client_limit) {
-        return new Response(
-          JSON.stringify({
-            error: 'CLIENT_LIMIT_REACHED',
-            current: clientCount,
-            limit: subscription.client_limit,
-            plan: subscription.plan,
-          }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
+    const { count: clientCount } = await supabaseAdmin
+      .from('clients')
+      .select('id', { count: 'exact', head: true })
+      .eq('trainer_id', trainer_id)
+
+    if (clientCount !== null && clientCount >= subscription.client_limit) {
+      return new Response(
+        JSON.stringify({
+          error: 'CLIENT_LIMIT_REACHED',
+          current: clientCount,
+          limit: subscription.client_limit,
+          plan: subscription.plan,
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     const clientAuthRedirect =
@@ -108,13 +119,17 @@ Deno.serve(async (req) => {
 
     const trainerName = trainerProfile?.full_name?.trim() || 'Tvoj trener'
 
-    // Pričekaj da trigger kreira profil, pa update
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Poll until DB trigger creates the profile row, then upsert
+    const pollStart = Date.now()
+    while (Date.now() - pollStart < 4000) {
+      const { data: p } = await supabaseAdmin.from('profiles').select('id').eq('id', newUser.id).maybeSingle()
+      if (p?.id) break
+      await new Promise(r => setTimeout(r, 300))
+    }
 
     await supabaseAdmin
       .from('profiles')
-      .update({ full_name, role: 'client' })
-      .eq('id', newUser.id)
+      .upsert({ id: newUser.id, full_name, role: 'client' }, { onConflict: 'id' })
 
     const { data: clientData, error: clientError } = await supabaseAdmin
       .from('clients')

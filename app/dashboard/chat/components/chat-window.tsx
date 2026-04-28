@@ -67,6 +67,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const templatesRef = useRef<HTMLDivElement>(null)
   const outerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   // On mobile: fixed overlay covering the full screen (top:0 → covers safe area too).
   // The gradient header inside has padding-top:env(safe-area-inset-top) so content
@@ -109,7 +110,12 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
 
   useEffect(() => {
     initChat()
-    return () => { supabase.removeAllChannels() }
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
+        channelRef.current = null
+      }
+    }
   }, [clientId])
 
   useEffect(() => {
@@ -162,7 +168,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }
 
   const subscribeToMessages = (uid: string) => {
-    supabase
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current)
+    }
+    channelRef.current = supabase
       .channel(`chat-${clientId}-${uid}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
         const msg = payload.new as Message

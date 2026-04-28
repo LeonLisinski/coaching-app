@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { PLAN_PRICES, Plan } from '@/lib/plans'
+import { sendResendEmail } from '@/lib/resend-server'
 
 export async function POST(req: NextRequest) {
   const { full_name, email, password, phone, plan } = await req.json()
@@ -27,25 +27,36 @@ export async function POST(req: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Check for duplicate email
-  const { data: existingUser } = await adminDb.auth.admin.listUsers()
-  const emailTaken = existingUser?.users?.some(
-    u => u.email?.toLowerCase() === email.trim().toLowerCase()
-  )
-  if (emailTaken) {
+  // Check for duplicate email via profiles table (reliable, no pagination issue).
+  // generateLink also returns a clear error if the email exists, but checking here
+  // gives a friendlier 409 response without consuming quota.
+  const { data: existingProfile } = await adminDb
+    .from('profiles')
+    .select('id')
+    .eq('email', email.trim().toLowerCase())
+    .maybeSingle()
+  if (existingProfile) {
     return NextResponse.json({ error: 'Ova email adresa je već registrirana.' }, { status: 409 })
   }
 
-  // Create Supabase auth user
-  const { data: { user }, error: createError } = await adminDb.auth.admin.createUser({
-    email:        email.trim(),
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
+
+  // Create unconfirmed auth user and generate verification link
+  const { data: linkData, error: createError } = await adminDb.auth.admin.generateLink({
+    type: 'signup',
+    email: email.trim(),
     password,
-    email_confirm: true,
-    user_metadata: { full_name: full_name.trim() },
+    options: {
+      redirectTo: `${appUrl}/login?verified=1`,
+      data: { full_name: full_name.trim() },
+    },
   })
 
+  const user = linkData?.user
+  const verifyActionLink = linkData?.properties?.action_link
+
   if (createError || !user) {
-    console.error('[register/start] createUser error:', createError?.message)
+    console.error('[register/start] generateLink(signup) error:', createError?.message)
     const isEmailTaken = createError?.message?.toLowerCase().includes('already registered')
       || createError?.message?.toLowerCase().includes('already been registered')
       || createError?.message?.toLowerCase().includes('user already exists')
@@ -56,25 +67,58 @@ export async function POST(req: NextRequest) {
     }, { status: 500 })
   }
 
-  // Wait for DB trigger to create the profile row
-  await new Promise(r => setTimeout(r, 700))
+  if (!verifyActionLink) {
+    console.error('[register/start] verification link missing after signup link generation')
+    await adminDb.auth.admin.deleteUser(user.id).catch(() => {})
+    return NextResponse.json({ error: 'Greška pri pripremi verifikacije emaila. Pokušaj ponovo.' }, { status: 500 })
+  }
 
-  // Update profiles table
-  await adminDb.from('profiles').update({
+  const verifyHtml = `
+    <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f6f7fb;color:#111827">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:24px">
+        <h2 style="margin:0 0 12px 0;font-size:22px;line-height:1.25">Potvrdi svoj email za UnitLift</h2>
+        <p style="margin:0 0 16px 0;color:#4b5563">Bok ${full_name.trim()}, prije ulaska u dashboard potvrdi email klikom na gumb ispod.</p>
+        <a href="${verifyActionLink}" style="display:inline-block;background:#0066ff;color:#fff;text-decoration:none;font-weight:700;padding:12px 18px;border-radius:10px">Potvrdi email</a>
+        <p style="margin:16px 0 0 0;color:#6b7280;font-size:13px">Ako gumb ne radi, kopiraj ovaj link u browser:</p>
+        <p style="margin:8px 0 0 0;color:#374151;font-size:12px;word-break:break-all">${verifyActionLink}</p>
+      </div>
+    </div>
+  `
+
+  const verifySend = await sendResendEmail({
+    to: email.trim(),
+    subject: 'Potvrdi email adresu - UnitLift',
+    html: verifyHtml,
+  })
+
+  if (!verifySend.ok) {
+    console.error('[register/start] verify email send failed:', verifySend.errorKey, verifySend.logHint || '')
+    await adminDb.auth.admin.deleteUser(user.id).catch(() => {})
+    return NextResponse.json({ error: 'Ne mogu poslati verifikacijski email. Pokušaj ponovo.' }, { status: 500 })
+  }
+
+  // Poll until the DB trigger creates the profiles row (replaces fixed 700ms delay).
+  // Trigger is usually instant but can lag under load.
+  const pollStart = Date.now()
+  while (Date.now() - pollStart < 4000) {
+    const { data: p } = await adminDb.from('profiles').select('id').eq('id', user.id).maybeSingle()
+    if (p?.id) break
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  // Update profiles table (upsert handles race where trigger was too slow)
+  await adminDb.from('profiles').upsert({
+    id:        user.id,
     full_name: full_name.trim(),
     role:      'trainer',
     email:     email.trim(),
     ...(phone?.trim() ? { phone: phone.trim() } : {}),
-  }).eq('id', user.id)
+  }, { onConflict: 'id' })
 
   // Ensure trainer_profiles row exists (upsert — safe if trigger already created it)
   await adminDb.from('trainer_profiles').upsert({
     id: user.id,
   }, { onConflict: 'id', ignoreDuplicates: true })
-
-  // Sign user in so the auth cookie is set for app.unitlift.com
-  const supabaseSSR = await createSupabaseServerClient()
-  await supabaseSSR.auth.signInWithPassword({ email: email.trim(), password })
 
   // Create Stripe customer + checkout session
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -97,8 +141,6 @@ export async function POST(req: NextRequest) {
       name:  full_name.trim(),
       metadata: { supabase_user_id: user.id },
     })
-
-    const appUrl     = 'https://app.unitlift.com'
 
     const session = await stripe.checkout.sessions.create({
       customer:                  customer.id,

@@ -103,29 +103,35 @@ export default function CheckinStatsTab() {
     const user = session?.user
     if (!user) return
 
-    const [
-      { data: clientsData },
-      { data: allCheckins },
-    ] = await Promise.all([
-      supabase.from('clients')
-        .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
-        .eq('trainer_id', user.id).eq('active', true),
-      supabase.from('checkins')
-        .select('client_id, date')
-        .order('date', { ascending: false }),
-    ])
+    // Phase 1: get clients (need IDs before filtering checkins)
+    const { data: clientsData } = await supabase.from('clients')
+      .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
+      .eq('trainer_id', user.id).eq('active', true)
 
-    if (!clientsData) { setLoading(false); return }
+    if (!clientsData?.length) { setLoading(false); return }
 
     const clientIds = clientsData.map(c => c.id)
-    const { data: configs } = await supabase.from('checkin_config')
-      .select('client_id, checkin_day').in('client_id', clientIds)
+
+    // Phase 2: all queries filtered by trainer's client IDs — no global table scan
+    // Checkins limited to last 9 months (covers 8-month trend + current month)
+    const nineMonthsAgo = new Date()
+    nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9)
+    const nineMonthsAgoStr = isoDate(nineMonthsAgo)
+
+    const [{ data: allCheckins }, { data: configs }] = await Promise.all([
+      supabase.from('checkins')
+        .select('client_id, date')
+        .in('client_id', clientIds)
+        .gte('date', nineMonthsAgoStr)
+        .order('date', { ascending: false }),
+      supabase.from('checkin_config')
+        .select('client_id, checkin_day').in('client_id', clientIds),
+    ])
 
     const configMap: Record<string, number | null> = {}
     configs?.forEach(c => { configMap[c.client_id] = c.checkin_day })
 
-    // Filtered to only this trainer's clients
-    const myCheckins = (allCheckins || []).filter(c => clientIds.includes(c.client_id))
+    const myCheckins = allCheckins || []
 
     const lastMap: Record<string, string> = {}
     myCheckins.forEach(c => { if (!lastMap[c.client_id]) lastMap[c.client_id] = c.date })

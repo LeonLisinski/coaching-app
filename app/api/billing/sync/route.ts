@@ -30,14 +30,24 @@ export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
 
   // Pull fresh data directly from Stripe
-  const sub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id)
+  let sub: Stripe.Subscription
+  try {
+    sub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id)
+  } catch (stripeErr: any) {
+    console.error('[billing/sync] Stripe retrieve failed:', stripeErr?.message)
+    return NextResponse.json({ error: 'Stripe unavailable' }, { status: 502 })
+  }
   const subA = sub as any
 
   const plan = (sub.metadata?.plan ?? 'starter') as Plan
   const status = sub.status // 'active' | 'trialing' | 'past_due' | 'canceled' | etc.
 
-  // Sync to Supabase
-  await adminDb.from('subscriptions').update({
+  // Only clear locked_at when subscription is healthy (active/trialing).
+  // For past_due/canceled/etc, preserve existing locked_at so the grace-period
+  // locking model in middleware and checkAccess continues to work correctly.
+  const isHealthy = status === 'active' || status === 'trialing'
+
+  const { error: syncErr } = await adminDb.from('subscriptions').update({
     status,
     plan,
     client_limit:         CLIENT_LIMITS[plan] ?? 15,
@@ -46,9 +56,14 @@ export async function POST(req: NextRequest) {
     current_period_start: subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,
     current_period_end:   subA.current_period_end != null   ? new Date(subA.current_period_end   * 1000).toISOString() : null,
     cancel_at_period_end: sub.cancel_at_period_end,
-    locked_at:            null,
+    ...(isHealthy ? { locked_at: null } : {}),
     updated_at:           new Date().toISOString(),
   }).eq('trainer_id', user.id)
+
+  if (syncErr) {
+    console.error('[billing/sync] DB update failed:', syncErr)
+    return NextResponse.json({ error: 'DB update failed' }, { status: 500 })
+  }
 
   const now = new Date()
   const hasAccess =

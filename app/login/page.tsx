@@ -6,17 +6,20 @@ import { supabase } from '@/lib/supabase'
 import { Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, TrendingUp, Dumbbell, Loader2 } from 'lucide-react'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
 const FEATURE_ICONS = [Dumbbell, CheckCircle2, MessageSquare, TrendingUp] as const
 const FEATURE_KEYS  = ['training', 'checkin', 'chat', 'finance'] as const
 
 export default function LoginPage() {
   const t = useTranslations('login')
+  const searchParams = useSearchParams()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd]   = useState(false)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+  const [info, setInfo]         = useState('')
   const [checking, setChecking] = useState(true)
   const [mode, setMode]         = useState<'login' | 'forgot' | 'forgotSent'>('login')
   const [forgotEmail, setForgotEmail] = useState('')
@@ -34,25 +37,51 @@ export default function LoginPage() {
     })
   }, [])
 
+  useEffect(() => {
+    if (searchParams.get('verified') === '1') {
+      setInfo('Email je potvrđen. Sada se možeš prijaviti.')
+      return
+    }
+    if (searchParams.get('verify') === 'required') {
+      setInfo('Prije ulaska u dashboard potvrdi email adresu iz poruke koju smo poslali.')
+    }
+  }, [searchParams])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
+      const msg = error.message.toLowerCase()
+      if (msg.includes('email not confirmed') || msg.includes('email not verified')) {
+        setError('Email još nije potvrđen. Provjeri inbox i klikni na verifikacijski link.')
+      } else {
+        setError(error.message)
+      }
       setLoading(false)
       return
     }
 
     // Role check — only trainers can access the web app
-    const { data: profile } = await supabase
+    const { data: profile, error: profileErr } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .single()
 
-    if (profile?.role !== 'trainer') {
+    // Distinguish between "not a trainer" and a transient DB/network error.
+    // A failed fetch should not kick out a legitimate trainer.
+    if (profileErr && profileErr.code !== 'PGRST116') {
+      // PGRST116 = no rows found; other errors = transient failure
+      console.error('[login] profile fetch error:', profileErr.message)
+      setError('Greška pri provjeri računa. Pokušaj ponovo.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+
+    if (!profile || profile.role !== 'trainer') {
       await supabase.auth.signOut()
       setError('Ova platforma je namijenjena isključivo trenerima. Klijenti koriste mobilnu aplikaciju.')
       setLoading(false)
@@ -265,6 +294,12 @@ export default function LoginPage() {
                     <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
                       <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
                       <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                    </div>
+                  )}
+                  {info && (
+                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-2.5">
+                      <span className="text-blue-500 text-xs mt-0.5 shrink-0">i</span>
+                      <p className="text-blue-700 text-xs leading-relaxed">{info}</p>
                     </div>
                   )}
                   <button

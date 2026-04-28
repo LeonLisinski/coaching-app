@@ -129,7 +129,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0]
 
     const stored = localStorage.getItem('notif_seen_ids')
-    const storedSeen: Set<string> = stored ? new Set(JSON.parse(stored)) : new Set()
+    let storedSeen: Set<string> = new Set()
+    if (stored) {
+      try { storedSeen = new Set(JSON.parse(stored)) } catch { localStorage.removeItem('notif_seen_ids') }
+    }
     setSeenIds(storedSeen)
 
     const sevenDaysAheadDate = new Date(now); sevenDaysAheadDate.setDate(now.getDate() + 7)
@@ -324,7 +327,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const now = new Date()
         if (sub.status === 'active') return true
         if (sub.status === 'trialing') {
-          if (!sub.trial_end) return true
+          // No trial_end = bad data; deny until sync sets it
+          if (!sub.trial_end) return false
           return new Date(sub.trial_end) > now
         }
         if (sub.status === 'past_due') {
@@ -332,6 +336,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           return new Date(sub.locked_at) > now
         }
         return false
+      }
+
+      // If coming back from Stripe checkout, sync billing BEFORE checking access
+      // so the subscription row exists before we decide to redirect.
+      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
+      if (isPending && session.access_token) {
+        try {
+          await fetch('/api/billing/sync', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          })
+        } catch (err) {
+          console.error('[layout] billing/sync failed:', err)
+        }
+        window.history.replaceState({}, '', '/dashboard')
       }
 
       // Run subscription check + profile fetch IN PARALLEL (one RTT instead of two serial)
@@ -353,22 +372,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       fetchNotifications(user.id)
-
-      // If coming back from Stripe, sync subscription in background (bypasses webhook timing)
-      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
-      if (isPending) {
-        try {
-          if (session.access_token) {
-            await fetch('/api/billing/sync', {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            })
-            window.history.replaceState({}, '', '/dashboard')
-          }
-        } catch {
-          window.history.replaceState({}, '', '/dashboard')
-        }
-      }
     })
   }, [fetchNotifications])
 

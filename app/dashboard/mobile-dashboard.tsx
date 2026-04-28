@@ -67,14 +67,8 @@ export default function MobileDashboard() {
     const user = session?.user
     if (!user) return
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .maybeSingle()
-    setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || t2('fallbackTrainer'))
-
-    const [{ data: clients }, { data: payments }] = await Promise.all([
+    const [{ data: profile }, { data: clients }, { data: payments }] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
       supabase.from('clients')
         .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
         .eq('trainer_id', user.id).eq('active', true),
@@ -82,6 +76,7 @@ export default function MobileDashboard() {
         .select('amount, status')
         .eq('trainer_id', user.id),
     ])
+    setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || t2('fallbackTrainer'))
 
     setTotalClients(clients?.length || 0)
 

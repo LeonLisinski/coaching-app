@@ -27,15 +27,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
   }
 
-  // cancel_at_period_end = true — does NOT cancel immediately
-  await stripe.subscriptions.update(sub.stripe_subscription_id, {
-    cancel_at_period_end: true,
-  })
+  try {
+    // cancel_at_period_end = true — does NOT cancel immediately
+    await stripe.subscriptions.update(sub.stripe_subscription_id, {
+      cancel_at_period_end: true,
+    })
+  } catch (stripeErr: any) {
+    console.error('[billing/cancel] Stripe error:', stripeErr?.message)
+    return NextResponse.json({ error: 'Greška pri otkazivanju Stripe pretplate. Pokušaj ponovo.' }, { status: 502 })
+  }
 
-  await supabaseAdmin.from('subscriptions').update({
+  const { error: dbErr } = await supabaseAdmin.from('subscriptions').update({
     cancel_at_period_end: true,
     updated_at: new Date().toISOString(),
   }).eq('trainer_id', user.id)
+
+  if (dbErr) {
+    console.error('[billing/cancel] DB update failed:', dbErr)
+    // Stripe already updated — log the inconsistency but return 200 so UI reflects Stripe truth
+  }
 
   return NextResponse.json({ success: true })
 }

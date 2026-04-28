@@ -151,7 +151,7 @@ function FinancijePageContent() {
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     // Fetch client_packages, packages, payments separately to avoid broken FK joins
     const [{ data: cpData }, { data: pkgData }, { data: clientsData }] = await Promise.all([

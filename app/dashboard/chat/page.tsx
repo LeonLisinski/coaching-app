@@ -70,7 +70,7 @@ function ChatPageContent() {
   const fetchClients = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const { data: clientsData } = await supabase
       .from('clients')
@@ -79,7 +79,7 @@ function ChatPageContent() {
       .eq('active', true)
       .order('created_at', { ascending: false })
 
-    if (!clientsData) return
+    if (!clientsData) { setLoading(false); return }
 
     const clientIds = clientsData.map(c => c.id)
     const { data: messagesData } = await supabase

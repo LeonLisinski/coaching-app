@@ -71,29 +71,32 @@ export default function CheckinConfig({ clientId }: Props) {
 
   const handleSave = async () => {
     setSaving(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
-    if (!user) return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) return
 
-    const payload = {
-      trainer_id: user.id,
-      client_id: clientId,
-      checkin_day: config.checkin_day,
-      photo_frequency: config.photo_frequency,
-      photo_positions: config.photo_positions,
-      notes: config.notes || null,
+      const payload = {
+        trainer_id: user.id,
+        client_id: clientId,
+        checkin_day: config.checkin_day,
+        photo_frequency: config.photo_frequency,
+        photo_positions: config.photo_positions,
+        notes: config.notes || null,
+      }
+
+      if (configId) {
+        await supabase.from('checkin_config').update(payload).eq('id', configId)
+      } else {
+        const { data } = await supabase.from('checkin_config').insert(payload).select('id').single()
+        if (data) setConfigId(data.id)
+      }
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
     }
-
-    if (configId) {
-      await supabase.from('checkin_config').update(payload).eq('id', configId)
-    } else {
-      const { data } = await supabase.from('checkin_config').insert(payload).select('id').single()
-      if (data) setConfigId(data.id)
-    }
-
-    setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
   }
 
   if (loading) return (

@@ -26,15 +26,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
   }
 
-  // Revert cancel_at_period_end
-  await stripe.subscriptions.update(sub.stripe_subscription_id, {
-    cancel_at_period_end: false,
-  })
+  try {
+    // Revert cancel_at_period_end
+    await stripe.subscriptions.update(sub.stripe_subscription_id, {
+      cancel_at_period_end: false,
+    })
+  } catch (stripeErr: any) {
+    console.error('[billing/reactivate] Stripe error:', stripeErr?.message)
+    return NextResponse.json({ error: 'Greška pri reaktivaciji Stripe pretplate. Pokušaj ponovo.' }, { status: 502 })
+  }
 
-  await supabaseAdmin.from('subscriptions').update({
+  const { error: dbErr } = await supabaseAdmin.from('subscriptions').update({
     cancel_at_period_end: false,
     updated_at: new Date().toISOString(),
   }).eq('trainer_id', user.id)
+
+  if (dbErr) {
+    console.error('[billing/reactivate] DB update failed:', dbErr)
+  }
 
   return NextResponse.json({ success: true })
 }

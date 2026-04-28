@@ -97,7 +97,7 @@ export default function CheckinHistory({ clientId }: Props) {
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const [{ data: paramsData }, { data: checkinsData }, { data: configData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),

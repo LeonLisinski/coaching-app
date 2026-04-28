@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-push-secret')
-  if (secret !== (process.env.PUSH_SECRET || '')) {
+  const expected = process.env.PUSH_SECRET
+  if (!expected) {
+    // Hard-fail when env is missing — refuse to silently match an empty string.
+    console.error('[push/send-internal] PUSH_SECRET not configured')
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
+  }
+
+  const provided = req.headers.get('x-push-secret')
+  if (!provided || provided !== expected) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

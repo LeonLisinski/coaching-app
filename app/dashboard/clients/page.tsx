@@ -108,7 +108,7 @@ function ClientsPageContent() {
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const [{ data: clientData }, { data: pkgData }, { data: subData }] = await Promise.all([
       supabase
