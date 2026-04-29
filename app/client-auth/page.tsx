@@ -107,7 +107,27 @@ function ClientAuthForm() {
     const { error: err } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (err) {
-      setError(t('errGeneric'))
+      // Surface the actual cause instead of swallowing into "generic" — most
+      // common real-world failures here are leaked-password rejection (when
+      // the Supabase project has HaveIBeenPwned protection enabled) and
+      // expired/already-used invite OTP.
+      console.error('[client-auth] updateUser error:', err.message, err)
+      const m = err.message?.toLowerCase() ?? ''
+      const code = (err as { code?: string }).code ?? ''
+      if (code === 'weak_password' || m.includes('weak password') || m.includes('pwned') || m.includes('compromised')) {
+        setError(t('errLeaked'))
+      } else if (code === 'same_password' || m.includes('same as the old password')) {
+        setError(t('errSamePassword'))
+      } else if (m.includes('password') && (m.includes('characters') || m.includes('short') || m.includes('least'))) {
+        // Raw message is already informative: "Password should be at least X characters"
+        setError(err.message)
+      } else if (m.includes('expired') || m.includes('jwt') || m.includes('session') || m.includes('not found') || m.includes('invalid')) {
+        setError(t('errSessionExpired'))
+      } else {
+        // Last resort: show the raw message so we can debug instead of a
+        // useless "Nešto je pošlo po krivu".
+        setError(err.message || t('errGeneric'))
+      }
       return
     }
     await supabase.auth.signOut()

@@ -17,6 +17,10 @@
     "errWeak": "Lozinka mora imati najmanje 8 znakova.",
     "errMismatch": "Lozinke se ne podudaraju.",
     "errGeneric": "Nešto je pošlo po krivu. Pokušaj ponovo.",
+    "errLeaked": "Ova lozinka je pronađena u javnoj bazi procurjelih lozinki. Probaj jedinstveniju kombinaciju (slova + brojevi + simboli).",
+    "errSamePassword": "Nova lozinka mora biti različita od stare.",
+    "errSessionExpired": "Link je istekao ili je već iskorišten. Zatraži novi poziv od trenera.",
+    "errPasswordTooShort": "Lozinka mora imati najmanje 8 znakova.",
     "secureNote": "Šifrirana veza",
     "cardBadge": "Klijent",
     "mobileAppTitle": "UnitLift mobilna aplikacija"

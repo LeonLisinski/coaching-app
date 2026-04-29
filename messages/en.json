@@ -17,6 +17,10 @@
     "errWeak": "Password must be at least 8 characters.",
     "errMismatch": "Passwords do not match.",
     "errGeneric": "Something went wrong. Please try again.",
+    "errLeaked": "This password was found in a public breach database. Please try a more unique combination (letters + numbers + symbols).",
+    "errSamePassword": "New password must be different from the old one.",
+    "errSessionExpired": "The link has expired or has already been used. Ask your trainer for a new invite.",
+    "errPasswordTooShort": "Password must be at least 8 characters.",
     "secureNote": "Encrypted connection",
     "cardBadge": "Client",
     "mobileAppTitle": "UnitLift mobile app"
