@@ -222,11 +222,18 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     if (newClientId && start_date) {
       await supabase.from('clients').update({ start_date }).eq('id', newClientId)
     }
-    // Reactivated relationships already have historical plans, check-in config,
-    // and packages. Re-inserting them here would either duplicate rows or fail
-    // silently on UNIQUE constraints. Skip post-create assignments and let the
-    // trainer adjust via edit-client-dialog if needed.
-    if (newClientId && !result.reactivated) {
+
+    if (newClientId) {
+      // For reactivated relationships there may be old plans/config left over
+      // from the previous collaboration. The trainer's selections in this
+      // dialog represent the NEW collaboration — supersede whatever was there.
+      if (result.reactivated) {
+        await Promise.all([
+          supabase.from('client_workout_plans').update({ active: false }).eq('client_id', newClientId).eq('active', true),
+          supabase.from('client_meal_plans').update({ active: false }).eq('client_id', newClientId).eq('active', true),
+        ])
+      }
+
       // Assign training plan
       if (selectedWorkout) {
         await supabase.from('client_workout_plans').insert({
@@ -250,17 +257,18 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           })
         }
       }
-      // Set up check-in
+      // Set up check-in (UPSERT — checkin_config has at most one row per client,
+      // so on reactivation we update instead of inserting a duplicate)
       if (checkinDay !== null) {
-        await supabase.from('checkin_config').insert({
+        await supabase.from('checkin_config').upsert({
           client_id: newClientId,
           trainer_id: trainer.id,
           checkin_day: checkinDay,
           photo_frequency: 'every',
           photo_positions: ['front', 'side', 'back'],
-        })
+        }, { onConflict: 'client_id' })
       }
-      // Assign payment package
+      // Assign payment package — always a fresh billing cycle, so insert is fine
       if (selectedPackage) {
         const pkg = trainerPackages.find(p => p.id === selectedPackage)
         if (pkg) {

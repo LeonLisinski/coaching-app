@@ -227,14 +227,13 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
     const newClientId = result.client_id
     if (!newClientId) { setError('Greška pri kreiranju klijenta.'); setLoading(false); return }
 
-    // Reactivated relationships already have plans/config from the previous
-    // collaboration period — copying again would duplicate or fail UNIQUE
-    // constraints. Skip the copy phase; trainer can adjust via edit dialog.
+    // For reactivated relationships there may be old plans/config from the
+    // previous collaboration. The trainer's selections supersede them.
     if (result.reactivated) {
-      setLoading(false)
-      onSuccess()
-      onClose()
-      return
+      await Promise.all([
+        copyWorkout ? supabase.from('client_workout_plans').update({ active: false }).eq('client_id', newClientId).eq('active', true) : Promise.resolve(),
+        copyMeal    ? supabase.from('client_meal_plans').update({ active: false }).eq('client_id', newClientId).eq('active', true) : Promise.resolve(),
+      ])
     }
 
     // Copy training plan
@@ -273,19 +272,19 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
       }
     }
 
-    // Copy checkin config
+    // Copy checkin config (UPSERT — at most one row per client)
     if (copyCheckin) {
       const { data: cc } = await supabase.from('checkin_config')
         .select('*').eq('client_id', sourceClientId).maybeSingle()
       if (cc) {
-        await supabase.from('checkin_config').insert({
+        await supabase.from('checkin_config').upsert({
           client_id: newClientId,
           trainer_id: trainer.id,
           checkin_day: cc.checkin_day,
           photo_frequency: cc.photo_frequency || 'every',
           photo_positions: cc.photo_positions || ['front', 'side', 'back'],
           notes: cc.notes || null,
-        })
+        }, { onConflict: 'client_id' })
         // Copy checkin parameters (without personal data)
         const { data: params } = await supabase.from('checkin_parameters')
           .select('*').eq('client_id', sourceClientId)
