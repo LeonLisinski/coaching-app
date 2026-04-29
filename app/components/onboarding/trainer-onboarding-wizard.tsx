@@ -94,9 +94,18 @@ export default function TrainerOnboardingWizard({ open, onOpenChange, onFinished
           }),
         },
       )
-      const result = await response.json()
+      const result = await response.json() as {
+        error?: string
+        message?: string
+      }
       if (result.error) {
-        setError(result.error)
+        const friendly: Record<string, string> = {
+          ALREADY_CLIENT: 'Ova osoba je već tvoj aktivni klijent.',
+          HAS_ACTIVE_TRAINER: 'Ova osoba trenutno aktivno trenira s drugim trenerom.',
+          SELF_AS_CLIENT: 'Ne možeš dodati sam sebe kao klijenta.',
+          CLIENT_LIMIT_REACHED: 'Dosegnut je limit klijenata na tvom planu.',
+        }
+        setError(friendly[result.error] ?? result.message ?? result.error)
         setSubmitting(false)
         return
       }

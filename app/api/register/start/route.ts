@@ -5,14 +5,19 @@ import { PLAN_PRICES, Plan } from '@/lib/plans'
 import { sendResendEmail } from '@/lib/resend-server'
 
 export async function POST(req: NextRequest) {
-  const { full_name, email, password, phone, plan } = await req.json()
+  const { full_name, email: rawEmail, password, phone, plan } = await req.json()
 
-  if (!full_name?.trim() || !email?.trim() || !password) {
+  if (!full_name?.trim() || !rawEmail?.trim() || !password) {
     return NextResponse.json({ error: 'Sva polja su obavezna.' }, { status: 400 })
   }
   if (password.length < 8) {
     return NextResponse.json({ error: 'Lozinka mora imati najmanje 8 znakova.' }, { status: 400 })
   }
+
+  // Normalize email once at the top so every downstream operation sees the
+  // same canonical form. Auth + profiles + Stripe customer must all agree on
+  // case to keep case-insensitive lookups (e.g. find-or-invite) working.
+  const email = rawEmail.trim().toLowerCase()
 
   const resolvedPlan = (['starter', 'pro', 'scale'].includes(plan) ? plan : 'starter') as Plan
   const priceId = PLAN_PRICES[resolvedPlan]
@@ -30,13 +35,18 @@ export async function POST(req: NextRequest) {
   // Check for duplicate email via profiles table (reliable, no pagination issue).
   // generateLink also returns a clear error if the email exists, but checking here
   // gives a friendlier 409 response without consuming quota.
+  // Differentiate trainer vs client accounts so the user gets actionable guidance
+  // instead of a generic "already registered" message.
   const { data: existingProfile } = await adminDb
     .from('profiles')
-    .select('id')
-    .eq('email', email.trim().toLowerCase())
+    .select('id, role')
+    .eq('email', email)
     .maybeSingle()
   if (existingProfile) {
-    return NextResponse.json({ error: 'Ova email adresa je već registrirana.' }, { status: 409 })
+    const message = existingProfile.role === 'trainer'
+      ? 'Već postoji trenerski račun s ovom email adresom. Pokušaj se prijaviti, ili koristi opciju "Zaboravljena lozinka".'
+      : 'Ova email adresa već postoji u UnitLift sustavu kao klijentski račun. Za trenerski račun koristi drugu adresu ili kontaktiraj podrska@unitlift.com.'
+    return NextResponse.json({ error: message }, { status: 409 })
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
@@ -44,7 +54,7 @@ export async function POST(req: NextRequest) {
   // Create unconfirmed auth user and generate verification link
   const { data: linkData, error: createError } = await adminDb.auth.admin.generateLink({
     type: 'signup',
-    email: email.trim(),
+    email,
     password,
     options: {
       redirectTo: `${appUrl}/login?verified=1`,
@@ -86,7 +96,7 @@ export async function POST(req: NextRequest) {
   `
 
   const verifySend = await sendResendEmail({
-    to: email.trim(),
+    to: email,
     subject: 'Potvrdi email adresu - UnitLift',
     html: verifyHtml,
   })
@@ -106,12 +116,14 @@ export async function POST(req: NextRequest) {
     await new Promise(r => setTimeout(r, 300))
   }
 
-  // Update profiles table (upsert handles race where trigger was too slow)
+  // Update profiles table (upsert handles race where trigger was too slow).
+  // Email is already lowercased to match auth.users.email and keep
+  // case-insensitive lookups consistent.
   await adminDb.from('profiles').upsert({
     id:        user.id,
     full_name: full_name.trim(),
     role:      'trainer',
-    email:     email.trim(),
+    email,
     ...(phone?.trim() ? { phone: phone.trim() } : {}),
   }, { onConflict: 'id' })
 
@@ -137,7 +149,7 @@ export async function POST(req: NextRequest) {
   let checkoutUrl: string
   try {
     const customer = await stripe.customers.create({
-      email: email.trim(),
+      email,
       name:  full_name.trim(),
       metadata: { supabase_user_id: user.id },
     })

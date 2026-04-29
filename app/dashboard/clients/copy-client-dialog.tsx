@@ -184,26 +184,58 @@ export default function CopyClientDialog({ open, onClose, onSuccess, sourceClien
     if (!trainer || !session) { setLoading(false); return }
 
     // Create new client account via edge function
-    const res = await fetch(edgeFunctionUrl('create-client'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-      body: JSON.stringify({
-        trainer_id: trainer.id,
-        email: form.email,
-        full_name: form.full_name,
-        gender: form.gender || null,
-        weight: form.weight ? parseFloat(form.weight) : null,
-        height: form.height ? parseFloat(form.height) : null,
-        date_of_birth: form.dob || null,
-        goal: sourceData?.goal || null,
-        activity_level: sourceData?.activity_level || null,
-      }),
-    })
-    const result = await res.json()
-    if (result.error) { setError(result.error); setLoading(false); return }
+    let res: Response
+    try {
+      res = await fetch(edgeFunctionUrl('create-client'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          trainer_id: trainer.id,
+          email: form.email,
+          full_name: form.full_name,
+          gender: form.gender || null,
+          weight: form.weight ? parseFloat(form.weight) : null,
+          height: form.height ? parseFloat(form.height) : null,
+          date_of_birth: form.dob || null,
+          goal: sourceData?.goal || null,
+          activity_level: sourceData?.activity_level || null,
+        }),
+      })
+    } catch {
+      setError('Greška u mreži. Pokušaj ponovo.')
+      setLoading(false)
+      return
+    }
+    const result = await res.json().catch(() => ({ error: 'Server error' })) as {
+      error?: string
+      message?: string
+      client_id?: string
+      reactivated?: boolean
+    }
+    if (result.error) {
+      const friendly: Record<string, string> = {
+        ALREADY_CLIENT: 'Ova osoba je već tvoj aktivni klijent.',
+        HAS_ACTIVE_TRAINER: 'Ova osoba trenutno aktivno trenira s drugim trenerom. Mora završiti tu suradnju prije nego može početi s tobom.',
+        SELF_AS_CLIENT: 'Ne možeš dodati sam sebe kao klijenta.',
+        CLIENT_LIMIT_REACHED: 'Dosegnut je limit klijenata na tvom planu. Nadogradi plan za više slotova.',
+      }
+      setError(friendly[result.error] ?? result.message ?? result.error)
+      setLoading(false)
+      return
+    }
 
     const newClientId = result.client_id
     if (!newClientId) { setError('Greška pri kreiranju klijenta.'); setLoading(false); return }
+
+    // Reactivated relationships already have plans/config from the previous
+    // collaboration period — copying again would duplicate or fail UNIQUE
+    // constraints. Skip the copy phase; trainer can adjust via edit dialog.
+    if (result.reactivated) {
+      setLoading(false)
+      onSuccess()
+      onClose()
+      return
+    }
 
     // Copy training plan
     if (copyWorkout) {

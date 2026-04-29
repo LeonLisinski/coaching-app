@@ -58,18 +58,32 @@ Deno.serve(async (req) => {
       return json({ success: true })
     }
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('role, full_name')
-      .eq('id', linkData.user.id)
-      .maybeSingle()
+    // Capability-based check: send the custom client recovery email if the
+    // user has at least one ACTIVE client relationship — regardless of
+    // profiles.role. This covers trainers who are also clients of someone
+    // else (legitimate dual-role accounts).
+    const [{ data: profile }, { count: activeClientCount }] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', linkData.user.id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('clients')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', linkData.user.id)
+        .eq('active', true),
+    ])
 
-    if (profile?.role !== 'client') {
+    if (!activeClientCount || activeClientCount < 1) {
+      // Not a client of anyone — no custom email. Default Supabase template
+      // (if configured) still works; otherwise the user simply gets nothing,
+      // which matches the privacy-by-default behaviour of password recovery.
       return json({ success: true })
     }
 
     const displayName =
-      profile.full_name?.trim() || email.split('@')[0] || 'klijent'
+      profile?.full_name?.trim() || email.split('@')[0] || 'klijent'
 
     await sendClientPasswordRecoveryEmail({
       to: email,

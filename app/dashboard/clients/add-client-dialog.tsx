@@ -168,7 +168,13 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.access_token) { setError(tAdd('errSessionExpired')); setLoading(false); return }
 
-    type CreateClientResult = { error?: string; client_id?: string }
+    type CreateClientResult = {
+      error?: string
+      message?: string
+      client_id?: string
+      reactivated?: boolean
+      existing_account?: boolean
+    }
     let result: CreateClientResult
     try {
       const response = await fetch(
@@ -196,14 +202,31 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
       setLoading(false)
       return
     }
-    if (result.error) { setError(result.error); setLoading(false); return }
+    if (result.error) {
+      // Map structured error codes to friendly Croatian messages.
+      // Unknown errors fall through to whatever the backend returned.
+      const friendly: Record<string, string> = {
+        ALREADY_CLIENT: 'Ova osoba je već tvoj aktivni klijent.',
+        HAS_ACTIVE_TRAINER: 'Ova osoba trenutno aktivno trenira s drugim trenerom. Mora završiti tu suradnju prije nego može početi s tobom.',
+        SELF_AS_CLIENT: 'Ne možeš dodati sam sebe kao klijenta.',
+        CLIENT_LIMIT_REACHED: 'Dosegnut je limit klijenata na tvom planu. Nadogradi plan za više slotova.',
+      }
+      setError(friendly[result.error] ?? result.message ?? result.error)
+      setLoading(false)
+      return
+    }
 
     const newClientId = result.client_id
-    if (newClientId) {
-      // Set start_date if provided
-      if (start_date) {
-        await supabase.from('clients').update({ start_date }).eq('id', newClientId)
-      }
+    // start_date is the START of a (new) collaboration period. If trainer
+    // explicitly provided it, apply it on every flow — including reactivation.
+    if (newClientId && start_date) {
+      await supabase.from('clients').update({ start_date }).eq('id', newClientId)
+    }
+    // Reactivated relationships already have historical plans, check-in config,
+    // and packages. Re-inserting them here would either duplicate rows or fail
+    // silently on UNIQUE constraints. Skip post-create assignments and let the
+    // trainer adjust via edit-client-dialog if needed.
+    if (newClientId && !result.reactivated) {
       // Assign training plan
       if (selectedWorkout) {
         await supabase.from('client_workout_plans').insert({

@@ -26,10 +26,11 @@ Deno.serve(async (req) => {
   const { data: { user }, error: userErr } = await supabase.auth.getUser(token)
   if (userErr || !user) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
 
-  // Get profile with role
+  // Get profile (we no longer branch on `role` — capability is derived from
+  // existence of clients/trainer_profiles rows).
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, full_name, role')
+    .select('id, full_name')
     .eq('id', user.id)
     .single()
 
@@ -43,38 +44,70 @@ Deno.serve(async (req) => {
     .update({ deletion_requested_at: now })
     .eq('id', user.id)
 
-  // ── CLIENT flow ────────────────────────────────────────────────────────────
-  if (profile.role === 'client') {
-    // Find trainer
-    const { data: clientRow } = await supabase
+  // Capability lookups: a single user may be BOTH a trainer (has clients of
+  // their own) AND a client (active relationship with another trainer).
+  // Run both branches independently — both can apply to the same user.
+  const [
+    { data: activeRel },     // user is a CLIENT of someone right now
+    { data: trainerProfileRow }, // user is a TRAINER themselves
+  ] = await Promise.all([
+    supabase
       .from('clients')
       .select('trainer_id')
       .eq('user_id', user.id)
-      .maybeSingle()
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from('trainer_profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle(),
+  ])
 
-    if (clientRow?.trainer_id) {
-      await notifyTrainerWeb(supabase, clientRow.trainer_id, profile.full_name)
-    }
+  // ── CLIENT flow — notify the user's current trainer (if any) ───────────────
+  if (activeRel?.trainer_id) {
+    await notifyTrainerWeb(supabase, activeRel.trainer_id, profile.full_name)
   }
 
-  // ── TRAINER flow ───────────────────────────────────────────────────────────
-  if (profile.role === 'trainer') {
-    // Get all clients of this trainer
+  // ── TRAINER flow — notify clients + mark accounts for deletion only when
+  //    the client has no other active trainer ─────────────────────────────────
+  if (trainerProfileRow) {
     const { data: clientRows } = await supabase
       .from('clients')
-      .select('id, user_id, profiles!clients_user_id_fkey(full_name)')
+      .select('id, user_id, active, profiles!clients_user_id_fkey(full_name)')
       .eq('trainer_id', user.id)
 
     if (clientRows?.length) {
-      const userIds = clientRows.map((r: any) => r.user_id)
+      const allUserIds = Array.from(new Set(clientRows.map((r: any) => r.user_id as string)))
 
-      // Mark all clients for deletion too
-      await supabase
-        .from('profiles')
-        .update({ deletion_requested_at: now })
-        .in('id', userIds)
+      // For each client user, check if they have ANOTHER active trainer
+      // (exclude the trainer being deleted). Only mark for full account
+      // deletion the users who do NOT have an alternative active trainer —
+      // otherwise we'd incorrectly purge accounts that are alive elsewhere.
+      const { data: otherActiveRows } = await supabase
+        .from('clients')
+        .select('user_id')
+        .in('user_id', allUserIds)
+        .eq('active', true)
+        .neq('trainer_id', user.id)
 
-      // Send push notification to each client (mobile)
+      const usersWithOtherTrainer = new Set(
+        (otherActiveRows ?? []).map((r: any) => r.user_id as string),
+      )
+
+      const userIdsToDelete = allUserIds.filter((id) => !usersWithOtherTrainer.has(id))
+
+      if (userIdsToDelete.length > 0) {
+        await supabase
+          .from('profiles')
+          .update({ deletion_requested_at: now })
+          .in('id', userIdsToDelete)
+      }
+
+      // Notify all clients of this trainer (mobile push) — even those who
+      // have another trainer should be told the relationship is ending.
       for (const row of clientRows) {
         await notifyClientMobile(supabase, row.id)
       }
