@@ -113,17 +113,19 @@ CREATE POLICY "client_read_own_workout_logs"
   );
 
 -- ── workout_sessions ─────────────────────────────────────────────────────────
--- workout_sessions links to workout_logs, not directly to clients.
--- Join through workout_logs to find the owning client.
+-- workout_sessions is a plan template (days/exercises inside a workout_plan),
+-- linked via plan_id → workout_plans. A client can read sessions of plans
+-- that are actively assigned to them.
 DROP POLICY IF EXISTS "client_read_own_workout_sessions" ON public.workout_sessions;
 CREATE POLICY "client_read_own_workout_sessions"
   ON public.workout_sessions FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.workout_logs wl
-        JOIN public.clients c ON c.id = wl.client_id
-      WHERE wl.id = workout_sessions.workout_log_id
+      SELECT 1 FROM public.client_workout_plans cwp
+        JOIN public.clients c ON c.id = cwp.client_id
+      WHERE cwp.workout_plan_id = workout_sessions.plan_id
         AND c.user_id = auth.uid()
+        AND cwp.active = true
     )
   );
 
