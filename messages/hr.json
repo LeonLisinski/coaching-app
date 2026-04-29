@@ -19,11 +19,17 @@
     "errGeneric": "Nešto je pošlo po krivu. Pokušaj ponovo.",
     "errLeaked": "Ova lozinka je pronađena u javnoj bazi procurjelih lozinki. Probaj jedinstveniju kombinaciju (slova + brojevi + simboli).",
     "errSamePassword": "Nova lozinka mora biti različita od stare.",
-    "errSessionExpired": "Link je istekao ili je već iskorišten. Zatraži novi poziv od trenera.",
+    "errSessionExpired": "Link je istekao ili je već iskorišten. Zatraži novi link ispod.",
     "errPasswordTooShort": "Lozinka mora imati najmanje 8 znakova.",
     "secureNote": "Šifrirana veza",
     "cardBadge": "Klijent",
-    "mobileAppTitle": "UnitLift mobilna aplikacija"
+    "mobileAppTitle": "UnitLift mobilna aplikacija",
+    "resendTitle": "Zatraži novi link",
+    "resendEmailPlaceholder": "tvoj@email.com",
+    "resendSubmit": "Pošalji novi link",
+    "resendSending": "Slanje…",
+    "resendSent": "Poslali smo ti novi link na email. Provjeri inbox (i spam).",
+    "resendFailed": "Nije uspjelo. Provjeri email adresu i pokušaj ponovo."
   },
   "login": {
     "title": "UnitLift",

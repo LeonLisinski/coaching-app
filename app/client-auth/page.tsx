@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Eye, EyeOff, Loader2, Lock, Smartphone, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Lock, Smartphone, ShieldCheck, MailCheck } from 'lucide-react'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import LocaleSwitcher from '@/components/locale-switcher'
 
@@ -20,6 +20,25 @@ function ClientAuthForm() {
   const [showCfm, setShowCfm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resendEmail, setResendEmail] = useState('')
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [resendError, setResendError] = useState('')
+
+  const handleResend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setResendError('')
+    setResendState('sending')
+    try {
+      const { error: fnErr } = await supabase.functions.invoke('send-client-password-reset', {
+        body: { email: resendEmail },
+      })
+      if (fnErr) throw fnErr
+      setResendState('sent')
+    } catch {
+      setResendState('idle')
+      setResendError(t('resendFailed'))
+    }
+  }
 
   const establishSession = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -122,7 +141,7 @@ function ClientAuthForm() {
         // Raw message is already informative: "Password should be at least X characters"
         setError(err.message)
       } else if (m.includes('expired') || m.includes('jwt') || m.includes('session') || m.includes('not found') || m.includes('invalid')) {
-        setError(t('errSessionExpired'))
+        setPhase('invalid')
       } else {
         // Last resort: show the raw message so we can debug instead of a
         // useless "Nešto je pošlo po krivu".
@@ -152,8 +171,51 @@ function ClientAuthForm() {
         <div className="absolute top-4 right-4">
           <LocaleSwitcher />
         </div>
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center backdrop-blur-sm">
-          <p className="text-white/90 text-sm leading-relaxed">{t('invalidLink')}</p>
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.04] p-8 backdrop-blur-sm space-y-6">
+          <p className="text-white/75 text-sm leading-relaxed text-center">{t('invalidLink')}</p>
+
+          <div className="border-t border-white/10 pt-6">
+            {resendState === 'sent' ? (
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: 'color-mix(in srgb, var(--app-accent) 20%, transparent)' }}>
+                  <MailCheck className="w-6 h-6 text-[var(--app-accent)]" />
+                </div>
+                <p className="text-sm text-white/80 leading-relaxed">{t('resendSent')}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleResend} className="space-y-3">
+                <p className="text-xs font-semibold text-white/45 uppercase tracking-wider text-center">
+                  {t('resendTitle')}
+                </p>
+                <input
+                  type="email"
+                  required
+                  value={resendEmail}
+                  onChange={e => setResendEmail(e.target.value)}
+                  placeholder={t('resendEmailPlaceholder')}
+                  disabled={resendState === 'sending'}
+                  className="w-full h-11 px-4 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder:text-white/35 outline-none transition-all focus:border-[var(--app-accent)] focus:ring-2 focus:ring-[var(--app-accent)]/25 disabled:opacity-50"
+                />
+                {resendError && (
+                  <p className="text-red-400/80 text-xs">{resendError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={resendState === 'sending'}
+                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: 'var(--app-accent)', color: 'white' }}
+                >
+                  {resendState === 'sending' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t('resendSending')}
+                    </>
+                  ) : t('resendSubmit')}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     )

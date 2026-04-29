@@ -19,11 +19,17 @@
     "errGeneric": "Something went wrong. Please try again.",
     "errLeaked": "This password was found in a public breach database. Please try a more unique combination (letters + numbers + symbols).",
     "errSamePassword": "New password must be different from the old one.",
-    "errSessionExpired": "The link has expired or has already been used. Ask your trainer for a new invite.",
+    "errSessionExpired": "The link has expired or has already been used. Request a new one below.",
     "errPasswordTooShort": "Password must be at least 8 characters.",
     "secureNote": "Encrypted connection",
     "cardBadge": "Client",
-    "mobileAppTitle": "UnitLift mobile app"
+    "mobileAppTitle": "UnitLift mobile app",
+    "resendTitle": "Request a new link",
+    "resendEmailPlaceholder": "your@email.com",
+    "resendSubmit": "Send new link",
+    "resendSending": "Sending…",
+    "resendSent": "We've sent a new link to your email. Check your inbox (and spam).",
+    "resendFailed": "Failed. Check your email address and try again."
   },
   "login": {
     "title": "UnitLift",
