@@ -42,7 +42,7 @@ export async function DELETE(
   const { error: deleteErr } = await adminDb.auth.admin.deleteUser(clientRow.user_id)
   if (deleteErr) {
     console.error('[clients/delete] deleteUser error:', deleteErr.message)
-    return NextResponse.json({ error: deleteErr.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete client account.' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

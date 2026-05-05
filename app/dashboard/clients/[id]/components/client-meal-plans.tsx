@@ -35,7 +35,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-type Props = { clientId: string }
+type Props = { clientId: string; refreshKey?: number }
 
 type MealPlan = {
   id: string
@@ -328,7 +328,7 @@ function MealAccordion({ meals, activeExtraFields, recipes = [] }: { meals: any[
   )
 }
 
-export default function ClientMealPlans({ clientId }: Props) {
+export default function ClientMealPlans({ clientId, refreshKey }: Props) {
   const t = useTranslations('clients.mealPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
@@ -372,14 +372,14 @@ export default function ClientMealPlans({ clientId }: Props) {
     execute: () => Promise<void>
   } | null>(null)
 
-  useEffect(() => { fetchData() }, [clientId])
+  useEffect(() => { fetchData() }, [clientId, refreshKey])
 
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
 
-    const [{ data: assigned }, { data: available }, { data: recipes }, { data: allFoods }] = await Promise.all([
+    const [{ data: assigned }, { data: available }, { data: recipes }] = await Promise.all([
       supabase
         .from('client_meal_plans')
         .select(`
@@ -398,16 +398,19 @@ export default function ClientMealPlans({ clientId }: Props) {
       supabase
         .from('recipes')
         .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients'),
-      supabase
-        .from('foods')
-        .select('id, extras'),
     ])
 
-    // Build food extras map from current (up-to-date) food data
+    // Only fetch foods if any assigned plan has custom ingredients with extras
+    const needsExtras = (assigned || []).some((p: any) =>
+      (p.meals || []).some((m: any) => (m.custom_ingredients || []).length > 0)
+    )
     const foodExtrasMap = new Map<string, Record<string, number>>()
-    ;(allFoods || []).forEach((f: any) => {
-      if (f.extras) foodExtrasMap.set(f.id, f.extras)
-    })
+    if (needsExtras) {
+      const { data: allFoods } = await supabase.from('foods').select('id, extras')
+      ;(allFoods || []).forEach((f: any) => {
+        if (f.extras) foodExtrasMap.set(f.id, f.extras)
+      })
+    }
 
     // Recompute extras for every meal's ingredients from current food data
     const recomputeMealExtras = (meals: any[] | null) => {

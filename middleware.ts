@@ -8,6 +8,11 @@ const SUBSCRIPTION_FREE_PATHS = ['/dashboard/profile', '/dashboard/billing', '/c
 /** Paths that must work without a session (email links carry tokens in #hash or ?code — not visible to middleware). */
 const PUBLIC_UNAUTH_PATHS = ['/login', '/register', '/client-auth', '/reset-password'] as const
 
+// Subscription status is cached in a short-lived httpOnly cookie to avoid a DB round-trip on every page.
+// TTL of 5 minutes: status changes (Stripe webhook) propagate within one refresh cycle.
+const SUB_CACHE_COOKIE = 'x-sub-cache'
+const SUB_CACHE_TTL_MS = 5 * 60 * 1000
+
 function allowsUnauthenticated(pathname: string): boolean {
   return PUBLIC_UNAUTH_PATHS.some((p) => pathname.startsWith(p))
 }
@@ -15,6 +20,25 @@ function allowsUnauthenticated(pathname: string): boolean {
 /** Logged-in users hitting these get sent to the dashboard (not client-auth / reset-password — different roles). */
 function isAuthLandingPath(pathname: string): boolean {
   return pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register')
+}
+
+/** Read cached subscription status. Returns null if missing or stale. */
+function readSubCache(request: NextRequest, userId: string): string | null {
+  const raw = request.cookies.get(SUB_CACHE_COOKIE)?.value
+  if (!raw) return null
+  const [cachedId, status, tsStr] = raw.split(':')
+  if (cachedId !== userId) return null
+  if (Date.now() - Number(tsStr) > SUB_CACHE_TTL_MS) return null
+  return status ?? null
+}
+
+function writeSubCache(response: NextResponse, userId: string, status: string) {
+  response.cookies.set(SUB_CACHE_COOKIE, `${userId}:${status}:${Date.now()}`, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: Math.floor(SUB_CACHE_TTL_MS / 1000),
+  })
 }
 
 export async function middleware(request: NextRequest) {
@@ -65,35 +89,52 @@ export async function middleware(request: NextRequest) {
     !allowsUnauthenticated(pathname) &&
     !SUBSCRIPTION_FREE_PATHS.some((p) => pathname.startsWith(p))
   ) {
-    const adminDb = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
+    // Check short-lived cache first to avoid a DB round-trip on every page navigation
+    const cached = readSubCache(request, user.id)
 
-    const { data: sub } = await adminDb
-      .from('subscriptions')
-      .select('status, locked_at, current_period_end, trial_end')
-      .eq('trainer_id', user.id)
-      .maybeSingle()
+    let effectiveStatus: string | undefined
 
-    // Auto-lock if locked_at has passed
-    if (sub?.locked_at && new Date(sub.locked_at) <= new Date()) {
-      await adminDb.from('subscriptions')
-        .update({ status: 'locked', updated_at: new Date().toISOString() })
+    if (cached) {
+      effectiveStatus = cached
+    } else {
+      const adminDb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } },
+      )
+
+      const { data: sub } = await adminDb
+        .from('subscriptions')
+        .select('status, locked_at, current_period_end, trial_end')
         .eq('trainer_id', user.id)
-        .eq('status', 'past_due')
-    }
+        .maybeSingle()
 
-    const effectiveStatus = sub?.locked_at && new Date(sub.locked_at) <= new Date()
-      ? 'locked'
-      : sub?.status
+      // Auto-lock if locked_at has passed
+      if (sub?.locked_at && new Date(sub.locked_at) <= new Date()) {
+        await adminDb.from('subscriptions')
+          .update({ status: 'locked', updated_at: new Date().toISOString() })
+          .eq('trainer_id', user.id)
+          .eq('status', 'past_due')
+      }
+
+      effectiveStatus = sub?.locked_at && new Date(sub.locked_at) <= new Date()
+        ? 'locked'
+        : sub?.status
+
+      // Persist in cache for subsequent requests
+      if (effectiveStatus) {
+        writeSubCache(supabaseResponse, user.id, effectiveStatus)
+      }
+    }
 
     // Block access if locked or canceled
     if (effectiveStatus === 'locked' || effectiveStatus === 'canceled') {
       const url = request.nextUrl.clone()
       url.pathname = '/choose-plan'
-      return NextResponse.redirect(url)
+      const redirect = NextResponse.redirect(url)
+      // Clear cache so the trainer can retry immediately after re-subscribing
+      redirect.cookies.delete(SUB_CACHE_COOKIE)
+      return redirect
     }
   }
 

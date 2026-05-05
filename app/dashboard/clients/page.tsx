@@ -151,8 +151,9 @@ function ClientsPageContent() {
 
     const clientIds = rawClients.map(c => c.id)
 
-    // Fetch active packages + checkin config in parallel
-    const [{ data: cpData }, { data: ccData }, { data: checkinRows }] = await Promise.all([
+    // Fetch active packages, checkin config, and per-client checkin counts in parallel.
+    // Counts are fetched via RPC (server-side aggregate) rather than loading all rows.
+    const [{ data: cpData }, { data: ccData }, { data: countsData }] = await Promise.all([
       supabase
         .from('client_packages')
         .select('client_id, end_date, packages(name, color)')
@@ -162,12 +163,12 @@ function ClientsPageContent() {
         .from('checkin_config')
         .select('client_id, checkin_day')
         .in('client_id', clientIds),
-      supabase.from('checkins').select('client_id').in('client_id', clientIds),
+      supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
     ])
 
     const checkinCountMap: Record<string, number> = {}
-    for (const row of checkinRows || []) {
-      checkinCountMap[row.client_id] = (checkinCountMap[row.client_id] || 0) + 1
+    for (const row of (countsData || [])) {
+      checkinCountMap[row.client_id] = Number(row.checkin_count)
     }
 
     const pkgMap: Record<string, { name: string; color: string; end_date: string }> = {}

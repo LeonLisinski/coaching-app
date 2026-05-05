@@ -141,6 +141,7 @@ function ClientDetailPageContent() {
   const [activePackage, setActivePackage] = useState<ActivePackage | null>(null)
   const [showCheckinConfig, setShowCheckinConfig] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [mealPlansRefreshKey, setMealPlansRefreshKey] = useState(0)
   // Track which tabs have been mounted — once visited, keep alive to avoid re-fetching
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(new Set([urlTab || 'pregled']))
   // activeTab can be restored from persistence (localStorage / __tabState) while mountedTabs only
@@ -317,7 +318,7 @@ function ClientDetailPageContent() {
                 <ClientCalculator
                   clientId={client.id}
                   client={client}
-                  onSaved={fetchClient}
+                  onSaved={() => { fetchClient(); setMealPlansRefreshKey(k => k + 1) }}
                 />
               </div>
 
@@ -439,7 +440,7 @@ function ClientDetailPageContent() {
             {mountedTabs.has('treninzi') && <ClientWorkoutPlans clientId={id as string} />}
           </TabsContent>
           <TabsContent value="prehrana" className="mt-6">
-            {mountedTabs.has('prehrana') && <ClientMealPlans clientId={id as string} />}
+            {mountedTabs.has('prehrana') && <ClientMealPlans clientId={id as string} refreshKey={mealPlansRefreshKey} />}
           </TabsContent>
           <TabsContent value="paketi" className="mt-6">
             {mountedTabs.has('paketi') && <ClientPackages clientId={id as string} />}

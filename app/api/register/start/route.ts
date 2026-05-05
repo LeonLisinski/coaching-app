@@ -4,7 +4,32 @@ import { createClient } from '@supabase/supabase-js'
 import { PLAN_PRICES, Plan } from '@/lib/plans'
 import { sendResendEmail } from '@/lib/resend-server'
 
+// Simple per-instance sliding window rate limiter.
+// Limits each IP to 5 registration attempts per 10 minutes.
+// For multi-region deployments, use Vercel WAF Rate Limiting (Dashboard → Firewall → Rate Limiting)
+// or replace this with @upstash/ratelimit backed by Vercel KV.
+const RATE_LIMIT = 5
+const RATE_WINDOW_MS = 10 * 60 * 1000
+const ipAttempts = new Map<string, number[]>()
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const windowStart = now - RATE_WINDOW_MS
+  const attempts = (ipAttempts.get(ip) ?? []).filter(t => t > windowStart)
+  attempts.push(now)
+  ipAttempts.set(ip, attempts)
+  return attempts.length > RATE_LIMIT
+}
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Previše pokušaja registracije. Pokušaj ponovo za 10 minuta.' },
+      { status: 429 },
+    )
+  }
+
   const { full_name, email: rawEmail, password, phone, plan } = await req.json()
 
   if (!full_name?.trim() || !rawEmail?.trim() || !password) {

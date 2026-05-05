@@ -99,11 +99,17 @@ export default function CheckinHistory({ clientId }: Props) {
     const user = session?.user
     if (!user) { setLoading(false); return }
 
+    // Cap history to a manageable window: last 100 check-ins and last 90 days of daily logs.
+    // 100 check-ins = ~2 years of weekly submissions for most clients.
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+    const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().slice(0, 10)
+
     const [{ data: paramsData }, { data: checkinsData }, { data: configData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('checkins').select('id, date, values, photo_urls, trainer_comment').eq('client_id', clientId).order('date', { ascending: false }),
+      supabase.from('checkins').select('id, date, values, photo_urls, trainer_comment').eq('client_id', clientId).order('date', { ascending: false }).limit(100),
       supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
-      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date'),
+      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date').gte('date', ninetyDaysAgoStr),
     ])
 
     if (paramsData) setParams(paramsData)
