@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 
 const Ctx = createContext<{ inActiveChat: boolean; setInActiveChat: (v: boolean) => void }>({
   inActiveChat: false, setInActiveChat: () => {},
@@ -7,7 +7,8 @@ const Ctx = createContext<{ inActiveChat: boolean; setInActiveChat: (v: boolean)
 
 export function ActiveChatProvider({ children }: { children: React.ReactNode }) {
   const [inActiveChat, setInActiveChat] = useState(false)
-  return <Ctx.Provider value={{ inActiveChat, setInActiveChat }}>{children}</Ctx.Provider>
+  const value = useMemo(() => ({ inActiveChat, setInActiveChat }), [inActiveChat])
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
 export const useActiveChat = () => useContext(Ctx)

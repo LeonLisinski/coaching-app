@@ -235,6 +235,40 @@ function DashboardPageContent() {
 
   useEffect(() => { fetchData() }, [])
 
+  // Real-time: refresh unread message count as messages arrive / get read
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      const uid = session?.user?.id
+      if (!uid) return
+
+      channel = supabase
+        .channel(`dashboard-unread-${uid}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'messages', filter: `trainer_id=eq.${uid}` },
+          async () => {
+            const { count } = await supabase
+              .from('messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('trainer_id', uid)
+              .neq('sender_id', uid)
+              .eq('read', false)
+            setStats(s => ({ ...s, unreadMessages: count ?? 0 }))
+          },
+        )
+        .subscribe()
+    })
+
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [])
+
   const fetchData = async () => {
     try {
     const { data: { session } } = await supabase.auth.getSession()

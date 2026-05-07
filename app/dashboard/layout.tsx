@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import LocaleSwitcher from '@/components/locale-switcher'
 import SettingsDialog from '@/app/components/settings-dialog'
@@ -71,6 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userName, setUserName]         = useState('')
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null)
   const [authChecked, setAuthChecked]   = useState(false)
+  const [userId, setUserId]             = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifs, setShowNotifs]     = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
@@ -140,24 +141,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const oneDayAgoDate = new Date(now); oneDayAgoDate.setDate(now.getDate() - 1)
     const oneDayAgo = oneDayAgoDate.toISOString().split('T')[0]
 
-    const [{ data: msgs }, { data: checkins }, { data: pkgAlerts }] = await Promise.all([
+    // Use explicit FK hints to resolve PGRST201 ambiguity:
+    // clients has both user_id → profiles and trainer_id → profiles
+    const [msgsRes, checkinsRes, pkgRes] = await Promise.all([
       supabase.from('messages')
-        .select('id, content, created_at, client_id, clients(profiles(full_name))')
+        .select('id, content, created_at, client_id, clients!messages_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
         .eq('trainer_id', userId).neq('sender_id', userId).eq('read', false)
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('checkins')
-        .select('id, date, client_id, clients(profiles(full_name))')
+        .select('id, date, client_id, clients!checkins_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
         .eq('trainer_id', userId)
         .gte('date', sevenDaysAgoDate)
         .order('date', { ascending: false }).limit(30),
       supabase.from('client_packages')
-        .select('id, end_date, client_id, packages(name), clients(profiles(full_name))')
+        .select('id, end_date, client_id, packages!client_packages_package_id_fkey(name), clients!client_packages_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
         .eq('trainer_id', userId)
         .eq('status', 'active')
         .gte('end_date', oneDayAgo)
         .lte('end_date', sevenDaysAhead)
         .order('end_date', { ascending: true }),
     ])
+
+    const msgs = msgsRes.data
+    const checkins = checkinsRes.data
+    const pkgAlerts = pkgRes.data
 
     const formatTime = (dateStr: string) => {
       const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'))
@@ -203,7 +210,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         time: formatTime(m.created_at),
         type: 'message',
         href: `/dashboard/chat?clientId=${m.client_id}`,
-        isNew: !storedSeen.has(id),
+        // Messages are always new if they're unread in the DB — don't use localStorage
+        // for message type since the DB read flag is the source of truth.
+        isNew: true,
       })
     })
 
@@ -371,9 +380,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUserAvatarUrl(profileData.avatar_url || null)
       }
 
+      setUserId(user.id)
       fetchNotifications(user.id)
     })
   }, [fetchNotifications])
+
+  // ── Real-time: refresh notifications on new messages or check-ins ────────────
+  useEffect(() => {
+    if (!userId) return
+    const channel = supabase
+      .channel(`layout-notifs-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `trainer_id=eq.${userId}` },
+        () => { fetchNotifications(userId) },
+      )
+      .on(
+        'postgres_changes',
+        // Listen for UPDATE too — triggered when chat marks messages as read
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `trainer_id=eq.${userId}` },
+        () => { fetchNotifications(userId) },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'checkins', filter: `trainer_id=eq.${userId}` },
+        () => { fetchNotifications(userId) },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, fetchNotifications])
 
   useEffect(() => {
     if (!authChecked) return
@@ -427,6 +462,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isChat = pathname.startsWith('/dashboard/chat')
   const isFixedLayout = isChat || pathname === '/dashboard/training' || pathname === '/dashboard/nutrition'
   const { inActiveChat } = useActiveChat()
+
+  const unseenNotifications = useMemo(() => notifications.filter(n => n.isNew), [notifications])
+  const chatBadge    = useMemo(() => unseenNotifications.filter(n => n.type === 'message').length, [unseenNotifications])
+  const checkinBadge = useMemo(() => unseenNotifications.filter(n => n.type === 'checkin').length, [unseenNotifications])
 
   return (
     <TrainerSettingsProvider>
@@ -482,7 +521,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 href={effectiveHref}
                 title={collapsed ? label : undefined}
                 data-tour={tourAttr}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${collapsed ? 'justify-center' : ''} ${isActive ? 'shadow-sm' : 'hover:bg-white/5 text-white/50 hover:text-white/80'}`}
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group ${collapsed ? 'justify-center' : ''} ${isActive ? 'shadow-sm' : 'hover:bg-white/5 text-white/50 hover:text-white/80'}`}
                 style={isActive ? { backgroundColor: 'color-mix(in srgb, var(--app-accent) 22%, transparent)' } : {}}
               >
                 <Icon
@@ -494,10 +533,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {label}
                   </span>
                 )}
-                {/* Active dot */}
-                {isActive && !collapsed && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full shrink-0 bg-app-accent" />
-                )}
+                {/* Badge (chat / checkins) or active dot */}
+                {!collapsed && (() => {
+                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : 0
+                  if (badge > 0) return (
+                    <span className="ml-auto min-w-[18px] h-[18px] rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1 shrink-0"
+                      style={{ backgroundColor: 'var(--app-accent)' }}>
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )
+                  if (isActive) return <span className="ml-auto w-1.5 h-1.5 rounded-full shrink-0 bg-app-accent" />
+                  return null
+                })()}
+                {/* Collapsed-mode badge (icon-only sidebar) */}
+                {collapsed && (() => {
+                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : 0
+                  if (badge === 0) return null
+                  return (
+                    <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full text-[9px] font-bold text-white flex items-center justify-center px-0.5"
+                      style={{ backgroundColor: 'var(--app-accent)' }}>
+                      {badge > 9 ? '9+' : badge}
+                    </span>
+                  )
+                })()}
               </Link>
             )
           })}
@@ -617,12 +675,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </button>
                       )}
                     </div>
-                    {/* Scrollable list */}
+                    {/* Scrollable list — only show unseen notifications */}
                     <div className="flex-1 overflow-y-auto">
-                      {notifications.length === 0 ? (
+                      {unseenNotifications.length === 0 ? (
                         <p className="text-xs text-gray-400 text-center py-8">{tLayout('noNotifications')}</p>
                       ) : (
-                        notifications.map(n => {
+                        unseenNotifications.map(n => {
                           const isMsg = n.type === 'message'
                           const isCi  = n.type === 'checkin'
                           const isPkg = n.type === 'package'

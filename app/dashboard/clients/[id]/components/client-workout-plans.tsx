@@ -387,8 +387,12 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
   const deactivateOthersAndRun = async (exceptId: string | null, action: () => Promise<void>) => {
     const others = assignedPlans.filter(p => p.active && p.id !== exceptId)
-    for (const p of others) {
-      await supabase.from('client_workout_plans').update({ active: false, ended_at: nowIso() }).eq('id', p.id)
+    if (others.length > 0) {
+      const ended = nowIso()
+      const ids = others.map(p => p.id)
+      await supabase.from('client_workout_plans')
+        .update({ active: false, ended_at: ended })
+        .in('id', ids)
     }
     await action()
     fetchData()

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTranslations } from 'next-intl'
-import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw } from 'lucide-react'
+import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw, Mail, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -21,7 +21,7 @@ const ACCENT_HEX_MAP: Record<string, string> = {
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
 type Client = {
-  id: string; full_name: string; goal: string | null; date_of_birth: string | null
+  id: string; full_name: string; email?: string | null; goal: string | null; date_of_birth: string | null
   weight: number | null; height: number | null; start_date: string | null
   active: boolean; gender?: string | null; notes?: string | null
   activity_level?: string | null; step_goal?: number | null
@@ -94,6 +94,12 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Email edit state
+  const [emailValue, setEmailValue] = useState(client.email || '')
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailError, setEmailError] = useState('')
+  const [emailSuccess, setEmailSuccess] = useState(false)
+
   // Plans tab state
   const [workoutPlans, setWorkoutPlans] = useState<Plan[]>([])
   const [mealPlans, setMealPlans] = useState<Plan[]>([])
@@ -120,8 +126,13 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
   // Re-fetch fresh client data every time dialog opens (fixes stale step_goal etc.)
   useEffect(() => {
     if (!open) return
+
+    // Reset email states on open
+    setEmailError('')
+    setEmailSuccess(false)
+
     supabase.from('clients')
-      .select('goal, weight, height, date_of_birth, start_date, gender, activity_level, notes, step_goal')
+      .select('user_id, goal, weight, height, date_of_birth, start_date, gender, activity_level, notes, step_goal')
       .eq('id', client.id).single()
       .then(({ data }) => {
         if (!data) return
@@ -140,6 +151,14 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
           notes:          data.notes || '',
           step_goal:      data.step_goal?.toString() || '',
         }))
+
+        // Fetch current email from profiles
+        if (data.user_id) {
+          supabase.from('profiles').select('email').eq('id', data.user_id).maybeSingle()
+            .then(({ data: profile }) => {
+              if (profile?.email) setEmailValue(profile.email)
+            })
+        }
       })
   }, [open, client.id])
 
@@ -218,6 +237,37 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     const formatted = formatDobInput(raw)
     const iso = dobDisplayToIso(formatted)
     setForm(f => ({ ...f, dob_display: formatted, date_of_birth: iso }))
+  }
+
+  const handleUpdateEmail = async () => {
+    const trimmed = emailValue.trim().toLowerCase()
+    setEmailError('')
+    setEmailSuccess(false)
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError(tEdit('emailErrorInvalid'))
+      return
+    }
+    if (trimmed === (client.email || '').toLowerCase()) return
+
+    setEmailLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const { error: fnErr } = await supabase.functions.invoke('update-client-email', {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { client_id: client.id, new_email: trimmed },
+    })
+    setEmailLoading(false)
+
+    if (fnErr) {
+      const msg = (fnErr as { message?: string }).message ?? ''
+      if (msg.includes('EMAIL_TAKEN')) setEmailError(tEdit('emailErrorTaken'))
+      else if (msg.includes('INVALID_EMAIL')) setEmailError(tEdit('emailErrorInvalid'))
+      else setEmailError(tEdit('emailErrorGeneric'))
+      return
+    }
+
+    setEmailSuccess(true)
+    setTimeout(() => setEmailSuccess(false), 3000)
+    onSuccess()
   }
 
   const handleSubmitProfile = async (e: React.SyntheticEvent) => {
@@ -366,6 +416,45 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                 <Label>{tAdd('fullName')}</Label>
                 <Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })}
                   required onFocus={inputFocus} onBlur={inputBlur} />
+              </div>
+
+              {/* Email */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Mail size={12} className="text-gray-400" />
+                  {tEdit('emailLabel')}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    value={emailValue}
+                    onChange={e => { setEmailValue(e.target.value); setEmailError(''); setEmailSuccess(false) }}
+                    onFocus={inputFocus} onBlur={inputBlur}
+                    className="flex-1"
+                    placeholder="klijent@email.com"
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleUpdateEmail}
+                    disabled={emailLoading || !emailValue.trim() || emailValue.trim().toLowerCase() === (client.email || '').toLowerCase()}
+                    className="shrink-0 text-white text-xs px-3"
+                    style={{ backgroundColor: accentHex }}
+                  >
+                    {emailLoading
+                      ? tEdit('emailSaving')
+                      : emailSuccess
+                        ? <><Check size={13} /> {tEdit('emailSuccess')}</>
+                        : tEdit('emailSaveBtn')
+                    }
+                  </Button>
+                </div>
+                <div className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                  <span>{tEdit('emailWarning')}</span>
+                </div>
+                {emailError && (
+                  <p className="text-red-500 text-xs bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">{emailError}</p>
+                )}
               </div>
 
               {/* Gender */}

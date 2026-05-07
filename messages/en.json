@@ -1949,7 +1949,15 @@
     "noPackagesAvailable": "No packages created",
     "saving": "Saving...",
     "replaceBtn": "Replace package",
-    "assignBtn": "Assign package"
+    "assignBtn": "Assign package",
+    "emailLabel": "Email address (login)",
+    "emailSaveBtn": "Save email",
+    "emailSaving": "Saving...",
+    "emailSuccess": "Email updated successfully",
+    "emailErrorTaken": "This email address is already in use",
+    "emailErrorInvalid": "Please enter a valid email address",
+    "emailErrorGeneric": "Error updating email",
+    "emailWarning": "This changes the email the client uses to log in to the app."
   },
   "clientCalculator": {
     "proteinPct": "Protein {pct}%",

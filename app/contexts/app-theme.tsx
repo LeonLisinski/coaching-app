@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 export type AccentColor =
   | 'violet' | 'blue' | 'indigo' | 'sky' | 'teal'
@@ -45,12 +45,17 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     if (meta) meta.setAttribute('content', hex)
   }, [accent, mounted])
 
-  const setAccent = (a: AccentColor) => {
+  const setAccent = useCallback((a: AccentColor) => {
     setAccentState(a); localStorage.setItem('app-accent', a)
-  }
+  }, [])
+
+  const ctxValue = useMemo(
+    () => ({ accent, mode: 'light' as AppMode, setAccent, setMode: () => {} }),
+    [accent, setAccent],
+  )
 
   return (
-    <AppThemeContext.Provider value={{ accent, mode: 'light', setAccent, setMode: () => {} }}>
+    <AppThemeContext.Provider value={ctxValue}>
       {children}
     </AppThemeContext.Provider>
   )

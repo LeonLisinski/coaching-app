@@ -41,16 +41,26 @@ function ClientAuthForm() {
   }
 
   const establishSession = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      setPhase('form')
-      return true
-    }
-
     if (typeof window === 'undefined') return false
 
     const url = new URL(window.location.href)
+
+    // Check if the URL carries an auth token — if so, process it first and
+    // sign out any existing session to avoid updating the wrong user's password.
     const code = url.searchParams.get('code')
+    const hash = window.location.hash?.replace(/^#/, '')
+    const hashParams = hash ? new URLSearchParams(hash) : null
+    const hasHashTokens = !!(hashParams?.get('access_token') && hashParams?.get('refresh_token'))
+    const token_hash = searchParams.get('token_hash') ?? url.searchParams.get('token_hash')
+    const rawType = searchParams.get('type') ?? url.searchParams.get('type')
+    const hasUrlToken = !!(code || hasHashTokens || (token_hash && rawType))
+
+    if (hasUrlToken) {
+      // Sign out any existing session so we don't accidentally update the
+      // wrong user (e.g. a trainer who is already logged in on this browser).
+      await supabase.auth.signOut()
+    }
+
     if (code) {
       const { error: exErr } = await supabase.auth.exchangeCodeForSession(code)
       if (!exErr) {
@@ -63,23 +73,17 @@ function ClientAuthForm() {
       }
     }
 
-    const hash = window.location.hash?.replace(/^#/, '')
-    if (hash) {
-      const p = new URLSearchParams(hash)
-      const access_token = p.get('access_token')
-      const refresh_token = p.get('refresh_token')
-      if (access_token && refresh_token) {
-        const { error: sErr } = await supabase.auth.setSession({ access_token, refresh_token })
-        if (!sErr) {
-          window.history.replaceState(null, '', window.location.pathname + window.location.search)
-          setPhase('form')
-          return true
-        }
+    if (hasHashTokens) {
+      const access_token = hashParams!.get('access_token')!
+      const refresh_token = hashParams!.get('refresh_token')!
+      const { error: sErr } = await supabase.auth.setSession({ access_token, refresh_token })
+      if (!sErr) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        setPhase('form')
+        return true
       }
     }
 
-    const token_hash = searchParams.get('token_hash') ?? url.searchParams.get('token_hash')
-    const rawType = searchParams.get('type') ?? url.searchParams.get('type')
     if (token_hash && rawType) {
       const { error: vErr } = await supabase.auth.verifyOtp({
         token_hash,
@@ -92,8 +96,9 @@ function ClientAuthForm() {
       }
     }
 
-    const { data: { session: s3 } } = await supabase.auth.getSession()
-    if (s3) {
+    // No token in URL — fall back to existing session (e.g. direct navigation)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
       setPhase('form')
       return true
     }

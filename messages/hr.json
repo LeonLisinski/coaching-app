@@ -1949,7 +1949,15 @@
     "noPackagesAvailable": "Nema kreiranih paketa",
     "saving": "Sprema...",
     "replaceBtn": "Zamijeni paket",
-    "assignBtn": "Dodjeli paket"
+    "assignBtn": "Dodjeli paket",
+    "emailLabel": "Email adresa (prijava)",
+    "emailSaveBtn": "Spremi email",
+    "emailSaving": "Sprema...",
+    "emailSuccess": "Email uspješno ažuriran",
+    "emailErrorTaken": "Ova email adresa je već u upotrebi",
+    "emailErrorInvalid": "Unesite ispravnu email adresu",
+    "emailErrorGeneric": "Greška pri ažuriranju emaila",
+    "emailWarning": "Ovo mijenja email s kojim se klijent prijavljuje u app."
   },
   "clientCalculator": {
     "proteinPct": "Proteini {pct}%",
