@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import LocaleSwitcher from '@/components/locale-switcher'
 import SettingsDialog from '@/app/components/settings-dialog'
@@ -385,30 +385,52 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })
   }, [fetchNotifications])
 
+  // Keep a stable ref to fetchNotifications so the subscription effect never needs to
+  // re-run (and tear down / rebuild the channel) when the callback identity changes.
+  const fetchNotificationsRef = useRef(fetchNotifications)
+  useEffect(() => { fetchNotificationsRef.current = fetchNotifications }, [fetchNotifications])
+
   // ── Real-time: refresh notifications on new messages or check-ins ────────────
+  // No server-side filter — filtered postgres_changes require specific RLS setup and
+  // can silently fail. We filter in the handler instead (same pattern as chat-window.tsx).
   useEffect(() => {
     if (!userId) return
+    const uid = userId
     const channel = supabase
-      .channel(`layout-notifs-${userId}`)
+      .channel(`layout-notifs-${uid}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `trainer_id=eq.${userId}` },
-        () => { fetchNotifications(userId) },
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const msg = payload.new as any
+          if (msg.trainer_id === uid && msg.sender_id !== uid) {
+            fetchNotificationsRef.current(uid)
+          }
+        },
       )
       .on(
         'postgres_changes',
-        // Listen for UPDATE too — triggered when chat marks messages as read
-        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `trainer_id=eq.${userId}` },
-        () => { fetchNotifications(userId) },
+        { event: 'UPDATE', schema: 'public', table: 'messages' },
+        (payload) => {
+          const msg = payload.new as any
+          if (msg.trainer_id === uid) {
+            fetchNotificationsRef.current(uid)
+          }
+        },
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'checkins', filter: `trainer_id=eq.${userId}` },
-        () => { fetchNotifications(userId) },
+        { event: 'INSERT', schema: 'public', table: 'checkins' },
+        (payload) => {
+          const ci = payload.new as any
+          if (ci.trainer_id === uid) {
+            fetchNotificationsRef.current(uid)
+          }
+        },
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [userId, fetchNotifications])
+  }, [userId])
 
   useEffect(() => {
     if (!authChecked) return
