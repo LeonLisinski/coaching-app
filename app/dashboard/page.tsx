@@ -306,6 +306,13 @@ function DashboardPageContent() {
       supabase.from('payments').select('id, amount, paid_at, client_packages(client_id)').eq('status', 'paid').not('paid_at', 'is', null).order('paid_at', { ascending: false }).limit(5),
     ])
 
+    // PostgREST returns payments as a single object (not array) when client_package_id has a
+    // UNIQUE constraint. Normalise to array here so all downstream code stays the same.
+    const normalizedPackages = (packagesData || []).map((cp: any) => ({
+      ...cp,
+      payments: cp.payments == null ? [] : Array.isArray(cp.payments) ? cp.payments : [cp.payments],
+    }))
+
     const checkinDayMap: Record<string, number> = {}
     checkinConfigs?.forEach(cfg => { checkinDayMap[cfg.client_id] = cfg.checkin_day })
 
@@ -355,7 +362,7 @@ function DashboardPageContent() {
       .map(r => ({ id: r.id, full_name: r.full_name, submitted: !!(r.last_checkin && r.last_checkin >= todayStr) }))
     setTodayCheckinClients(todayClients)
 
-    // Revenue calculations — use packagesData already fetched above
+    // Revenue calculations — use normalizedPackages (payments already normalised to array above)
     const now        = new Date()
     const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
     const monthEnd   = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
@@ -367,7 +374,7 @@ function DashboardPageContent() {
       monthly[getMonthLabel(d)] = { ocekivano: 0, naplaceno: 0 }
     }
 
-    packagesData?.forEach((cp: any) => {
+    normalizedPackages.forEach((cp: any) => {
       const price      = cp.price || 0
       const paidPayment = (cp.payments as any[])?.find((p: any) => p.status === 'paid')
       const hasPaid    = !!paidPayment
@@ -412,7 +419,7 @@ function DashboardPageContent() {
     // Expiring packages (within 7 days, active, not paid)
     const clientNameMapForPkg: Record<string, string> = {}
     rows.forEach(r => { clientNameMapForPkg[r.id] = r.full_name })
-    const expiring = (packagesData || [])
+    const expiring = normalizedPackages
       .filter((cp: any) => {
         if (cp.status !== 'active') return false
         const dl = Math.ceil((new Date(cp.end_date).getTime() - Date.now()) / 86400000)
@@ -432,7 +439,7 @@ function DashboardPageContent() {
     // Year-to-date revenue = plaćanja s paid_at ove godine (stvarni novčani tok)
     const thisYear = now.getFullYear().toString()
     let ytdRevenue = 0
-    packagesData?.forEach((cp: any) => {
+    normalizedPackages.forEach((cp: any) => {
       ;(cp.payments as any[])?.forEach((p: any) => {
         if (p.status === 'paid' && (p.paid_at as string | null)?.substring(0, 4) === thisYear) {
           ytdRevenue += p.amount || cp.price || 0

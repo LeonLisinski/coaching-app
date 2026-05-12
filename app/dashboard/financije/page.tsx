@@ -181,6 +181,9 @@ function FinancijePageContent() {
       pkg_name: pkgMap[cp.package_id]?.name || '—',
       pkg_color: pkgMap[cp.package_id]?.color || '#6366f1',
       pkg_duration: pkgMap[cp.package_id]?.duration_days || 30,
+      // PostgREST returns payments as a single object (not array) when client_package_id has a
+      // UNIQUE constraint. Normalise to array so all downstream code stays consistent.
+      payments: cp.payments == null ? [] : Array.isArray(cp.payments) ? cp.payments : [cp.payments],
     }))
 
     setClientPackages(enriched)
