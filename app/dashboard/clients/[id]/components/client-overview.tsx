@@ -128,10 +128,10 @@ export default function ClientOverview({ clientId }: Props) {
         .select('id, date, day_name, plan_id, exercises')
         .eq('client_id', clientId)
         .order('date', { ascending: false })
-        .limit(2000),
+        .limit(300),
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(500),
+      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(180),
     ])
 
     if (e1) console.error('client-overview checkins', e1)

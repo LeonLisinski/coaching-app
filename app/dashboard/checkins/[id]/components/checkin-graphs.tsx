@@ -44,8 +44,8 @@ export default function CheckinGraphs({ clientId }: Props) {
     if (!user) return
     const [{ data: paramsData }, { data: checkinsData }, { data: dailyData }] = await Promise.all([
       supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date'),
-      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date'),
+      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date').limit(400),
+      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date').limit(400),
     ])
     if (paramsData) setParams(paramsData)
 
