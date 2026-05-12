@@ -95,7 +95,9 @@ function ClientsPageContent() {
 
   const noName = tDetail('noName')
 
-  useEffect(() => { fetchData() }, [])
+  // Refetch when status filter changes so we push the filter to the DB
+  // instead of loading all clients and filtering client-side.
+  useEffect(() => { fetchData(statusFilter) }, [statusFilter])
 
   // Auto-open add dialog when ?action=add is in URL
   useEffect(() => {
@@ -105,18 +107,24 @@ function ClientsPageContent() {
     }
   }, [searchParams])
 
-  const fetchData = async () => {
+  const fetchData = async (currentStatusFilter: 'all' | 'active' | 'inactive' = statusFilter) => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { setLoading(false); return }
 
+    let clientQuery = supabase
+      .from('clients')
+      .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes,
+        profiles!clients_user_id_fkey (full_name, email)`)
+      .eq('trainer_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    if (currentStatusFilter === 'active') clientQuery = clientQuery.eq('active', true)
+    else if (currentStatusFilter === 'inactive') clientQuery = clientQuery.eq('active', false)
+
     const [{ data: clientData }, { data: pkgData }, { data: subData }] = await Promise.all([
-      supabase
-        .from('clients')
-        .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes,
-          profiles!clients_user_id_fkey (full_name, email)`)
-        .eq('trainer_id', user.id)
-        .order('created_at', { ascending: false }),
+      clientQuery,
       supabase
         .from('packages')
         .select('id, name, color')

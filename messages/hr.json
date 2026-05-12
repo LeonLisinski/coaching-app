@@ -2220,6 +2220,7 @@
     "enterHint": "Enter za slanje · Shift+Enter za novi red",
     "today": "Danas",
     "yesterdayFmt": "Jučer",
+    "loadOlder": "Učitaj starije poruke",
     "templateCheckinLabel": "Podsjetnik check-in",
     "templateCheckinText": "Ne zaboravi predati check-in ovaj tjedan! 💪",
     "templateProgressLabel": "Bravo na napretku",

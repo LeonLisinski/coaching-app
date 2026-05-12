@@ -2220,6 +2220,7 @@
     "enterHint": "Enter to send · Shift+Enter for new line",
     "today": "Today",
     "yesterdayFmt": "Yesterday",
+    "loadOlder": "Load older messages",
     "templateCheckinLabel": "Check-in reminder",
     "templateCheckinText": "Don't forget to submit your check-in this week! 💪",
     "templateProgressLabel": "Great progress",

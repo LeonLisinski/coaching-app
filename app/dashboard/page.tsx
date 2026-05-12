@@ -278,7 +278,7 @@ function DashboardPageContent() {
     // Fetch profile + clients in parallel
     const [{ data: profileData }, { data: clientsData }] = await Promise.all([
       supabase.from('profiles').select('full_name').eq('id', user.id).single(),
-      supabase.from('clients').select(`id, start_date, profiles!clients_user_id_fkey(full_name)`).eq('trainer_id', user.id).eq('active', true),
+      supabase.from('clients').select(`id, start_date, profiles!clients_user_id_fkey(full_name)`).eq('trainer_id', user.id).eq('active', true).limit(2000),
     ])
     if (profileData) setTrainerName(profileData.full_name?.split(' ')[0] || '')
 
@@ -301,7 +301,14 @@ function DashboardPageContent() {
         ? supabase.from('checkins').select('client_id, date').in('client_id', clientIds).gte('date', sixMonthsAgoStr).order('date', { ascending: false }).limit(500)
         : Promise.resolve({ data: [] as any[], error: null }),
       supabase.from('messages').select('*', { count: 'exact', head: true }).eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
-      supabase.from('client_packages').select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`).eq('trainer_id', user.id),
+      // Only load packages relevant to the dashboard: currently active, or started this calendar
+      // year (covers YTD revenue + 6-month bar chart). Older historical packages are not shown.
+      supabase
+        .from('client_packages')
+        .select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`)
+        .eq('trainer_id', user.id)
+        .or(`status.eq.active,start_date.gte.${new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)}`)
+        .limit(2000),
       supabase.from('messages').select('id, content, created_at, client_id').eq('trainer_id', user.id).neq('sender_id', user.id).order('created_at', { ascending: false }).limit(5),
       supabase.from('payments').select('id, amount, paid_at, client_packages(client_id)').eq('status', 'paid').not('paid_at', 'is', null).order('paid_at', { ascending: false }).limit(5),
     ])

@@ -72,41 +72,35 @@ function ChatPageContent() {
     const user = session?.user
     if (!user) { setLoading(false); return }
 
-    const { data: clientsData } = await supabase
-      .from('clients')
-      .select(`id, profiles!clients_user_id_fkey (full_name)`)
-      .eq('trainer_id', user.id)
-      .eq('active', true)
-      .order('created_at', { ascending: false })
+    // Run clients list and chat summary RPC in parallel.
+    // RPC uses DISTINCT ON + indexed scans — O(clients) instead of fetching every message row.
+    const [{ data: clientsData }, { data: summaryData }] = await Promise.all([
+      supabase
+        .from('clients')
+        .select(`id, profiles!clients_user_id_fkey (full_name)`)
+        .eq('trainer_id', user.id)
+        .eq('active', true)
+        .order('created_at', { ascending: false }),
+      supabase.rpc('get_trainer_chat_summary', { p_trainer_id: user.id }),
+    ])
 
     if (!clientsData) { setLoading(false); return }
 
-    const clientIds = clientsData.map(c => c.id)
-    const { data: messagesData } = await supabase
-      .from('messages')
-      .select('client_id, content, created_at, read, sender_id')
-      .in('client_id', clientIds)
-      .eq('trainer_id', user.id)
-      .order('created_at', { ascending: false })
-
-    const lastMessageMap: Record<string, { content: string; time: string }> = {}
-    const unreadMap: Record<string, number> = {}
-
-    messagesData?.forEach(m => {
-      if (!lastMessageMap[m.client_id]) {
-        lastMessageMap[m.client_id] = { content: m.content, time: m.created_at }
-      }
-      if (!m.read && m.sender_id !== user.id) {
-        unreadMap[m.client_id] = (unreadMap[m.client_id] || 0) + 1
+    const summaryMap: Record<string, { content: string; time: string; unread: number }> = {}
+    ;(summaryData ?? []).forEach((s: any) => {
+      summaryMap[s.client_id] = {
+        content: s.last_content,
+        time: s.last_created_at,
+        unread: Number(s.unread_count) || 0,
       }
     })
 
     const mapped: Client[] = clientsData.map((c: any) => ({
       id: c.id,
       full_name: c.profiles?.full_name || tChat('fallbackName'),
-      last_message: lastMessageMap[c.id]?.content || null,
-      last_message_time: lastMessageMap[c.id]?.time || null,
-      unread: unreadMap[c.id] || 0,
+      last_message: summaryMap[c.id]?.content || null,
+      last_message_time: summaryMap[c.id]?.time || null,
+      unread: summaryMap[c.id]?.unread || 0,
     }))
 
     mapped.sort((a, b) => {

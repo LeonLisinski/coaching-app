@@ -57,11 +57,14 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     { label: tChat('tpl5Label'), text: tChat('tpl5Text') },
     { label: tChat('tpl6Label'), text: tChat('tpl6Text') },
   ]
+  const PAGE = 50
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
@@ -152,9 +155,32 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       .select('*')
       .eq('client_id', clientId)
       .eq('trainer_id', uid)
-      .order('created_at', { ascending: true })
-    if (data) setMessages(data)
+      .order('created_at', { ascending: false })
+      .limit(PAGE)
+    if (data) {
+      setMessages(data.reverse())
+      setHasMore(data.length === PAGE)
+    }
     setLoading(false)
+  }
+
+  const loadOlderMessages = async () => {
+    if (!messages.length || loadingOlder || !userIdRef.current) return
+    setLoadingOlder(true)
+    const oldest = messages[0].created_at
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('trainer_id', userIdRef.current)
+      .lt('created_at', oldest)
+      .order('created_at', { ascending: false })
+      .limit(PAGE)
+    if (data) {
+      setMessages(prev => [...data.reverse(), ...prev])
+      setHasMore(data.length === PAGE)
+    }
+    setLoadingOlder(false)
   }
 
   const markAsRead = async (uid: string) => {
@@ -313,7 +339,19 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <p className="text-xs text-gray-400">{t('window.startOfConversation')}</p>
           </div>
         ) : (
-          Object.entries(grouped).map(([key, dayMessages]) => (
+          <>
+            {hasMore && (
+              <div className="flex justify-center pb-2">
+                <button
+                  onClick={loadOlderMessages}
+                  disabled={loadingOlder}
+                  className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 transition-colors disabled:opacity-50"
+                >
+                  {loadingOlder ? tCommon('loading') : tChat('loadOlder')}
+                </button>
+              </div>
+            )}
+            {Object.entries(grouped).map(([key, dayMessages]) => (
             <div key={key} className="space-y-1">
               {/* Date separator */}
               <div className="flex items-center gap-3 my-4">
@@ -352,7 +390,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                 )
               })}
             </div>
-          ))
+          ))}
+          </>
         )}
         <div ref={bottomRef} />
       </div>
