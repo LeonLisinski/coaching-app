@@ -1330,8 +1330,8 @@ supabase db reset
 2. **Inicijalna schema migracija je prazna**  
    `20260302121637_remote_schema.sql` je prazan fajl — cijeli inicijalni schema je kreiran direktno kroz Supabase Studio. To znači da lokalni `supabase db reset` neće reproducirati punu shemu bez ručnog izvoza iz produkcije.
 
-3. **RLS politike nisu u kodu**  
-   Nema SQL fajlova koji definiraju RLS politike. Sve je konfigurirano u Supabase Dashboardu. Ako se baza resetira, sve RLS politike se gube.
+3. ~~**RLS politike nisu u kodu**~~  
+   ✅ **ISPRAVLJENO** — Kreirana migracija `20260512000001_all_rls_policies.sql` koja dokumentira sve RLS politike za svih 39 tablica. Kombinira se s ranijim parcijalnim migracijama (`20260430000002_client_read_rls_policies.sql`, `20260429000001_security_hardening.sql`). Sve politike koriste idempotentni `DROP … IF EXISTS + CREATE POLICY` pattern.
 
 4. ~~**`customer.subscription.trial_will_end` webhook ne šalje email**~~  
    ✅ **ISPRAVLJENO** — Handler u `app/api/webhooks/stripe/route.ts` sada traži trenerov profil po `stripe_customer_id` i šalje branded Resend email s brojem dana do kraja triala i linkom na `/dashboard/billing`.
@@ -1362,8 +1362,7 @@ supabase db reset
 1. **Dodati kompletni inicijalni schema SQL u migracije**  
    Izvesti trenutno stanje baze: `supabase db dump --schema public > supabase/migrations/00000000000000_initial_schema.sql`
 
-2. **Dodati RLS politike u SQL migracije**  
-   Izvesti sve politike iz produkcije i dodati u zasebnu migracijsku datoteku.
+2. ~~**Dodati RLS politike u SQL migracije**~~ ✅ **ISPRAVLJENO** — `20260512000001_all_rls_policies.sql`
 
 3. ~~**Kreirati `expo_push_tokens` migraciju**~~ ✅ **ISPRAVLJENO**
 
