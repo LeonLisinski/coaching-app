@@ -89,7 +89,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
     if (!user) return
 
     const [{ data: allEx }, { data: overrides }] = await Promise.all([
-      supabase.from('exercises').select('*').order('name'),
+      supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,secondary_muscles,is_default,trainer_id,exercise_type,extras').order('name'),
       supabase.from('trainer_overrides')
         .select('default_id')
         .eq('trainer_id', user.id)

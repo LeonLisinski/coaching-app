@@ -192,7 +192,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
 
   const fetchExercises = async () => {
     setExercisesLoaded(false)
-    const { data } = await supabase.from('exercises').select('*').order('name')
+    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id').order('name')
     setExercisesLoaded(true)
     if (data) setExercises(data)
   }

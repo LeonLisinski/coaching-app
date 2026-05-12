@@ -153,16 +153,22 @@ function FinancijePageContent() {
     const user = session?.user
     if (!user) { setLoading(false); return }
 
-    // Fetch client_packages, packages, payments separately to avoid broken FK joins
+    // Fetch client_packages, packages, payments separately to avoid broken FK joins.
+    // Limit to active packages + those from the last 2 years so history doesn't blow up.
+    const twoYearsAgo = new Date(); twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
+    const twoYearsAgoStr = twoYearsAgo.toISOString().slice(0, 10)
     const [{ data: cpData }, { data: pkgData }, { data: clientsData }] = await Promise.all([
       supabase.from('client_packages')
-        .select(`id, client_id, package_id, start_date, end_date, price, status, notes, created_at, payments(*)`)
+        .select(`id, client_id, package_id, start_date, end_date, price, status, notes, created_at, payments(id, status, amount, paid_at)`)
         .eq('trainer_id', user.id)
-        .order('created_at', { ascending: false }),
+        .or(`status.eq.active,start_date.gte.${twoYearsAgoStr}`)
+        .order('created_at', { ascending: false })
+        .limit(2000),
       supabase.from('packages').select('id, name, color, duration_days, price, active').eq('trainer_id', user.id),
       supabase.from('clients')
         .select('id, gender, profiles!clients_user_id_fkey(full_name)')
-        .eq('trainer_id', user.id),
+        .eq('trainer_id', user.id)
+        .eq('active', true),
     ])
 
     // Build lookup maps

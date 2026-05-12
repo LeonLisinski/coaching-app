@@ -105,12 +105,12 @@ export default function ClientsCheckinTab() {
     const clientIds = clientsData.map(c => c.id)
     const [{ data: configs }, { data: lastCheckins }] = await Promise.all([
       supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
-      supabase.from('checkins').select('client_id, date').in('client_id', clientIds).order('date', { ascending: false }),
+      supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
     ])
     const configMap: Record<string, number | null> = {}
     configs?.forEach(c => { configMap[c.client_id] = c.checkin_day })
     const lastMap: Record<string, string> = {}
-    lastCheckins?.forEach(c => { if (!lastMap[c.client_id]) lastMap[c.client_id] = c.date })
+    lastCheckins?.forEach((c: any) => { lastMap[c.client_id] = c.last_date })
     setClients(clientsData.map((c: any) => {
       const checkinDay = configMap[c.id] ?? null
       const lastCheckin = lastMap[c.id] || null

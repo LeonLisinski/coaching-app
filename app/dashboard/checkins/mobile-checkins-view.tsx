@@ -64,13 +64,13 @@ export default function MobileCheckinsView() {
 
     const [{ data: cfgData }, { data: ciData }] = await Promise.all([
       supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', ids),
-      supabase.from('checkins').select('client_id, date').in('client_id', ids).order('date', { ascending: false }),
+      supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
     ])
 
     const cfgMap: Record<string, number | null> = {}
     for (const c of (cfgData || [])) cfgMap[c.client_id] = c.checkin_day
     const lastMap: Record<string, string> = {}
-    for (const c of (ciData || [])) { if (!lastMap[c.client_id]) lastMap[c.client_id] = c.date }
+    for (const c of (ciData || [])) lastMap[c.client_id] = c.last_date
 
     setClients(clientData.map((c: any) => {
       const day = cfgMap[c.id] ?? null

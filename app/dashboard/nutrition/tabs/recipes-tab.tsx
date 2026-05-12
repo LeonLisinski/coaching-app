@@ -182,7 +182,7 @@ export default function RecipesTab({
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
-    const { data } = await supabase.from('recipes').select('*').eq('trainer_id', user.id)
+    const { data } = await supabase.from('recipes').select('id,name,description,total_calories,total_protein,total_carbs,total_fat,total_extras,ingredients,created_at').eq('trainer_id', user.id)
     if (data) setRecipes(data)
     setLoading(false)
   }

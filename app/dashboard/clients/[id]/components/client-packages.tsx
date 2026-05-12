@@ -119,8 +119,8 @@ export default function ClientPackages({ clientId }: Props) {
     setTrainerId(user.id)
 
     const [{ data: cpData }, { data: pkgData }, { data: clientData }] = await Promise.all([
-      supabase.from('client_packages').select(`*, packages(*), payments(*)`).eq('client_id', clientId).eq('trainer_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('packages').select('*').eq('trainer_id', user.id).eq('active', true),
+      supabase.from('client_packages').select(`id,package_id,start_date,end_date,price,status,notes, packages(id,name,color,duration_days,price), payments(id,status,amount,paid_at)`).eq('client_id', clientId).eq('trainer_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('packages').select('id,name,color,duration_days,price,active').eq('trainer_id', user.id).eq('active', true),
       supabase.from('clients').select('start_date').eq('id', clientId).single(),
     ])
 

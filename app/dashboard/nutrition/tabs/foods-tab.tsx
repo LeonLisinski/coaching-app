@@ -93,7 +93,7 @@ export default function FoodsTab({
       if (!user) return
 
       const [{ data: allFoods }, { data: overrides }] = await Promise.all([
-        supabase.from('foods').select('*').order('name'),
+        supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').order('name'),
         supabase.from('trainer_overrides')
           .select('default_id')
           .eq('trainer_id', user.id)

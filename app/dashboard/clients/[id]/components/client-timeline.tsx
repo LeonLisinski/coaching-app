@@ -48,7 +48,8 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
         .from('client_packages')
         .select('id, start_date, price, status, notes, packages(name, color), payments(paid_at, amount, status)')
         .eq('client_id', clientId)
-        .order('start_date', { ascending: false }),
+        .order('start_date', { ascending: false })
+        .limit(100),
       supabase
         .from('client_workout_plans')
         .select('id, assigned_at, workout_plan:workout_plans(name)')

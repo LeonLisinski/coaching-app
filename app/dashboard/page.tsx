@@ -291,21 +291,22 @@ function DashboardPageContent() {
     const [
       { data: checkinConfigs },
       { data: allCheckins },
+      { data: checkinCounts },
       { count: unread },
       { data: packagesData },
       { data: recentMsgs },
       { data: recentPays },
     ] = await Promise.all([
       supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
-      clientIds.length
-        ? supabase.from('checkins').select('client_id, date').in('client_id', clientIds).gte('date', sixMonthsAgoStr).order('date', { ascending: false }).limit(500)
-        : Promise.resolve({ data: [] as any[], error: null }),
+      // RPC returns only last checkin per client via DISTINCT ON — O(clients), not O(all rows)
+      supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
+      supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
       supabase.from('messages').select('*', { count: 'exact', head: true }).eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
       // Only load packages relevant to the dashboard: currently active, or started this calendar
       // year (covers YTD revenue + 6-month bar chart). Older historical packages are not shown.
       supabase
         .from('client_packages')
-        .select(`id, client_id, price, status, start_date, end_date, payments(*), packages(name)`)
+        .select(`id, client_id, price, status, start_date, end_date, payments(id,status,amount,paid_at), packages(name)`)
         .eq('trainer_id', user.id)
         .or(`status.eq.active,start_date.gte.${new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)}`)
         .limit(2000),
@@ -324,11 +325,9 @@ function DashboardPageContent() {
     checkinConfigs?.forEach(cfg => { checkinDayMap[cfg.client_id] = cfg.checkin_day })
 
     const lastCheckinMap: Record<string, string> = {}
+    allCheckins?.forEach((c: any) => { lastCheckinMap[c.client_id] = c.last_date })
     const checkinCountMap: Record<string, number> = {}
-    allCheckins?.forEach(c => {
-      if (!lastCheckinMap[c.client_id]) lastCheckinMap[c.client_id] = c.date
-      checkinCountMap[c.client_id] = (checkinCountMap[c.client_id] || 0) + 1
-    })
+    checkinCounts?.forEach((c: any) => { checkinCountMap[c.client_id] = Number(c.checkin_count) })
 
     // Build client rows
     const rows: ClientRow[] = (clientsData || []).map((c: any) => {
@@ -480,17 +479,17 @@ function DashboardPageContent() {
       return t2('timeDays', { n: diffDays })
     }
 
-    // Reuse allCheckins already fetched — filter to last 7 days
+    // Filter last-checkins to those submitted within the past 7 days for activity feed
     const recentCi = (allCheckins || [])
-      .filter(c => c.date >= sevenDaysAgoStr)
+      .filter((c: any) => c.last_date >= sevenDaysAgoStr)
       .slice(0, 5)
-      .map((c, i) => ({
-        id: `checkin-${c.client_id}-${c.date}`,
+      .map((c: any, i: number) => ({
+        id: `checkin-${c.client_id}-${c.last_date}`,
         type: 'checkin' as const,
         title: clientNameMap[c.client_id] || t2('fallbackClient'),
         subtitle: t2('activitySubmittedCheckin'),
         time: '',
-        ts: new Date(c.date).getTime() - i, // offset to preserve order for same-day
+        ts: new Date(c.last_date).getTime() - i,
         clientId: c.client_id,
       }))
 

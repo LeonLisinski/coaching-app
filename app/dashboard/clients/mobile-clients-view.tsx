@@ -88,16 +88,15 @@ export default function MobileClientsView() {
 
     const ids = clientData.map((c: any) => c.id)
 
-    const [{ data: pkgData }, { data: cfgData }, { data: ciData }] = await Promise.all([
+    const [{ data: pkgData }, { data: cfgData }, { data: ciData }, { data: countsData }] = await Promise.all([
       supabase.from('client_packages').select('client_id, packages(name, color)').eq('status', 'active').in('client_id', ids),
       supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', ids),
-      supabase.from('checkins').select('client_id, date').in('client_id', ids).order('date', { ascending: false }),
+      supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
+      supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
     ])
 
     const checkinCountMap: Record<string, number> = {}
-    for (const row of ciData || []) {
-      checkinCountMap[row.client_id] = (checkinCountMap[row.client_id] || 0) + 1
-    }
+    for (const row of (countsData || [])) checkinCountMap[row.client_id] = Number(row.checkin_count)
 
     const pkgMap: Record<string, { name: string; color: string }> = {}
     for (const p of (pkgData || [])) {
@@ -106,7 +105,7 @@ export default function MobileClientsView() {
     const cfgMap: Record<string, number | null> = {}
     for (const c of (cfgData || [])) cfgMap[c.client_id] = c.checkin_day
     const ciMap: Record<string, string> = {}
-    for (const c of (ciData || [])) { if (!ciMap[c.client_id]) ciMap[c.client_id] = c.date }
+    for (const c of (ciData || [])) ciMap[c.client_id] = c.last_date
 
     setClients(clientData.map((c: any) => {
       const checkinDay = cfgMap[c.id] ?? null

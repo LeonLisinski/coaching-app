@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import MobileClientsView from '@/app/dashboard/clients/mobile-clients-view'
-import { useEffect, useRef, useState, Suspense } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -252,33 +252,36 @@ function ClientsPageContent() {
     setAgeTo('')
   }
 
-  const filtered = clients
-    .filter(c => {
-      const matchSearch = c.full_name.toLowerCase().includes(search.toLowerCase()) ||
-        c.email.toLowerCase().includes(search.toLowerCase())
-      const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
-      const matchGender = !genderFilter || c.gender === genderFilter
-      const matchPackage = !packageFilter || c.activePackageName === packages.find(p => p.id === packageFilter)?.name
-      const age = c.date_of_birth ? calcAge(c.date_of_birth) : null
-      const matchAgeFrom = !ageFrom || (age !== null && age >= parseInt(ageFrom))
-      const matchAgeTo = !ageTo || (age !== null && age <= parseInt(ageTo))
-      return matchSearch && matchStatus && matchGender && matchPackage && matchAgeFrom && matchAgeTo
-    })
-    .sort((a, b) => {
-      switch (sortKey) {
-        case 'name_asc': return a.full_name.localeCompare(b.full_name, 'hr')
-        case 'name_desc': return b.full_name.localeCompare(a.full_name, 'hr')
-        case 'date_asc': return (a.start_date || '').localeCompare(b.start_date || '')
-        case 'date_desc': return (b.start_date || '').localeCompare(a.start_date || '')
-        case 'weight_asc': return (a.weight || 0) - (b.weight || 0)
-        case 'weight_desc': return (b.weight || 0) - (a.weight || 0)
-        case 'age_asc': return (a.date_of_birth ? calcAge(a.date_of_birth) : 0) - (b.date_of_birth ? calcAge(b.date_of_birth) : 0)
-        case 'age_desc': return (b.date_of_birth ? calcAge(b.date_of_birth) : 0) - (a.date_of_birth ? calcAge(a.date_of_birth) : 0)
-        case 'checkin_day_asc': return (a.checkin_day ?? 99) - (b.checkin_day ?? 99)
-        case 'checkin_day_desc': return (b.checkin_day ?? -1) - (a.checkin_day ?? -1)
-        default: return 0
-      }
-    })
+  const filtered = useMemo(() => {
+    const pkgName = packageFilter ? packages.find(p => p.id === packageFilter)?.name : undefined
+    return clients
+      .filter(c => {
+        const matchSearch = c.full_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.email.toLowerCase().includes(search.toLowerCase())
+        const matchStatus = statusFilter === 'all' || (statusFilter === 'active' ? c.active : !c.active)
+        const matchGender = !genderFilter || c.gender === genderFilter
+        const matchPackage = !pkgName || c.activePackageName === pkgName
+        const age = c.date_of_birth ? calcAge(c.date_of_birth) : null
+        const matchAgeFrom = !ageFrom || (age !== null && age >= parseInt(ageFrom))
+        const matchAgeTo = !ageTo || (age !== null && age <= parseInt(ageTo))
+        return matchSearch && matchStatus && matchGender && matchPackage && matchAgeFrom && matchAgeTo
+      })
+      .sort((a, b) => {
+        switch (sortKey) {
+          case 'name_asc': return a.full_name.localeCompare(b.full_name, 'hr')
+          case 'name_desc': return b.full_name.localeCompare(a.full_name, 'hr')
+          case 'date_asc': return (a.start_date || '').localeCompare(b.start_date || '')
+          case 'date_desc': return (b.start_date || '').localeCompare(a.start_date || '')
+          case 'weight_asc': return (a.weight || 0) - (b.weight || 0)
+          case 'weight_desc': return (b.weight || 0) - (a.weight || 0)
+          case 'age_asc': return (a.date_of_birth ? calcAge(a.date_of_birth) : 0) - (b.date_of_birth ? calcAge(b.date_of_birth) : 0)
+          case 'age_desc': return (b.date_of_birth ? calcAge(b.date_of_birth) : 0) - (a.date_of_birth ? calcAge(a.date_of_birth) : 0)
+          case 'checkin_day_asc': return (a.checkin_day ?? 99) - (b.checkin_day ?? 99)
+          case 'checkin_day_desc': return (b.checkin_day ?? -1) - (a.checkin_day ?? -1)
+          default: return 0
+        }
+      })
+  }, [clients, search, statusFilter, genderFilter, packageFilter, packages, ageFrom, ageTo, sortKey])
 
   const isAtLimit = subscription !== null && clients.length >= subscription.client_limit
 

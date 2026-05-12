@@ -123,7 +123,8 @@ export default function CheckinStatsTab() {
         .select('client_id, date')
         .in('client_id', clientIds)
         .gte('date', nineMonthsAgoStr)
-        .order('date', { ascending: false }),
+        .order('date', { ascending: false })
+        .limit(5000),
       supabase.from('checkin_config')
         .select('client_id, checkin_day').in('client_id', clientIds),
     ])
@@ -187,25 +188,32 @@ export default function CheckinStatsTab() {
       return { id, name: (c?.profiles as any)?.full_name || '—', gender: c?.gender || null, count }
     }))
 
-    // Weekly completion rate (last 8 weeks)
-    const weekRates: { week: string; rate: number }[] = []
+    // Weekly completion rate (last 8 weeks) — single-pass bucketing: O(N) not O(8N)
+    const weekBounds: { start: string; end: string; label: string }[] = []
     for (let i = 7; i >= 0; i--) {
       const weekStart = new Date(now)
       weekStart.setDate(now.getDate() - i * 7 - now.getDay())
       weekStart.setHours(0, 0, 0, 0)
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
-      const wStartStr = weekStart.toISOString().slice(0, 10)
-      const wEndStr = weekEnd.toISOString().slice(0, 10)
-      const inWeek = myCheckins.filter(c => c.date >= wStartStr && c.date < wEndStr)
-      const uniqueClients = new Set(inWeek.map(c => c.client_id)).size
-      const configured = configs?.length || 1
-      const rate = Math.round((uniqueClients / Math.max(configured, 1)) * 100)
-      weekRates.push({
-        week: i === 0 ? t2('thisWeekLabel') : `T-${i}`,
-        rate: Math.min(rate, 100),
+      weekBounds.push({
+        start: weekStart.toISOString().slice(0, 10),
+        end: weekEnd.toISOString().slice(0, 10),
+        label: i === 0 ? t2('thisWeekLabel') : `T-${i}`,
       })
     }
+    const weekSets: Map<number, Set<string>> = new Map(weekBounds.map((_, idx) => [idx, new Set()]))
+    myCheckins.forEach(c => {
+      for (let idx = 0; idx < weekBounds.length; idx++) {
+        const wb = weekBounds[idx]
+        if (c.date >= wb.start && c.date < wb.end) { weekSets.get(idx)!.add(c.client_id); break }
+      }
+    })
+    const configured = configs?.length || 1
+    const weekRates = weekBounds.map((wb, idx) => ({
+      week: wb.label,
+      rate: Math.min(Math.round((weekSets.get(idx)!.size / Math.max(configured, 1)) * 100), 100),
+    }))
     setCompRate(weekRates)
 
     setLoading(false)

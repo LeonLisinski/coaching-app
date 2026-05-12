@@ -51,7 +51,8 @@ export default function ClientTrainingTracking({
           .from('client_workout_plans')
           .select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)')
           .eq('client_id', clientId)
-          .order('assigned_at', { ascending: true }),
+          .order('assigned_at', { ascending: true })
+          .limit(50),
         supabase
           .from('workout_logs')
           .select('id, date, day_name, plan_id, exercises')

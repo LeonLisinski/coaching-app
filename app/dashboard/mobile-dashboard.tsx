@@ -72,9 +72,15 @@ export default function MobileDashboard() {
       supabase.from('clients')
         .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
         .eq('trainer_id', user.id).eq('active', true),
-      supabase.from('payments')
-        .select('amount, status')
-        .eq('trainer_id', user.id),
+      (() => {
+        const now = new Date()
+        const mStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+        const mEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
+        return supabase.from('payments')
+          .select('amount, status, paid_at')
+          .eq('trainer_id', user.id)
+          .or(`status.eq.unpaid,and(status.eq.paid,paid_at.gte.${mStart},paid_at.lte.${mEnd}T23:59:59)`)
+      })(),
     ])
     setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || t2('fallbackTrainer'))
 
@@ -87,16 +93,15 @@ export default function MobileDashboard() {
 
     if (!clients?.length) { setLoading(false); return }
 
-    const ids = clients.map((c: any) => c.id)
     const [{ data: cfgData }, { data: ciData }] = await Promise.all([
-      supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', ids),
-      supabase.from('checkins').select('client_id, date').in('client_id', ids).order('date', { ascending: false }),
+      supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clients.map((c: any) => c.id)),
+      supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
     ])
 
     const cfgMap: Record<string, number | null> = {}
     for (const c of (cfgData || [])) cfgMap[c.client_id] = c.checkin_day
     const lastMap: Record<string, string> = {}
-    for (const c of (ciData || [])) { if (!lastMap[c.client_id]) lastMap[c.client_id] = c.date }
+    for (const c of (ciData || [])) lastMap[c.client_id] = c.last_date
 
     const withStatus: MiniClient[] = clients.map((c: any) => ({
       id: c.id,

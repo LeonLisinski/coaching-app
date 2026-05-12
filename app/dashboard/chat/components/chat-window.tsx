@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -49,14 +49,14 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const tCommon = useTranslations('common')
   const locale = useLocale()
 
-  const QUICK_TEMPLATES = [
+  const QUICK_TEMPLATES = useMemo(() => [
     { label: tChat('tpl1Label'), text: tChat('tpl1Text') },
     { label: tChat('tpl2Label'), text: tChat('tpl2Text') },
     { label: tChat('tpl3Label'), text: tChat('tpl3Text') },
     { label: tChat('tpl4Label'), text: tChat('tpl4Text') },
     { label: tChat('tpl5Label'), text: tChat('tpl5Text') },
     { label: tChat('tpl6Label'), text: tChat('tpl6Text') },
-  ]
+  ], [tChat])
   const PAGE = 50
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
