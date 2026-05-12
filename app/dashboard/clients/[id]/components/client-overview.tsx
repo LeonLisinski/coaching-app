@@ -121,8 +121,8 @@ export default function ClientOverview({ clientId }: Props) {
         .from('client_workout_plans')
         .select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)')
         .eq('client_id', clientId)
-        .order('assigned_at', { ascending: false })
-        .limit(20),
+        .order('assigned_at', { ascending: true })
+        .limit(50),
       supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
       supabase
         .from('workout_logs')

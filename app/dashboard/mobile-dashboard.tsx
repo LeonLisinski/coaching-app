@@ -67,20 +67,19 @@ export default function MobileDashboard() {
     const user = session?.user
     if (!user) return
 
+    const _now    = new Date()
+    const mStart  = new Date(_now.getFullYear(), _now.getMonth(), 1).toISOString().slice(0, 10)
+    const mEnd    = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).toISOString().slice(0, 10)
+
     const [{ data: profile }, { data: clients }, { data: payments }] = await Promise.all([
       supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
       supabase.from('clients')
         .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
         .eq('trainer_id', user.id).eq('active', true),
-      (() => {
-        const now = new Date()
-        const mStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
-        const mEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10)
-        return supabase.from('payments')
-          .select('amount, status, paid_at')
-          .eq('trainer_id', user.id)
-          .or(`status.eq.unpaid,and(status.eq.paid,paid_at.gte.${mStart},paid_at.lte.${mEnd}T23:59:59)`)
-      })(),
+      supabase.from('payments')
+        .select('amount, status')
+        .eq('trainer_id', user.id)
+        .or(`status.eq.unpaid,and(status.eq.paid,paid_at.gte.${mStart},paid_at.lte.${mEnd}T23:59:59)`),
     ])
     setTrainerName(profile?.full_name?.split(' ')[0] || user.email?.split('@')[0] || t2('fallbackTrainer'))
 

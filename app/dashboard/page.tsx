@@ -285,8 +285,6 @@ function DashboardPageContent() {
     const clientIds = clientsData?.map(c => c.id) || []
 
     // All client-id-dependent and user-id-dependent queries in parallel
-    const sixMonthsAgo = new Date(); sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    const sixMonthsAgoStr = isoDate(sixMonthsAgo)
 
     const [
       { data: checkinConfigs },
