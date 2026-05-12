@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTranslations } from 'next-intl'
-import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw, Mail, AlertTriangle } from 'lucide-react'
+import { UserCog, X as XIcon, Dumbbell, UtensilsCrossed, Check, CreditCard, RefreshCw, Mail, AlertTriangle, Send } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -100,6 +100,11 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
   const [emailError, setEmailError] = useState('')
   const [emailSuccess, setEmailSuccess] = useState(false)
 
+  // Send login email state
+  const [sendLoginLoading, setSendLoginLoading] = useState(false)
+  const [sendLoginSuccess, setSendLoginSuccess] = useState(false)
+  const [sendLoginError, setSendLoginError] = useState('')
+
   // Plans tab state
   const [workoutPlans, setWorkoutPlans] = useState<Plan[]>([])
   const [mealPlans, setMealPlans] = useState<Plan[]>([])
@@ -130,6 +135,8 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     // Reset email states on open
     setEmailError('')
     setEmailSuccess(false)
+    setSendLoginError('')
+    setSendLoginSuccess(false)
 
     supabase.from('clients')
       .select('user_id, goal, weight, height, date_of_birth, start_date, gender, activity_level, notes, step_goal')
@@ -268,6 +275,28 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
     setEmailSuccess(true)
     setTimeout(() => setEmailSuccess(false), 3000)
     onSuccess()
+  }
+
+  const handleSendLoginEmail = async () => {
+    const email = emailValue.trim().toLowerCase()
+    if (!email) return
+    setSendLoginLoading(true)
+    setSendLoginError('')
+    setSendLoginSuccess(false)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const { error: fnErr } = await supabase.functions.invoke('send-client-password-reset', {
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+      body: { email },
+    })
+
+    setSendLoginLoading(false)
+    if (fnErr) {
+      setSendLoginError(tEdit('sendLoginEmailError'))
+      return
+    }
+    setSendLoginSuccess(true)
+    setTimeout(() => setSendLoginSuccess(false), 3500)
   }
 
   const handleSubmitProfile = async (e: React.SyntheticEvent) => {
@@ -454,6 +483,32 @@ export default function EditClientDialog({ client, open, onClose, onSuccess }: P
                 </div>
                 {emailError && (
                   <p className="text-red-500 text-xs bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">{emailError}</p>
+                )}
+
+                {/* Send login email */}
+                <div className="flex items-center justify-between pt-0.5">
+                  <p className="text-[11px] text-gray-400 leading-tight max-w-[200px]">
+                    {tEdit('sendLoginEmailTooltip')}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendLoginEmail}
+                    disabled={sendLoginLoading || !emailValue.trim()}
+                    className="shrink-0 text-xs gap-1.5 h-7 px-2.5"
+                  >
+                    {sendLoginLoading ? (
+                      <><RefreshCw size={11} className="animate-spin" />{tEdit('sendLoginEmailSending')}</>
+                    ) : sendLoginSuccess ? (
+                      <><Check size={11} className="text-green-600" /><span className="text-green-600">{tEdit('sendLoginEmailSuccess')}</span></>
+                    ) : (
+                      <><Send size={11} />{tEdit('sendLoginEmailBtn')}</>
+                    )}
+                  </Button>
+                </div>
+                {sendLoginError && (
+                  <p className="text-red-500 text-xs bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">{sendLoginError}</p>
                 )}
               </div>
 

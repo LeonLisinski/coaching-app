@@ -1957,7 +1957,12 @@
     "emailErrorTaken": "This email address is already in use",
     "emailErrorInvalid": "Please enter a valid email address",
     "emailErrorGeneric": "Error updating email",
-    "emailWarning": "This changes the email the client uses to log in to the app."
+    "emailWarning": "This changes the email the client uses to log in to the app.",
+    "sendLoginEmailBtn": "Send login email",
+    "sendLoginEmailSending": "Sending...",
+    "sendLoginEmailSuccess": "Email sent",
+    "sendLoginEmailError": "Error sending email",
+    "sendLoginEmailTooltip": "Send the client an email with a password setup link (same as the invite email)"
   },
   "clientCalculator": {
     "proteinPct": "Protein {pct}%",

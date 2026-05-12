@@ -1,7 +1,7 @@
 # UnitLift — Tehnička dokumentacija
 
-> Zadnje ažuriranje: April 2026  
-> Verzija dokumenta: 1.0
+> Zadnje ažuriranje: Svibanj 2026  
+> Verzija dokumenta: 1.4
 
 ---
 
@@ -17,6 +17,7 @@
 8. [Deployment](#8-deployment)
 9. [Lokalni razvoj](#9-lokalni-razvoj)
 10. [Poznati problemi & TODO](#10-poznati-problemi--todo)
+11. [Performance optimizacije](#11-performance-optimizacije)
 
 ---
 
@@ -576,15 +577,19 @@ Baza recepata.
 #### `checkins`
 Tjedni check-ini klijenata.
 
-| Polje        | Tip         | Opis                                 |
-|-------------|-------------|--------------------------------------|
-| `id`         | uuid PK     |                                      |
-| `client_id`  | uuid FK → `clients.id` |                     |
-| `trainer_id` | uuid FK → `profiles.id` |                   |
-| `week_start` | date        | ISO tjedan (ponedjeljak)             |
-| `date`       | date        | Datum slanja check-ina               |
-| `status`     | text        | Status check-ina                     |
-| `created_at` | timestamptz |                                      |
+| Polje              | Tip         | Opis                                 |
+|-------------------|-------------|--------------------------------------|
+| `id`               | uuid PK     |                                      |
+| `client_id`        | uuid FK → `clients.id` |                     |
+| `trainer_id`       | uuid FK → `profiles.id` |                   |
+| `week_start`       | date        | ISO tjedan (ponedjeljak)             |
+| `date`             | date        | Datum slanja check-ina               |
+| `status`           | text        | Status check-ina                     |
+| `values`           | jsonb       | Vrijednosti parametara check-ina (ključ: `parameter_id`) |
+| `trainer_comment`  | text        | Komentar trenera na check-in         |
+| `created_at`       | timestamptz |                                      |
+
+> **Realtime konfiguracija**: `REPLICA IDENTITY FULL` — potrebno za `INSERT` evente u Supabase Realtime. Tablica je u `supabase_realtime` publikaciji.
 
 #### `checkin_parameters`
 Parametri za check-in forme (konfigurira trener).
@@ -611,41 +616,49 @@ Konfiguracija tjednog check-ina po klijentu.
 #### `packages`
 Definirani paketi usluga trenera.
 
-| Polje        | Tip         | Opis             |
-|-------------|-------------|------------------|
-| `id`         | uuid PK     |                  |
-| `trainer_id` | uuid FK     |                  |
-| `name`       | text        | Naziv paketa     |
-| `sessions`   | integer     | Broj sesija      |
-| `price`      | numeric     | Cijena           |
-| `created_at` | timestamptz |                  |
+| Polje           | Tip         | Opis                                    |
+|----------------|-------------|------------------------------------------|
+| `id`            | uuid PK     |                                          |
+| `trainer_id`    | uuid FK → `profiles.id` |                       |
+| `name`          | text        | Naziv paketa                             |
+| `color`         | text        | Hex boja paketa (prikazuje se u UI)      |
+| `sessions`      | integer     | Broj sesija u paketu                     |
+| `duration_days` | integer     | Trajanje paketa u danima (npr. 30, 90)   |
+| `price`         | numeric     | Defaultna cijena                         |
+| `active`        | boolean     | Je li paket dostupan za novu dodjelu     |
+| `created_at`    | timestamptz |                                          |
 
 #### `client_packages`
-Aktivni paketi po klijentu.
+Dodjela paketa klijentu.
 
 | Polje        | Tip         | Opis                         |
 |-------------|-------------|------------------------------|
 | `id`         | uuid PK     |                              |
 | `client_id`  | uuid FK → `clients.id` |             |
-| `trainer_id` | uuid FK     |                              |
+| `trainer_id` | uuid FK → `profiles.id` |           |
 | `package_id` | uuid FK → `packages.id` |           |
-| `status`     | text        | `'active'`, `'expired'`, itd.|
+| `status`     | text        | `'active'`, `'expired'`      |
 | `start_date` | date        |                              |
 | `end_date`   | date        | Koristi se za expiry podsjetnik |
-| `sessions_used` | integer  |                              |
+| `price`      | numeric     | Stvarna cijena (može se promijeniti od defaulta) |
+| `notes`      | text        | Bilješka o paketu            |
 | `created_at` | timestamptz |                              |
 
 #### `payments`
-Plaćanja klijenata.
+Plaćanja klijenata. Jedan zapis po paketu (1:1 s `client_packages`).
 
-| Polje        | Tip         | Opis                               |
-|-------------|-------------|-------------------------------------|
-| `id`         | uuid PK     |                                     |
-| `client_id`  | uuid FK → `clients.id` |                |
-| `trainer_id` | uuid FK     |                                     |
-| `amount`     | numeric     | Iznos u EUR                         |
-| `status`     | text        | `'pending'`, `'paid'`, itd.         |
-| `created_at` | timestamptz |                                     |
+| Polje               | Tip         | Opis                                              |
+|--------------------|-------------|---------------------------------------------------|
+| `id`                | uuid PK     |                                                   |
+| `client_id`         | uuid FK → `clients.id` |                              |
+| `trainer_id`        | uuid FK → `profiles.id` |                             |
+| `client_package_id` | uuid FK → `client_packages.id` | **UNIQUE** — jedan payment po paketu |
+| `amount`            | numeric     | Iznos u EUR (može biti drukčiji od `packages.price`) |
+| `status`            | text        | `'pending'`, `'paid'`                             |
+| `paid_at`           | timestamptz | Kada je plaćanje potvrđeno (null ako nije plaćeno)|
+| `created_at`        | timestamptz |                                                   |
+
+> **Napomena**: Unique constraint `payments_client_package_id_unique` na `client_package_id` znači da PostgREST vraća `payments` kao **single object** (ne array) kad se joinaju putem `client_packages`. Sve ove vrijednosti se u kodu normaliziraju na array: `cp.payments == null ? [] : Array.isArray(cp.payments) ? cp.payments : [cp.payments]`.
 
 #### `messages`
 Chat poruke između trenera i klijenta.
@@ -653,11 +666,14 @@ Chat poruke između trenera i klijenta.
 | Polje        | Tip         | Opis                                            |
 |-------------|-------------|--------------------------------------------------|
 | `id`         | uuid PK     |                                                  |
-| `trainer_id` | uuid FK     |                                                  |
-| `client_id`  | uuid FK     |                                                  |
+| `trainer_id` | uuid FK → `profiles.id` |                                 |
+| `client_id`  | uuid FK → `clients.id` |                                  |
 | `sender_id`  | uuid FK → `profiles.id` | Tko je poslao poruku       |
 | `content`    | text        | Sadržaj poruke                                   |
+| `read`       | boolean     | Je li poruka pročitana (default: `false`)        |
 | `created_at` | timestamptz |                                                  |
+
+> **Realtime konfiguracija**: `REPLICA IDENTITY FULL` — potrebno za `UPDATE` evente u Supabase Realtime. Tablica je u `supabase_realtime` publikaciji.
 
 #### `push_subscriptions`
 Web push pretplate za **trenere** (browser notifications).
@@ -764,6 +780,67 @@ auth.users (Supabase)
 Nisu eksplicitno definirani u migracijama. Koriste se za:
 - Avatari trenera i klijenata
 - Progress fotografije klijenata (compare-photos ekran)
+
+### 4.5 SQL RPC funkcije
+
+Optimizirane server-side funkcije koje zamjenjuju skupe client-side agregacije.
+
+#### `get_trainer_chat_summary(p_trainer_id uuid)`
+
+Vraća po klijentu: zadnju poruku + broj nepročitanih. Koristi `DISTINCT ON` — O(klijenti) umjesto O(sve poruke).
+
+```sql
+RETURNS TABLE (
+  client_id       uuid,
+  last_content    text,
+  last_created_at timestamptz,
+  last_sender_id  uuid,
+  unread_count    bigint
+)
+```
+
+Koristi se u: `app/dashboard/chat/page.tsx`
+
+#### `get_trainer_last_checkins(p_trainer_id uuid)`
+
+Vraća zadnji datum check-ina po klijentu. Koristi `DISTINCT ON` — O(klijenti) umjesto O(sve check-in redove).
+
+```sql
+RETURNS TABLE (
+  client_id uuid,
+  last_date date
+)
+```
+
+Koristi se u: `dashboard/page.tsx`, `mobile-dashboard.tsx`, `clients/mobile-clients-view.tsx`, `checkins/tabs/clients-tab.tsx`, `checkins/mobile-checkins-view.tsx`
+
+#### `get_client_checkin_counts(trainer_user_id uuid)`
+
+Vraća ukupni broj check-inova po klijentu (za consistency score).
+
+```sql
+RETURNS TABLE (
+  client_id     uuid,
+  checkin_count bigint
+)
+```
+
+Koristi se u: `clients/page.tsx`, `clients/mobile-clients-view.tsx`, `dashboard/page.tsx`
+
+### 4.6 Baza podataka — indeksi (ručno dodani)
+
+| Indeks | Tablica | Stupci | Svrha |
+|--------|---------|--------|-------|
+| `idx_messages_trainer_client_created` | `messages` | `(trainer_id, client_id, created_at DESC)` | `DISTINCT ON` u `get_trainer_chat_summary` |
+| `idx_messages_trainer_unread` | `messages` | `(trainer_id, sender_id, read)` WHERE `read = false` | Unread count sub-query u chat RPC |
+| `idx_checkins_trainer_client_date` | `checkins` | `(trainer_id, client_id, date DESC)` | `DISTINCT ON` u `get_trainer_last_checkins` |
+
+### 4.7 Realtime konfiguracija
+
+| Tablica | Replica Identity | U publikaciji | Svrha |
+|---------|-----------------|---------------|-------|
+| `messages` | `FULL` | `supabase_realtime` | Live chat + obavijesti treneru |
+| `checkins` | `FULL` | `supabase_realtime` | Obavijesti treneru o novim check-inovima |
 
 ---
 
@@ -1233,10 +1310,13 @@ supabase db reset
 | Stripe webhook ne radi lokalno | Stripe ne može dosegnuti localhost | Koristi Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe` |
 | Push notifikacije ne rade u dev | VAPID keys nisu postavljene | Kopiraj VAPID_PRIVATE_KEY i NEXT_PUBLIC_VAPID_PUBLIC_KEY iz produkcijskog .env |
 | Edge funkcija `create-client` vraća 500 | `RESEND_API_KEY` nije postavljen u Supabase Vault | Postavi secret u Supabase Dashboard → Edge Functions → Secrets |
+| Ručni check-in podsjetnik vraća "email nije podešen" | `RESEND_API_KEY` ili `RESEND_FROM` nedostaje u `.env.local` | Dodaj `RESEND_API_KEY=re_...` i `RESEND_FROM=UnitLift <no-reply@unitlift.com>` u `.env.local` |
+| `payments` se prikazuje kao `null` / TypeScript error na `.map()` | PostgREST vraća single object (ne array) zbog UNIQUE constrainta | Normalizirati: `Array.isArray(p) ? p : p == null ? [] : [p]` |
 | Mobilna app ne pamti session | Simulator umjesto fizičkog uređaja | expo-secure-store zahtijeva fizički uređaj, ili koristiti `Platform.OS === 'web'` fallback |
 | `Next.js: module not found` | Stari node_modules | `rm -rf node_modules && npm install` |
 | `supabase db push` failira | Migracija nije kompatibilna s remote shemom | Provjeri `supabase db diff` i ručno izvedi potrebne izmjene |
 | Cron ne okida lokalno | `CRON_SECRET` nije postavljen | U dev možeš pozvati direktno: `GET http://localhost:3000/api/cron/reminders` |
+| TypeScript: `Argument of type ... is not assignable to SetStateAction<T[]>` | PostgREST inferencira array za nested join čak i za 1:1 relaciju | Dodaj `as unknown as T[]` cast, ili provjeri koje su kolone u selectu dovoljne za tip |
 
 ---
 
@@ -1264,6 +1344,18 @@ supabase db reset
 
 7. **Trial abuse zaštita nije savršena**  
    Provjera `hasHadTrialBefore` ovisi o Stripe customer-u pronađenom po emailu — korisnik može koristiti novi email za novi trial.
+
+8. ~~**Web app obavijesti (zvonce/badge) nisu se ažurirale u realnom vremenu**~~  
+   ✅ **ISPRAVLJENO** — `layout.tsx`: koristi `useRef` za stabilan `fetchNotifications` callback (sprječava channel churn), client-side filtriranje umjesto server-side filtra (koji može tiho failati s RLS-om).
+
+9. ~~**Mobilna app badge/obavijesti ostajale i nakon čitanja poruka**~~  
+   ✅ **ISPRAVLJENO** — `(tabs)/4-chat.tsx`: `useFocusEffect` sada odmah poziva `Notifications.setBadgeCountAsync(0)` i markira poruke kao pročitane pri ulasku u chat tab.
+
+10. ~~**`ON CONFLICT` greška pri označavanju plaćanja u Financijama**~~  
+    ✅ **ISPRAVLJENO** — Dodan UNIQUE constraint `payments_client_package_id_unique` na `payments.client_package_id`. Uzrokovalo je da PostgREST vraća `payments` kao single object (ne array) — normalizacija dodana u `financije/page.tsx` i `dashboard/page.tsx`.
+
+11. ~~**Podsjetnik za klijente (`/api/push/notify-client`) vraća grešku "email nije podešen"**~~  
+    Uzrok: `RESEND_API_KEY` nije postavljen u `.env.local`. Riješiti dodavanjem ključa (vidi Sekciju 7.1).
 
 ### 10.2 Što treba napraviti za produkcijsku stabilnost
 
@@ -1293,6 +1385,79 @@ supabase db reset
 
 10. **Produkcijski Stripe ključevi**  
     Trenutne vrijednosti u `.env.local` su test ključevi (`sk_test_...`). Prije produkcijskog launcha zamijeniti s live ključevima i ažurirati webhook signing secret.
+
+---
+
+## 11. Performance optimizacije
+
+Ovaj odjeljak dokumentira sve mjere poduzete za poboljšanje performansi aplikacije pri velikom broju klijenata i dugoj povijesti podataka.
+
+### 11.1 Baza podataka — RPC umjesto bulk fetchova
+
+| Problem | Staro | Novo |
+|---------|-------|------|
+| Chat sidebar — dohvat zadnje poruke + unread po klijentu | Sve poruke svih klijenata bez limita | `get_trainer_chat_summary` RPC (DISTINCT ON) |
+| Zadnji check-in po klijentu (5 mjesta) | Sve check-in redove svih klijenata bez limita | `get_trainer_last_checkins` RPC (DISTINCT ON) |
+| Broj check-inova po klijentu (consistency score) | Broji se iz istog bulk fetcha | `get_client_checkin_counts` RPC (GROUP BY) |
+
+### 11.2 Queriji — limiti i filtri
+
+| Datoteka | Promjena |
+|---------|---------|
+| `chat/page.tsx` | Dodan `.limit(2000)` na klijente |
+| `chat/components/chat-window.tsx` | Paginacija: zadnjih 50 poruka + "Učitaj starije" gumb |
+| `dashboard/page.tsx` | `client_packages`: filter na aktivne + tekuća godina + `limit(2000)`; `payments(*)` → eksplicitni stupci |
+| `clients/page.tsx` | Status filter ide u DB query (`.eq('active', true/false)`), `limit(1000)` |
+| `financije/page.tsx` | Filter na aktivne + zadnje 2 godine, `limit(2000)`, `payments(*)` → eksplicitni stupci |
+| `mobile-dashboard.tsx` | `payments`: filter samo na tekući mj. + neplaćeni (umjesto svih) |
+| `mobile-clients-view.tsx` | Checkins → RPC; dodan `get_client_checkin_counts` za consistency score |
+| `checkins/tabs/clients-tab.tsx` | Checkins → RPC |
+| `checkins/mobile-checkins-view.tsx` | Checkins → RPC |
+| `checkins/tabs/stats-tab.tsx` | Dodan `.limit(5000)` na checkins query |
+| `clients/[id]/components/client-packages.tsx` | `select('*, packages(*), payments(*)')` → eksplicitni stupci |
+| `clients/[id]/components/client-timeline.tsx` | Dodan `limit(100)` na `client_packages` |
+| `clients/[id]/components/client-overview.tsx` | Dodan `limit(50)` na `client_workout_plans` |
+| `clients/[id]/components/client-training-tracking.tsx` | Dodan `limit(50)` na `client_workout_plans` |
+| `checkins/[id]/components/checkin-graphs.tsx` | Dodan `limit(400)` na `checkins` i `daily_logs` |
+
+### 11.3 Uski selekti — manji JSON payload
+
+| Datoteka | Promjena |
+|---------|---------|
+| `training/tabs/exercises-tab.tsx` | `select('*')` → eksplicitni stupci (bez nepotrebnih polja) |
+| `training/dialogs/add-template-dialog.tsx` | `exercises.select('*')` → eksplicitni stupci |
+| `training/dialogs/edit-template-dialog.tsx` | `exercises.select('*')` → eksplicitni stupci |
+| `nutrition/tabs/foods-tab.tsx` | `foods.select('*')` → eksplicitni stupci |
+| `nutrition/tabs/recipes-tab.tsx` | `recipes.select('*')` → eksplicitni stupci |
+| `nutrition/dialogs/add-meal-plan-dialog.tsx` | `foods.select('*')` → eksplicitni stupci |
+| `nutrition/dialogs/edit-meal-plan-dialog.tsx` | `foods.select('*')` → eksplicitni stupci |
+| `nutrition/dialogs/add-recipe-dialog.tsx` | `foods.select('*')` → eksplicitni stupci |
+| `nutrition/dialogs/edit-recipe-dialog.tsx` | `foods.select('*')` → eksplicitni stupci |
+
+### 11.4 React optimizacije
+
+| Datoteka | Promjena |
+|---------|---------|
+| `clients/page.tsx` | `filtered` + `sort` memoizirani s `useMemo` |
+| `chat/components/chat-window.tsx` | `QUICK_TEMPLATES` memoiziran s `useMemo` |
+| `checkins/tabs/stats-tab.tsx` | Weekly loop O(8×N) → single-pass bucketing O(N) |
+| `clients/[id]/components/client-training-tracking.tsx` | Keep-alive pattern za subtabove (CSS `hidden` umjesto unmount) — sprječava re-fetch pri promjeni subtaba |
+
+### 11.5 Mobilna app — sprječavanje ponovnih fetcha
+
+| Datoteka | Promjena |
+|---------|---------|
+| `(tabs)/2-nutrition.tsx` | `useFocusEffect` s 60s cooldown za log fetch |
+| `(tabs)/5-checkin.tsx` | `useFocusEffect` s 2 min cooldown za trainer comment fetch |
+| `(tabs)/index.tsx` | `useFocusEffect` s 30s cooldown za unread count fetch |
+
+### 11.6 Smjernice za skalabilnost
+
+- **Nikad ne fetchaj sve redove bez limita** za tablice koje rastu s brojem klijenata: `messages`, `checkins`, `workout_logs`, `daily_logs`, `client_packages`, `payments`
+- **Koristiti RPCs** za agregacije umjesto dohvata svih redova i client-side zbrajanja
+- **Clienti lista** je server-side filtrirana po statusu — nikad ne dohvaćaj sve aktivne + neaktivne zajedno
+- **`select('*')`** je dopustiv samo za male tablice bounded po treneru (npr. `packages`, `exercises` jednog trenera) ali NE za globalne tablice (`foods` default, `exercises` default)
+- **`payments(*)`** u nested PostgREST joinu vraća single object (ne array) zbog UNIQUE constrainta — uvijek normalizirati: `Array.isArray(p) ? p : p == null ? [] : [p]`
 
 ---
 

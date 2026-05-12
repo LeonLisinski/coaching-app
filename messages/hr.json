@@ -1957,7 +1957,12 @@
     "emailErrorTaken": "Ova email adresa je već u upotrebi",
     "emailErrorInvalid": "Unesite ispravnu email adresu",
     "emailErrorGeneric": "Greška pri ažuriranju emaila",
-    "emailWarning": "Ovo mijenja email s kojim se klijent prijavljuje u app."
+    "emailWarning": "Ovo mijenja email s kojim se klijent prijavljuje u app.",
+    "sendLoginEmailBtn": "Pošalji mail za prijavu",
+    "sendLoginEmailSending": "Šalje...",
+    "sendLoginEmailSuccess": "Mail poslan",
+    "sendLoginEmailError": "Greška pri slanju maila",
+    "sendLoginEmailTooltip": "Pošalji klijentu email s linkom za postavljanje lozinke (isti kao invite mail)"
   },
   "clientCalculator": {
     "proteinPct": "Proteini {pct}%",
