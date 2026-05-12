@@ -125,8 +125,8 @@ export default function ClientPackages({ clientId }: Props) {
     ])
 
     if (cpData) {
-      setClientPackages(cpData)
-      const activeIds = cpData.filter((c: ClientPackage) => c.status === 'active').map((c: ClientPackage) => c.id)
+      setClientPackages(cpData as unknown as ClientPackage[])
+      const activeIds = cpData.filter((c: any) => c.status === 'active').map((c: any) => c.id)
       setExpandedIds(new Set(activeIds))
     }
     if (pkgData) setAvailablePackages(pkgData)
