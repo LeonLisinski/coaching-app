@@ -811,6 +811,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           userName={userName}
           userInitials={userInitials}
           onLogout={handleLogout}
+          onSettings={() => setShowSettings(true)}
         />
       )}
     </div>

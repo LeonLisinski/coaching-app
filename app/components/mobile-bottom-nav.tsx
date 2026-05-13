@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ListChecks, MessageSquare,
-  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut,
+  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut, Settings,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -17,11 +17,12 @@ type Props = {
   userName?:       string
   userInitials?:   string
   onLogout:        () => void
+  onSettings?:     () => void
 }
 
 export default function MobileBottomNav({
   lastClientHref, lastCheckinHref, lastChatHref,
-  notifCount = 0, userName = '', userInitials = '?', onLogout,
+  notifCount = 0, userName = '', userInitials = '?', onLogout, onSettings,
 }: Props) {
   const pathname   = usePathname()
   const tNav       = useTranslations('nav')
@@ -159,8 +160,17 @@ export default function MobileBottomNav({
               })}
             </div>
 
-            {/* Logout row */}
-            <div className="px-4 pt-2 pb-1">
+            {/* Settings + Logout row */}
+            <div className="px-4 pt-2 pb-1 space-y-2">
+              {onSettings && (
+                <button
+                  onClick={() => { setShowMore(false); onSettings() }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors active:scale-[0.98]"
+                >
+                  <Settings size={17} />
+                  <span className="text-sm font-semibold">{tCommon('settings')}</span>
+                </button>
+              )}
               <button
                 onClick={() => { setShowMore(false); onLogout() }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-500 bg-red-50 hover:bg-red-100 transition-colors active:scale-[0.98]"

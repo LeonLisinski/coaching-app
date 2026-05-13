@@ -115,6 +115,7 @@
   "common": {
     "loading": "Učitavanje...",
     "logout": "Odjava",
+    "settings": "Postavke",
     "cancel": "Odustani",
     "save": "Spremi",
     "saving": "Spremanje...",

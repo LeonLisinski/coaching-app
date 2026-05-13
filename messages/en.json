@@ -115,6 +115,7 @@
   "common": {
     "loading": "Loading...",
     "logout": "Log out",
+    "settings": "Settings",
     "cancel": "Cancel",
     "save": "Save",
     "saving": "Saving...",
