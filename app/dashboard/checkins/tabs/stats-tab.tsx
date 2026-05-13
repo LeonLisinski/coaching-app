@@ -121,10 +121,9 @@ export default function CheckinStatsTab() {
     const [{ data: allCheckins }, { data: configs }] = await Promise.all([
       supabase.from('checkins')
         .select('client_id, date')
-        .in('client_id', clientIds)
+        .eq('trainer_id', user.id)
         .gte('date', nineMonthsAgoStr)
-        .order('date', { ascending: false })
-        .limit(5000),
+        .order('date', { ascending: false }),
       supabase.from('checkin_config')
         .select('client_id, checkin_day').in('client_id', clientIds),
     ])

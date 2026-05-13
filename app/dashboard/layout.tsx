@@ -391,8 +391,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => { fetchNotificationsRef.current = fetchNotifications }, [fetchNotifications])
 
   // ── Real-time: refresh notifications on new messages or check-ins ────────────
-  // No server-side filter — filtered postgres_changes require specific RLS setup and
-  // can silently fail. We filter in the handler instead (same pattern as chat-window.tsx).
   useEffect(() => {
     if (!userId) return
     const uid = userId
@@ -400,33 +398,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .channel(`layout-notifs-${uid}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `trainer_id=eq.${uid}` },
         (payload) => {
           const msg = payload.new as any
-          if (msg.trainer_id === uid && msg.sender_id !== uid) {
+          if (msg.sender_id !== uid) {
             fetchNotificationsRef.current(uid)
           }
         },
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
-          const msg = payload.new as any
-          if (msg.trainer_id === uid) {
-            fetchNotificationsRef.current(uid)
-          }
-        },
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `trainer_id=eq.${uid}` },
+        () => { fetchNotificationsRef.current(uid) },
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'checkins' },
-        (payload) => {
-          const ci = payload.new as any
-          if (ci.trainer_id === uid) {
-            fetchNotificationsRef.current(uid)
-          }
-        },
+        { event: 'INSERT', schema: 'public', table: 'checkins', filter: `trainer_id=eq.${uid}` },
+        () => { fetchNotificationsRef.current(uid) },
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }

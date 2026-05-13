@@ -131,7 +131,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
     if (!user) { setLoading(false); return }
     const { data } = await supabase
       .from('workout_plans')
-      .select('*')
+      .select('id, name, description, days, created_at')
       .eq('trainer_id', user.id)
       .eq('is_template', true)
     if (data) setPlans(data)

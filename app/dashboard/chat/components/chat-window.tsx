@@ -199,9 +199,9 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     }
     channelRef.current = supabase
       .channel(`chat-${clientId}-${uid}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `client_id=eq.${clientId}` }, async (payload) => {
         const msg = payload.new as Message
-        if (msg.client_id === clientId && msg.trainer_id === uid) {
+        if (msg.trainer_id === uid) {
           setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
           markAsRead(uid)
 

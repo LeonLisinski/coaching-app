@@ -155,7 +155,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
     if (!user) return
     const { data } = await supabase
       .from('workout_templates')
-      .select('*')
+      .select('id, name, description, exercises, created_at')
       .eq('trainer_id', user.id)
     if (data) setTemplates(data)
     setLoading(false)

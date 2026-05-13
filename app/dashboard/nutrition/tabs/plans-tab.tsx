@@ -139,7 +139,9 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
         .select('id, name, calories_target, protein_target, carbs_target, fat_target, meals, created_at')
         .eq('trainer_id', user.id)
         .eq('is_template', true),
-      supabase.from('foods').select('id, extras'),
+      supabase.from('foods')
+        .select('id, extras')
+        .or(`trainer_id.eq.${user.id},is_default.eq.true`),
     ])
     const map = new Map<string, Record<string, number>>()
     ;(foods || []).forEach((f: any) => { if (f.extras) map.set(f.id, f.extras) })

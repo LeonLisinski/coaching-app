@@ -310,7 +310,7 @@ function DashboardPageContent() {
         .or(`status.eq.active,start_date.gte.${new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)}`)
         .limit(2000),
       supabase.from('messages').select('id, content, created_at, client_id').eq('trainer_id', user.id).neq('sender_id', user.id).order('created_at', { ascending: false }).limit(5),
-      supabase.from('payments').select('id, amount, paid_at, client_packages(client_id)').eq('status', 'paid').not('paid_at', 'is', null).order('paid_at', { ascending: false }).limit(5),
+      supabase.from('payments').select('id, amount, paid_at, client_packages(client_id)').eq('trainer_id', user.id).eq('status', 'paid').not('paid_at', 'is', null).order('paid_at', { ascending: false }).limit(5),
     ])
 
     // PostgREST returns payments as a single object (not array) when client_package_id has a
