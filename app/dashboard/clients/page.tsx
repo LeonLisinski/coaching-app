@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import MobileClientsView from '@/app/dashboard/clients/mobile-clients-view'
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useIsLg } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp, TrendingUp } from 'lucide-react'
@@ -793,15 +794,13 @@ function ClientsPageContent() {
 }
 
 export default function ClientsPage() {
-  return (
-    <>
-      <div className="hidden lg:block">
-        <Suspense fallback={null}>
-          <ClientsPageContent />
-        </Suspense>
-      </div>
-      <div className="lg:hidden"><MobileClientsView /></div>
-    </>
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return (
+    <Suspense fallback={null}>
+      <ClientsPageContent />
+    </Suspense>
   )
+  return <MobileClientsView />
 }
 

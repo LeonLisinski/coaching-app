@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import MobileCheckinsView from '@/app/dashboard/checkins/mobile-checkins-view'
+import { useIsLg } from '@/hooks/use-mobile'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'
@@ -62,14 +63,12 @@ function CheckinsPageContent() {
 }
 
 export default function CheckinsPage() {
-  return (
-    <>
-      <div className="hidden lg:block">
-        <Suspense fallback={<div className="h-40 rounded-xl bg-gray-100 animate-pulse" />}>
-          <CheckinsPageContent />
-        </Suspense>
-      </div>
-      <div className="lg:hidden"><MobileCheckinsView /></div>
-    </>
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return (
+    <Suspense fallback={<div className="h-40 rounded-xl bg-gray-100 animate-pulse" />}>
+      <CheckinsPageContent />
+    </Suspense>
   )
+  return <MobileCheckinsView />
 }

@@ -119,7 +119,9 @@ function ClientAuthForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (password.length < 8) {
+    const hasNumber = /\d/.test(password)
+    const hasSymbol = /[^a-zA-Z0-9]/.test(password)
+    if (password.length < 8 || !hasNumber || !hasSymbol) {
       setError(t('errWeak'))
       return
     }
@@ -131,25 +133,14 @@ function ClientAuthForm() {
     const { error: err } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (err) {
-      // Surface the actual cause instead of swallowing into "generic" — most
-      // common real-world failures here are leaked-password rejection (when
-      // the Supabase project has HaveIBeenPwned protection enabled) and
-      // expired/already-used invite OTP.
       console.error('[client-auth] updateUser error:', err.message, err)
       const m = err.message?.toLowerCase() ?? ''
       const code = (err as { code?: string }).code ?? ''
-      if (code === 'weak_password' || m.includes('weak password') || m.includes('pwned') || m.includes('compromised')) {
-        setError(t('errLeaked'))
-      } else if (code === 'same_password' || m.includes('same as the old password')) {
+      if (code === 'same_password' || m.includes('same as the old password')) {
         setError(t('errSamePassword'))
-      } else if (m.includes('password') && (m.includes('characters') || m.includes('short') || m.includes('least'))) {
-        // Raw message is already informative: "Password should be at least X characters"
-        setError(err.message)
       } else if (m.includes('expired') || m.includes('jwt') || m.includes('session') || m.includes('not found') || m.includes('invalid')) {
         setPhase('invalid')
       } else {
-        // Last resort: show the raw message so we can debug instead of a
-        // useless "Nešto je pošlo po krivu".
         setError(err.message || t('errGeneric'))
       }
       return
@@ -256,16 +247,16 @@ function ClientAuthForm() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 py-10 bg-[#06040f]">
+    <div className="h-[100dvh] overflow-y-auto flex flex-col items-center px-4 py-10 bg-[#06040f]">
       <div className="absolute top-4 right-4 z-10">
         <LocaleSwitcher />
       </div>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-32 w-[480px] h-[480px] rounded-full opacity-30 blur-3xl bg-[var(--app-accent)]" />
         <div className="absolute bottom-0 -left-24 w-[360px] h-[360px] rounded-full opacity-12 blur-3xl bg-indigo-500" />
       </div>
 
-      <div className="relative w-full max-w-[440px]">
+      <div className="relative w-full max-w-[440px] my-auto">
         <div className="mb-8 flex flex-col items-center text-center">
           <div
             className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"

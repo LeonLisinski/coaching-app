@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import MobileClientDetail from '@/app/dashboard/clients/[id]/mobile-client-detail'
 import { useEffect, useLayoutEffect, useState, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useIsLg } from '@/hooks/use-mobile'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import { Card, CardContent } from '@/components/ui/card'
@@ -506,14 +507,12 @@ function ClientDetailPageContent() {
 }
 
 export default function ClientDetailPage() {
-  return (
-    <>
-      <div className="hidden lg:block">
-        <Suspense fallback={null}>
-          <ClientDetailPageContent />
-        </Suspense>
-      </div>
-      <div className="lg:hidden"><MobileClientDetail /></div>
-    </>
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return (
+    <Suspense fallback={null}>
+      <ClientDetailPageContent />
+    </Suspense>
   )
+  return <MobileClientDetail />
 }

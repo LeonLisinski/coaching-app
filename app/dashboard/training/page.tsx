@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePersistedTab } from '@/app/contexts/tab-state'
+import { useIsLg } from '@/hooks/use-mobile'
 import { supabase } from '@/lib/supabase'
 import {
   DndContext, DragOverlay, pointerWithin,
@@ -272,11 +273,9 @@ function TrainingPageMobileTitle() {
 }
 
 export default function TrainingPage() {
-  return (
-    <>
-      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><TrainingPageContent /></div>
-      <div className="lg:hidden"><TrainingPageMobileTitle /></div>
-    </>
-  )
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return <div className="flex flex-col flex-1 min-h-0"><TrainingPageContent /></div>
+  return <TrainingPageMobileTitle />
 }
 

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 import MobileFinanceView from '@/app/dashboard/financije/mobile-finance-view'
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useIsLg } from '@/hooks/use-mobile'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   CartesianGrid,
@@ -816,10 +817,8 @@ function FinancijePageContent() {
 }
 
 export default function FinancijePage() {
-  return (
-    <>
-      <div className="hidden lg:block"><FinancijePageContent /></div>
-      <div className="lg:hidden"><MobileFinanceView /></div>
-    </>
-  )
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return <FinancijePageContent />
+  return <MobileFinanceView />
 }

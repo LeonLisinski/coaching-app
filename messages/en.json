@@ -14,7 +14,7 @@
     "confirmLabel": "Confirm password",
     "submit": "Save password",
     "saving": "Saving…",
-    "errWeak": "Password must be at least 8 characters.",
+    "errWeak": "Password must be at least 8 characters and include a number and a symbol (e.g. ! . € # @).",
     "errMismatch": "Passwords do not match.",
     "errGeneric": "Something went wrong. Please try again.",
     "errLeaked": "This password was found in a public breach database. Please try a more unique combination (letters + numbers + symbols).",

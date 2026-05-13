@@ -7,6 +7,7 @@ import { usePersistedTab } from '@/app/contexts/tab-state'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useIsLg } from '@/hooks/use-mobile'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie,
@@ -882,10 +883,8 @@ function DashboardPageContent() {
 }
 
 export default function DashboardPage() {
-  return (
-    <>
-      <div className="hidden lg:block"><DashboardPageContent /></div>
-      <div className="lg:hidden"><MobileDashboard /></div>
-    </>
-  )
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return <DashboardPageContent />
+  return <MobileDashboard />
 }

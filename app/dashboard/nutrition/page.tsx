@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { usePersistedTab } from '@/app/contexts/tab-state'
+import { useIsLg } from '@/hooks/use-mobile'
 import {
   DndContext, DragOverlay, pointerWithin,
   useSensor, useSensors, PointerSensor,
@@ -272,10 +273,8 @@ function NutritionPageMobileTitle() {
 }
 
 export default function NutritionPage() {
-  return (
-    <>
-      <div className="hidden lg:flex lg:flex-col lg:flex-1 lg:min-h-0"><NutritionPageContent /></div>
-      <div className="lg:hidden"><NutritionPageMobileTitle /></div>
-    </>
-  )
+  const isLg = useIsLg()
+  if (isLg === undefined) return null
+  if (isLg) return <div className="flex flex-col flex-1 min-h-0"><NutritionPageContent /></div>
+  return <NutritionPageMobileTitle />
 }
