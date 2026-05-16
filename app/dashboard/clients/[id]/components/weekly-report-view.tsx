@@ -323,17 +323,14 @@ function SessionRow({ session }: { session: WeeklySessionSummary }) {
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-gray-900">{session.dayName || t('session')}</p>
+      <div className="flex items-start justify-between gap-4 min-w-0">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{session.dayName || t('session')}</p>
           <p className="text-[11px] text-gray-500">{fmtDate(session.date)}</p>
         </div>
-        <div className="flex flex-wrap gap-2 text-[11px] text-gray-600">
-          <span>{t('exerciseCount', { count: session.exerciseCount })}</span>
-          <span>·</span>
-          <span>{t('setCount', { count: session.totalSetsCompleted })}</span>
-          <span>·</span>
-          <span className="font-semibold text-gray-800">{formatNumber(session.totalVolumeKg)} {t('volumeUnit')}</span>
+        <div className="shrink-0 text-right text-[11px] text-gray-600">
+          <span>{t('exerciseCount', { count: session.exerciseCount })} · {t('setCount', { count: session.totalSetsCompleted })}</span>
+          <p className="font-semibold text-gray-800">{formatNumber(session.totalVolumeKg)} {t('volumeUnit')}</p>
         </div>
       </div>
       {session.topProgression ? (
