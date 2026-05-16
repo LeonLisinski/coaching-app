@@ -14,6 +14,17 @@ import {
   TrendingUp,
   UtensilsCrossed,
 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { Card, CardContent } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
 import type {
@@ -290,6 +301,35 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
         </div>
       )}
 
+      {/* Volume bar chart */}
+      {trainings.sessions.length >= 2 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold text-gray-700">Volumen po sesiji</p>
+          <ResponsiveContainer width="100%" height={130}>
+            <BarChart
+              data={trainings.sessions.map(s => ({
+                name: s.dayName?.split(' ')[0] ?? s.date.slice(5),
+                vol: s.totalVolumeKg,
+              }))}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip
+                formatter={(v: unknown) => [`${formatNumber(Number(v))} kg`, 'Volumen']}
+                contentStyle={{ fontSize: 11 }}
+              />
+              <Bar dataKey="vol" radius={[4, 4, 0, 0]}>
+                {trainings.sessions.map((_, i) => (
+                  <Cell key={i} fill="#a78bfa" />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* Volume row */}
       {trainings.totalVolumeKg > 0 ? (
         <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
@@ -322,19 +362,23 @@ function SessionRow({ session }: { session: WeeklySessionSummary }) {
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', weekday: 'short' })
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
-      <div className="flex items-start justify-between gap-4 min-w-0">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900">{session.dayName || t('session')}</p>
-          <p className="text-[11px] text-gray-500">{fmtDate(session.date)}</p>
+    <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
+      {/* top row: name + stats */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold leading-tight text-gray-900">
+            {session.dayName || t('session')}
+          </p>
+          <p className="text-[11px] text-gray-400">{fmtDate(session.date)}</p>
         </div>
-        <div className="shrink-0 text-right text-[11px] text-gray-600">
-          <span>{t('exerciseCount', { count: session.exerciseCount })} · {t('setCount', { count: session.totalSetsCompleted })}</span>
+        <div className="shrink-0 text-right text-[11px] text-gray-500 leading-tight">
+          <p>{t('exerciseCount', { count: session.exerciseCount })} · {t('setCount', { count: session.totalSetsCompleted })}</p>
           <p className="font-semibold text-gray-800">{formatNumber(session.totalVolumeKg)} {t('volumeUnit')}</p>
         </div>
       </div>
+      {/* progression row — completely separate block, border to visually separate */}
       {session.topProgression ? (
-        <div className="mt-1.5 text-[11px]">
+        <div className="border-t border-gray-100 pt-1.5">
           <ProgressionInline highlight={{
             exerciseName: session.topProgression.exerciseName,
             sessionDate: session.date,
@@ -366,7 +410,7 @@ function ProgressionsBlock({ highlights, kind }: { highlights: ExerciseHighlight
       </p>
       <ul className="space-y-1.5">
         {highlights.map((h, i) => (
-          <li key={`${h.exerciseName}-${i}`} className="text-sm">
+          <li key={`${h.exerciseName}-${i}`}>
             <ProgressionInline highlight={h} />
           </li>
         ))}
@@ -390,10 +434,10 @@ function ProgressionInline({ highlight }: { highlight: ExerciseHighlight }) {
   }
 
   return (
-    <span className="flex flex-wrap items-baseline gap-1.5">
-      <span className="font-medium text-gray-900">{highlight.exerciseName}</span>
-      <span className={`font-semibold ${colorClass}`}>{deltaText}</span>
-    </span>
+    <div className="flex items-center gap-2 flex-wrap text-[11px]">
+      <span className="font-medium text-gray-800">{highlight.exerciseName}</span>
+      {deltaText ? <span className={`font-semibold ${colorClass}`}>{deltaText}</span> : null}
+    </div>
   )
 }
 
@@ -502,6 +546,53 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
           })}
         </div>
       </div>
+
+      {/* Calories bar chart */}
+      {nutrition.days.filter(d => d.confirmed && d.calories != null).length >= 2 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold text-gray-700">Kalorije po danu</p>
+          <ResponsiveContainer width="100%" height={130}>
+            <BarChart
+              data={nutrition.days.map(d => ({
+                name: new Date(d.date + 'T12:00:00').toLocaleDateString('hr', { day: '2-digit', month: 'short' }),
+                kcal: d.confirmed && d.calories != null ? d.calories : null,
+              }))}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+              <Tooltip
+                formatter={(v: unknown) => [v != null ? `${v} kcal` : '—', 'Kalorije']}
+                contentStyle={{ fontSize: 11 }}
+              />
+              {nutrition.targets?.calories != null && (
+                <ReferenceLine
+                  y={nutrition.targets.calories}
+                  stroke="#6b7280"
+                  strokeDasharray="4 4"
+                  label={{ value: 'cilj', position: 'insideTopRight', fontSize: 10, fill: '#9ca3af' }}
+                />
+              )}
+              <Bar dataKey="kcal" radius={[4, 4, 0, 0]}>
+                {nutrition.days.map((d, i) => (
+                  <Cell
+                    key={i}
+                    fill={!d.confirmed || d.calories == null
+                      ? '#e5e7eb'
+                      : nutrition.targets?.calories != null && Math.abs(d.calories - nutrition.targets.calories) / nutrition.targets.calories <= 0.1
+                        ? '#34d399'
+                        : '#fb923c'}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <p className="mt-1 text-[10px] text-gray-400">
+            Zelena = ±10% od cilja · Narančasta = izvan cilja · Siva = nepotvrđeno
+          </p>
+        </div>
+      )}
     </div>
   )
 }
