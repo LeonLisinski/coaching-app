@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, Pencil, CreditCard, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2, LayoutDashboard, GitCommitHorizontal } from 'lucide-react'
+import { ArrowLeft, Pencil, CreditCard, Trash2, Dumbbell, UtensilsCrossed, ActivitySquare, Package, History, ClipboardList, BarChart2, Settings2, LayoutDashboard, GitCommitHorizontal, FileText } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import EditClientDialog from '@/app/dashboard/clients/edit-client-dialog'
 
@@ -61,6 +61,7 @@ import ClientHistory from '@/app/dashboard/clients/[id]/components/client-histor
 import ClientOverview from '@/app/dashboard/clients/[id]/components/client-overview'
 import ClientCalculator from '@/app/dashboard/clients/[id]/components/client-calculator'
 import ClientTimeline from '@/app/dashboard/clients/[id]/components/client-timeline'
+import ClientWeeklyReports from '@/app/dashboard/clients/[id]/components/client-weekly-reports'
 import { useTranslations, useLocale } from 'next-intl'
 import { useClientAttentionFlags } from '@/hooks/use-client-attention-flags'
 
@@ -117,6 +118,7 @@ function ClientDetailPageContent() {
   const tCommon = useTranslations('common')
   const tDetail = useTranslations('clientDetail')
   const tAdd = useTranslations('addClient')
+  const tReports = useTranslations('clients.weeklyReports')
   const locale = useLocale()
 
   const ACTIVITY_LABELS: Record<string, string> = {
@@ -409,6 +411,9 @@ function ClientDetailPageContent() {
               <TabsTrigger value="paketi" className="flex items-center gap-1.5">
                 <Package size={13} />{t('tabs.packages')}
               </TabsTrigger>
+              <TabsTrigger value="izvjestaji" className="flex items-center gap-1.5">
+                <FileText size={13} />{tReports('tabLabel')}
+              </TabsTrigger>
               <TabsTrigger value="timeline" className="flex items-center gap-1.5">
                 <GitCommitHorizontal size={13} />{tDetail('timelineTab')}
               </TabsTrigger>
@@ -445,6 +450,9 @@ function ClientDetailPageContent() {
           </TabsContent>
           <TabsContent value="paketi" className="mt-6">
             {mountedTabs.has('paketi') && <ClientPackages clientId={id as string} />}
+          </TabsContent>
+          <TabsContent value="izvjestaji" className="mt-6">
+            {mountedTabs.has('izvjestaji') && <ClientWeeklyReports clientId={id as string} clientName={client.full_name} />}
           </TabsContent>
           <TabsContent value="timeline" className="mt-6">
             {mountedTabs.has('timeline') && <ClientTimeline clientId={id as string} />}
