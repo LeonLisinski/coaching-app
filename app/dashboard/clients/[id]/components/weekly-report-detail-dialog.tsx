@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { Eye, EyeOff, Trash2, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, FileDown, Trash2, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -45,6 +45,20 @@ export default function WeeklyReportDetailDialog({
   const [updatingVisibility, setUpdatingVisibility] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
+
+  const handleExportPdf = async () => {
+    if (!report) return
+    setExportingPdf(true)
+    try {
+      const { downloadReportPdf } = await import('./weekly-report-pdf')
+      await downloadReportPdf(report.snapshot)
+    } catch (e) {
+      console.error('PDF export failed:', e)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
 
   if (!report) return null
 
@@ -117,6 +131,17 @@ export default function WeeklyReportDetailDialog({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleExportPdf}
+                disabled={exportingPdf}
+              >
+                {exportingPdf
+                  ? <Loader2 className="animate-spin mr-1" size={14} />
+                  : <FileDown size={14} className="mr-1" />}
+                PDF
+              </Button>
               <Button
                 size="sm"
                 variant={visible ? 'outline' : 'default'}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { Loader2 } from 'lucide-react'
+import { FileDown, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,23 @@ export default function WeeklyReportCreateDialog({
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
+
+  const handleExportPdf = async () => {
+    if (!previewSnapshot) return
+    setExportingPdf(true)
+    try {
+      const { downloadReportPdf } = await import('./weekly-report-pdf')
+      await downloadReportPdf({
+        ...previewSnapshot,
+        trainerNotes: trainerNotes || previewSnapshot.trainerNotes,
+      })
+    } catch (e) {
+      console.error('PDF export failed:', e)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
   const [error, setError] = useState<string | null>(null)
   const [checkinDates, setCheckinDates] = useState<string[]>([])
   const [checkinDay, setCheckinDay] = useState<number | null>(null)
@@ -391,6 +408,18 @@ export default function WeeklyReportCreateDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             {tCommon('cancel')}
           </Button>
+          {previewSnapshot && (
+            <Button
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={exportingPdf || previewLoading}
+            >
+              {exportingPdf
+                ? <Loader2 className="animate-spin mr-1" size={14} />
+                : <FileDown size={14} className="mr-1" />}
+              PDF
+            </Button>
+          )}
           <Button
             onClick={handleSave}
             disabled={saving || !validRange || !previewSnapshot || previewLoading}
