@@ -722,6 +722,8 @@
         "maxDeltaUp": "Maks. težina viša za {delta} kg",
         "maxDeltaDown": "Maks. težina niža za {delta} kg",
         "maxDeltaFlat": "Maks. težina ista ({kg} kg)",
+        "repsDeltaUp": "Ista kilaža, {delta} ponavljanja više",
+        "repsDeltaDown": "Ista kilaža, {delta} ponavljanja manje",
         "summaryTitle": "Opterećenje treninga",
         "summaryVolume": "{current} naspram {previous} ukupnog opterećenja (ponavljanja × težina)",
         "verdictBetter": "Trening u cjelini: veće opterećenje nego prošli put.",

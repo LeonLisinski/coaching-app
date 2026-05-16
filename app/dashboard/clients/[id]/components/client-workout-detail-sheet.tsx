@@ -7,9 +7,9 @@ import { Dumbbell } from 'lucide-react'
 import { logVolume, TrainingWorkoutLog } from '@/lib/training-metrics'
 import { setsWithLoggedData } from '@/lib/workout-log-sets'
 import {
+  exerciseDeltaKind,
   findExerciseMatch,
   findPreviousSameTrainingLog,
-  maxWeightDeltaKind,
   maxWeightInExercise,
   sessionVolumeVerdict,
 } from '@/lib/workout-session-compare'
@@ -91,18 +91,19 @@ export default function ClientWorkoutDetailSheetContent({ log, allLogs }: Props)
           const maxRows = Math.max(currSets.length, prevSets.length)
 
           let ui: ExerciseUiState
+          let delta = prevEx ? exerciseDeltaKind(ex, prevEx) : null
           if (!previous) {
             ui = 'noSessionBaseline'
           } else if (!prevEx) {
             ui = 'exerciseFirstTime'
-          } else if (currMax == null || prevMax == null) {
+          } else if (delta == null || delta.kind === 'first') {
             ui = 'noWeightData'
+          } else if (delta.kind === 'up') {
+            ui = 'up'
+          } else if (delta.kind === 'down') {
+            ui = 'down'
           } else {
-            const k = maxWeightDeltaKind(currMax, prevMax)
-            if (k === 'first') ui = 'noWeightData'
-            else if (k === 'up') ui = 'up'
-            else if (k === 'down') ui = 'down'
-            else ui = 'flat'
+            ui = 'flat'
           }
 
           const barClass =
@@ -114,19 +115,36 @@ export default function ClientWorkoutDetailSheetContent({ log, allLogs }: Props)
                   ? 'bg-gray-300'
                   : 'bg-gray-400'
 
-          const rowClass = (side: 'prev' | 'this', has: boolean) =>
-            side === 'prev'
-              ? has
-                ? 'bg-gray-50 text-gray-800'
-                : 'bg-gray-50/50 text-gray-300'
-              : has
-                ? 'bg-blue-50 text-blue-900'
-                : 'bg-blue-50/30 text-gray-300'
+          const rowClass = (side: 'prev' | 'this', has: boolean) => {
+            if (side === 'prev') {
+              return has ? 'bg-gray-50 text-gray-800' : 'bg-gray-50/50 text-gray-300'
+            }
+            if (!has) {
+              return ui === 'up'
+                ? 'bg-emerald-50/40 text-gray-300'
+                : ui === 'down'
+                  ? 'bg-rose-50/40 text-gray-300'
+                  : 'bg-blue-50/30 text-gray-300'
+            }
+            return ui === 'up'
+              ? 'bg-emerald-50 text-emerald-900'
+              : ui === 'down'
+                ? 'bg-rose-50 text-rose-900'
+                : 'bg-blue-50 text-blue-900'
+          }
 
           const deltaText = () => {
             if (ui === 'noSessionBaseline') return t('exerciseNoSessionBaseline')
             if (ui === 'exerciseFirstTime') return t('exerciseFirstTime')
             if (ui === 'noWeightData') return t('exerciseNoWeightData')
+            if (!delta) return t('exerciseNoWeightData')
+            // Reps were the tiebreaker (weight identical)
+            if (delta.weightDelta === 0 && delta.repsDelta != null && delta.repsDelta !== 0) {
+              const absReps = Math.abs(delta.repsDelta)
+              if (ui === 'up') return t('repsDeltaUp', { delta: absReps })
+              if (ui === 'down') return t('repsDeltaDown', { delta: absReps })
+            }
+            // Weight changed
             if (currMax == null || prevMax == null) return t('exerciseNoWeightData')
             const d = currMax - prevMax
             if (ui === 'up') return t('maxDeltaUp', { delta: d.toFixed(1) })

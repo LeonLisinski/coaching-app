@@ -722,6 +722,8 @@
         "maxDeltaUp": "Max weight up by {delta} kg",
         "maxDeltaDown": "Max weight down by {delta} kg",
         "maxDeltaFlat": "Max weight unchanged ({kg} kg)",
+        "repsDeltaUp": "Same weight, {delta} more reps",
+        "repsDeltaDown": "Same weight, {delta} fewer reps",
         "summaryTitle": "Session load",
         "summaryVolume": "{current} vs {previous} total load (reps × weight)",
         "verdictBetter": "Overall session: higher load than last time.",

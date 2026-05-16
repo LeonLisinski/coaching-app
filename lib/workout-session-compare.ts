@@ -64,6 +64,47 @@ export function maxWeightDeltaKind(
   return 'flat'
 }
 
+export type ExerciseDelta = {
+  kind: MaxDeltaKind
+  /** kg difference in max weight (null when no data) */
+  weightDelta: number | null
+  /** total reps difference (null when no data or weight was the deciding factor) */
+  repsDelta: number | null
+}
+
+/**
+ * Compares two exercise logs using max weight as primary metric and total
+ * completed reps as tiebreaker (same weight but more/fewer reps counts too).
+ */
+export function exerciseDeltaKind(
+  currEx: { sets: unknown[] },
+  prevEx: { sets: unknown[] },
+): ExerciseDelta {
+  const currSets = setsWithLoggedData(currEx.sets as unknown[])
+  const prevSets = setsWithLoggedData(prevEx.sets as unknown[])
+
+  if (!currSets.length || !prevSets.length) {
+    return { kind: 'first', weightDelta: null, repsDelta: null }
+  }
+
+  const currMax = Math.max(...currSets.map(s => s.weight))
+  const prevMax = Math.max(...prevSets.map(s => s.weight))
+  const weightDiff = currMax - prevMax
+
+  if (weightDiff > WEIGHT_EPS) return { kind: 'up', weightDelta: weightDiff, repsDelta: null }
+  if (weightDiff < -WEIGHT_EPS) return { kind: 'down', weightDelta: weightDiff, repsDelta: null }
+
+  // Same max weight — check total reps as tiebreaker
+  const currReps = currSets.reduce((s, set) => s + set.reps, 0)
+  const prevReps = prevSets.reduce((s, set) => s + set.reps, 0)
+  const repsDiff = currReps - prevReps
+
+  if (repsDiff > 0) return { kind: 'up', weightDelta: 0, repsDelta: repsDiff }
+  if (repsDiff < 0) return { kind: 'down', weightDelta: 0, repsDelta: repsDiff }
+
+  return { kind: 'flat', weightDelta: 0, repsDelta: 0 }
+}
+
 export type SessionVerdict = 'better' | 'worse' | 'same'
 
 export function sessionVolumeVerdict(
