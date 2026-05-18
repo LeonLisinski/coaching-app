@@ -104,7 +104,7 @@ type Props = {
   onFoodsRefresh?: () => void
 }
 
-const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Snack 1', 'Snack 2', 'Užina', 'Prije treninga', 'Nakon treninga']
+const MEAL_TYPE_KEYS = ['mealTypeBreakfast', 'mealTypeLunch', 'mealTypeDinner', 'mealTypeSnack1', 'mealTypeSnack2', 'mealTypeSnack', 'mealTypePreWorkout', 'mealTypePostWorkout'] as const
 
 function calcTotals(ings: Ingredient[]) {
   return ings.reduce((acc, i) => ({
@@ -452,7 +452,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           onClick={() => { setCreateFoodName(search); setCreateFoodOpen(true); setSearchFocused(false) }}
           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-600 font-medium border-t border-orange-50 hover:bg-orange-50 transition-colors"
         >
-          <Plus size={11} /> Kreiraj namirnicu{search ? ` "${search}"` : ''}
+          <Plus size={11} /> {search ? tRecipe('createFood', { search }) : tRecipe('createNewFood')}
         </button>
       </div>
     )
@@ -478,7 +478,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           ) : (
             <span className="text-xs text-gray-500 truncate min-w-0">
               {(meal.calories > 0 || meal.protein > 0)
-                ? `🔥 ${Math.round(meal.calories)} kcal · P: ${Math.round(meal.protein)}g · U: ${Math.round(meal.carbs)}g · M: ${Math.round(meal.fat)}g`
+                ? `🔥 ${Math.round(meal.calories)} kcal · ${t('macroProteinShort')}: ${Math.round(meal.protein)}g · ${t('macroCarbsShort')}: ${Math.round(meal.carbs)}g · ${t('macroFatShort')}: ${Math.round(meal.fat)}g`
                 : <span className="text-gray-400">{t('emptyMeal')}</span>}
             </span>
           )}
@@ -489,9 +489,10 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {MEAL_TYPES.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
-              ))}
+              {MEAL_TYPE_KEYS.map(key => {
+                const label = t(key)
+                return <SelectItem key={key} value={label}>{label}</SelectItem>
+              })}
             </SelectContent>
           </Select>
           {onCopy && (

@@ -995,6 +995,7 @@
       "dblClickHint": "Double-click to edit",
       "dragTooltip": "Drag to training",
       "enduranceBadge": "Endurance",
+      "warmupBadge": "Warmup",
       "sortedChipZA": "Z→A sorted",
       "categories": {
         "Snaga": "Strength",
@@ -1015,6 +1016,9 @@
         "exerciseType": "Exercise type",
         "strengthType": "Strength (sets × reps)",
         "enduranceType": "Endurance (sets × min)",
+        "sectionLabel": "Section type",
+        "sectionMain": "Main exercise",
+        "sectionWarmup": "Warmup",
         "equipment": "Equipment",
         "primaryMuscles": "Primary muscle groups",
         "secondaryMuscles": "Secondary muscle groups",
@@ -1061,7 +1065,8 @@
         "dragHandleTitle": "Drag to reorder",
         "removeExerciseHandleTitle": "Remove exercise",
         "durationLabel": "Duration",
-        "enduranceBadge": "Endurance"
+        "enduranceBadge": "Endurance",
+        "warmupBadge": "Warmup"
       },
       "plan": {
         "addTitle": "New plan",
@@ -1251,7 +1256,9 @@
         "editSubtitle": "Edit recipe ingredients and details",
         "loadingFoods": "Loading ingredients...",
         "noResults": "No results for \"{search}\"",
-        "allAdded": "All ingredients already added"
+        "allAdded": "All ingredients already added",
+        "createFood": "Create ingredient \"{search}\"",
+        "createNewFood": "Create new ingredient"
       },
       "mealPlan": {
         "addTitle": "New meal plan",
@@ -1289,6 +1296,21 @@
         "mealFallback": "Meal",
         "emptyMeal": "Empty meal",
         "copyMealTooltip": "Copy meal",
+        "copyMealSuffix": "(copy)",
+        "defaultMealType": "Breakfast",
+        "createFood": "Create ingredient \"{search}\"",
+        "createNewFood": "Create new ingredient",
+        "mealTypeBreakfast": "Breakfast",
+        "mealTypeLunch": "Lunch",
+        "mealTypeDinner": "Dinner",
+        "mealTypeSnack1": "Snack 1",
+        "mealTypeSnack2": "Snack 2",
+        "mealTypeSnack": "Snack",
+        "mealTypePreWorkout": "Pre-workout",
+        "mealTypePostWorkout": "Post-workout",
+        "macroProteinShort": "P",
+        "macroCarbsShort": "C",
+        "macroFatShort": "F",
         "selectDishPlaceholder": "Select dish...",
         "editIngredientsLabel": "Edit ingredients ({count})",
         "doesNotAffectOriginal": "does not affect the original recipe",

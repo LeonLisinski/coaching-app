@@ -121,7 +121,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
       })
       setMeals((plan.meals || []).map((m: any) => ({
         _id: m._id || crypto.randomUUID(),
-        meal_type: m.meal_type ?? 'Doručak', recipe_id: m.recipe_id ?? null,
+        meal_type: m.meal_type ?? t('defaultMealType'), recipe_id: m.recipe_id ?? null,
         recipe_name: m.recipe_name ?? '', calories: m.calories ?? 0, protein: m.protein ?? 0,
         carbs: m.carbs ?? 0, fat: m.fat ?? 0, custom_ingredients: m.custom_ingredients, extras: m.extras,
       })))
@@ -163,7 +163,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
 
   const addMeal = () => {
     const newId = crypto.randomUUID()
-    setMeals(prev => [...prev, { _id: newId, meal_type: 'Doručak', recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
+    setMeals(prev => [...prev, { _id: newId, meal_type: t('defaultMealType'), recipe_id: null, recipe_name: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])
     setTimeout(() => mealsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
     setFlashMealId(newId)
     setTimeout(() => setFlashMealId(null), 1400)
@@ -172,7 +172,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   const copyMeal = (index: number) => {
     setMeals(prev => {
       const meal = prev[index]
-      const copy = { ...meal, _id: crypto.randomUUID(), meal_type: `${meal.meal_type} (kopija)` }
+      const copy = { ...meal, _id: crypto.randomUUID(), meal_type: `${meal.meal_type} ${t('copyMealSuffix')}` }
       const next = [...prev]
       next.splice(index + 1, 0, copy)
       return next

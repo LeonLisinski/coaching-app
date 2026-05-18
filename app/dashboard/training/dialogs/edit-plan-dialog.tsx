@@ -73,7 +73,7 @@ function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boole
 }
 
 type Template    = { id: string; name: string; exercises: any[] }
-type Exercise    = { id: string; name: string; category: string; exercise_type?: string }
+type Exercise    = { id: string; name: string; category: string; exercise_type?: string; section?: 'main' | 'warmup' }
 type PlanDay     = { _id: string; day_number: number; name: string; template_id: string | null; exercises: PlanExercise[]; mode: 'template' | 'custom' }
 type WorkoutPlan = { id: string; name: string; description: string; days: any[] }
 
@@ -162,7 +162,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     if (!user) return
     const [{ data: tmpl }, { data: exer }] = await Promise.all([
       supabase.from('workout_templates').select('id, name, exercises').eq('trainer_id', user.id).order('name'),
-      supabase.from('exercises').select('id, name, category, exercise_type').order('name'),
+      supabase.from('exercises').select('id, name, category, exercise_type, section').order('name'),
     ])
     if (tmpl) setTemplates(tmpl)
     if (exer) setExercises(exer)
@@ -188,7 +188,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       return [...prev, {
         ...day, _id: crypto.randomUUID(),
         day_number: newIdx + 1,
-        name: `${day.name} (kopija)`,
+        name: `${day.name} ${t('form.copyDaySuffix')}`,
         exercises: day.exercises.map(e => ({ ...e })),
       }]
     })
@@ -269,6 +269,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
         sets, reps: exercise.exercise_type === 'endurance' ? '5min' : reps,
         rest_seconds, notes: '',
         exercise_type: (exercise.exercise_type as 'strength' | 'endurance') || 'strength',
+        section: (exercise.section as 'main' | 'warmup') || 'main',
         ...optionalFields,
       }]}
     }))
@@ -531,7 +532,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                                   onClick={() => { setCreateExerciseName(exerciseSearch[index] || ''); setCreateExerciseFor(index) }}
                                   className="w-full text-left text-xs text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 font-medium transition-colors">
                                   <Plus size={12} />
-                                  <span>{exerciseSearch[index] ? `Kreiraj vježbu "${exerciseSearch[index]}"` : 'Kreiraj novu vježbu'}</span>
+                                  <span>{exerciseSearch[index] ? tTemplate('createExercise', { search: exerciseSearch[index] }) : tTemplate('createNewExercise')}</span>
                                 </button>
                               </div>
                             </div>

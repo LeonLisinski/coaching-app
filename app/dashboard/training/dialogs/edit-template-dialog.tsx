@@ -29,6 +29,8 @@ type ExerciseOption = {
   primary_muscles?: string[]
   muscle_group?: string
   video_url?: string
+  exercise_type?: string
+  section?: 'main' | 'warmup'
 }
 
 type TemplateExercise = {
@@ -40,6 +42,7 @@ type TemplateExercise = {
   notes: string
   extras?: Record<string, string>
   video_url?: string
+  section?: 'main' | 'warmup'
 }
 
 type Template = {
@@ -70,17 +73,22 @@ function SortableItem({
     ex.rest_seconds ? `${ex.rest_seconds}s` : null,
   ].filter(Boolean).join(' · ')
 
+  const isWarmup = ex.section === 'warmup'
+  const palette = isWarmup
+    ? { border: 'border-amber-300', bg: 'bg-amber-50/60', grip: 'text-amber-300 hover:text-amber-500', numBg: 'bg-amber-200 text-amber-700', chevron: 'text-amber-400', summary: 'text-amber-600', divider: 'border-amber-200', inputBorder: 'border-amber-200 focus:border-amber-400', text: 'text-amber-700', iconHover: 'hover:text-amber-500' }
+    : { border: 'border-emerald-300', bg: 'bg-emerald-50', grip: 'text-emerald-300 hover:text-emerald-500', numBg: 'bg-emerald-200 text-emerald-700', chevron: 'text-emerald-400', summary: 'text-emerald-600', divider: 'border-emerald-200', inputBorder: 'border-emerald-200 focus:border-emerald-400', text: 'text-emerald-700', iconHover: 'hover:text-emerald-500' }
+
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`border border-emerald-300 rounded-lg bg-emerald-50 overflow-hidden ${isNew ? 'item-added' : ''}`}
+      className={`border ${palette.border} rounded-lg ${palette.bg} overflow-hidden ${isNew ? 'item-added' : ''}`}
     >
       {/* Collapsed header — always visible */}
       <div className="flex items-center gap-1.5 px-2 py-2">
         <button
           type="button" {...listeners} {...attributes}
-          className="cursor-grab active:cursor-grabbing text-emerald-300 hover:text-emerald-500 shrink-0 touch-none transition-colors"
+          className={`cursor-grab active:cursor-grabbing ${palette.grip} shrink-0 touch-none transition-colors`}
           tabIndex={-1}
           title={t('dragHandleTitle')}
         >
@@ -91,23 +99,28 @@ function SortableItem({
           onClick={() => setExpanded(v => !v)}
           className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
         >
-          <div className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+          <div className={`w-5 h-5 rounded-full ${palette.numBg} text-[10px] font-bold flex items-center justify-center shrink-0`}>
             {index + 1}
           </div>
           <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{ex.name}</span>
+          {isWarmup && (
+            <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200 shrink-0 font-medium">
+              🔥 {t('warmupBadge')}
+            </span>
+          )}
           {!expanded && summary && (
-            <span className="text-[11px] text-emerald-600 font-medium shrink-0 pr-1">{summary}</span>
+            <span className={`text-[11px] ${palette.summary} font-medium shrink-0 pr-1`}>{summary}</span>
           )}
         </button>
         {ex.video_url && (
           <a href={ex.video_url} target="_blank" rel="noreferrer"
-            className="text-gray-400 hover:text-emerald-500 transition-colors shrink-0 p-1" title="Video">
+            className={`text-gray-400 ${palette.iconHover} transition-colors shrink-0 p-1`} title="Video">
             <ExternalLink size={12} />
           </a>
         )}
         {expanded
-          ? <ChevronUp size={13} className="text-emerald-400 shrink-0 cursor-pointer" onClick={() => setExpanded(false)} />
-          : <ChevronDown size={13} className="text-emerald-400 shrink-0 cursor-pointer" onClick={() => setExpanded(true)} />}
+          ? <ChevronUp size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(false)} />
+          : <ChevronDown size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(true)} />}
         <button type="button" onClick={onRemove}
           className="shrink-0 p-1 rounded hover:bg-red-50 transition-colors text-gray-300 hover:text-red-500"
           title={t('removeExerciseHandleTitle')}>
@@ -117,42 +130,42 @@ function SortableItem({
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className="px-2 pb-2 pt-1.5 border-t border-emerald-200 space-y-1.5">
+        <div className={`px-2 pb-2 pt-1.5 border-t ${palette.divider} space-y-1.5`}>
           <div className="flex flex-wrap gap-2">
             <div className="flex-1 basis-12 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('sets')}</p>
+              <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{t('sets')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.sets || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('sets', isNaN(v) ? 0 : v) }}
-                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
+                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('repsLabel')}</p>
+              <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{t('repsLabel')}</p>
               <input
                 value={ex.reps}
                 onFocus={e => e.target.select()}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder="8-12"
-                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
+                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('restSecsLabel')}</p>
+              <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{t('restSecsLabel')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.rest_seconds || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('rest_seconds', isNaN(v) ? 0 : v) }}
-                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
+                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
             </div>
             {extraFields.map(f => (
               <div key={f.key} className="flex-1 basis-12 flex flex-col gap-0.5">
-                <p className="text-[10px] font-medium text-emerald-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
+                <p className={`text-[10px] font-medium ${palette.text} leading-none whitespace-nowrap`}>{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
                 <input
                   value={ex.extras?.[f.key] || ''}
                   onFocus={e => e.target.select()}
                   onChange={e => onUpdateExtra(f.key, e.target.value)}
                   placeholder="—"
-                  className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400"
+                  className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`}
                 />
               </div>
             ))}
@@ -162,7 +175,7 @@ function SortableItem({
             value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={t('notePlaceholder')}
-            className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none focus:border-emerald-400"
+            className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none`}
           />
         </div>
       )}
@@ -217,7 +230,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
 
   const fetchExercises = async () => {
     setExercisesLoaded(false)
-    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id').order('name')
+    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id,section').order('name')
     setExercisesLoaded(true)
     if (data) setExercises(data)
   }
@@ -239,6 +252,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
       name: exercise.name,
       sets: 3, reps: '10', rest_seconds: 60, notes: '', extras: {},
       video_url: exercise.video_url || '',
+      section: (exercise.section as 'main' | 'warmup') || 'main',
     }])
     setFlashId(exercise.id)
     setTimeout(() => setFlashId(null), 1400)

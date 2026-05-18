@@ -121,9 +121,13 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     }
   }, [clientId])
 
+  const prevMessageCountRef = useRef(0)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'instant' })
-  }, [messages])
+    if (messages.length > prevMessageCountRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'instant' })
+    }
+    prevMessageCountRef.current = messages.length
+  }, [messages.length])
 
   // Close templates panel on outside click
   useEffect(() => {

@@ -995,6 +995,7 @@
       "dblClickHint": "Dvoklik za uređivanje",
       "dragTooltip": "Povuci u trening",
       "enduranceBadge": "Izdržljivost",
+      "warmupBadge": "Zagrijavanje",
       "sortedChipZA": "Z→A sortirano",
       "categories": {
         "Snaga": "Snaga",
@@ -1015,6 +1016,9 @@
         "exerciseType": "Tip vježbe",
         "strengthType": "Snaga (serije × ponav.)",
         "enduranceType": "Izdržljivost (serije × min)",
+        "sectionLabel": "Tip sekcije",
+        "sectionMain": "Glavna vježba",
+        "sectionWarmup": "Zagrijavanje",
         "equipment": "Oprema",
         "primaryMuscles": "Primarne mišićne grupe",
         "secondaryMuscles": "Sekundarne mišićne grupe",
@@ -1061,7 +1065,8 @@
         "dragHandleTitle": "Povuci za promjenu redoslijeda",
         "removeExerciseHandleTitle": "Ukloni vježbu",
         "durationLabel": "Trajanje",
-        "enduranceBadge": "Izdržljivost"
+        "enduranceBadge": "Izdržljivost",
+        "warmupBadge": "Zagrijavanje"
       },
       "plan": {
         "addTitle": "Novi plan",
@@ -1251,7 +1256,9 @@
         "editSubtitle": "Uredi sastojke i podatke recepta",
         "loadingFoods": "Učitavanje namirnica...",
         "noResults": "Nema rezultata za \"{search}\"",
-        "allAdded": "Sve namirnice su već dodane"
+        "allAdded": "Sve namirnice su već dodane",
+        "createFood": "Kreiraj namirnicu \"{search}\"",
+        "createNewFood": "Kreiraj novu namirnicu"
       },
       "mealPlan": {
         "addTitle": "Novi plan prehrane",
@@ -1289,6 +1296,21 @@
         "mealFallback": "Obrok",
         "emptyMeal": "Prazan obrok",
         "copyMealTooltip": "Kopiraj obrok",
+        "copyMealSuffix": "(kopija)",
+        "defaultMealType": "Doručak",
+        "createFood": "Kreiraj namirnicu \"{search}\"",
+        "createNewFood": "Kreiraj novu namirnicu",
+        "mealTypeBreakfast": "Doručak",
+        "mealTypeLunch": "Ručak",
+        "mealTypeDinner": "Večera",
+        "mealTypeSnack1": "Užina 1",
+        "mealTypeSnack2": "Užina 2",
+        "mealTypeSnack": "Užina",
+        "mealTypePreWorkout": "Prije treninga",
+        "mealTypePostWorkout": "Nakon treninga",
+        "macroProteinShort": "P",
+        "macroCarbsShort": "U",
+        "macroFatShort": "M",
         "selectDishPlaceholder": "Odaberi jelo...",
         "editIngredientsLabel": "Uredi namirnice ({count})",
         "doesNotAffectOriginal": "ne utječe na originalni recept",

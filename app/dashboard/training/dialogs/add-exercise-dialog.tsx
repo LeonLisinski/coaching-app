@@ -58,6 +58,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
   const [form, setForm] = useState({
     name: initialName, category: 'Slobodni utezi', muscle_group: 'Prsa',
     description: '', video_url: '', exercise_type: 'strength' as 'strength' | 'endurance',
+    section: 'main' as 'main' | 'warmup',
   })
 
   // Sync initialName when dialog opens
@@ -90,12 +91,13 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
       description: form.description || null,
       video_url: form.video_url || null,
       exercise_type: form.exercise_type,
+      section: form.section,
       extras: Object.keys(cleanExtras).length > 0 ? cleanExtras : null,
     }).select('id, name, category, muscle_group, video_url, primary_muscles, secondary_muscles').single()
 
     if (error) { setError(error.message); setLoading(false); return }
     setLoading(false); onSuccess(inserted ?? undefined); onClose()
-    setForm({ name: '', category: 'Slobodni utezi', muscle_group: 'Prsa', description: '', video_url: '', exercise_type: 'strength' })
+    setForm({ name: '', category: 'Slobodni utezi', muscle_group: 'Prsa', description: '', video_url: '', exercise_type: 'strength', section: 'main' })
     setPrimaryMuscles([]); setSecondaryMuscles([]); setExtras({})
   }
 
@@ -142,6 +144,30 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
                     {exType === 'strength' ? `🏋️ ${t('strengthType')}` : `🏃 ${t('enduranceType')}`}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">{t('sectionLabel')}</Label>
+              <div className="flex gap-2">
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, section: 'main' }))}
+                  className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                    form.section === 'main'
+                      ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
+                      : 'text-gray-500 border-gray-200 hover:border-emerald-300'
+                  }`}>
+                  💪 {t('sectionMain')}
+                </button>
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, section: 'warmup' }))}
+                  className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                    form.section === 'warmup'
+                      ? 'bg-amber-600 text-white border-amber-600 font-semibold'
+                      : 'text-gray-500 border-gray-200 hover:border-amber-300'
+                  }`}>
+                  🔥 {t('sectionWarmup')}
+                </button>
               </div>
             </div>
 

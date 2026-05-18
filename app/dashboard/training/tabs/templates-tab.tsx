@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -167,19 +167,22 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
     setConfirmDelete(null)
   }
 
-  const sorted = [...templates]
-    .filter(t =>
-      t.name.toLowerCase().includes(search.toLowerCase()) &&
-      (t.exercises?.length ?? 0) >= minExercises
-    )
-    .sort((a, b) => {
-      if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      if (sort === 'name_asc') return a.name.localeCompare(b.name, 'hr')
-      if (sort === 'name_desc') return b.name.localeCompare(a.name, 'hr')
-      if (sort === 'exercises_desc') return (b.exercises?.length ?? 0) - (a.exercises?.length ?? 0)
-      return 0
-    })
+  const sorted = useMemo(() => {
+    const searchLower = search.toLowerCase()
+    return templates
+      .filter(t =>
+        t.name.toLowerCase().includes(searchLower) &&
+        (t.exercises?.length ?? 0) >= minExercises
+      )
+      .sort((a, b) => {
+        if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        if (sort === 'name_asc') return a.name.localeCompare(b.name, 'hr')
+        if (sort === 'name_desc') return b.name.localeCompare(a.name, 'hr')
+        if (sort === 'exercises_desc') return (b.exercises?.length ?? 0) - (a.exercises?.length ?? 0)
+        return 0
+      })
+  }, [templates, search, sort, minExercises])
 
   const hasFilters = sort !== 'date_desc' || minExercises > 0
 

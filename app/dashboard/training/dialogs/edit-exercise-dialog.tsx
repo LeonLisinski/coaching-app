@@ -53,6 +53,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     description: exercise.description || '',
     video_url: exercise.video_url || '',
     exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
+    section: (exercise.section || 'main') as 'main' | 'warmup',
   })
   const [primaryMuscles, setPrimaryMuscles] = useState<string[]>(exercise.primary_muscles || [])
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>(exercise.secondary_muscles || [])
@@ -69,6 +70,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
         description: exercise.description || '',
         video_url: exercise.video_url || '',
         exercise_type: (exercise.exercise_type || 'strength') as 'strength' | 'endurance',
+        section: (exercise.section || 'main') as 'main' | 'warmup',
       })
       setPrimaryMuscles(exercise.primary_muscles || [])
       setSecondaryMuscles(exercise.secondary_muscles || [])
@@ -90,6 +92,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       primary_muscles: primaryMuscles, secondary_muscles: secondaryMuscles,
       description: form.description || null, video_url: form.video_url || null,
       exercise_type: form.exercise_type,
+      section: form.section,
     }
 
     if (isFork) {
@@ -161,6 +164,30 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
                     {exType === 'strength' ? `🏋️ ${t('strengthType')}` : `🏃 ${t('enduranceType')}`}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-gray-600">{t('sectionLabel')}</Label>
+              <div className="flex gap-2">
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, section: 'main' }))}
+                  className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                    form.section === 'main'
+                      ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
+                      : 'text-gray-500 border-gray-200 hover:border-emerald-300'
+                  }`}>
+                  💪 {t('sectionMain')}
+                </button>
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, section: 'warmup' }))}
+                  className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
+                    form.section === 'warmup'
+                      ? 'bg-amber-600 text-white border-amber-600 font-semibold'
+                      : 'text-gray-500 border-gray-200 hover:border-amber-300'
+                  }`}>
+                  🔥 {t('sectionWarmup')}
+                </button>
               </div>
             </div>
 

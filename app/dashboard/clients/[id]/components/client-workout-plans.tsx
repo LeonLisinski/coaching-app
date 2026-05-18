@@ -70,6 +70,7 @@ type Exercise = {
   exercise_type?: string
   primary_muscles?: string[]
   secondary_muscles?: string[]
+  section?: 'main' | 'warmup'
 }
 
 type PlanExercise = {
@@ -80,6 +81,7 @@ type PlanExercise = {
   rest_seconds: number
   notes: string
   exercise_type?: 'strength' | 'endurance'
+  section?: 'main' | 'warmup'
 }
 
 type PlanDay = {
@@ -237,7 +239,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     const user = session?.user
     if (!user) return
 
-    const [{ data: assigned }, { data: available }, { data: trainerEx }, { data: defaultEx }] = await Promise.all([
+    const [{ data: assigned }, { data: available }, { data: trainerEx }, { data: defaultEx }, trackedRes] = await Promise.all([
       supabase
         .from('client_workout_plans')
         .select(`id, active, assigned_at, ended_at, notes, days, workout_plan:workout_plans(id, name, description, days)`)
@@ -251,29 +253,28 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         .order('name'),
       supabase
         .from('exercises')
-        .select('id, name, category, exercise_type, primary_muscles, secondary_muscles')
+        .select('id, name, category, exercise_type, primary_muscles, secondary_muscles, section')
         .eq('trainer_id', user.id)
         .order('name'),
       supabase
         .from('exercises')
-        .select('id, name, category, exercise_type, primary_muscles, secondary_muscles')
+        .select('id, name, category, exercise_type, primary_muscles, secondary_muscles, section')
         .eq('is_default', true)
         .order('name'),
+      supabase
+        .from('client_tracked_exercises')
+        .select('exercise_id')
+        .eq('client_id', clientId)
+        .order('sort_order', { ascending: true }),
     ])
-    // Merge trainer exercises + defaults; trainer overrides default if same id
     const exercises = [...(defaultEx || []), ...(trainerEx || [])]
 
     if (assigned) setAssignedPlans(assigned as any)
     if (available) setAvailablePlans(available)
     if (exercises) setAllExercises(exercises)
 
-    const { data: trackedRows, error: trackedErr } = await supabase
-      .from('client_tracked_exercises')
-      .select('exercise_id')
-      .eq('client_id', clientId)
-      .order('sort_order', { ascending: true })
-    if (!trackedErr) {
-      setTrackedExerciseIds((trackedRows || []).map((r: { exercise_id: string }) => r.exercise_id))
+    if (!trackedRes.error) {
+      setTrackedExerciseIds((trackedRes.data || []).map((r: { exercise_id: string }) => r.exercise_id))
     } else {
       setTrackedExerciseIds([])
     }
@@ -335,6 +336,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         rest_seconds: e.rest_seconds ?? 60,
         notes: e.notes ?? '',
         exercise_type: e.exercise_type || 'strength',
+        section: (e.section as 'main' | 'warmup') || 'main',
       }))
     })))
   }
@@ -364,6 +366,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
         reps: ex.exercise_type === 'endurance' ? '5min' : reps,
         rest_seconds, notes: '',
         exercise_type: (ex.exercise_type as 'strength' | 'endurance') || 'strength',
+        section: (ex.section as 'main' | 'warmup') || 'main',
         ...optionalFields,
       }]
     }))

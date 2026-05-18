@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ export type Exercise = {
   trainer_id: string | null
   extras?: Record<string, string> | null
   exercise_type?: 'strength' | 'endurance'
+  section?: 'main' | 'warmup'
 }
 
 export const EQUIPMENT_CATEGORIES = [
@@ -90,7 +91,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
     const [{ data: allEx }, { data: overrides }] = await Promise.all([
       supabase.from('exercises')
-        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras')
+        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section')
         .or(`trainer_id.eq.${user.id},is_default.eq.true`)
         .order('name'),
       supabase.from('trainer_overrides')
@@ -114,24 +115,27 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
     setConfirmDelete(null)
   }
 
-  const sorted = [...exercises].sort((a, b) => {
-    if (sortKey === 'name_asc') return a.name.localeCompare(b.name, 'hr')
-    if (sortKey === 'name_desc') return b.name.localeCompare(a.name, 'hr')
-    if (sortKey === 'mine_first') return (a.is_default ? 1 : 0) - (b.is_default ? 1 : 0)
-    return a.name.localeCompare(b.name, 'hr')
-  })
-
-  const filtered = sorted.filter(e => {
-    const matchSearch = e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.muscle_group?.toLowerCase().includes(search.toLowerCase()) ||
-      (e.primary_muscles || []).some(m => m.toLowerCase().includes(search.toLowerCase()))
-    const matchEquipment = activeEquipment === 'Sve' || e.category === activeEquipment
-    const matchMuscle = activeMuscle === 'Sve' ||
-      (e.primary_muscles || []).includes(activeMuscle) ||
-      e.muscle_group === activeMuscle
-    const matchMine = !showOnlyMine || !e.is_default
-    return matchSearch && matchEquipment && matchMuscle && matchMine
-  })
+  const filtered = useMemo(() => {
+    const searchLower = search.toLowerCase()
+    const sorted = [...exercises].sort((a, b) => {
+      if (sortKey === 'name_asc') return a.name.localeCompare(b.name, 'hr')
+      if (sortKey === 'name_desc') return b.name.localeCompare(a.name, 'hr')
+      if (sortKey === 'mine_first') return (a.is_default ? 1 : 0) - (b.is_default ? 1 : 0)
+      return a.name.localeCompare(b.name, 'hr')
+    })
+    return sorted.filter(e => {
+      const matchSearch = !searchLower ||
+        e.name.toLowerCase().includes(searchLower) ||
+        e.muscle_group?.toLowerCase().includes(searchLower) ||
+        (e.primary_muscles || []).some(m => m.toLowerCase().includes(searchLower))
+      const matchEquipment = activeEquipment === 'Sve' || e.category === activeEquipment
+      const matchMuscle = activeMuscle === 'Sve' ||
+        (e.primary_muscles || []).includes(activeMuscle) ||
+        e.muscle_group === activeMuscle
+      const matchMine = !showOnlyMine || !e.is_default
+      return matchSearch && matchEquipment && matchMuscle && matchMine
+    })
+  }, [exercises, search, sortKey, activeEquipment, activeMuscle, showOnlyMine])
 
   const activeFilterCount = [activeEquipment !== 'Sve', activeMuscle !== 'Sve', showOnlyMine, sortKey !== 'name_asc'].filter(Boolean).length
   const clearFilters = () => { setActiveEquipment('Sve'); setActiveMuscle('Sve'); setShowOnlyMine(false); setSortKey('name_asc') }
@@ -339,6 +343,11 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                           {ex.exercise_type === 'endurance' && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
                               {t('enduranceBadge')}
+                            </span>
+                          )}
+                          {ex.section === 'warmup' && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+                              {t('warmupBadge')}
                             </span>
                           )}
                         </div>

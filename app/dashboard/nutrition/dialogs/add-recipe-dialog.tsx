@@ -240,7 +240,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
                         onClick={() => { setCreateFoodName(search); setCreateFoodOpen(true); setSearchFocused(false) }}
                         className="w-full flex items-center gap-2 px-4 py-2 text-xs text-orange-600 font-medium border-t border-orange-50 hover:bg-orange-50 transition-colors"
                       >
-                        <Plus size={12} /> Kreiraj namirnicu{search ? ` "${search}"` : ''}
+                        <Plus size={12} /> {search ? t('createFood', { search }) : t('createNewFood')}
                       </button>
                     </>
                   )}
