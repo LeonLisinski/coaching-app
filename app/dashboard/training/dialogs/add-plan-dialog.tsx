@@ -18,6 +18,7 @@ import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboa
 import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
+import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 
 /** Wrapper koji poziva useSortable za dan i injektira dragHandleProps via render prop */
 function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boolean; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
@@ -59,10 +60,13 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const [expandedDays, setExpandedDays] = useState<Record<number, boolean>>({})
   const [searchFocused, setSearchFocused] = useState<Record<number, boolean>>({})
   const [dropdownKbIndex, setDropdownKbIndex] = useState<Record<number, number>>({})
+  const [createExerciseFor, setCreateExerciseFor] = useState<number | null>(null)
+  const [createExerciseName, setCreateExerciseName] = useState('')
   const blurTimers    = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
   const searchRefs    = useRef<Record<number, HTMLInputElement | null>>({})
   const dropdownRefs  = useRef<Record<number, HTMLDivElement | null>>({})
   const daysEndRef    = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
@@ -225,6 +229,14 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
       ...d, exercises: d.exercises.map(e => e.exercise_id === exerciseId ? { ...e, [field]: value } : e)
     }))
 
+  const handleExerciseCreated = (dayIndex: number, exercise: CreatedExercise) => {
+    const ex: Exercise = { id: exercise.id, name: exercise.name, category: exercise.category, exercise_type: 'strength' }
+    setExercises(prev => [...prev, ex])
+    addExerciseToDay(dayIndex, ex)
+    setCreateExerciseFor(null)
+    setCreateExerciseName('')
+  }
+
   const removeExercise = (dayIndex: number, exerciseId: string) => {
     setDays(prev => prev.map((d, i) => i !== dayIndex ? d : {
       ...d, exercises: d.exercises.filter(e => e.exercise_id !== exerciseId)
@@ -297,7 +309,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-6 pb-2">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 pb-2">
             <form id="add-plan-form" onSubmit={handleSubmit} className="space-y-4 py-2">
               <div className="space-y-3">
                 <div className="flex items-center justify-between sticky top-0 z-10 bg-white -mx-6 px-6 py-2 border-b border-gray-100">
@@ -381,14 +393,28 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               ref={el => { searchRefs.current[index] = el }}
                               value={exerciseSearch[index] || ''}
                               onChange={e => { setExerciseSearch(prev => ({ ...prev, [index]: e.target.value })); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
-                              onFocus={() => { if (blurTimers.current[index]) clearTimeout(blurTimers.current[index]); setSearchFocused(prev => ({ ...prev, [index]: true })) }}
+                              onFocus={() => {
+                                if (blurTimers.current[index]) clearTimeout(blurTimers.current[index])
+                                setSearchFocused(prev => ({ ...prev, [index]: true }))
+                                setTimeout(() => {
+                                  const input = searchRefs.current[index]
+                                  const container = scrollContainerRef.current
+                                  if (input && container) {
+                                    const inputBottom = input.getBoundingClientRect().bottom
+                                    const containerBottom = container.getBoundingClientRect().bottom
+                                    if (inputBottom + 220 > containerBottom) {
+                                      container.scrollBy({ top: inputBottom + 220 - containerBottom, behavior: 'smooth' })
+                                    }
+                                  }
+                                }, 60)
+                              }}
                               onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
                               placeholder={t('form.searchExercisePlaceholder')}
                               className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
                             />
                           </div>
-                          {!!exerciseSearch[index] && (
+                          {!!(searchFocused[index] || exerciseSearch[index]) && (
                             <div
                               ref={el => { dropdownRefs.current[index] = el }}
                               className="relative border border-blue-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
@@ -414,6 +440,15 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                                   </div>
                                 </button>
                               ))}
+                              {exerciseSearch[index] && (
+                                <button type="button"
+                                  onMouseDown={ev => ev.preventDefault()}
+                                  onClick={() => { setCreateExerciseName(exerciseSearch[index]); setCreateExerciseFor(index) }}
+                                  className="w-full text-left px-3 py-2 flex items-center gap-2 text-xs text-emerald-700 hover:bg-emerald-50 border-t border-gray-100 font-medium">
+                                  <Plus size={12} />
+                                  <span>Kreiraj vježbu &ldquo;{exerciseSearch[index]}&rdquo;</span>
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -478,6 +513,13 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
         description={t('form.removeExerciseDayConfirm')}
         onConfirm={() => confirmEx && removeExercise(confirmEx.day, confirmEx.id)} onCancel={() => setConfirmEx(null)}
         confirmLabel={tCommon('remove')} destructive />
+
+      <AddExerciseDialog
+        open={createExerciseFor !== null}
+        onClose={() => { setCreateExerciseFor(null); setCreateExerciseName('') }}
+        onSuccess={ex => ex && createExerciseFor !== null && handleExerciseCreated(createExerciseFor, ex)}
+        initialName={createExerciseName}
+      />
     </>
   )
 }

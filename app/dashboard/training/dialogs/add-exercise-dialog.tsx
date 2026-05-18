@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +17,7 @@ export type CreatedExercise = {
   primary_muscles: string[]; secondary_muscles: string[]
 }
 
-type Props = { open: boolean; onClose: () => void; onSuccess: (exercise?: CreatedExercise) => void }
+type Props = { open: boolean; onClose: () => void; onSuccess: (exercise?: CreatedExercise) => void; initialName?: string }
 
 function MuscleChipSelect({
   value, onChange, label, color = 'emerald',
@@ -51,14 +51,19 @@ function MuscleChipSelect({
   )
 }
 
-export default function AddExerciseDialog({ open, onClose, onSuccess }: Props) {
+export default function AddExerciseDialog({ open, onClose, onSuccess, initialName = '' }: Props) {
   const t = useTranslations('training.dialogs.exercise')
   const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
   const [form, setForm] = useState({
-    name: '', category: 'Slobodni utezi', muscle_group: 'Prsa',
+    name: initialName, category: 'Slobodni utezi', muscle_group: 'Prsa',
     description: '', video_url: '', exercise_type: 'strength' as 'strength' | 'endurance',
   })
+
+  // Sync initialName when dialog opens
+  useEffect(() => {
+    if (open) setForm(f => ({ ...f, name: initialName }))
+  }, [open, initialName])
   const [primaryMuscles, setPrimaryMuscles] = useState<string[]>([])
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>([])
   const [extras, setExtras] = useState<Record<string, string>>({})
