@@ -457,22 +457,22 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   }
 
   return (
-    <div className={`border border-purple-200 rounded-xl transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
+    <div className={`border border-rose-200 rounded-xl transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
       {/* Collapsible header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-purple-50 border-b border-purple-100 rounded-t-xl">
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-rose-50 border-b border-rose-100 rounded-t-xl">
         {dragHandleProps && (
           <button type="button" {...dragHandleProps}
-            className="cursor-grab active:cursor-grabbing text-purple-300 hover:text-purple-500 shrink-0 touch-none"
+            className="cursor-grab active:cursor-grabbing text-rose-300 hover:text-rose-500 shrink-0 touch-none"
             tabIndex={-1}>
             <GripVertical size={14} />
           </button>
         )}
         <button type="button" onClick={() => setExpanded(v => !v)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden">
           {expanded
-            ? <ChevronUp   size={14} className="text-purple-400 shrink-0" />
-            : <ChevronDown size={14} className="text-purple-400 shrink-0" />}
+            ? <ChevronUp   size={14} className="text-rose-400 shrink-0" />
+            : <ChevronDown size={14} className="text-rose-400 shrink-0" />}
           {expanded ? (
-            <span className="text-sm font-semibold text-purple-800 truncate">{meal.meal_type || t('mealFallback')}</span>
+            <span className="text-sm font-semibold text-rose-800 truncate">{meal.meal_type || t('mealFallback')}</span>
           ) : (
             <span className="text-xs text-gray-500 truncate min-w-0">
               {(meal.calories > 0 || meal.protein > 0)
@@ -483,7 +483,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
         </button>
         <div className="flex items-center gap-1 shrink-0">
           <Select value={meal.meal_type} onValueChange={v => onChange(index, 'meal_type', v)}>
-            <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent hover:bg-purple-100 px-2">
+            <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent hover:bg-rose-100 px-2">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -494,11 +494,11 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           </Select>
           {onCopy && (
             <button type="button" title={t('copyMealTooltip')} onClick={() => onCopy(index)} className="p-1">
-              <Copy size={13} className="text-purple-300 hover:text-purple-600" />
+              <Copy size={13} className="text-rose-300 hover:text-rose-600" />
             </button>
           )}
           <button type="button" onClick={() => setConfirmRemove(true)} className="p-1">
-            <X size={13} className="text-purple-300 hover:text-red-500" />
+            <X size={13} className="text-rose-300 hover:text-red-500" />
           </button>
         </div>
       </div>
@@ -510,7 +510,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       <div className="flex gap-2">
         <button type="button" onClick={() => setMode('existing')}
           className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-            mode === 'existing' ? 'bg-purple-600 text-white border-purple-600 font-semibold' : 'text-gray-500 border-gray-300 hover:border-purple-300 hover:text-purple-600'
+            mode === 'existing' ? 'bg-rose-500 text-white border-rose-500 font-semibold' : 'text-gray-500 border-gray-300 hover:border-rose-300 hover:text-rose-600'
           }`}>
           {t('useRecipe')}
         </button>
@@ -528,7 +528,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             value={meal.recipe_id || 'none'}
             onValueChange={handleSelectRecipe}
           >
-            <SelectTrigger className="text-sm border-purple-200 focus:border-purple-400">
+            <SelectTrigger className="text-sm border-rose-200 focus:border-rose-400">
               <SelectValue placeholder={t('selectDishPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -547,7 +547,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               <button
                 type="button"
                 onClick={() => setShowIngredients(!showIngredients)}
-                className="flex items-center gap-1 text-xs text-purple-500 hover:text-purple-700"
+                className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700"
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {t('editIngredientsLabel', { count: recipeIngredients.length })}
