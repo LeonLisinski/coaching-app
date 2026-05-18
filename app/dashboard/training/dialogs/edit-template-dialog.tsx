@@ -68,7 +68,7 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`border border-gray-100 rounded-xl p-3 space-y-2 bg-white shadow-sm hover:border-blue-200 transition-colors ${isNew ? 'item-added' : ''}`}
+      className={`border border-blue-100 rounded-xl p-3 space-y-2 bg-blue-50/20 shadow-sm hover:border-blue-300 transition-colors ${isNew ? 'item-added' : ''}`}
     >
       <div className="flex items-center gap-2">
         <button

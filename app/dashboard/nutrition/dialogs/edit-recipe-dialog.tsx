@@ -235,7 +235,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
             <div className="space-y-2">
               <Label>{t('ingredients')} ({ingredients.length})</Label>
               {ingredients.map(ing => (
-                <div key={ing.food_id} className={`flex items-center gap-3 border rounded-md p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
+                <div key={ing.food_id} className={`flex items-center gap-3 border border-rose-100 bg-rose-50/20 rounded-md p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
                   <span className="text-sm flex-1">{ing.name}</span>
                   <div className="flex items-center gap-2">
                     <Input type="number" value={ing.grams}

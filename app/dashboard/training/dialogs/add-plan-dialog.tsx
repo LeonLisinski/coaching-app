@@ -310,9 +310,9 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
                   {(dayDragHandle) => (
-                  <div className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                  <div className="border border-indigo-200 rounded-xl overflow-hidden shadow-sm">
                     {/* Accordion header */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-indigo-50/50 border-b border-indigo-100/60">
+                    <div className="flex items-center gap-2 px-3 py-2.5 bg-indigo-100/50 border-b border-indigo-200/70">
                       <button type="button" {...dayDragHandle} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none" tabIndex={-1}>
                         <GripVertical size={14} />
                       </button>

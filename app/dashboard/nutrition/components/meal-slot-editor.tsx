@@ -407,9 +407,9 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const activeIngredients = mode === 'existing' ? recipeIngredients : ingredients
 
   return (
-    <div className={`border rounded-md overflow-hidden transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
+    <div className={`border border-purple-200 rounded-md overflow-hidden transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
       {/* Collapsible header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-b border-gray-100">
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-purple-50/50 border-b border-purple-100">
         {dragHandleProps && (
           <button type="button" {...dragHandleProps}
             className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none"
