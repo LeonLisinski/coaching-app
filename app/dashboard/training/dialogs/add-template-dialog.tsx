@@ -367,9 +367,9 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
             </div>
 
             {/* Fixed: search — always visible, never scrolls away */}
-            <div className="px-6 py-3 border-b shrink-0 bg-white space-y-1.5">
+            <div className="px-6 py-3 border-b shrink-0 bg-white">
               <Label className="text-xs font-semibold text-gray-600">{t('addExercise')}</Label>
-              <div className="relative">
+              <div className="relative mt-1.5">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
                 <Input
                   ref={searchRef}
@@ -377,6 +377,14 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
                   onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
+                  onClick={() => {
+                    if (showDropdown) {
+                      setSearchFocused(false)
+                      setSearch('')
+                      setDropdownIndex(-1)
+                      searchRef.current?.blur()
+                    }
+                  }}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={t('searchAddPlaceholder')}
                   className="pl-9 h-9 border-blue-200 focus:border-blue-400"
@@ -387,59 +395,56 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
                     <X size={13} />
                   </button>
                 )}
-              </div>
 
-              {/* IN-FLOW dropdown */}
-              {showDropdown && (
-                <div className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden">
-                  {!exercisesLoaded ? (
-                    <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
-                  ) : (
-                    <div ref={dropdownRef} className="relative overflow-y-auto max-h-44">
-                      {filteredExercises.length === 0 ? (
-                        <p className="px-4 py-3 text-xs text-gray-400 text-center">
-                          {search ? t('noResults', { search }) : t('allAdded')}
-                        </p>
-                      ) : filteredExercises.map((e, i) => {
-                        const muscles = e.primary_muscles?.length ? e.primary_muscles : (e.muscle_group ? [e.muscle_group] : [])
-                        return (
-                          <button
-                            key={e.id} type="button"
-                            onMouseDown={ev => ev.preventDefault()}
-                            onClick={() => addExercise(e)}
-                            onMouseEnter={() => setDropdownIndex(i)}
-                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                              dropdownIndex === i ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <div>
-                              <span className="font-medium">{e.name}</span>
-                              {muscles.length > 0 && (
-                                <span className="ml-2 text-xs text-gray-400">{muscles.join(', ')}</span>
-                              )}
-                            </div>
-                            <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200 shrink-0 ml-2">
-                              {e.category}
-                            </span>
-                          </button>
-                        )
-                      })}
+                {/* Overlay dropdown */}
+                {showDropdown && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+                    {!exercisesLoaded ? (
+                      <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
+                    ) : (
+                      <div ref={dropdownRef} className="overflow-y-auto max-h-52">
+                        {filteredExercises.length === 0 ? (
+                          <p className="px-4 py-3 text-xs text-gray-400 text-center">
+                            {search ? t('noResults', { search }) : t('allAdded')}
+                          </p>
+                        ) : filteredExercises.map((e, i) => {
+                          const muscles = e.primary_muscles?.length ? e.primary_muscles : (e.muscle_group ? [e.muscle_group] : [])
+                          return (
+                            <button
+                              key={e.id} type="button"
+                              onMouseDown={ev => ev.preventDefault()}
+                              onClick={() => addExercise(e)}
+                              onMouseEnter={() => setDropdownIndex(i)}
+                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                                dropdownIndex === i ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'
+                              }`}
+                            >
+                              <div>
+                                <span className="font-medium">{e.name}</span>
+                                {muscles.length > 0 && (
+                                  <span className={`ml-2 text-xs ${dropdownIndex === i ? 'text-blue-200' : 'text-gray-400'}`}>{muscles.join(', ')}</span>
+                                )}
+                              </div>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ml-2 ${dropdownIndex === i ? 'bg-blue-500 text-white border-blue-400' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                {e.category}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
+                      <button type="button"
+                        onMouseDown={ev => ev.preventDefault()}
+                        onClick={() => setShowAddExercise(true)}
+                        className="w-full text-left text-xs text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 font-medium transition-colors">
+                        <Plus size={12} />
+                        {search ? t('createExercise', { search }) : t('createNewExercise')}
+                      </button>
                     </div>
-                  )}
-                  {/* Create new exercise option */}
-                  <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
-                    <button
-                      type="button"
-                      onMouseDown={ev => ev.preventDefault()}
-                      onClick={() => setShowAddExercise(true)}
-                      className="w-full text-left text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1.5 py-0.5 font-medium transition-colors"
-                    >
-                      <Plus size={12} />
-                      {search ? t('createExercise', { search }) : t('createNewExercise')}
-                    </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {/* Scrollable: exercises only */}
