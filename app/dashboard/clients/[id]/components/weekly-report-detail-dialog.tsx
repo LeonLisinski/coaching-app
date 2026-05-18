@@ -52,7 +52,36 @@ export default function WeeklyReportDetailDialog({
     setExportingPdf(true)
     try {
       const { downloadReportPdf } = await import('./weekly-report-pdf')
-      await downloadReportPdf(report.snapshot)
+
+      // Pre-sign photo storage paths so the PDF renderer can embed them as images
+      const snap = report.snapshot
+      let snapWithPhotos = snap
+      const paths = snap.photoSets.flatMap(set =>
+        set.photos
+          .filter(p => p.storagePath && !p.storagePath.startsWith('http'))
+          .map(p => p.storagePath),
+      )
+      if (paths.length > 0) {
+        const { data } = await supabase.storage
+          .from('checkin-images')
+          .createSignedUrls(paths, 3600)
+        if (data) {
+          const urlMap: Record<string, string> = {}
+          data.forEach((d, i) => { if (d.signedUrl) urlMap[paths[i]] = d.signedUrl })
+          snapWithPhotos = {
+            ...snap,
+            photoSets: snap.photoSets.map(set => ({
+              ...set,
+              photos: set.photos.map(p => ({
+                ...p,
+                storagePath: urlMap[p.storagePath] ?? p.storagePath,
+              })),
+            })),
+          }
+        }
+      }
+
+      await downloadReportPdf(snapWithPhotos)
     } catch (e) {
       console.error('PDF export failed:', e)
     } finally {

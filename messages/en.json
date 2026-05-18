@@ -648,6 +648,7 @@
       "carbs": "Carbs",
       "fat": "Fat",
       "average": "Ø Average",
+      "confirmedDaysCount": "confirmed",
       "checkinDayLegend": "● = check-in day",
       "quickJumpWeeks": "Quick jump (weeks back)",
       "weeksAgo1": "1 wk",

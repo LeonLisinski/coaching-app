@@ -102,6 +102,8 @@ export type CheckinParameterSnapshot = {
   series: { date: string; value: number }[]
   /** Average of numeric daily params over range. Null when not applicable. */
   avgValue: number | null
+  /** All values in range for non-numeric params — used to compute most-frequent display value. */
+  allValues?: { date: string; value: unknown }[]
 }
 
 export type CheckinPhotoEntry = {
@@ -711,6 +713,8 @@ function buildParametersSection(
         currentValueDate: latest?.date ?? null,
         series,
         avgValue: avg,
+        // For non-numeric params, store all values so display can show mode (most frequent)
+        allValues: p.type !== 'number' ? valuesInRange : undefined,
       }
     })
     // Drop params with no data in range — keep report focused

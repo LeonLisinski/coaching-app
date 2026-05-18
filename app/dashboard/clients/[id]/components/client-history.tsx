@@ -80,8 +80,9 @@ export default function ClientHistory({ clientId }: Props) {
   const todayIso = isoDate(new Date())
 
   const nutritionDays = days.map(d => nutritionByDate[isoDate(d)]).filter(Boolean)
+  const confirmedDays = nutritionDays.filter(l => l.confirmed)
   const avg = (f: keyof NutritionLog) => {
-    const vals = nutritionDays.filter(l => l[f] != null).map(l => l[f] as number)
+    const vals = confirmedDays.filter(l => l[f] != null).map(l => l[f] as number)
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null
   }
 
@@ -186,10 +187,13 @@ export default function ClientHistory({ clientId }: Props) {
                   )
                 })}
               </tbody>
-              {nutritionDays.length > 1 && (
+              {confirmedDays.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-gray-100 bg-gray-50">
-                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-500">{t('average')}</td>
+                    <td className="px-4 py-2.5 text-xs font-semibold text-gray-500">
+                      {t('average')}
+                      <span className="ml-1 font-normal text-gray-400">({confirmedDays.length} {t('confirmedDaysCount')})</span>
+                    </td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('calories') != null ? <>{avg('calories')} <span className="text-gray-400 font-normal">kcal</span></> : '—'}</td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('protein') != null ? <>{avg('protein')} <span className="text-gray-400 font-normal">g</span></> : '—'}</td>
                     <td className="px-6 py-2.5 text-right text-xs font-semibold text-gray-700">{avg('carbs') != null ? <>{avg('carbs')} <span className="text-gray-400 font-normal">g</span></> : '—'}</td>
