@@ -20,6 +20,47 @@ import SortableExerciseCard, { type PlanExercise } from '../components/sortable-
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 
+/** Custom styled select dropdown — replaces native <select> */
+function CustomSelect({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+  const selected = options.find(o => o.value === value)
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between border border-blue-200 rounded-md px-3 h-7 text-xs bg-white text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors">
+        <span className={selected?.value ? 'text-gray-800 font-medium' : 'text-gray-400'}>{selected?.label}</span>
+        <ChevronDown size={12} className={`text-blue-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+          <div className="max-h-52 overflow-y-auto">
+            {options.map(opt => (
+              <button key={opt.value} type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onChange(opt.value); setOpen(false) }}
+                className={`w-full text-left px-3 py-2 text-xs border-b border-gray-50 last:border-0 transition-colors ${
+                  opt.value === value ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-blue-50'
+                }`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boolean; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -400,16 +441,14 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                         </div>
 
                         {day.mode === 'template' && (
-                          <div className="relative">
-                            <select value={day.template_id || ''} onChange={e => updateDayField(index, 'template_id', e.target.value || null)}
-                              className="w-full border border-blue-200 rounded-md pl-3 pr-8 py-0 text-xs h-7 bg-white text-gray-700 appearance-none focus:outline-none focus:border-blue-400 cursor-pointer">
-                              <option value="">{t('form.noTemplate')}</option>
-                              {templates.map(tmpl => (
-                                <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
-                              ))}
-                            </select>
-                            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
-                          </div>
+                          <CustomSelect
+                            value={day.template_id || ''}
+                            onChange={v => updateDayField(index, 'template_id', v || null)}
+                            options={[
+                              { value: '', label: t('form.noTemplate') },
+                              ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${tmpl.exercises?.length || 0} ${t('form.exerciseCountSuffix')})` }))
+                            ]}
+                          />
                         )}
 
                         {/* Search */}
