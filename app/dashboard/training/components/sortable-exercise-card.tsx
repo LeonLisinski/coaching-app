@@ -48,7 +48,7 @@ export default function SortableExerciseCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="border border-indigo-100 rounded-md p-3 space-y-2 bg-indigo-50/30"
+      className="border border-emerald-100 rounded-md p-3 space-y-2 bg-emerald-50/30"
     >
       <div className="flex items-center gap-1.5 justify-between">
         <div className="flex items-center gap-1.5 min-w-0">
