@@ -184,6 +184,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
   const searchRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const exercisesEndRef = useRef<HTMLDivElement>(null)
+  const wasAlreadyFocusedRef = useRef(false)
 
   const extraFields = EXERCISE_FIELD_OPTIONS.filter(f =>
     settings.exerciseFields.includes(f.key) && !['rest'].includes(f.key)
@@ -375,10 +376,11 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
                   ref={searchRef}
                   value={search}
                   onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
+                  onMouseDown={() => { wasAlreadyFocusedRef.current = document.activeElement === searchRef.current }}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
                   onClick={() => {
-                    if (showDropdown) {
+                    if (wasAlreadyFocusedRef.current && showDropdown) {
                       setSearchFocused(false)
                       setSearch('')
                       setDropdownIndex(-1)

@@ -42,9 +42,10 @@ type Food     = { id: string; name: string; calories_per_100g: number; protein_p
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
 type PlanType = 'default' | 'training_day' | 'rest_day'
 
-function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, isNew }: {
+function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, onFoodsRefresh, isNew }: {
   meal: MealSlot; index: number; recipes: any[]; foods: any[]; nutritionFields: string[];
   onChange: (i: number, f: string, v: any) => void; onRemove: (i: number) => void; onCopy: (i: number) => void;
+  onFoodsRefresh?: () => void;
   isNew?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -67,6 +68,7 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
         nutritionFields={nutritionFields} onChange={onChange} onRemove={onRemove}
         onCopy={onCopy} isDragging={isDragging}
         dragHandleProps={{ ...listeners, ...attributes } as any}
+        onFoodsRefresh={onFoodsRefresh}
       />
       <div ref={slotEndRef} />
     </div>
@@ -326,6 +328,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                       recipes={recipes} foods={foods}
                       nutritionFields={settings.nutritionFields}
                       onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
+                      onFoodsRefresh={fetchFoods}
                       isNew={flashMealId === meal._id}
                     />
                   ))}

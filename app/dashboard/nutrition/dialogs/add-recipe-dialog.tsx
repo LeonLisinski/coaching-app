@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { X, BookOpen } from 'lucide-react'
+import { X, BookOpen, Plus } from 'lucide-react'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import AddFoodDialog from './add-food-dialog'
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
 
@@ -40,8 +41,12 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
   const [dropdownIndex, setDropdownIndex] = useState(-1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [createFoodOpen, setCreateFoodOpen] = useState(false)
+  const [createFoodName, setCreateFoodName] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const ingredientsEndRef = useRef<HTMLDivElement>(null)
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wasAlreadyFocusedRef = useRef(false)
 
   const activeNutritionFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -72,6 +77,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
     }])
     setSearch('')
     setDropdownIndex(-1)
+    setSearchFocused(false)
     setTimeout(() => searchRef.current?.focus(), 0)
     setFlashIngId(food.id)
     setTimeout(() => setFlashIngId(null), 1400)
@@ -144,6 +150,7 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('addTitle')}</DialogTitle>
@@ -187,35 +194,55 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
                 ref={searchRef}
                 value={search}
                 onChange={e => { setSearch(e.target.value); setDropdownIndex(-1) }}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150)}
+                onMouseDown={() => { wasAlreadyFocusedRef.current = document.activeElement === searchRef.current }}
+                onFocus={() => {
+                  if (blurTimerRef.current) clearTimeout(blurTimerRef.current)
+                  setSearchFocused(true)
+                }}
+                onBlur={() => { blurTimerRef.current = setTimeout(() => { setSearchFocused(false); setDropdownIndex(-1) }, 150) }}
+                onClick={() => {
+                  if (wasAlreadyFocusedRef.current && showDropdown) {
+                    setSearchFocused(false); setSearch(''); setDropdownIndex(-1)
+                    searchRef.current?.blur()
+                  }
+                }}
                 onKeyDown={handleSearchKeyDown}
                 placeholder={t('searchIngredients')}
-                className="focus:border-rose-300"
+                className="focus:border-orange-300"
               />
               {showDropdown && (
-                <div className="border border-rose-100 rounded-xl bg-white shadow-md overflow-hidden mt-1">
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-orange-100 rounded-xl bg-white shadow-lg overflow-hidden">
                   {!foodsLoaded ? (
                     <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingFoods')}</p>
                   ) : (
-                    <div className="overflow-y-auto max-h-44">
-                      {filteredFoods.length === 0 ? (
-                        <p className="px-4 py-3 text-xs text-gray-400 text-center">
-                          {search ? t('noResults', { search }) : t('allAdded')}
-                        </p>
-                      ) : filteredFoods.map((f, i) => (
-                        <button key={f.id} type="button"
-                          onMouseDown={e => e.preventDefault()}
-                          onClick={() => addIngredient(f)}
-                          onMouseEnter={() => setDropdownIndex(i)}
-                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                            dropdownIndex === i ? 'bg-rose-50 text-rose-700' : 'hover:bg-gray-50'
-                          }`}>
-                          <span className="font-medium">{f.name}</span>
-                          <span className="text-gray-400 text-xs">{f.calories_per_100g} kcal/100g</span>
-                        </button>
-                      ))}
-                    </div>
+                    <>
+                      <div className="overflow-y-auto max-h-44">
+                        {filteredFoods.length === 0 ? (
+                          <p className="px-4 py-3 text-xs text-gray-400 text-center">
+                            {search ? t('noResults', { search }) : t('allAdded')}
+                          </p>
+                        ) : filteredFoods.map((f, i) => (
+                          <button key={f.id} type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => addIngredient(f)}
+                            onMouseEnter={() => setDropdownIndex(i)}
+                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
+                              dropdownIndex === i ? 'bg-orange-500 text-white' : 'hover:bg-orange-50'
+                            }`}>
+                            <span className="font-medium">{f.name}</span>
+                            <span className={dropdownIndex === i ? 'text-orange-100 text-xs' : 'text-gray-400 text-xs'}>{f.calories_per_100g} kcal/100g</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => { setCreateFoodName(search); setCreateFoodOpen(true); setSearchFocused(false) }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-orange-600 font-medium border-t border-orange-50 hover:bg-orange-50 transition-colors"
+                      >
+                        <Plus size={12} /> Kreiraj namirnicu{search ? ` "${search}"` : ''}
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -228,24 +255,24 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
             <div className="space-y-2">
               <Label>{t('ingredients')} ({ingredients.length})</Label>
               {ingredients.map(ing => (
-                <div key={ing.food_id} className={`flex items-center gap-3 border border-rose-100 bg-rose-50/20 rounded-md p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
-                  <span className="text-sm flex-1">{ing.name}</span>
+                <div key={ing.food_id} className={`flex items-center gap-3 border border-orange-100 bg-orange-50/30 rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
+                  <span className="text-sm flex-1 font-medium text-gray-800">{ing.name}</span>
                   <div className="flex items-center gap-2">
                     <Input type="number" value={ing.grams}
                       onChange={e => updateGrams(ing.food_id, parseFloat(e.target.value) || 0)}
-                      className="w-20 h-7 text-sm" />
+                      className="w-20 h-7 text-sm border-orange-200 focus:border-orange-400" />
                     <span className="text-xs text-gray-500">g</span>
                   </div>
-                  <div className="text-xs text-gray-400 w-32 text-right">{Math.round(ing.calories)} kcal</div>
+                  <div className="text-xs text-orange-600 font-medium w-24 text-right">{Math.round(ing.calories)} kcal</div>
                   <button type="button" onClick={() => removeIngredient(ing.food_id)}>
                     <X size={14} className="text-gray-400 hover:text-red-500" />
                   </button>
                 </div>
               ))}
 
-              <div className="bg-gray-50 rounded-md p-3 space-y-1">
+              <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 space-y-1">
                 <div className="flex gap-4 text-sm">
-                  <span className="font-medium">{t('total')}:</span>
+                  <span className="font-semibold text-orange-700">{t('total')}:</span>
                   <span>🔥 {Math.round(totals.calories)} kcal</span>
                   <span>🥩 {Math.round(totals.protein)}g</span>
                   <span>🍞 {Math.round(totals.carbs)}g</span>
@@ -275,6 +302,14 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
         </form>
       </DialogContent>
     </Dialog>
+
+    <AddFoodDialog
+      open={createFoodOpen}
+      initialName={createFoodName}
+      onClose={() => setCreateFoodOpen(false)}
+      onSuccess={() => { setCreateFoodOpen(false); fetchFoods() }}
+    />
+    </>
   )
 }
 

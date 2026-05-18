@@ -109,6 +109,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const dropdownRefs  = useRef<Record<number, HTMLDivElement | null>>({})
   const daysEndRef    = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const justFocusedSearchRef = useRef<Record<number, boolean>>({})
+  const wasAlreadyFocusedSearchRef = useRef<Record<number, boolean>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
@@ -440,6 +442,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               ref={el => { searchRefs.current[index] = el }}
                               value={exerciseSearch[index] || ''}
                               onChange={e => { setExerciseSearch(prev => ({ ...prev, [index]: e.target.value })); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
+                              onMouseDown={() => { wasAlreadyFocusedSearchRef.current[index] = document.activeElement === searchRefs.current[index] }}
                               onFocus={() => {
                                 if (blurTimers.current[index]) clearTimeout(blurTimers.current[index])
                                 setSearchFocused(prev => ({ ...prev, [index]: true }))
@@ -457,7 +460,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               }}
                               onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
                               onClick={() => {
-                                if (searchFocused[index] || exerciseSearch[index]) {
+                                if (wasAlreadyFocusedSearchRef.current[index] && (searchFocused[index] || exerciseSearch[index])) {
                                   setSearchFocused(prev => ({ ...prev, [index]: false }))
                                   setExerciseSearch(prev => ({ ...prev, [index]: '' }))
                                   ;(searchRefs.current[index])?.blur()

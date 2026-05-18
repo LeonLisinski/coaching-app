@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,9 +15,10 @@ type Props = {
   open: boolean
   onClose: () => void
   onSuccess: () => void
+  initialName?: string
 }
 
-export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
+export default function AddFoodDialog({ open, onClose, onSuccess, initialName }: Props) {
   const t = useTranslations('nutrition.dialogs.food')
   const tCommon = useTranslations('common')
   const { settings, loading: settingsLoading } = useTrainerSettings()
@@ -33,6 +34,10 @@ export default function AddFoodDialog({ open, onClose, onSuccess }: Props) {
   const [extras, setExtras] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (open) setForm(prev => ({ ...prev, name: initialName || '' }))
+  }, [open, initialName])
 
   const activeFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
