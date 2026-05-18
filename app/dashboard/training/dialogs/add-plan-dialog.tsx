@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
-import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays } from 'lucide-react'
+import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -335,39 +335,41 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                     </div>
 
                     {isDayExpanded(index) && (
-                      <div className="p-3 space-y-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">{t('form.dayName')}</Label>
-                          <Input value={day.name} onChange={e => updateDayField(index, 'name', e.target.value)} placeholder="Push, Pull, Legs..." className="h-8 text-sm" />
-                        </div>
+                      <div className="px-2.5 pb-2.5 pt-2 space-y-2">
 
-                        <div className="flex gap-2">
+                        {/* Row 1: name input + mode toggle on one line */}
+                        <div className="flex items-center gap-1.5">
+                          <Input value={day.name} onChange={e => updateDayField(index, 'name', e.target.value)}
+                            placeholder="Push, Pull, Legs..." className="flex-1 h-7 text-xs" />
                           {(['template', 'custom'] as const).map(mode => (
                             <button key={mode} type="button" onClick={() => updateDayField(index, 'mode', mode)}
-                              className={`text-xs px-3 py-1 rounded-full border transition-colors ${day.mode === mode ? 'bg-black text-white border-black font-semibold' : 'text-gray-500 border-gray-300 hover:border-gray-400'}`}>
-                              {mode === 'template' ? t('form.template') : t('form.createWorkout')}
+                              title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
+                              className={`flex items-center gap-1 text-xs px-2 py-1 h-7 rounded-md border transition-colors shrink-0 ${
+                                day.mode === mode
+                                  ? 'bg-blue-600 text-white border-blue-600 font-semibold'
+                                  : 'text-gray-500 border-gray-300 hover:border-gray-400 bg-white'
+                              }`}>
+                              {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
+                              <span className="hidden sm:inline">{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
                             </button>
                           ))}
                         </div>
 
                         {day.mode === 'template' && (
-                          <div className="space-y-1">
-                            <Label className="text-xs">{t('form.template')}</Label>
-                            <select value={day.template_id || ''} onChange={e => updateDayField(index, 'template_id', e.target.value || null)}
-                              className="w-full border rounded-md px-3 py-1.5 text-sm h-8">
-                              <option value="">{t('form.noTemplate')}</option>
-                              {templates.map(tmpl => (
-                                <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
-                              ))}
-                            </select>
-                          </div>
+                          <select value={day.template_id || ''} onChange={e => updateDayField(index, 'template_id', e.target.value || null)}
+                            className="w-full border rounded-md px-2.5 py-0 text-xs h-7 bg-white text-gray-700">
+                            <option value="">{t('form.noTemplate')}</option>
+                            {templates.map(tmpl => (
+                              <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
+                            ))}
+                          </select>
                         )}
 
-                        {/* Search — pinned at top so always accessible */}
+                        {/* Search */}
                         <div className="space-y-1">
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                              <Plus size={13} />
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                              <Plus size={12} />
                             </span>
                             <Input
                               ref={el => { searchRefs.current[index] = el }}
@@ -377,13 +379,13 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
                               placeholder={t('form.searchExercisePlaceholder')}
-                              className="h-8 text-sm pl-8 border-dashed focus:border-solid focus:border-indigo-300"
+                              className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
                             />
                           </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
                             <div
                               ref={el => { dropdownRefs.current[index] = el }}
-                              className="relative border border-indigo-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
+                              className="relative border border-blue-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
                               onWheel={e => e.stopPropagation()}
                             >
                               {getFilteredExercisesForDay(index).length === 0 ? (
@@ -396,8 +398,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                                   onMouseDown={ev => ev.preventDefault()}
                                   onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
                                   onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
-                                  className={`w-full text-left px-3 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                                    (dropdownKbIndex[index] ?? -1) === ei ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-gray-50'
+                                  className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
+                                    (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
                                   }`}>
                                   <span className="font-medium">{e.name}</span>
                                   <div className="flex items-center gap-1.5">
