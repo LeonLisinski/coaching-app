@@ -400,13 +400,16 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                         </div>
 
                         {day.mode === 'template' && (
-                          <select value={day.template_id || ''} onChange={e => updateDayField(index, 'template_id', e.target.value || null)}
-                            className="w-full border rounded-md px-2.5 py-0 text-xs h-7 bg-white text-gray-700">
-                            <option value="">{t('form.noTemplate')}</option>
-                            {templates.map(tmpl => (
-                              <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select value={day.template_id || ''} onChange={e => updateDayField(index, 'template_id', e.target.value || null)}
+                              className="w-full border border-blue-200 rounded-md pl-3 pr-8 py-0 text-xs h-7 bg-white text-gray-700 appearance-none focus:outline-none focus:border-blue-400 cursor-pointer">
+                              <option value="">{t('form.noTemplate')}</option>
+                              {templates.map(tmpl => (
+                                <option key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.exercises?.length || 0} {t('form.exerciseCountSuffix')})</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
+                          </div>
                         )}
 
                         {/* Search */}

@@ -57,7 +57,7 @@ function SortableItem({
   isNew?: boolean
 }) {
   const t = useTranslations('training.dialogs.template')
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
 
@@ -70,13 +70,13 @@ function SortableItem({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`border border-blue-300 rounded-lg bg-blue-50 overflow-hidden ${isNew ? 'item-added' : ''}`}
+      className={`border border-emerald-300 rounded-lg bg-emerald-50 overflow-hidden ${isNew ? 'item-added' : ''}`}
     >
       {/* Collapsed header — always visible */}
       <div className="flex items-center gap-1.5 px-2 py-2">
         <button
           type="button" {...listeners} {...attributes}
-          className="cursor-grab active:cursor-grabbing text-blue-300 hover:text-blue-500 shrink-0 touch-none transition-colors"
+          className="cursor-grab active:cursor-grabbing text-emerald-300 hover:text-emerald-500 shrink-0 touch-none transition-colors"
           tabIndex={-1}
           title={t('dragHandleTitle')}
         >
@@ -87,23 +87,23 @@ function SortableItem({
           onClick={() => setExpanded(v => !v)}
           className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
         >
-          <div className="w-5 h-5 rounded-full bg-blue-200 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+          <div className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-700 text-[10px] font-bold flex items-center justify-center shrink-0">
             {index + 1}
           </div>
           <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{ex.name}</span>
           {!expanded && summary && (
-            <span className="text-[11px] text-blue-600 font-medium shrink-0 pr-1">{summary}</span>
+            <span className="text-[11px] text-emerald-600 font-medium shrink-0 pr-1">{summary}</span>
           )}
         </button>
         {ex.video_url && (
           <a href={ex.video_url} target="_blank" rel="noreferrer"
-            className="text-gray-400 hover:text-blue-500 transition-colors shrink-0 p-1" title="Video">
+            className="text-gray-400 hover:text-emerald-500 transition-colors shrink-0 p-1" title="Video">
             <ExternalLink size={12} />
           </a>
         )}
         {expanded
-          ? <ChevronUp size={13} className="text-blue-400 shrink-0 cursor-pointer" onClick={() => setExpanded(false)} />
-          : <ChevronDown size={13} className="text-blue-400 shrink-0 cursor-pointer" onClick={() => setExpanded(true)} />}
+          ? <ChevronUp size={13} className="text-emerald-400 shrink-0 cursor-pointer" onClick={() => setExpanded(false)} />
+          : <ChevronDown size={13} className="text-emerald-400 shrink-0 cursor-pointer" onClick={() => setExpanded(true)} />}
         <button type="button" onClick={onRemove}
           className="shrink-0 p-1 rounded hover:bg-red-50 transition-colors text-gray-300 hover:text-red-500"
           title={t('removeExerciseHandleTitle')}>
@@ -113,38 +113,38 @@ function SortableItem({
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className="px-2 pb-2 pt-1.5 border-t border-blue-200 space-y-1.5">
+        <div className="px-2 pb-2 pt-1.5 border-t border-emerald-200 space-y-1.5">
           <div className="flex flex-wrap gap-2">
             <div className="flex-1 basis-12 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-blue-700 leading-none">{t('sets')}</p>
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('sets')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.sets}
                 onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-blue-700 leading-none">{t('repsLabel')}</p>
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('repsLabel')}</p>
               <input
                 value={ex.reps}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder="8-12"
-                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
-              <p className="text-[10px] font-medium text-blue-700 leading-none">{t('restSecsLabel')}</p>
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('restSecsLabel')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.rest_seconds}
                 onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             {extraFields.map(f => (
               <div key={f.key} className="flex-1 basis-12 flex flex-col gap-0.5">
-                <p className="text-[10px] font-medium text-blue-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
+                <p className="text-[10px] font-medium text-emerald-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
                 <input
                   value={ex.extras?.[f.key] || ''}
                   onChange={e => onUpdateExtra(f.key, e.target.value)}
                   placeholder="—"
-                  className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400"
+                  className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400"
                 />
               </div>
             ))}
@@ -154,7 +154,7 @@ function SortableItem({
             value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={t('notePlaceholder')}
-            className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none focus:border-blue-400"
+            className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none focus:border-emerald-400"
           />
         </div>
       )}
