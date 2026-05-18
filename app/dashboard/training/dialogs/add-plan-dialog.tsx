@@ -476,12 +476,12 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                                     onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
                                     onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
                                     className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                                      (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                                      (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'
                                     }`}>
                                     <span className="font-medium">{e.name}</span>
                                     <div className="flex items-center gap-1.5">
-                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t('form.enduranceBadge')}</span>}
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200">{e.category}</span>
+                                      {e.exercise_type === 'endurance' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{t('form.enduranceBadge')}</span>}
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{e.category}</span>
                                     </div>
                                   </button>
                                 ))}
