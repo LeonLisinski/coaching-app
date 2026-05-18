@@ -21,10 +21,11 @@ import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 
 /** Custom styled select dropdown — replaces native <select> */
-function CustomSelect({ value, onChange, options }: {
+function CustomSelect({ value, onChange, options, onOpen }: {
   value: string
   onChange: (v: string) => void
   options: { value: string; label: string }[]
+  onOpen?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -36,7 +37,7 @@ function CustomSelect({ value, onChange, options }: {
   const selected = options.find(o => o.value === value)
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen(v => !v)}
+      <button type="button" onClick={() => setOpen(v => { if (!v) onOpen?.(); return !v })}
         className="w-full flex items-center justify-between border border-blue-200 rounded-md px-3 h-7 text-xs bg-white text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors">
         <span className={selected?.value ? 'text-gray-800 font-medium' : 'text-gray-400'}>{selected?.label}</span>
         <ChevronDown size={12} className={`text-blue-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
@@ -418,6 +419,10 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                           <CustomSelect
                             value={day.template_id || ''}
                             onChange={v => updateDayField(index, 'template_id', v || null)}
+                            onOpen={() => {
+                              setExerciseSearch(prev => ({ ...prev, [index]: '' }))
+                              setSearchFocused(prev => ({ ...prev, [index]: false }))
+                            }}
                             options={[
                               { value: '', label: t('form.noTemplate') },
                               ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${tmpl.exercises?.length || 0} ${t('form.exerciseCountSuffix')})` }))
