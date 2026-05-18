@@ -113,40 +113,40 @@ function SortableItem({
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className="px-2 pb-2 space-y-2 border-t border-blue-200">
-          <div className="grid grid-cols-3 gap-2 pt-2">
+        <div className="px-2 pb-1.5 space-y-1 border-t border-blue-200">
+          <div className="grid grid-cols-3 gap-1.5 pt-1.5">
             <div>
-              <Label className="text-[11px] text-gray-500 font-medium">{t('sets')}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{t('sets')}</Label>
               <Input type="number" value={ex.sets}
                 onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-7 text-xs mt-0.5" />
+                className="h-6 text-xs px-2 mt-0.5" />
             </div>
             <div>
-              <Label className="text-[11px] text-gray-500 font-medium">{t('repsLabel')}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{t('repsLabel')}</Label>
               <Input value={ex.reps}
                 onChange={e => onUpdate('reps', e.target.value)}
-                placeholder="10 ili 8-12" className="h-7 text-xs mt-0.5" />
+                placeholder="10 ili 8-12" className="h-6 text-xs px-2 mt-0.5" />
             </div>
             <div>
-              <Label className="text-[11px] text-gray-500 font-medium">{t('restSecsLabel')}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{t('restSecsLabel')}</Label>
               <Input type="number" value={ex.rest_seconds}
                 onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-7 text-xs mt-0.5" />
+                className="h-6 text-xs px-2 mt-0.5" />
             </div>
           </div>
 
           {extraFields.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {extraFields.map(f => (
                 <div key={f.key}>
-                  <Label className="text-[11px] text-gray-500 font-medium">
+                  <Label className="text-[10px] text-gray-500 leading-tight">
                     {f.label} {f.unit && <span className="text-gray-400">({f.unit})</span>}
                   </Label>
                   <Input
                     value={ex.extras?.[f.key] || ''}
                     onChange={e => onUpdateExtra(f.key, e.target.value)}
                     placeholder={f.desc}
-                    className="h-7 text-xs mt-0.5"
+                    className="h-6 text-xs px-2 mt-0.5"
                   />
                 </div>
               ))}
@@ -158,7 +158,7 @@ function SortableItem({
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={t('notePlaceholder')}
             rows={1}
-            className="w-full border border-input rounded-md px-3 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+            className="w-full border border-input rounded-md px-2 py-1 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
           />
         </div>
       )}

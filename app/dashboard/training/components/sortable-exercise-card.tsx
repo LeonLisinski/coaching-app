@@ -91,39 +91,39 @@ export default function SortableExerciseCard({
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className="px-2 pb-2 space-y-2 border-t border-emerald-200">
-          <div className="grid grid-cols-3 gap-2 pt-2">
+        <div className="px-2 pb-1.5 space-y-1 border-t border-emerald-200">
+          <div className="grid grid-cols-3 gap-1.5 pt-1.5">
             <div>
-              <Label className="text-xs">{labelSets}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{labelSets}</Label>
               <Input type="number" value={ex.sets}
                 onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-7 text-xs" />
+                className="h-6 text-xs px-2" />
             </div>
             <div>
-              <Label className="text-xs">{isEndurance ? t('durationLabel') : t('reps')}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{isEndurance ? t('durationLabel') : t('reps')}</Label>
               <Input value={ex.reps}
                 onChange={e => onUpdate('reps', e.target.value)}
-                className="h-7 text-xs"
+                className="h-6 text-xs px-2"
                 placeholder={isEndurance ? '2min ili 1:30' : '10 ili 8-12'} />
             </div>
             <div>
-              <Label className="text-xs">{labelRest}</Label>
+              <Label className="text-[10px] text-gray-500 leading-tight">{labelRest}</Label>
               <Input type="number" value={ex.rest_seconds}
                 onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-7 text-xs" />
+                className="h-6 text-xs px-2" />
             </div>
           </div>
 
           {activeOptional.length > 0 && (
-            <div className={`grid gap-2 ${activeOptional.length <= 3 ? `grid-cols-${activeOptional.length}` : 'grid-cols-3'}`}>
+            <div className={`grid gap-1.5 ${activeOptional.length <= 3 ? `grid-cols-${activeOptional.length}` : 'grid-cols-3'}`}>
               {activeOptional.map(f => (
                 <div key={f.key}>
-                  <Label className="text-xs">{f.label}{f.unit ? ` (${f.unit})` : ''}</Label>
+                  <Label className="text-[10px] text-gray-500 leading-tight">{f.label}{f.unit ? ` (${f.unit})` : ''}</Label>
                   <Input
                     value={(ex as any)[f.key] ?? ''}
                     onChange={e => onUpdate(f.key, e.target.value)}
                     placeholder={f.label}
-                    className="h-7 text-xs"
+                    className="h-6 text-xs px-2"
                   />
                 </div>
               ))}
@@ -133,7 +133,7 @@ export default function SortableExerciseCard({
           <Input value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={labelNotes}
-            className="h-7 text-xs" />
+            className="h-6 text-xs px-2" />
         </div>
       )}
     </div>
