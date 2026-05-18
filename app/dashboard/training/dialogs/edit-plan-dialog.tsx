@@ -482,6 +482,13 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                                 }, 60)
                               }}
                               onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
+                              onClick={() => {
+                                if (searchFocused[index] || exerciseSearch[index]) {
+                                  setSearchFocused(prev => ({ ...prev, [index]: false }))
+                                  setExerciseSearch(prev => ({ ...prev, [index]: '' }))
+                                  ;(searchRefs.current[index])?.blur()
+                                }
+                              }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
                               placeholder={t('form.searchExercisePlaceholder')}
                               className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
