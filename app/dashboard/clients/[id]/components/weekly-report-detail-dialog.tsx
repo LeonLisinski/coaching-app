@@ -27,6 +27,33 @@ export type SavedReport = {
   snapshot: WeeklyReportSnapshot
 }
 
+/**
+ * Loads a photo URL into a canvas via createImageBitmap (which respects EXIF orientation
+ * in modern browsers) and returns a corrected JPEG data URL for embedding in PDF.
+ * Falls back to the original URL on any error.
+ */
+async function normalizeImageOrientation(url: string): Promise<string> {
+  try {
+    const resp = await fetch(url)
+    const blob = await resp.blob()
+    // imageOrientation: 'from-image' applies EXIF rotation automatically
+    const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' })
+    const MAX = 1600
+    const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height))
+    const w = Math.round(bitmap.width * scale)
+    const h = Math.round(bitmap.height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    bitmap.close()
+    return canvas.toDataURL('image/jpeg', 0.82)
+  } catch {
+    return url
+  }
+}
+
 type Props = {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -68,14 +95,30 @@ export default function WeeklyReportDetailDialog({
         if (data) {
           const urlMap: Record<string, string> = {}
           data.forEach((d, i) => { if (d.signedUrl) urlMap[paths[i]] = d.signedUrl })
+
+          // Collect all resolved URLs and convert to EXIF-corrected data URLs
+          const resolvedUrls: Record<string, string> = {}
+          const allSignedUrls = snap.photoSets.flatMap(set =>
+            set.photos.map(p => urlMap[p.storagePath] ?? (p.storagePath.startsWith('http') ? p.storagePath : null))
+          ).filter((u): u is string => u !== null)
+
+          await Promise.all(
+            allSignedUrls.map(async url => {
+              resolvedUrls[url] = await normalizeImageOrientation(url)
+            })
+          )
+
           snapWithPhotos = {
             ...snap,
             photoSets: snap.photoSets.map(set => ({
               ...set,
-              photos: set.photos.map(p => ({
-                ...p,
-                storagePath: urlMap[p.storagePath] ?? p.storagePath,
-              })),
+              photos: set.photos.map(p => {
+                const signedUrl = urlMap[p.storagePath] ?? (p.storagePath.startsWith('http') ? p.storagePath : null)
+                return {
+                  ...p,
+                  storagePath: signedUrl ? (resolvedUrls[signedUrl] ?? signedUrl) : p.storagePath,
+                }
+              }),
             })),
           }
         }
