@@ -382,7 +382,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
                             />
                           </div>
-                          {!!(searchFocused[index] || exerciseSearch[index]) && (
+                          {!!exerciseSearch[index] && (
                             <div
                               ref={el => { dropdownRefs.current[index] = el }}
                               className="relative border border-blue-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
