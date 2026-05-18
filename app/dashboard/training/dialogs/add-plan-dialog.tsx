@@ -160,7 +160,10 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
         }))
         return { ...d, template_id: value || null, exercises: normalized }
       }
-      if (field === 'mode') return { ...d, mode: value, template_id: null, exercises: [] }
+      if (field === 'mode') {
+        if (d.mode === value) return d
+        return { ...d, mode: value, template_id: null, exercises: [] }
+      }
       return { ...d, [field]: value }
     }))
   }
@@ -337,22 +340,25 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                     {isDayExpanded(index) && (
                       <div className="px-2.5 pb-2.5 pt-2 space-y-2">
 
-                        {/* Row 1: name input + mode toggle on one line */}
+                        {/* Row 1: name input + segmented mode control */}
                         <div className="flex items-center gap-1.5">
                           <Input value={day.name} onChange={e => updateDayField(index, 'name', e.target.value)}
                             placeholder="Push, Pull, Legs..." className="flex-1 h-7 text-xs" />
-                          {(['template', 'custom'] as const).map(mode => (
-                            <button key={mode} type="button" onClick={() => updateDayField(index, 'mode', mode)}
-                              title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
-                              className={`flex items-center gap-1 text-xs px-2 py-1 h-7 rounded-md border transition-colors shrink-0 ${
-                                day.mode === mode
-                                  ? 'bg-blue-600 text-white border-blue-600 font-semibold'
-                                  : 'text-gray-500 border-gray-300 hover:border-gray-400 bg-white'
-                              }`}>
-                              {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
-                              <span className="hidden sm:inline">{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
-                            </button>
-                          ))}
+                          <div className="flex rounded-md border border-gray-300 overflow-hidden shrink-0 text-xs">
+                            {(['template', 'custom'] as const).map((mode, mi) => (
+                              <button key={mode} type="button"
+                                onClick={() => updateDayField(index, 'mode', mode)}
+                                title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
+                                className={`flex items-center gap-1 px-2 py-1 h-7 transition-colors ${mi > 0 ? 'border-l border-gray-300' : ''} ${
+                                  day.mode === mode
+                                    ? 'bg-blue-600 text-white font-semibold'
+                                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                                }`}>
+                                {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
+                                <span>{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
 
                         {day.mode === 'template' && (
