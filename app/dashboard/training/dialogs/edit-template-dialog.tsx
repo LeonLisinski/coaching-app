@@ -118,37 +118,37 @@ function SortableItem({
       {/* Expanded inputs */}
       {expanded && (
         <div className="px-2 pb-2 pt-1.5 border-t border-blue-200 space-y-1.5">
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 items-end">
-            <div className="flex flex-col gap-0.5">
+          <div className="flex flex-wrap gap-2">
+            <div className="flex-1 basis-12 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-blue-700 leading-none">{t('sets')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.sets}
                 onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-6 w-12 rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-blue-700 leading-none">{t('repsLabel')}</p>
               <input
                 value={ex.reps}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder="8-12"
-                className="h-6 w-16 rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-blue-700 leading-none">{t('restSecsLabel')}</p>
               <input
                 type="text" inputMode="numeric" value={ex.rest_seconds}
                 onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-6 w-14 rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
+                className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400" />
             </div>
             {extraFields.map(f => (
-              <div key={f.key} className="flex flex-col gap-0.5">
+              <div key={f.key} className="flex-1 basis-12 flex flex-col gap-0.5">
                 <p className="text-[10px] font-medium text-blue-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
                 <input
                   value={ex.extras?.[f.key] || ''}
                   onChange={e => onUpdateExtra(f.key, e.target.value)}
                   placeholder="—"
-                  className="h-6 w-14 rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400"
+                  className="h-6 w-full rounded border border-blue-200 bg-white px-2 text-xs focus:outline-none focus:border-blue-400"
                 />
               </div>
             ))}
