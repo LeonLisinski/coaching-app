@@ -92,43 +92,47 @@ export default function SortableExerciseCard({
       {/* Expanded inputs */}
       {expanded && (
         <div className="px-2 pb-2 pt-1.5 border-t border-emerald-200 space-y-1.5">
-          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-            <div>
-              <p className="text-[10px] font-medium text-emerald-700 mb-0.5">{labelSets}</p>
-              <input type="number" value={ex.sets}
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 items-end">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{labelSets}</p>
+              <input
+                type="text" inputMode="numeric" value={ex.sets}
                 onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-6 w-14 rounded border border-emerald-200 bg-white px-1.5 text-xs text-center focus:outline-none focus:border-emerald-400" />
+                className="h-6 w-12 rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
-            <div>
-              <p className="text-[10px] font-medium text-emerald-700 mb-0.5">{isEndurance ? t('durationLabel') : t('reps')}</p>
-              <input value={ex.reps}
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{isEndurance ? t('durationLabel') : t('reps')}</p>
+              <input
+                value={ex.reps}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder={isEndurance ? '2min' : '8-12'}
-                className="h-6 w-16 rounded border border-emerald-200 bg-white px-1.5 text-xs text-center focus:outline-none focus:border-emerald-400" />
+                className="h-6 w-16 rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
-            <div>
-              <p className="text-[10px] font-medium text-emerald-700 mb-0.5">{labelRest}</p>
-              <input type="number" value={ex.rest_seconds}
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] font-medium text-emerald-700 leading-none">{labelRest}</p>
+              <input
+                type="text" inputMode="numeric" value={ex.rest_seconds}
                 onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-6 w-14 rounded border border-emerald-200 bg-white px-1.5 text-xs text-center focus:outline-none focus:border-emerald-400" />
+                className="h-6 w-14 rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             {activeOptional.map(f => (
-              <div key={f.key}>
-                <p className="text-[10px] font-medium text-emerald-700 mb-0.5">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
+              <div key={f.key} className="flex flex-col gap-0.5">
+                <p className="text-[10px] font-medium text-emerald-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
                 <input
                   value={(ex as any)[f.key] ?? ''}
                   onChange={e => onUpdate(f.key, e.target.value)}
                   placeholder="—"
-                  className="h-6 w-14 rounded border border-emerald-200 bg-white px-1.5 text-xs text-center focus:outline-none focus:border-emerald-400"
+                  className="h-6 w-14 rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400"
                 />
               </div>
             ))}
           </div>
 
-          <input value={ex.notes}
+          <input
+            value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={labelNotes}
-            className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
+            className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none focus:border-emerald-400" />
         </div>
       )}
     </div>
