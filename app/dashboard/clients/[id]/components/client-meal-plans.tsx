@@ -94,10 +94,47 @@ function SortableMealCard({
   onRemove: () => void
 }) {
   const t = useTranslations('clients.mealPlans')
+  const [showIngredients, setShowIngredients] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: meal.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
 
   const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
+
+  // Use custom_ingredients if set (edited), otherwise fall back to recipe's ingredients
+  const ingredients: any[] =
+    meal.custom_ingredients && meal.custom_ingredients.length > 0
+      ? meal.custom_ingredients
+      : recipes.find(r => r.id === meal.recipe_id)?.ingredients || []
+
+  const updateIngredientGrams = (food_id: string, newGrams: number) => {
+    const updated = ingredients.map(ing => {
+      if (ing.food_id !== food_id) return ing
+      const oldGrams = ing.grams || 100
+      const ratio = newGrams / oldGrams
+      return {
+        ...ing,
+        grams: newGrams,
+        calories: ing.calories * ratio,
+        protein: ing.protein * ratio,
+        carbs: ing.carbs * ratio,
+        fat: ing.fat * ratio,
+      }
+    })
+    const totals = updated.reduce(
+      (acc, ing) => ({
+        calories: acc.calories + (ing.calories || 0),
+        protein:  acc.protein  + (ing.protein  || 0),
+        carbs:    acc.carbs    + (ing.carbs    || 0),
+        fat:      acc.fat      + (ing.fat      || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    )
+    onUpdate('custom_ingredients', updated)
+    onUpdate('calories', Math.round(totals.calories))
+    onUpdate('protein',  Math.round(totals.protein  * 10) / 10)
+    onUpdate('carbs',    Math.round(totals.carbs    * 10) / 10)
+    onUpdate('fat',      Math.round(totals.fat      * 10) / 10)
+  }
 
   return (
     <div ref={setNodeRef} style={style} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
@@ -129,6 +166,7 @@ function SortableMealCard({
           onUpdate('protein', recipe?.total_protein || 0)
           onUpdate('carbs', recipe?.total_carbs || 0)
           onUpdate('fat', recipe?.total_fat || 0)
+          onUpdate('custom_ingredients', recipe?.ingredients ? [...recipe.ingredients] : [])
         }}>
           <SelectTrigger className="h-8 text-sm border-gray-200">
             <SelectValue placeholder={t('selectRecipePlaceholder')} />
@@ -157,11 +195,42 @@ function SortableMealCard({
                 type="number"
                 value={Math.round((meal as any)[f.key]) || 0}
                 onChange={e => onUpdate(f.key, parseFloat(e.target.value) || 0)}
-                className="w-full h-7 text-xs border border-gray-200 rounded-md px-2 text-center focus:border-orange-300 focus:outline-none"
+                className="w-full h-7 text-xs border border-gray-200 rounded-md px-2 text-center focus:border-purple-300 focus:outline-none"
               />
             </div>
           ))}
         </div>
+
+        {/* Ingredient editing — visible when a recipe is selected */}
+        {meal.recipe_id && ingredients.length > 0 && (
+          <div className="border-t border-gray-100 pt-2 mt-1">
+            <button
+              type="button"
+              onClick={() => setShowIngredients(v => !v)}
+              className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-purple-600 transition-colors"
+            >
+              {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              Namirnice ({ingredients.length})
+            </button>
+            {showIngredients && (
+              <div className="mt-2 space-y-1.5">
+                {ingredients.map((ing: any) => (
+                  <div key={ing.food_id} className="flex items-center gap-2">
+                    <span className="flex-1 text-xs text-gray-600 truncate">{ing.name}</span>
+                    <input
+                      type="number"
+                      value={Math.round(ing.grams) || 0}
+                      onChange={e => updateIngredientGrams(ing.food_id, parseFloat(e.target.value) || 0)}
+                      className="w-16 h-6 text-xs border border-gray-200 rounded px-1.5 text-center focus:border-purple-300 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-gray-400 w-3">g</span>
+                    <span className="text-[10px] text-gray-400 w-14 text-right">{Math.round(ing.calories)} kcal</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -847,13 +916,13 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
           <DialogDescription className="sr-only">{t('assignDialogTitle')}</DialogDescription>
 
           {/* Gradient header */}
-          <div className="bg-gradient-to-r from-orange-500 to-rose-500 px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg">
+          <div className="bg-gradient-to-r from-purple-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg">
             <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
               <UtensilsCrossed size={16} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-white font-bold text-base">{t('assignDialogTitle')}</h2>
-              <p className="text-orange-100/70 text-xs">{t('assignDialogSubtitle')}</p>
+              <p className="text-purple-100/70 text-xs">{t('assignDialogSubtitle')}</p>
             </div>
             <button
               type="button"
@@ -999,7 +1068,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
           <div className="px-6 py-4 border-t bg-white shrink-0">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setShowAssignDialog(false)} className="flex-1">{tCommon('cancel')}</Button>
-              <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1 bg-orange-500 hover:bg-orange-600">
+              <Button onClick={assignPlan} disabled={!selectedPlanId || assigning} className="flex-1 bg-purple-600 hover:bg-purple-700">
                 {assigning ? t('assigning') : t('assign')}
               </Button>
             </div>

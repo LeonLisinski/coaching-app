@@ -975,7 +975,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
           <DialogDescription className="sr-only">{t('assignDialogTitle')}</DialogDescription>
 
           {/* Gradient header */}
-          <div className="px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg" style={{ background: `linear-gradient(135deg, ${accentHex}ee, ${accentHex}cc)` }}>
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-500 px-6 py-4 shrink-0 flex items-center gap-3 rounded-t-lg">
             <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
               <Dumbbell size={16} className="text-white" />
             </div>
