@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { X, GripVertical, Search, ExternalLink, LayoutList, Plus } from 'lucide-react'
+import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
@@ -57,34 +57,53 @@ function SortableItem({
   isNew?: boolean
 }) {
   const t = useTranslations('training.dialogs.template')
+  const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
+
+  const summary = [
+    ex.sets ? `${ex.sets}×${ex.reps || '—'}` : null,
+    ex.rest_seconds ? `${ex.rest_seconds}s` : null,
+  ].filter(Boolean).join(' · ')
 
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`border border-blue-100 rounded-xl p-3 space-y-2 bg-blue-50/20 shadow-sm hover:border-blue-300 transition-colors ${isNew ? 'item-added' : ''}`}
+      className={`border border-blue-300 rounded-lg bg-blue-50 overflow-hidden ${isNew ? 'item-added' : ''}`}
     >
-      <div className="flex items-center gap-2">
+      {/* Collapsed header — always visible */}
+      <div className="flex items-center gap-1.5 px-2 py-2">
         <button
           type="button" {...listeners} {...attributes}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-blue-400 shrink-0 touch-none transition-colors"
+          className="cursor-grab active:cursor-grabbing text-blue-300 hover:text-blue-500 shrink-0 touch-none transition-colors"
           tabIndex={-1}
           title={t('dragHandleTitle')}
         >
           <GripVertical size={15} />
         </button>
-        <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold flex items-center justify-center shrink-0">
-          {index + 1}
-        </div>
-        <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{ex.name}</span>
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+        >
+          <div className="w-5 h-5 rounded-full bg-blue-200 text-blue-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+            {index + 1}
+          </div>
+          <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{ex.name}</span>
+          {!expanded && summary && (
+            <span className="text-[11px] text-blue-600 font-medium shrink-0 pr-1">{summary}</span>
+          )}
+        </button>
         {ex.video_url && (
           <a href={ex.video_url} target="_blank" rel="noreferrer"
             className="text-gray-400 hover:text-blue-500 transition-colors shrink-0 p-1" title="Video">
             <ExternalLink size={12} />
           </a>
         )}
+        {expanded
+          ? <ChevronUp size={13} className="text-blue-400 shrink-0 cursor-pointer" onClick={() => setExpanded(false)} />
+          : <ChevronDown size={13} className="text-blue-400 shrink-0 cursor-pointer" onClick={() => setExpanded(true)} />}
         <button type="button" onClick={onRemove}
           className="shrink-0 p-1 rounded hover:bg-red-50 transition-colors text-gray-300 hover:text-red-500"
           title={t('removeExerciseHandleTitle')}>
@@ -92,52 +111,57 @@ function SortableItem({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 ml-7">
-        <div>
-          <Label className="text-[11px] text-gray-500 font-medium">{t('sets')}</Label>
-          <Input type="number" value={ex.sets}
-            onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-            className="h-7 text-xs mt-0.5" />
-        </div>
-        <div>
-          <Label className="text-[11px] text-gray-500 font-medium">{t('repsLabel')}</Label>
-          <Input value={ex.reps}
-            onChange={e => onUpdate('reps', e.target.value)}
-            placeholder="10 ili 8-12" className="h-7 text-xs mt-0.5" />
-        </div>
-        <div>
-          <Label className="text-[11px] text-gray-500 font-medium">{t('restSecsLabel')}</Label>
-          <Input type="number" value={ex.rest_seconds}
-            onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-            className="h-7 text-xs mt-0.5" />
-        </div>
-      </div>
-
-      {extraFields.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 ml-7">
-          {extraFields.map(f => (
-            <div key={f.key}>
-              <Label className="text-[11px] text-gray-500 font-medium">
-                {f.label} {f.unit && <span className="text-gray-400">({f.unit})</span>}
-              </Label>
-              <Input
-                value={ex.extras?.[f.key] || ''}
-                onChange={e => onUpdateExtra(f.key, e.target.value)}
-                placeholder={f.desc}
-                className="h-7 text-xs mt-0.5"
-              />
+      {/* Expanded inputs */}
+      {expanded && (
+        <div className="px-2 pb-2 space-y-2 border-t border-blue-200">
+          <div className="grid grid-cols-3 gap-2 pt-2">
+            <div>
+              <Label className="text-[11px] text-gray-500 font-medium">{t('sets')}</Label>
+              <Input type="number" value={ex.sets}
+                onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
+                className="h-7 text-xs mt-0.5" />
             </div>
-          ))}
+            <div>
+              <Label className="text-[11px] text-gray-500 font-medium">{t('repsLabel')}</Label>
+              <Input value={ex.reps}
+                onChange={e => onUpdate('reps', e.target.value)}
+                placeholder="10 ili 8-12" className="h-7 text-xs mt-0.5" />
+            </div>
+            <div>
+              <Label className="text-[11px] text-gray-500 font-medium">{t('restSecsLabel')}</Label>
+              <Input type="number" value={ex.rest_seconds}
+                onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
+                className="h-7 text-xs mt-0.5" />
+            </div>
+          </div>
+
+          {extraFields.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {extraFields.map(f => (
+                <div key={f.key}>
+                  <Label className="text-[11px] text-gray-500 font-medium">
+                    {f.label} {f.unit && <span className="text-gray-400">({f.unit})</span>}
+                  </Label>
+                  <Input
+                    value={ex.extras?.[f.key] || ''}
+                    onChange={e => onUpdateExtra(f.key, e.target.value)}
+                    placeholder={f.desc}
+                    className="h-7 text-xs mt-0.5"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <textarea
+            value={ex.notes}
+            onChange={e => onUpdate('notes', e.target.value)}
+            placeholder={t('notePlaceholder')}
+            rows={1}
+            className="w-full border border-input rounded-md px-3 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
+          />
         </div>
       )}
-
-      <textarea
-        value={ex.notes}
-        onChange={e => onUpdate('notes', e.target.value)}
-        placeholder={t('notePlaceholder')}
-        rows={1}
-        className="ml-7 w-[calc(100%-1.75rem)] border border-input rounded-md px-3 py-1.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
-      />
     </div>
   )
 }
