@@ -416,39 +416,43 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                           </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
                             <div
-                              ref={el => { dropdownRefs.current[index] = el }}
-                              className="relative border border-blue-100 rounded-xl bg-white shadow-md overflow-y-auto max-h-48"
-                              onWheel={e => e.stopPropagation()}
+                              className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden"
                             >
-                              {getFilteredExercisesForDay(index).length === 0 ? (
-                                <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
-                                  {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
-                                </p>
-                              ) : getFilteredExercisesForDay(index).map((e, ei) => (
-                                <button key={e.id} type="button"
-                                  data-kb-item={ei}
-                                  onMouseDown={ev => ev.preventDefault()}
-                                  onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
-                                  onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
-                                  className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                                    (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
-                                  }`}>
-                                  <span className="font-medium">{e.name}</span>
-                                  <div className="flex items-center gap-1.5">
-                                    {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t('form.enduranceBadge')}</span>}
-                                    <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200">{e.category}</span>
-                                  </div>
-                                </button>
-                              ))}
-                              {exerciseSearch[index] && (
+                              <div
+                                ref={el => { dropdownRefs.current[index] = el }}
+                                className="relative overflow-y-auto max-h-48"
+                                onWheel={e => e.stopPropagation()}
+                              >
+                                {getFilteredExercisesForDay(index).length === 0 ? (
+                                  <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
+                                    {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
+                                  </p>
+                                ) : getFilteredExercisesForDay(index).map((e, ei) => (
+                                  <button key={e.id} type="button"
+                                    data-kb-item={ei}
+                                    onMouseDown={ev => ev.preventDefault()}
+                                    onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
+                                    onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
+                                    className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
+                                      (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'
+                                    }`}>
+                                    <span className="font-medium">{e.name}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      {e.exercise_type === 'endurance' && <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{t('form.enduranceBadge')}</span>}
+                                      <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200">{e.category}</span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
                                 <button type="button"
                                   onMouseDown={ev => ev.preventDefault()}
-                                  onClick={() => { setCreateExerciseName(exerciseSearch[index]); setCreateExerciseFor(index) }}
-                                  className="w-full text-left px-3 py-2 flex items-center gap-2 text-xs text-emerald-700 hover:bg-emerald-50 border-t border-gray-100 font-medium">
+                                  onClick={() => { setCreateExerciseName(exerciseSearch[index] || ''); setCreateExerciseFor(index) }}
+                                  className="w-full text-left text-xs text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 font-medium transition-colors">
                                   <Plus size={12} />
-                                  <span>Kreiraj vježbu &ldquo;{exerciseSearch[index]}&rdquo;</span>
+                                  <span>{exerciseSearch[index] ? `Kreiraj vježbu "${exerciseSearch[index]}"` : 'Kreiraj novu vježbu'}</span>
                                 </button>
-                              )}
+                              </div>
                             </div>
                           )}
                         </div>

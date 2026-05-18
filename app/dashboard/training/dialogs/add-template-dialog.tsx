@@ -321,6 +321,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
       <AddExerciseDialog
         open={showAddExercise}
         onClose={() => setShowAddExercise(false)}
+        initialName={search}
         onSuccess={(exercise?: CreatedExercise) => {
           if (exercise) addExercise({ ...exercise, muscle_group: exercise.muscle_group ?? undefined, video_url: exercise.video_url ?? undefined })
           fetchExercises()
