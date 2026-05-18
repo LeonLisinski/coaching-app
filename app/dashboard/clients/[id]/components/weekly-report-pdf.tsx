@@ -58,7 +58,8 @@ function fmtNum(n: number): string {
 
 function formatParamVal(v: unknown): string {
   if (v == null || v === '') return '—'
-  if (typeof v === 'boolean') return v ? '✓' : '—'
+  if (v === true || v === 'true') return '✓'
+  if (v === false || v === 'false') return '—'
   if (typeof v === 'number') return String(Math.round(v * 100) / 100)
   return String(v)
 }
@@ -67,19 +68,21 @@ function formatParamVal(v: unknown): string {
 function computeMode(values: { date: string; value: unknown }[]): unknown {
   if (!values || values.length === 0) return null
   const freq = new Map<string, number>()
+  const origVal = new Map<string, unknown>()
   for (const v of values) {
     const key = String(v.value)
     freq.set(key, (freq.get(key) ?? 0) + 1)
+    if (!origVal.has(key)) origVal.set(key, v.value)
   }
   let maxFreq = 0
-  let mode: unknown = null
+  let modeKey: string | null = null
   for (const [val, count] of freq) {
     if (count > maxFreq) {
       maxFreq = count
-      mode = val
+      modeKey = val
     }
   }
-  return mode
+  return modeKey !== null ? (origVal.get(modeKey) ?? modeKey) : null
 }
 
 // ── Colours ───────────────────────────────────────────────────────────────────
@@ -653,11 +656,11 @@ function ParametersSection({ snap }: { snap: WeeklyReportSnapshot }) {
 }
 
 function PhotosSection({ photoSets }: { photoSets: WeeklyReportSnapshot['photoSets'] }) {
-  // Only render photos that have been pre-signed (full https URLs)
+  // Only render photos that have been resolved — either pre-signed https URLs or data: URLs
   const setsWithUrls = photoSets
     .map(set => ({
       ...set,
-      photos: set.photos.filter(p => p.storagePath?.startsWith('http')),
+      photos: set.photos.filter(p => p.storagePath?.startsWith('http') || p.storagePath?.startsWith('data:')),
     }))
     .filter(set => set.photos.length > 0)
 
