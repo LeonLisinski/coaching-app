@@ -294,16 +294,18 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                 ].map(f => (
                   <div key={f.key} className="space-y-1">
                     <Label className="text-xs">{f.label}</Label>
-                    <Input type="number" value={targets[f.key as keyof typeof targets]} onKeyDown={decimalKeyDown}
-                      onChange={e => setTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    <Input type="text" inputMode="numeric" value={targets[f.key as keyof typeof targets]}
+                      onFocus={e => e.target.select()}
+                      onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ''); setTargets(prev => ({ ...prev, [f.key]: v })) }}
                       className="h-7 text-sm" placeholder={f.placeholder} />
                   </div>
                 ))}
                 {activeExtraFields.map(f => (
                   <div key={f.key} className="space-y-1">
                     <Label className="text-xs">{f.label} ({f.unit})</Label>
-                    <Input type="number" value={extrasTargets[f.key] ?? ''} onKeyDown={decimalKeyDown}
-                      onChange={e => setExtrasTargets(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    <Input type="text" inputMode="decimal" value={extrasTargets[f.key] ?? ''}
+                      onFocus={e => e.target.select()}
+                      onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1'); if (parseFloat(v) >= 0 || v === '' || v === '.') setExtrasTargets(prev => ({ ...prev, [f.key]: v })) }}
                       className="h-7 text-sm" placeholder="—" />
                   </div>
                 ))}

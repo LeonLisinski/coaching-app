@@ -33,11 +33,13 @@ function GramInput({ value, onChange, className }: { value: number; onChange: (v
       type="text"
       inputMode="decimal"
       value={display}
+      onFocus={e => e.target.select()}
       onChange={e => {
-        const raw = e.target.value.replace(',', '.')
+        const raw = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
         setDisplay(raw)
         const num = parseFloat(raw)
-        if (!isNaN(num)) { prevExternal.current = num; onChange(num) }
+        if (!isNaN(num) && num >= 0) { prevExternal.current = num; onChange(num) }
+        else if (raw === '' || raw === '.') { prevExternal.current = 0; onChange(0) }
       }}
       className={className}
     />

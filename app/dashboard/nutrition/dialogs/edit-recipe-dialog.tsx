@@ -265,9 +265,14 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
                 <div key={ing.food_id} className={`flex items-center gap-3 border border-orange-100 bg-orange-50/30 rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
                   <span className="text-sm flex-1 font-medium text-gray-800">{ing.name}</span>
                   <div className="flex items-center gap-2">
-                    <Input type="number" value={ing.grams}
-                      onChange={e => updateGrams(ing.food_id, parseFloat(e.target.value) || 0)}
-                      className="w-20 h-7 text-sm border-orange-200 focus:border-orange-400" />
+                  <Input type="text" inputMode="numeric" value={ing.grams || ''}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value.replace(',', '.'))
+                      if (!isNaN(v) && v >= 0) updateGrams(ing.food_id, v)
+                      else if (e.target.value === '') updateGrams(ing.food_id, 0)
+                    }}
+                    className="w-20 h-7 text-sm border-orange-200 focus:border-orange-400" />
                     <span className="text-xs text-gray-500">g</span>
                   </div>
                   <div className="text-xs text-orange-600 font-medium w-24 text-right">{Math.round(ing.calories)} kcal</div>

@@ -122,14 +122,16 @@ function SortableItem({
             <div className="flex-1 basis-12 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('sets')}</p>
               <input
-                type="text" inputMode="numeric" value={ex.sets}
-                onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
+                type="text" inputMode="numeric" value={ex.sets || ''}
+                onFocus={e => e.target.select()}
+                onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('sets', isNaN(v) ? 0 : v) }}
                 className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('repsLabel')}</p>
               <input
                 value={ex.reps}
+                onFocus={e => e.target.select()}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder="8-12"
                 className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
@@ -137,8 +139,9 @@ function SortableItem({
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className="text-[10px] font-medium text-emerald-700 leading-none">{t('restSecsLabel')}</p>
               <input
-                type="text" inputMode="numeric" value={ex.rest_seconds}
-                onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
+                type="text" inputMode="numeric" value={ex.rest_seconds || ''}
+                onFocus={e => e.target.select()}
+                onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('rest_seconds', isNaN(v) ? 0 : v) }}
                 className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
             </div>
             {extraFields.map(f => (
@@ -146,6 +149,7 @@ function SortableItem({
                 <p className="text-[10px] font-medium text-emerald-700 leading-none whitespace-nowrap">{f.label}{f.unit ? ` (${f.unit})` : ''}</p>
                 <input
                   value={ex.extras?.[f.key] || ''}
+                  onFocus={e => e.target.select()}
                   onChange={e => onUpdateExtra(f.key, e.target.value)}
                   placeholder="—"
                   className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400"
