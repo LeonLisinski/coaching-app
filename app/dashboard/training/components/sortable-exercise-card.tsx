@@ -91,49 +91,39 @@ export default function SortableExerciseCard({
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className="px-2 pb-1.5 space-y-1 border-t border-emerald-200">
-          <div className="grid grid-cols-3 gap-1.5 pt-1.5">
-            <div>
-              <Label className="text-[10px] text-gray-500 leading-tight">{labelSets}</Label>
-              <Input type="number" value={ex.sets}
-                onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
-                className="h-6 text-xs px-2" />
-            </div>
-            <div>
-              <Label className="text-[10px] text-gray-500 leading-tight">{isEndurance ? t('durationLabel') : t('reps')}</Label>
-              <Input value={ex.reps}
-                onChange={e => onUpdate('reps', e.target.value)}
-                className="h-6 text-xs px-2"
-                placeholder={isEndurance ? '2min ili 1:30' : '10 ili 8-12'} />
-            </div>
-            <div>
-              <Label className="text-[10px] text-gray-500 leading-tight">{labelRest}</Label>
-              <Input type="number" value={ex.rest_seconds}
-                onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
-                className="h-6 text-xs px-2" />
-            </div>
+        <div className="px-2 pb-1.5 pt-1.5 border-t border-emerald-200 space-y-1">
+          <div className="grid grid-cols-3 gap-1">
+            <input type="number" value={ex.sets}
+              onChange={e => onUpdate('sets', parseInt(e.target.value) || 0)}
+              placeholder={labelSets}
+              className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-center focus:outline-none focus:border-emerald-400" />
+            <input value={ex.reps}
+              onChange={e => onUpdate('reps', e.target.value)}
+              placeholder={isEndurance ? t('durationLabel') : t('reps')}
+              className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-center focus:outline-none focus:border-emerald-400" />
+            <input type="number" value={ex.rest_seconds}
+              onChange={e => onUpdate('rest_seconds', parseInt(e.target.value) || 0)}
+              placeholder={labelRest}
+              className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-center focus:outline-none focus:border-emerald-400" />
           </div>
 
           {activeOptional.length > 0 && (
-            <div className={`grid gap-1.5 ${activeOptional.length <= 3 ? `grid-cols-${activeOptional.length}` : 'grid-cols-3'}`}>
+            <div className={`grid gap-1 ${activeOptional.length <= 3 ? `grid-cols-${activeOptional.length}` : 'grid-cols-3'}`}>
               {activeOptional.map(f => (
-                <div key={f.key}>
-                  <Label className="text-[10px] text-gray-500 leading-tight">{f.label}{f.unit ? ` (${f.unit})` : ''}</Label>
-                  <Input
-                    value={(ex as any)[f.key] ?? ''}
-                    onChange={e => onUpdate(f.key, e.target.value)}
-                    placeholder={f.label}
-                    className="h-6 text-xs px-2"
-                  />
-                </div>
+                <input key={f.key}
+                  value={(ex as any)[f.key] ?? ''}
+                  onChange={e => onUpdate(f.key, e.target.value)}
+                  placeholder={f.label}
+                  className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs text-center focus:outline-none focus:border-emerald-400"
+                />
               ))}
             </div>
           )}
 
-          <Input value={ex.notes}
+          <input value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={labelNotes}
-            className="h-6 text-xs px-2" />
+            className="h-6 w-full rounded border border-emerald-200 bg-white px-2 text-xs focus:outline-none focus:border-emerald-400" />
         </div>
       )}
     </div>
