@@ -287,7 +287,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const handleExerciseCreated = (dayIndex: number, exercise: CreatedExercise) => {
     const ex: Exercise = { id: exercise.id, name: exercise.name, category: exercise.category, exercise_type: 'strength' }
     setExercises(prev => [...prev, ex])
-    addExerciseToDay(dayIndex, ex)
+    addExercise(dayIndex, ex)
     setCreateExerciseFor(null)
     setCreateExerciseName('')
   }
