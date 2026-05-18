@@ -426,7 +426,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         )}
 
                         {/* Search */}
-                        <div className="space-y-1">
+                        <div className="relative">
                           <div className="relative">
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                               <Plus size={12} />
@@ -457,12 +457,10 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                             />
                           </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
-                            <div
-                              className="border border-blue-100 rounded-xl bg-white shadow-md overflow-hidden"
-                            >
+                            <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
                               <div
                                 ref={el => { dropdownRefs.current[index] = el }}
-                                className="relative overflow-y-auto max-h-48"
+                                className="overflow-y-auto max-h-48"
                                 onWheel={e => e.stopPropagation()}
                               >
                                 {getFilteredExercisesForDay(index).length === 0 ? (
