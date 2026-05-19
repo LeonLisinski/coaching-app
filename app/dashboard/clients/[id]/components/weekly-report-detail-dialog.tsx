@@ -201,23 +201,24 @@ export default function WeeklyReportDetailDialog({
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exportingPdf} className="flex-1 sm:flex-none">
-                {exportingPdf ? <Loader2 className="animate-spin mr-1" size={14} /> : <FileDown size={14} className="mr-1" />}
-                PDF
-              </Button>
+              {/* On mobile: visibility full-width, then PDF+Delete row */}
               <Button
                 size="sm"
                 variant={visible ? 'outline' : 'default'}
                 onClick={handleToggleVisibility}
                 disabled={updatingVisibility}
-                className="flex-1 sm:flex-none"
+                className="w-full sm:w-auto sm:flex-none order-1"
               >
                 {updatingVisibility ? <Loader2 className="animate-spin" size={14} /> : (visible ? tList('hiddenFromClient') : tList('visibleToClient'))}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exportingPdf} className="flex-1 sm:flex-none order-2">
+                {exportingPdf ? <Loader2 className="animate-spin mr-1" size={14} /> : <FileDown size={14} className="mr-1" />}
+                PDF
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="flex-1 sm:flex-none text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
+                className="flex-1 sm:flex-none order-3 text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
                 onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 size={14} className="mr-1" />
