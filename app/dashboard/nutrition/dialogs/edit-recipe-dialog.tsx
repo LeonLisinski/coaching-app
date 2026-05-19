@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { X, BookOpen, Plus } from 'lucide-react'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import AddFoodDialog from './add-food-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Food = {
   id: string; name: string
@@ -36,6 +37,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
   const t = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [name, setName] = useState(recipe.name)
   const [description, setDescription] = useState(recipe.description || '')
@@ -159,7 +162,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
   return (
     <>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+        <DialogContent className={`max-w-2xl flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh] ${isDark ? 'bg-[oklch(0.195_0.018_264)]' : 'bg-white'}`} showCloseButton={false}>
         <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
         <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
@@ -180,7 +183,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 
           {/* Fixed: name + description */}
-          <div className="px-6 pt-4 pb-3 border-b shrink-0 bg-white">
+          <div className={`px-6 pt-4 pb-3 border-b shrink-0 ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white'}`}>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>{t('name')}</Label>
@@ -194,8 +197,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
           </div>
 
           {/* Fixed: search section */}
-          <div className="px-6 py-3 border-b shrink-0 bg-white space-y-1.5">
-            <Label className="text-xs font-semibold text-gray-600">{t('addIngredients')}</Label>
+          <div className={`px-6 py-3 border-b shrink-0 space-y-1.5 ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white'}`}>
+            <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('addIngredients')}</Label>
             <div className="relative">
               <Input
                 ref={searchRef}
@@ -218,7 +221,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
                 className="focus:border-orange-300"
               />
               {showDropdown && (
-                <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-orange-100 rounded-xl bg-white shadow-lg overflow-hidden">
+                <div className={`absolute top-full left-0 right-0 z-50 mt-1 border rounded-xl shadow-lg overflow-hidden ${isDark ? 'bg-[oklch(0.22_0.018_264)] border-white/10' : 'bg-white border-orange-100'}`}>
                   {!foodsLoaded ? (
                     <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingFoods')}</p>
                   ) : (
@@ -233,8 +236,10 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
                             onMouseDown={e => e.preventDefault()}
                             onClick={() => addIngredient(f)}
                             onMouseEnter={() => setDropdownIndex(i)}
-                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                              dropdownIndex === i ? 'bg-orange-500 text-white' : 'hover:bg-orange-50'
+                            className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b last:border-0 transition-colors ${
+                              dropdownIndex === i
+                                ? 'bg-orange-500 text-white'
+                                : isDark ? 'border-white/8 hover:bg-white/[0.06] text-gray-200' : 'border-gray-50 hover:bg-orange-50'
                             }`}>
                             <span className="font-medium">{f.name}</span>
                             <span className={dropdownIndex === i ? 'text-orange-100 text-xs' : 'text-gray-400 text-xs'}>{f.calories_per_100g} kcal/100g</span>
@@ -245,7 +250,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
                         type="button"
                         onMouseDown={e => e.preventDefault()}
                         onClick={() => { setCreateFoodName(search); setCreateFoodOpen(true); setSearchFocused(false) }}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-orange-600 font-medium border-t border-orange-50 hover:bg-orange-50 transition-colors"
+                        className={`w-full flex items-center gap-2 px-4 py-2 text-xs text-orange-600 font-medium border-t transition-colors ${isDark ? 'border-white/8 hover:bg-white/[0.06]' : 'border-orange-50 hover:bg-orange-50'}`}
                       >
                         <Plus size={12} /> {search ? t('createFood', { search }) : t('createNewFood')}
                       </button>
@@ -262,8 +267,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
             <div className="space-y-2">
               <Label>{t('ingredients')} ({ingredients.length})</Label>
               {ingredients.map(ing => (
-                <div key={ing.food_id} className={`flex items-center gap-3 border border-orange-100 bg-orange-50/30 rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
-                  <span className="text-sm flex-1 font-medium text-gray-800">{ing.name}</span>
+                <div key={ing.food_id} className={`flex items-center gap-3 border rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''} ${isDark ? 'bg-white/[0.04] border-white/10' : 'border-orange-100 bg-orange-50/30'}`}>
+                  <span className={`text-sm flex-1 font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{ing.name}</span>
                   <div className="flex items-center gap-2">
                   <Input type="text" inputMode="numeric" value={ing.grams || ''}
                     onFocus={e => e.target.select()}
@@ -282,7 +287,7 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
                 </div>
               ))}
 
-              <div className="bg-orange-50 border border-orange-100 rounded-lg p-3 space-y-1">
+              <div className={`rounded-lg p-3 space-y-1 ${isDark ? 'bg-white/[0.04] border border-white/10' : 'bg-orange-50 border border-orange-100'}`}>
                 <div className="flex gap-4 text-sm">
                   <span className="font-semibold text-orange-700">{t('total')}:</span>
                   <span>🔥 {Math.round(totals.calories)} kcal</span>
@@ -305,8 +310,8 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
           <div ref={ingredientsEndRef} />
           </div>
 
-        <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+        <div className={`px-6 py-4 border-t shrink-0 flex gap-3 ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white'}`}>
+          <Button type="button" variant="outline" onClick={onClose} className={`flex-1 ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/[0.06]' : ''}`}>{tCommon('cancel')}</Button>
           <Button type="submit" disabled={loading || ingredients.length === 0} className="flex-1 bg-rose-500 hover:bg-rose-600">
             {loading ? tCommon('saving') : tCommon('saveChanges')}
           </Button>

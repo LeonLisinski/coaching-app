@@ -7,6 +7,7 @@ import { Eye, EyeOff, MessageSquare, Shield, Lock, CheckCircle2, TrendingUp, Dum
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 const FEATURE_ICONS = [Dumbbell, CheckCircle2, MessageSquare, TrendingUp] as const
 const FEATURE_KEYS  = ['training', 'checkin', 'chat', 'finance'] as const
@@ -14,6 +15,8 @@ const FEATURE_KEYS  = ['training', 'checkin', 'chat', 'finance'] as const
 export default function LoginPage() {
   const t = useTranslations('login')
   const searchParams = useSearchParams()
+  const { mode: themeMode } = useAppTheme()
+  const isDark = themeMode === 'dark'
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd]   = useState(false)
@@ -105,7 +108,7 @@ export default function LoginPage() {
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor = 'var(--app-accent)'
     e.currentTarget.style.boxShadow   = '0 0 0 3px color-mix(in srgb, var(--app-accent) 18%, transparent)'
-    e.currentTarget.style.backgroundColor = '#fff'
+    e.currentTarget.style.backgroundColor = isDark ? 'rgba(255,255,255,0.06)' : '#fff'
   }
   const inputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor = ''
@@ -115,7 +118,7 @@ export default function LoginPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f7f8fb]">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: isDark ? 'oklch(0.085 0.012 264)' : '#f7f8fb' }}>
         <Loader2 size={28} className="animate-spin text-gray-300" />
       </div>
     )
@@ -199,18 +202,18 @@ export default function LoginPage() {
       </div>
 
       {/* ── RIGHT: login form ── */}
-      <div className="flex-1 flex flex-col" style={{ backgroundColor: '#f7f8fb' }}>
+      <div className="flex-1 flex flex-col" style={{ backgroundColor: isDark ? 'oklch(0.085 0.012 264)' : '#f7f8fb' }}>
 
         {/* Mobile header */}
         <header
-          className="lg:hidden flex items-center px-6 bg-white border-b border-gray-100"
+          className={`lg:hidden flex items-center px-6 border-b ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-white border-gray-100'}`}
           style={{ paddingTop: 'max(1rem, env(safe-area-inset-top, 1rem))', paddingBottom: '1rem' }}
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--app-accent)' }}>
               <UnitLiftLogo fill="white" tight={false} className="w-5 h-5" />
             </div>
-            <span className="font-black text-sm text-gray-900">UnitLift</span>
+            <span className={`font-black text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>UnitLift</span>
           </div>
         </header>
 
@@ -219,7 +222,11 @@ export default function LoginPage() {
           <div className="w-full max-w-[440px] my-auto">
 
             {/* Card */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_4px_32px_rgba(0,0,0,0.07)] px-9 py-10 space-y-7">
+            <div className={`rounded-2xl border px-9 py-10 space-y-7 ${
+              isDark
+                ? 'bg-[oklch(0.195_0.018_264)] border-white/8 shadow-[0_4px_32px_rgba(0,0,0,0.35)]'
+                : 'bg-white border-gray-100 shadow-[0_4px_32px_rgba(0,0,0,0.07)]'
+            }`}>
 
               {/* Logo + heading */}
               <div className="space-y-5">
@@ -230,18 +237,18 @@ export default function LoginPage() {
                     <UnitLiftLogo fill="white" tight={false} className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-black text-[1.15rem] text-gray-900 tracking-tight leading-none">UnitLift</p>
-                    <p className="text-gray-400 text-[10px] tracking-widest uppercase mt-0.5">Coaching Platform</p>
+                    <p className={`font-black text-[1.15rem] tracking-tight leading-none ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>UnitLift</p>
+                    <p className={`text-[10px] tracking-widest uppercase mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Coaching Platform</p>
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-[1.75rem] font-extrabold text-gray-900 tracking-tight leading-tight">
+                  <h2 className={`text-[1.75rem] font-extrabold tracking-tight leading-tight ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
                     {mode === 'login' ? t('welcomeTitle')
                       : mode === 'forgot' ? t('forgotTitle')
                       : t('forgotSentTitle')}
                   </h2>
-                  <p className="text-gray-400 text-sm mt-1.5">
+                  <p className={`text-sm mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     {mode === 'login' ? t('welcomeSubtitle')
                       : mode === 'forgot' ? t('forgotSubtitle')
                       : t('forgotSentDesc')}
@@ -253,7 +260,7 @@ export default function LoginPage() {
               {mode === 'login' && (
                 <form onSubmit={handleLogin} className="space-y-5">
                   <div className="space-y-1.5">
-                    <label htmlFor="email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
+                    <label htmlFor="email" className={`block text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t('email')}</label>
                     <input
                       id="email" type="email" value={email}
                       onChange={e => setEmail(e.target.value)}
@@ -261,12 +268,16 @@ export default function LoginPage() {
                       autoComplete="email"
                       required
                       onFocus={inputFocus} onBlur={inputBlur}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                      className={`w-full h-11 px-4 rounded-xl border text-sm outline-none transition-all duration-150 ${
+                        isDark
+                          ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600'
+                          : 'border-gray-200 text-gray-900 placeholder:text-gray-300 bg-gray-50/80'
+                      }`}
                     />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label htmlFor="password" className="block text-sm font-semibold text-gray-700">{t('password')}</label>
+                      <label htmlFor="password" className={`block text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t('password')}</label>
                       <button type="button"
                         onClick={() => { setMode('forgot'); setForgotEmail(email); setError('') }}
                         className="text-xs font-semibold transition-all hover:underline"
@@ -282,24 +293,30 @@ export default function LoginPage() {
                         autoComplete="current-password"
                         required
                         onFocus={inputFocus} onBlur={inputBlur}
-                        className="w-full h-11 px-4 pr-11 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                        className={`w-full h-11 px-4 pr-11 rounded-xl border text-sm outline-none transition-all duration-150 ${
+                          isDark
+                            ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600'
+                            : 'border-gray-200 text-gray-900 placeholder:text-gray-300 bg-gray-50/80'
+                        }`}
                       />
                       <button type="button" onClick={() => setShowPwd(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100">
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors p-1.5 rounded-lg ${
+                          isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/8' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        }`}>
                         {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                   </div>
                   {error && (
-                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 dark:bg-red-500/10 dark:border-red-500/20 rounded-xl px-3.5 py-2.5">
                       <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
-                      <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                      <p className="text-red-600 dark:text-red-400 text-xs leading-relaxed">{error}</p>
                     </div>
                   )}
                   {info && (
-                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3.5 py-2.5">
+                    <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20 rounded-xl px-3.5 py-2.5">
                       <span className="text-blue-500 text-xs mt-0.5 shrink-0">i</span>
-                      <p className="text-blue-700 text-xs leading-relaxed">{info}</p>
+                      <p className="text-blue-700 dark:text-blue-400 text-xs leading-relaxed">{info}</p>
                     </div>
                   )}
                   <button
@@ -318,7 +335,7 @@ export default function LoginPage() {
               {mode === 'forgot' && (
                 <form onSubmit={handleForgot} className="space-y-5">
                   <div className="space-y-1.5">
-                    <label htmlFor="forgot-email" className="block text-sm font-semibold text-gray-700">{t('email')}</label>
+                    <label htmlFor="forgot-email" className={`block text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t('email')}</label>
                     <input
                       id="forgot-email" type="email" value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)}
@@ -326,13 +343,17 @@ export default function LoginPage() {
                       autoComplete="email"
                       required
                       onFocus={inputFocus} onBlur={inputBlur}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm text-gray-900 outline-none transition-all duration-150 placeholder:text-gray-300 bg-gray-50/80"
+                      className={`w-full h-11 px-4 rounded-xl border text-sm outline-none transition-all duration-150 ${
+                        isDark
+                          ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600'
+                          : 'border-gray-200 text-gray-900 placeholder:text-gray-300 bg-gray-50/80'
+                      }`}
                     />
                   </div>
                   {error && (
-                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3.5 py-2.5">
+                    <div className="flex items-start gap-2 bg-red-50 border border-red-100 dark:bg-red-500/10 dark:border-red-500/20 rounded-xl px-3.5 py-2.5">
                       <span className="text-red-400 text-xs mt-0.5 shrink-0">⚠</span>
-                      <p className="text-red-600 text-xs leading-relaxed">{error}</p>
+                      <p className="text-red-600 dark:text-red-400 text-xs leading-relaxed">{error}</p>
                     </div>
                   )}
                   <button
@@ -345,7 +366,7 @@ export default function LoginPage() {
                     {loading ? <><Loader2 size={16} className="animate-spin" />{t('forgotLoading')}</> : t('forgotSubmit')}
                   </button>
                   <button type="button" onClick={() => { setMode('login'); setError('') }}
-                    className="w-full text-center text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors">
+                    className={`w-full text-center text-sm font-semibold transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
                     ← {t('backToLogin')}
                   </button>
                 </form>
@@ -370,9 +391,9 @@ export default function LoginPage() {
               )}
 
               {/* Trust row */}
-              <div className="flex items-center justify-center gap-6 pt-1 border-t border-gray-50">
+              <div className={`flex items-center justify-center gap-6 pt-1 border-t ${isDark ? 'border-white/8' : 'border-gray-50'}`}>
                 {([{ icon: Lock, key: 'secureLogin' }, { icon: Shield, key: 'gdpr' }] as const).map(({ icon: Icon, key }) => (
-                  <div key={key} className="flex items-center gap-1.5 text-gray-400">
+                  <div key={key} className={`flex items-center gap-1.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                     <Icon size={12} />
                     <span className="text-xs font-medium">{t(key)}</span>
                   </div>
@@ -381,7 +402,7 @@ export default function LoginPage() {
             </div>
 
             {/* Register link */}
-            <p className="text-center text-xs text-gray-400 mt-5">
+            <p className={`text-center text-xs mt-5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               {t('noAccountQuestion')}{' '}
               <Link href="/register" className="font-semibold transition-colors hover:underline" style={{ color: 'var(--app-accent)' }}>
                 {t('createAccount')}

@@ -19,6 +19,7 @@ import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 /** Custom styled select dropdown — replaces native <select> */
 function CustomSelect({ value, onChange, options, onOpen }: {
@@ -84,6 +85,8 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const tCommon   = useTranslations('common')
   const tTemplate = useTranslations('training.dialogs.template')
   const { settings: trainerSettings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [name, setName]               = useState(plan.name)
   const [description, setDescription] = useState(plan.description || '')
@@ -396,9 +399,25 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
                   {(dayDragHandle) => (
-                  <div className="border border-blue-300 rounded-xl shadow-sm">
+                  <div
+                    className="rounded-xl shadow-sm overflow-hidden"
+                    style={isDark ? {
+                      border: '1px solid rgba(99,179,237,0.35)',
+                    } : {
+                      border: '1px solid #93c5fd',
+                    }}
+                  >
                     {/* Accordion header */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-100 border-b border-blue-300 rounded-t-xl">
+                    <div
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-t-xl"
+                      style={isDark ? {
+                        background: 'rgba(59,130,246,0.12)',
+                        borderBottom: '1px solid rgba(99,179,237,0.25)',
+                      } : {
+                        background: '#dbeafe',
+                        borderBottom: '1px solid #93c5fd',
+                      }}
+                    >
                       <button type="button" {...dayDragHandle} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none" tabIndex={-1}>
                         <GripVertical size={14} />
                       </button>

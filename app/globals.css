@@ -226,6 +226,13 @@ html, body {
   --sidebar-border: oklch(1 0 0 / 6%);
 }
 
+/* In dark mode, --app-accent-light is too bright to use as a hover bg.
+   Override it to a subtle transparent tint that works on dark surfaces. */
+.dark[data-accent],
+.dark:not([data-accent]) {
+  --app-accent-light: color-mix(in srgb, var(--app-accent) 14%, transparent);
+}
+
 /* ── Dark mode: solid backgrounds (whites + gray ladder) ─────────────── */
 .dark .bg-white                  { background-color: oklch(0.195 0.018 264) !important; }
 .dark .bg-gray-50                { background-color: oklch(0.155 0.015 264) !important; }
@@ -244,12 +251,13 @@ html, body {
 .dark .bg-white\/90              { background-color: oklch(0.195 0.018 264 / 0.92) !important; }
 
 /* Opacity modifier variants of gray (Tailwind bg-gray-X/Y syntax) */
-.dark .bg-gray-50\/60            { background-color: oklch(0.175 0.016 264) !important; }
-.dark .bg-gray-50\/50            { background-color: oklch(0.175 0.016 264) !important; }
-.dark .bg-gray-50\/40            { background-color: oklch(0.175 0.016 264) !important; }
-.dark .bg-gray-50\/30            { background-color: oklch(0.175 0.016 264 / 0.7) !important; }
+/* In dark mode, "gray-50" opacity variants should be SUBTLY ELEVATED above card, not below */
+.dark .bg-gray-50\/60            { background-color: oklch(0.215 0.020 264) !important; }
+.dark .bg-gray-50\/50            { background-color: oklch(0.210 0.019 264) !important; }
+.dark .bg-gray-50\/40            { background-color: oklch(0.205 0.019 264) !important; }
+.dark .bg-gray-50\/30            { background-color: oklch(0.200 0.018 264 / 0.8) !important; }
 .dark .bg-gray-100\/80           { background-color: oklch(0.225 0.020 264) !important; }
-.dark .bg-gray-100\/60           { background-color: oklch(0.210 0.019 264) !important; }
+.dark .bg-gray-100\/60           { background-color: oklch(0.215 0.019 264) !important; }
 
 /* Hovers — solid and opacity-modifier variants */
 .dark .hover\:bg-gray-50:hover           { background-color: oklch(0.235 0.020 264) !important; }
@@ -273,15 +281,19 @@ html, body {
 .dark .odd\:bg-white:nth-child(odd) { background-color: inherit !important; }
 
 /* ── Dark mode: borders ──────────────────────────────────────────────── */
-.dark .border-gray-50            { border-color: oklch(1 0 0 / 5%) !important; }
+.dark .border-gray-50            { border-color: transparent !important; }
 .dark .border-gray-100           { border-color: oklch(1 0 0 / 9%) !important; }
 .dark .border-gray-200           { border-color: oklch(1 0 0 / 13%) !important; }
 .dark .border-gray-300           { border-color: oklch(1 0 0 / 18%) !important; }
 .dark .border-slate-100,
 .dark .border-slate-200          { border-color: oklch(1 0 0 / 10%) !important; }
 
-/* Divide-y between rows */
+/* Divide-y between rows — use both selectors (Tailwind varies between v3/v4) */
+.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-50  > * + *   { border-color: oklch(1 0 0 / 5%) !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-gray-100 > * + *   { border-color: oklch(1 0 0 / 6%) !important; }
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
 .dark .divide-gray-200 > * + *   { border-color: oklch(1 0 0 / 10%) !important; }
 
 /* ── Dark mode: header bar (desktop only — mobile keeps accent gradient) ── */
@@ -320,8 +332,8 @@ html, body {
 }
 
 /* ── Dark mode: inputs ───────────────────────────────────────────────── */
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]),
-.dark textarea:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]),
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]):not([class*="bg-transparent"]),
+.dark textarea:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]):not([class*="bg-transparent"]),
 .dark select {
   background-color: oklch(0.235 0.022 264) !important;
   color: oklch(0.95 0.008 264) !important;
@@ -476,11 +488,23 @@ html, body {
     color: rgba(255, 255, 255, 0.6) !important;
   }
   .mobile-accent-header .hdr-icon {
-    color: rgba(255, 255, 255, 0.85) !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: none !important;
+  }
+  .mobile-accent-header .hdr-icon *,
+  .mobile-accent-header .hdr-icon svg {
+    color: inherit !important;
   }
   .mobile-accent-header .hdr-icon:hover {
-    background: rgba(255, 255, 255, 0.12) !important;
+    background-color: rgba(255, 255, 255, 0.24) !important;
     color: white !important;
+  }
+  .mobile-accent-header .hdr-icon svg {
+    color: inherit !important;
   }
   .mobile-accent-header .hdr-badge {
     background: white !important;

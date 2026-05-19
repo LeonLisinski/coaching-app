@@ -60,9 +60,11 @@ type Pkg = {
 
 
 function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   return (
     <div className="flex items-center justify-between mb-3">
-      <h2 className="text-sm font-bold text-gray-700 tracking-tight">{title}</h2>
+      <h2 className={`text-sm font-bold tracking-tight ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{title}</h2>
       {action}
     </div>
   )
@@ -73,7 +75,8 @@ export default function ProfilePage() {
   const tPkg     = useTranslations('profile.packages')
   const tCommon  = useTranslations('common')
   const tProfile = useTranslations('profilePage')
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const SOCIAL_LINKS = [
     { key: 'email',     label: tProfile('socialEmail'),     Icon: Mail,         prefix: '' },
@@ -316,61 +319,67 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
 
       {/* ── SECTION: Profile info ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className={`rounded-xl border shadow-sm p-5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'bg-white border-gray-100'}`}>
         <SectionHeader title={tProfile('sectionInfo')} />
 
         {editMode ? (
           <div className="space-y-4">
             {/* Name */}
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('form.fullName')}</Label>
-              <Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} onFocus={inputFocus} onBlur={inputBlur} />
+              <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{t('form.fullName')}</Label>
+              <Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} onFocus={inputFocus} onBlur={inputBlur}
+                className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
             </div>
 
             {/* Contact links */}
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tProfile('sectionContact')}</p>
+              <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{tProfile('sectionContact')}</p>
               <div className="space-y-2">
                 {[
-                  { key: 'phone',     Icon: Phone,     label: 'Telefon',   placeholder: '+385 99 123 4567' },
-                  { key: 'website',   Icon: Globe,     label: 'Web',       placeholder: 'https://...' },
-                  { key: 'instagram', Icon: Instagram, label: 'Instagram', placeholder: tProfile('usernamePlaceholder') },
+                  { key: 'phone',     Icon: Phone,        label: 'Telefon',   placeholder: '+385 99 123 4567' },
+                  { key: 'website',   Icon: Globe,        label: 'Web',       placeholder: 'https://...' },
+                  { key: 'instagram', Icon: Instagram,    label: 'Instagram', placeholder: tProfile('usernamePlaceholder') },
                   { key: 'facebook',  Icon: FacebookIcon, label: 'Facebook',  placeholder: 'https://facebook.com/...' },
-                  { key: 'tiktok',    Icon: TikTokIcon, label: 'TikTok',    placeholder: tProfile('usernamePlaceholder') },
+                  { key: 'tiktok',    Icon: TikTokIcon,   label: 'TikTok',    placeholder: tProfile('usernamePlaceholder') },
                 ].map(({ key, Icon, label, placeholder }) => (
                   <div key={key} className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-gray-200">
-                      <Icon size={12} className="text-gray-400" />
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200'}`}>
+                      <Icon size={12} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
                     </div>
                     <Input
                       value={(form as any)[key]}
                       onChange={e => setForm({ ...form, [key]: e.target.value })}
                       placeholder={placeholder}
-                      className="flex-1 h-8 text-sm"
+                      className={`flex-1 h-8 text-sm ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''}`}
                       onFocus={inputFocus} onBlur={inputBlur}
                     />
-                    {/* Visibility toggle */}
                     <button
                       type="button"
                       title={socialVisibility.includes(key) ? tProfile('visibleToClients') : tProfile('hiddenFromClients')}
                       onClick={() => toggleVisibility(key)}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${socialVisibility.includes(key) ? 'border-transparent text-white' : 'border-gray-200 text-gray-300 hover:text-gray-500'}`}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${
+                        socialVisibility.includes(key)
+                          ? 'border-transparent text-white'
+                          : isDark ? 'border-white/10 text-gray-600 hover:text-gray-400' : 'border-gray-200 text-gray-300 hover:text-gray-500'
+                      }`}
                       style={socialVisibility.includes(key) ? { backgroundColor: accentHex } : {}}>
                       {socialVisibility.includes(key) ? <Eye size={12} /> : <EyeOff size={12} />}
                     </button>
                   </div>
                 ))}
               </div>
-              <p className="text-[11px] text-gray-400 mt-2 flex items-center gap-1">
+              <p className={`text-[11px] mt-2 flex items-center gap-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                 <Eye size={10} /> {tProfile('visibilityHint')}
               </p>
             </div>
 
             {/* Bio */}
             <div className="space-y-1.5">
-              <Label className="text-xs">{t('form.bio')}</Label>
+              <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{t('form.bio')}</Label>
               <textarea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} placeholder={t('form.bioPlaceholder')}
-                className="w-full border border-input rounded-lg px-3 py-2 text-sm min-h-20 resize-none focus:outline-none transition-colors"
+                className={`w-full border rounded-lg px-3 py-2 text-sm min-h-20 resize-none focus:outline-none transition-colors ${
+                  isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : 'border-input'
+                }`}
                 onFocus={inputFocus as any} onBlur={inputBlur as any} />
             </div>
 
@@ -380,23 +389,23 @@ export default function ProfilePage() {
                 style={{ backgroundColor: accentHex }}>
                 {saving ? tCommon('saving') : t('saveProfile')}
               </button>
-              <button onClick={() => setEditMode(false)} className="h-9 px-4 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditMode(false)}
+                className={`h-9 px-4 rounded-lg border text-sm transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                 {tCommon('cancel')}
               </button>
-              {saved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> {tProfile('saved')}</span>}
+              {saved && <span className="flex items-center gap-1 text-sm text-emerald-500"><Check size={13} /> {tProfile('saved')}</span>}
             </div>
           </div>
         ) : (
           /* View mode */
           <div className="space-y-2">
-            {/* Email always shown */}
-            <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}12`, color: accentHex }}>
+            <div className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-gray-50/50'}`}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                 <Mail size={13} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Email</p>
-                <p className="text-sm text-gray-800 font-medium break-all">{profile?.email}</p>
+                <p className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Email</p>
+                <p className={`text-sm font-medium break-all ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{profile?.email}</p>
               </div>
             </div>
 
@@ -405,15 +414,19 @@ export default function ProfilePage() {
               if (!raw) return null
               const visible = socialVisibility.includes(key)
               return (
-                <div key={key} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}12`, color: accentHex }}>
+                <div key={key} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-gray-50/50'}`}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                     <Icon size={13} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
-                    <p className="text-sm text-gray-800 font-medium break-all">{prefix}{raw.replace('@', '')}</p>
+                    <p className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{label}</p>
+                    <p className={`text-sm font-medium break-all ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{prefix}{raw.replace('@', '')}</p>
                   </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${visible ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 ${
+                    visible
+                      ? isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                      : isDark ? 'bg-white/8 text-gray-500' : 'bg-gray-100 text-gray-400'
+                  }`}>
                     {visible ? <Eye size={9} /> : <EyeOff size={9} />}
                     {visible ? tProfile('visibleLabel') : tProfile('hiddenLabel')}
                   </span>
@@ -422,20 +435,20 @@ export default function ProfilePage() {
             })}
 
             {form.bio && (
-              <div className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${accentHex}12`, color: accentHex }}>
+              <div className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-gray-50/50'}`}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                   <FileText size={13} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{tProfile('bioLabel')}</p>
-                  <p className="text-sm text-gray-700 leading-relaxed mt-0.5">{form.bio}</p>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{tProfile('bioLabel')}</p>
+                  <p className={`text-sm leading-relaxed mt-0.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{form.bio}</p>
                 </div>
               </div>
             )}
 
             {!form.phone && !form.website && !form.instagram && !form.facebook && !form.tiktok && !form.bio && (
-              <div className="py-8 text-center border-2 border-dashed border-gray-100 rounded-xl">
-                <p className="text-sm text-gray-400">{t('noContactData')}</p>
+              <div className={`py-8 text-center border-2 border-dashed rounded-xl ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noContactData')}</p>
               </div>
             )}
           </div>
@@ -443,7 +456,7 @@ export default function ProfilePage() {
       </div>
 
       {/* ── SECTION: Paketi (right column) ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className={`rounded-xl border shadow-sm p-5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'bg-white border-gray-100'}`}>
         <SectionHeader
           title={tProfile('packagesCount', { count: packages.length })}
           action={
@@ -457,71 +470,94 @@ export default function ProfilePage() {
 
         {/* Package form */}
         {showPkgForm && (
-          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-4 space-y-3" style={{ borderColor: `${accentHex}25` }}>
+          <div className={`rounded-xl border p-4 mb-4 space-y-3 ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-gray-50 border-gray-200'}`}
+            style={isDark ? {} : { borderColor: `${accentHex}25` }}>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">{editPkg ? tPkg('editTitle') : tPkg('newTitle')}</p>
-              <button onClick={() => setShowPkgForm(false)} className="text-gray-400 hover:text-gray-600"><X size={15} /></button>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{editPkg ? tPkg('editTitle') : tPkg('newTitle')}</p>
+              <button onClick={() => setShowPkgForm(false)} className={`transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}><X size={15} /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label className="text-xs">{tPkg('name')}</Label>
-                <Input value={pkgForm.name} onChange={e => setPkgForm({ ...pkgForm, name: e.target.value })} placeholder={tPkg('namePlaceholder')} className="h-8 text-sm" /></div>
-              <div className="space-y-1"><Label className="text-xs">{tPkg('price')}</Label>
-                <Input type="number" value={pkgForm.price} onChange={e => setPkgForm({ ...pkgForm, price: e.target.value })} placeholder="150" className="h-8 text-sm" /></div>
-              <div className="space-y-1"><Label className="text-xs">{tProfile('durationMonths')}</Label>
-                <Input type="number" min="1" max="24" value={pkgForm.duration_months} onChange={e => setPkgForm({ ...pkgForm, duration_months: e.target.value })} className="h-8 text-sm" /></div>
-              <div className="space-y-1"><Label className="text-xs">{tPkg('color')}</Label>
+              <div className="space-y-1">
+                <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{tPkg('name')}</Label>
+                <Input value={pkgForm.name} onChange={e => setPkgForm({ ...pkgForm, name: e.target.value })} placeholder={tPkg('namePlaceholder')} className={`h-8 text-sm ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''}`} />
+              </div>
+              <div className="space-y-1">
+                <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{tPkg('price')}</Label>
+                <Input type="number" value={pkgForm.price} onChange={e => setPkgForm({ ...pkgForm, price: e.target.value })} placeholder="150" className={`h-8 text-sm ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''}`} />
+              </div>
+              <div className="space-y-1">
+                <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{tProfile('durationMonths')}</Label>
+                <Input type="number" min="1" max="24" value={pkgForm.duration_months} onChange={e => setPkgForm({ ...pkgForm, duration_months: e.target.value })} className={`h-8 text-sm ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''}`} />
+              </div>
+              <div className="space-y-1">
+                <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{tPkg('color')}</Label>
                 <div className="flex items-center gap-2">
                   <input type="color" value={pkgForm.color} onChange={e => setPkgForm({ ...pkgForm, color: e.target.value })} className="w-8 h-8 rounded-lg border cursor-pointer p-0.5" />
-                  <span className="text-xs text-gray-500 font-mono">{pkgForm.color}</span>
-                </div></div>
+                  <span className={`text-xs font-mono ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{pkgForm.color}</span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-1"><Label className="text-xs">{tPkg('description')}</Label>
-              <textarea value={pkgForm.description} onChange={e => setPkgForm({ ...pkgForm, description: e.target.value })} placeholder={tPkg('descriptionPlaceholder')} className="w-full border border-input rounded-lg px-3 py-2 text-sm min-h-14 resize-none" /></div>
+            <div className="space-y-1">
+              <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>{tPkg('description')}</Label>
+              <textarea value={pkgForm.description} onChange={e => setPkgForm({ ...pkgForm, description: e.target.value })} placeholder={tPkg('descriptionPlaceholder')}
+                className={`w-full border rounded-lg px-3 py-2 text-sm min-h-14 resize-none focus:outline-none ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : 'border-input'}`} />
+            </div>
             <div className="flex gap-2">
               <button onClick={savePkg} disabled={!pkgForm.name || !pkgForm.price}
                 className="h-8 px-4 rounded-lg text-white text-xs font-semibold disabled:opacity-50"
                 style={{ backgroundColor: accentHex }}>
                 {editPkg ? tPkg('save') : tPkg('add')}
               </button>
-              <button onClick={() => setShowPkgForm(false)} className="h-8 px-4 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50">{tCommon('cancel')}</button>
+              <button onClick={() => setShowPkgForm(false)}
+                className={`h-8 px-4 rounded-lg border text-xs transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                {tCommon('cancel')}
+              </button>
             </div>
           </div>
         )}
 
         {packages.length === 0 && !showPkgForm ? (
-          <div className="text-center py-10 border-2 border-dashed border-gray-100 rounded-xl">
-            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2"><Package size={16} className="text-gray-400" /></div>
-            <p className="text-sm text-gray-400">{tPkg('empty')}</p>
+          <div className={`text-center py-10 border-2 border-dashed rounded-xl ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 ${isDark ? 'bg-white/8' : 'bg-gray-100'}`}>
+              <Package size={16} className={isDark ? 'text-gray-500' : 'text-gray-400'} />
+            </div>
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{tPkg('empty')}</p>
             <button onClick={openNewPkg} className="mt-2 text-xs font-medium" style={{ color: accentHex }}>{t('addFirstPackage')}</button>
           </div>
         ) : (
           <div className="space-y-2">
             {packages.map(pkg => (
               <div key={pkg.id}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border bg-white transition-opacity ${!pkg.active ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-opacity ${!pkg.active ? 'opacity-50' : ''} ${isDark ? 'border-white/8 bg-white/[0.03]' : 'bg-white border-gray-100'}`}
                 style={{ borderLeft: `3px solid ${pkg.color}` }}>
-                {/* Color + name */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold text-gray-900">{pkg.name}</p>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${pkg.active ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                    <p className={`text-sm font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{pkg.name}</p>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                      pkg.active
+                        ? isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'
+                        : isDark ? 'bg-white/8 text-gray-500' : 'bg-gray-100 text-gray-500'
+                    }`}>
                       {pkg.active ? tPkg('active') : tPkg('inactive')}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    <span className="font-semibold text-gray-700">{pkg.price} €</span>
+                  <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <span className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{pkg.price} €</span>
                     {' · '}{durationLabel(pkg.duration_days)}
-                    {pkg.description && <span className="text-gray-400"> · {pkg.description}</span>}
+                    {pkg.description && <span className={isDark ? 'text-gray-600' : 'text-gray-400'}> · {pkg.description}</span>}
                   </p>
                 </div>
-                {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => togglePkgActive(pkg)}
-                    className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${pkg.active ? 'border-gray-200 text-gray-500 hover:bg-gray-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}>
+                    className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                      pkg.active
+                        ? isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                        : isDark ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                    }`}>
                     {pkg.active ? tPkg('deactivate') : tPkg('activate')}
                   </button>
-                  <button onClick={() => openEditPkg(pkg)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"><Pencil size={13} /></button>
-                  <button onClick={() => setConfirmDelete(pkg.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"><Trash2 size={13} /></button>
+                  <button onClick={() => openEditPkg(pkg)} className={`p-1.5 rounded-lg transition-colors ${isDark ? 'text-gray-600 hover:text-gray-300 hover:bg-white/8' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}><Pencil size={13} /></button>
+                  <button onClick={() => setConfirmDelete(pkg.id)} className={`p-1.5 rounded-lg transition-colors ${isDark ? 'text-gray-700 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-300 hover:text-red-400 hover:bg-red-50'}`}><Trash2 size={13} /></button>
                 </div>
               </div>
             ))}
@@ -532,14 +568,14 @@ export default function ProfilePage() {
       </div>{/* end grid */}
 
       {/* ── SECTION: Postavke ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-6">
+      <div className={`rounded-xl border shadow-sm p-5 space-y-6 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'bg-white border-gray-100'}`}>
         <SectionHeader title={tProfile('displaySettings')} />
 
         {/* Nutrition fields */}
         <div>
           <div className="flex items-baseline gap-2 mb-2.5">
-            <p className="text-xs font-semibold text-gray-700">{tProfile('nutritionFields')}</p>
-            <p className="text-[11px] text-gray-400">{tProfile('nutritionFieldsHint')}</p>
+            <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tProfile('nutritionFields')}</p>
+            <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{tProfile('nutritionFieldsHint')}</p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {NUTRITION_FIELD_OPTIONS.map(opt => {
@@ -552,7 +588,9 @@ export default function ProfilePage() {
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
                     active
                       ? 'text-white border-transparent'
-                      : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                      : isDark
+                        ? 'border-white/10 text-gray-400 bg-white/[0.04] hover:bg-white/8 hover:border-white/15'
+                        : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
                   }`}
                   style={active ? { backgroundColor: accentHex, borderColor: accentHex } : undefined}
                 >
@@ -562,7 +600,7 @@ export default function ProfilePage() {
                     </svg>
                   )}
                   {tProfile(`nutField_${opt.key}_label` as any)}
-                  <span className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{opt.unit}</span>
+                  <span className={`text-[10px] ${active ? 'text-white/70' : isDark ? 'text-gray-600' : 'text-gray-400'}`}>{opt.unit}</span>
                 </button>
               )
             })}
@@ -572,8 +610,8 @@ export default function ProfilePage() {
         {/* Exercise metrics */}
         <div>
           <div className="flex items-baseline gap-2 mb-2.5">
-            <p className="text-xs font-semibold text-gray-700">{tProfile('exerciseMetrics')}</p>
-            <p className="text-[11px] text-gray-400">{tProfile('exerciseMetricsHint')}</p>
+            <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tProfile('exerciseMetrics')}</p>
+            <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{tProfile('exerciseMetricsHint')}</p>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {EXERCISE_FIELD_OPTIONS.map(opt => {
@@ -586,7 +624,9 @@ export default function ProfilePage() {
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
                     active
                       ? 'text-white border-transparent'
-                      : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                      : isDark
+                        ? 'border-white/10 text-gray-400 bg-white/[0.04] hover:bg-white/8 hover:border-white/15'
+                        : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
                   }`}
                   style={active ? { backgroundColor: accentHex, borderColor: accentHex } : undefined}
                 >
@@ -596,7 +636,7 @@ export default function ProfilePage() {
                     </svg>
                   )}
                   <span>{tProfile(`exField_${opt.key}_label` as any)}</span>
-                  {opt.unit && <span className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{opt.unit}</span>}
+                  {opt.unit && <span className={`text-[10px] ${active ? 'text-white/70' : isDark ? 'text-gray-600' : 'text-gray-400'}`}>{opt.unit}</span>}
                 </button>
               )
             })}
@@ -606,42 +646,31 @@ export default function ProfilePage() {
         {/* Workout defaults */}
         <div>
           <div className="flex items-baseline gap-2 mb-2.5">
-            <p className="text-xs font-semibold text-gray-700">{tProfile('exerciseDefaults')}</p>
-            <p className="text-[11px] text-gray-400">{tProfile('exerciseDefaultsHint')}</p>
+            <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tProfile('exerciseDefaults')}</p>
+            <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{tProfile('exerciseDefaultsHint')}</p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-gray-500">{tProfile('setsLabel')}</label>
-              <input
-                type="number" min="1"
-                value={workoutDefaults.sets}
-                onChange={e => setWorkoutDefaults(prev => ({ ...prev, sets: parseInt(e.target.value) || 1 }))}
-                className="w-full h-8 border border-input rounded-md px-3 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-gray-500">{tProfile('repsLabel')}</label>
-              <input
-                type="text"
-                value={workoutDefaults.reps}
-                onChange={e => setWorkoutDefaults(prev => ({ ...prev, reps: e.target.value }))}
-                placeholder={tProfile('repPlaceholder')}
-                className="w-full h-8 border border-input rounded-md px-3 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-gray-500">{tProfile('restLabel')}</label>
-              <input
-                type="number" min="0"
-                value={workoutDefaults.rest_seconds}
-                onChange={e => setWorkoutDefaults(prev => ({ ...prev, rest_seconds: parseInt(e.target.value) || 0 }))}
-                placeholder="120"
-                className="w-full h-8 border border-input rounded-md px-3 text-sm"
-              />
-            </div>
+            {[
+              { key: 'sets',         label: tProfile('setsLabel'),    type: 'number', min: 1,  placeholder: undefined },
+              { key: 'reps',         label: tProfile('repsLabel'),    type: 'text',   min: undefined, placeholder: tProfile('repPlaceholder') },
+              { key: 'rest_seconds', label: tProfile('restLabel'),    type: 'number', min: 0,  placeholder: '120' },
+            ].map(({ key, label, type, min, placeholder }) => (
+              <div key={key} className="space-y-1">
+                <label className={`text-[11px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{label}</label>
+                <input
+                  type={type} min={min}
+                  value={workoutDefaults[key as keyof typeof workoutDefaults]}
+                  onChange={e => setWorkoutDefaults(prev => ({ ...prev, [key]: type === 'number' ? parseInt(e.target.value) || (min ?? 0) : e.target.value }))}
+                  placeholder={placeholder}
+                  className={`w-full h-8 border rounded-md px-3 text-sm focus:outline-none transition-colors ${
+                    isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : 'border-input'
+                  }`}
+                />
+              </div>
+            ))}
             {EXERCISE_FIELD_OPTIONS.filter(f => exerciseFields.includes(f.key)).map(f => (
               <div key={f.key} className="space-y-1">
-                <label className="text-[11px] font-medium text-gray-500">
+                <label className={`text-[11px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                   {tProfile(`exField_${f.key}_label` as any)}{f.unit ? ` (${f.unit})` : ''}
                 </label>
                 <input
@@ -649,20 +678,22 @@ export default function ProfilePage() {
                   value={workoutDefaults[f.key as keyof typeof workoutDefaults] as string}
                   onChange={e => setWorkoutDefaults(prev => ({ ...prev, [f.key]: e.target.value }))}
                   placeholder={`${tProfile('defaultValuePrefix')} ${tProfile(`exField_${f.key}_label` as any)}`}
-                  className="w-full h-8 border border-input rounded-md px-3 text-sm"
+                  className={`w-full h-8 border rounded-md px-3 text-sm focus:outline-none transition-colors ${
+                    isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : 'border-input'
+                  }`}
                 />
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
+        <div className={`flex items-center gap-3 pt-1 border-t ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
           <button onClick={saveSettings} disabled={savingSettings}
             className="h-8 px-4 rounded-lg text-white text-sm font-semibold disabled:opacity-60 transition-opacity mt-3"
             style={{ backgroundColor: accentHex }}>
             {savingSettings ? t('savingSettings') : t('saveSettings')}
           </button>
-          {settingsSaved && <span className="flex items-center gap-1 text-xs text-emerald-600 mt-3"><Check size={12} /> {t('settingsSaved')}</span>}
+          {settingsSaved && <span className="flex items-center gap-1 text-xs text-emerald-500 mt-3"><Check size={12} /> {t('settingsSaved')}</span>}
         </div>
       </div>
 

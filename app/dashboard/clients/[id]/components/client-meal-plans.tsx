@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,12 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical, BookMarked } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical, BookMarked, Zap, Check } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
 import { useTranslations, useLocale } from 'next-intl'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core'
@@ -244,7 +245,7 @@ const PLAN_TYPE_COLORS: Record<string, { color: string; bg: string }> = {
 
 const MEAL_TYPES = ['Doručak', 'Ručak', 'Večera', 'Užina', 'Prije treninga', 'Nakon treninga']
 
-function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget, fatTarget, activeExtraFields, extrasTargets }: {
+function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget, fatTarget, activeExtraFields, extrasTargets, isDark }: {
   meals: any[]
   caloriesTarget: number | null
   proteinTarget: number | null
@@ -252,6 +253,7 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   fatTarget: number | null
   activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
   extrasTargets?: Record<string, number | null> | null
+  isDark?: boolean
 }) {
   const t = useTranslations('clients.mealPlans')
   const totals = meals.reduce((acc, m) => ({
@@ -284,27 +286,36 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   const visibleExtras = activeExtraFields.filter(f => extraTotals[f.key] > 0)
 
   return (
-    <div className="px-3 pt-2.5 pb-3 border-t border-gray-100 bg-gray-50/60">
+    <div
+      className="px-3 pt-2.5 pb-3"
+      style={isDark ? {
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(255,255,255,0.02)',
+      } : {
+        borderTop: '1px solid #f3f4f6',
+        background: 'rgba(249,250,251,0.6)',
+      }}
+    >
       <div className="grid grid-cols-4 gap-3">
         {items.map(item => {
           const pct    = item.target ? Math.min((item.val / item.target) * 100, 110) : null
           const over   = item.target != null && item.val > item.target
           const barPct = pct != null ? Math.min(pct, 100) : null
-          const barColor = pct == null ? 'bg-gray-300'
+          const barColor = pct == null ? (isDark ? 'bg-white/20' : 'bg-gray-300')
             : over             ? 'bg-red-400'
             : pct >= 90        ? 'bg-emerald-500'
             :                    'bg-amber-400'
           return (
             <div key={item.label}>
               <div className="flex items-baseline justify-between mb-1">
-                <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{item.label}</span>
-                <span className={`text-[10px] font-semibold tabular-nums ${over ? 'text-red-500' : 'text-gray-700'}`}>
+                <span className={`text-[10px] font-medium uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{item.label}</span>
+                <span className={`text-[10px] font-semibold tabular-nums ${over ? 'text-red-400' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {item.val}{item.unit}
-                  {item.target != null && <span className="text-gray-400 font-normal">/{item.target}{item.unit}</span>}
+                  {item.target != null && <span className={`font-normal ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>/{item.target}{item.unit}</span>}
                 </span>
               </div>
               {barPct != null && (
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                   <div className={`h-full rounded-full transition-all duration-300 ${barColor}`}
                     style={{ width: `${barPct}%` }} />
                 </div>
@@ -314,15 +325,15 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
         })}
       </div>
       {visibleExtras.length > 0 && (
-        <div className="flex gap-3 flex-wrap mt-2 pt-2 border-t border-gray-100">
+        <div className={`flex gap-3 flex-wrap mt-2 pt-2 ${isDark ? 'border-t border-white/[0.06]' : 'border-t border-gray-100'}`}>
           {visibleExtras.map(f => {
             const tgtVal = extrasTargets?.[f.key] ?? null
             const actual = Math.round(extraTotals[f.key] * 10) / 10
             const over = tgtVal != null && actual > tgtVal
             return (
-              <span key={f.key} className="text-[10px] text-gray-400">
-                {f.label}: <span className={`font-medium ${over ? 'text-red-500' : 'text-gray-700'}`}>{actual}{f.unit}</span>
-                {tgtVal != null && <span className={`${over ? 'text-red-400' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
+              <span key={f.key} className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                {f.label}: <span className={`font-medium ${over ? 'text-red-400' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>{actual}{f.unit}</span>
+                {tgtVal != null && <span className={`${over ? 'text-red-400' : isDark ? 'text-emerald-500' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
               </span>
             )
           })}
@@ -332,14 +343,34 @@ function NutritionalSummary({ meals, caloriesTarget, proteinTarget, carbsTarget,
   )
 }
 
-function MealAccordion({ meals, activeExtraFields, recipes = [] }: { meals: any[]; activeExtraFields: typeof NUTRITION_FIELD_OPTIONS; recipes?: Recipe[] }) {
+function MealAccordion({
+  meals, activeExtraFields, recipes = [], isDark,
+  isEditing = false, onUpdateIngGrams, onRemoveIng, onAddIng, onUpdateMacros, foods = [],
+}: {
+  meals: any[]
+  activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
+  recipes?: Recipe[]
+  isDark?: boolean
+  isEditing?: boolean
+  onUpdateIngGrams?: (mealIdx: number, food_id: string, newGrams: number) => void
+  onRemoveIng?: (mealIdx: number, food_id: string) => void
+  onAddIng?: (mealIdx: number, food: any) => void
+  onUpdateMacros?: (mealIdx: number, field: string, val: number) => void
+  foods?: any[]
+}) {
   const [openMeals, setOpenMeals] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenMeals(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
+  const [foodSearch, setFoodSearch] = useState<Record<number, string>>({})
+  const [searchFocused, setSearchFocused] = useState<Record<number, boolean>>({})
+  const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+
+  useEffect(() => {
+    if (isEditing) setOpenMeals(Object.fromEntries(meals.map((_, i) => [i, true])))
+  }, [isEditing, meals.length])
 
   return (
-    <div className="border-t border-gray-100 divide-y divide-gray-50">
+    <div style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f3f4f6' }}>
       {meals.map((meal: any, mIdx: number) => {
-        // Custom ingredients first; fall back to recipe's ingredient list
         const customIngs: any[] = meal.custom_ingredients || []
         const recipeIngs: any[] = customIngs.length === 0 && meal.recipe_id
           ? (recipes.find(r => r.id === meal.recipe_id)?.ingredients || [])
@@ -347,47 +378,147 @@ function MealAccordion({ meals, activeExtraFields, recipes = [] }: { meals: any[
         const ingredients: any[] = customIngs.length > 0 ? customIngs : recipeIngs
         const hasIngredients = ingredients.length > 0
         const isOpen = openMeals[mIdx] ?? false
+        const canExpand = hasIngredients || isEditing
         return (
-          <div key={mIdx}>
+          <div key={mIdx} style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid #f9fafb' }}>
             <button
               type="button"
-              onClick={() => hasIngredients && toggle(mIdx)}
-              className={`w-full flex items-center gap-2 px-2 py-2 text-left transition-colors ${hasIngredients ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-default'}`}
+              onClick={() => canExpand && toggle(mIdx)}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-left transition-colors ${canExpand ? (isDark ? 'hover:bg-white/[0.03] cursor-pointer' : 'hover:bg-gray-50 cursor-pointer') : 'cursor-default'}`}
             >
-              {hasIngredients ? (
-                isOpen ? <ChevronUp size={12} className="text-gray-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />
+              {canExpand ? (
+                isOpen
+                  ? <ChevronUp size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+                  : <ChevronDown size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
               ) : (
                 <span className="w-3 shrink-0" />
               )}
-              <span className="text-xs text-gray-300 w-4 text-right tabular-nums shrink-0">{mIdx + 1}</span>
+              <span className={`text-xs w-4 text-right tabular-nums shrink-0 ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>{mIdx + 1}</span>
               <div className="flex-1 min-w-0">
-                <span className="text-sm text-gray-800">{meal.recipe_name || meal.meal_type}</span>
-                {meal.recipe_name && <span className="text-xs text-gray-400 ml-1.5">{meal.meal_type}</span>}
+                <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{meal.recipe_name || meal.meal_type}</span>
+                {meal.recipe_name && <span className={`text-xs ml-1.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{meal.meal_type}</span>}
               </div>
               <div className="text-right shrink-0">
-                <div className="text-xs text-gray-400 tabular-nums">
+                <div className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   {meal.calories ? `${Math.round(meal.calories)} kcal` : '—'}
                   {meal.protein ? ` · P: ${Math.round(meal.protein)}g` : ''}
                 </div>
-                {activeExtraFields.length > 0 && meal.extras && (
+                {!isEditing && activeExtraFields.length > 0 && meal.extras && (
                   <div className="flex gap-1.5 justify-end flex-wrap">
                     {activeExtraFields.map(f => {
                       const val = meal.extras?.[f.key]
                       if (!val) return null
-                      return <span key={f.key} className="text-[10px] text-gray-300">{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
+                      return <span key={f.key} className={`text-[10px] ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
                     })}
                   </div>
                 )}
               </div>
             </button>
-            {hasIngredients && isOpen && (
+
+            {/* Expandable ingredient section */}
+            {isOpen && (
               <div className="pb-2 px-3">
-                {ingredients.map((ing: any, iIdx: number) => (
-                  <div key={iIdx} className="flex items-center justify-between py-1 text-xs text-gray-500 border-b border-gray-50 last:border-0">
-                    <span className="ml-5">{ing.name}</span>
-                    <span className="text-gray-400">{ing.grams}g · {Math.round(ing.calories)} kcal</span>
+                {hasIngredients ? (
+                  ingredients.map((ing: any, iIdx: number) => (
+                    <div
+                      key={iIdx}
+                      className="flex items-center gap-2 py-1 text-xs"
+                      style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid #f9fafb' }}
+                    >
+                      <span className={`ml-5 flex-1 min-w-0 truncate ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{ing.name}</span>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number" min={0}
+                            value={Math.round(ing.grams || 0)}
+                            onFocus={e => e.target.select()}
+                            onChange={e => onUpdateIngGrams?.(mIdx, ing.food_id, parseInt(e.target.value) || 0)}
+                            className={`w-14 h-5 text-center text-xs rounded border focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-blue-500/60' : 'bg-white border-gray-200 focus:border-blue-400'}`}
+                          />
+                          <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>g</span>
+                          <span className={`text-[10px] tabular-nums ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>{Math.round(ing.calories)} kcal</span>
+                          <button type="button" onClick={() => onRemoveIng?.(mIdx, ing.food_id)} className="ml-0.5 shrink-0">
+                            <X size={10} className="text-red-400/50 hover:text-red-400 transition-colors" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`shrink-0 tabular-nums ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{ing.grams}g · {Math.round(ing.calories)} kcal</span>
+                      )}
+                    </div>
+                  ))
+                ) : isEditing ? (
+                  /* No ingredients — direct macro editing */
+                  <div className="py-2">
+                    <p className={`text-[10px] mb-2 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Unesite makronutrijente direktno:</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {([['calories','kcal'],['protein','P'],['carbs','UH'],['fat','M']] as const).map(([field, label]) => (
+                        <div key={field} className="text-center">
+                          <input
+                            type="number" min={0}
+                            value={Math.round((meal as any)[field] || 0)}
+                            onFocus={e => e.target.select()}
+                            onChange={e => onUpdateMacros?.(mIdx, field, parseFloat(e.target.value) || 0)}
+                            className={`w-full h-6 text-center text-xs rounded border focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-blue-500/60' : 'bg-white border-gray-200 focus:border-blue-400'}`}
+                          />
+                          <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                ) : null}
+
+                {/* Add ingredient — only in edit mode */}
+                {isEditing && (
+                  <div className="relative mt-1.5">
+                    <input
+                      value={foodSearch[mIdx] || ''}
+                      onChange={e => setFoodSearch(prev => ({ ...prev, [mIdx]: e.target.value }))}
+                      onFocus={() => {
+                        if (blurTimers.current[mIdx]) clearTimeout(blurTimers.current[mIdx])
+                        setSearchFocused(prev => ({ ...prev, [mIdx]: true }))
+                      }}
+                      onBlur={() => {
+                        blurTimers.current[mIdx] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [mIdx]: false })), 150)
+                      }}
+                      placeholder="+ Dodaj namirnicu..."
+                      className={`w-full h-7 text-xs rounded-lg border px-3 focus:outline-none transition-colors ${isDark ? 'bg-transparent border-white/10 border-dashed text-gray-400 placeholder:text-gray-700 focus:border-white/25 focus:bg-white/[0.03]' : 'bg-white border-gray-200 border-dashed placeholder:text-gray-400 focus:border-blue-400'}`}
+                    />
+                    {(searchFocused[mIdx] || !!(foodSearch[mIdx])) && (
+                      <div
+                        className="absolute top-full left-0 right-0 z-50 mt-0.5 rounded-lg overflow-hidden shadow-xl"
+                        style={isDark ? { background: 'rgb(12,12,18)', border: '1px solid rgba(255,255,255,0.1)' } : { background: 'white', border: '1px solid #e5e7eb' }}
+                      >
+                        <div className="max-h-44 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+                          {foods
+                            .filter(f =>
+                              f.name.toLowerCase().includes((foodSearch[mIdx] || '').toLowerCase()) &&
+                              !ingredients.find((i: any) => i.food_id === f.id)
+                            )
+                            .slice(0, 15)
+                            .map((f: any) => (
+                              <button
+                                key={f.id} type="button"
+                                onMouseDown={ev => ev.preventDefault()}
+                                onClick={() => {
+                                  onAddIng?.(mIdx, f)
+                                  setFoodSearch(prev => ({ ...prev, [mIdx]: '' }))
+                                  setSearchFocused(prev => ({ ...prev, [mIdx]: false }))
+                                }}
+                                className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${isDark ? 'text-gray-300 hover:bg-white/5 border-b border-white/[0.04] last:border-0' : 'text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0'}`}
+                              >
+                                <span>{f.name}</span>
+                                <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{Math.round(f.calories_per_100g)} kcal/100g</span>
+                              </button>
+                            ))
+                          }
+                          {foods.filter(f => f.name.toLowerCase().includes((foodSearch[mIdx] || '').toLowerCase())).length === 0 && (
+                            <p className={`px-3 py-2.5 text-xs text-center ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>Nema rezultata</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -401,6 +532,8 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
   const t = useTranslations('clients.mealPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const { settings } = useTrainerSettings()
   const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -440,6 +573,113 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
     typeLabel: string
     execute: () => Promise<void>
   } | null>(null)
+
+  // Quick inline edit state
+  const [quickEditMealPlanId, setQuickEditMealPlanId] = useState<string | null>(null)
+  const [quickEditMeals, setQuickEditMeals] = useState<any[]>([])
+  const [quickEditSaving, setQuickEditSaving] = useState(false)
+  const [foods, setFoods] = useState<any[]>([])
+
+  const fetchFoods = async () => {
+    if (foods.length > 0) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user) return
+    const [{ data: allFoods }, { data: overrides }] = await Promise.all([
+      supabase.from('foods').select('id,name,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id').order('name'),
+      supabase.from('trainer_overrides').select('default_id').eq('trainer_id', user.id).eq('resource_type', 'food'),
+    ])
+    const overriddenIds = new Set((overrides || []).map((o: any) => o.default_id))
+    const visible = (allFoods || []).filter((f: any) =>
+      (!f.is_default && f.trainer_id === user.id) || (f.is_default && !overriddenIds.has(f.id))
+    )
+    setFoods(visible)
+  }
+
+  const enterQuickMealEdit = (assigned: AssignedPlan) => {
+    const planMeals = assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || []
+    setQuickEditMeals(JSON.parse(JSON.stringify(planMeals)))
+    setQuickEditMealPlanId(assigned.id)
+    fetchFoods()
+  }
+
+  const cancelQuickMealEdit = () => { setQuickEditMealPlanId(null); setQuickEditMeals([]) }
+
+  const saveQuickMealEdit = async () => {
+    if (!quickEditMealPlanId) return
+    setQuickEditSaving(true)
+    // Recalculate targets from meals
+    const totalCal = quickEditMeals.reduce((s, m) => s + (m.calories || 0), 0)
+    const totalPro = quickEditMeals.reduce((s, m) => s + (m.protein || 0), 0)
+    const totalCarb = quickEditMeals.reduce((s, m) => s + (m.carbs || 0), 0)
+    const totalFat = quickEditMeals.reduce((s, m) => s + (m.fat || 0), 0)
+    await supabase.from('client_meal_plans').update({
+      meals: quickEditMeals,
+      calories_target: Math.round(totalCal) || null,
+      protein_target: Math.round(totalPro * 10) / 10 || null,
+      carbs_target: Math.round(totalCarb * 10) / 10 || null,
+      fat_target: Math.round(totalFat * 10) / 10 || null,
+    }).eq('id', quickEditMealPlanId)
+    setAssignedPlans(prev => prev.map(p => p.id === quickEditMealPlanId ? {
+      ...p,
+      meals: quickEditMeals,
+      calories_target: Math.round(totalCal) || null,
+      protein_target: Math.round(totalPro * 10) / 10 || null,
+      carbs_target: Math.round(totalCarb * 10) / 10 || null,
+      fat_target: Math.round(totalFat * 10) / 10 || null,
+    } : p))
+    setQuickEditMealPlanId(null)
+    setQuickEditMeals([])
+    setQuickEditSaving(false)
+  }
+
+  const updateIngGrams = (mealIdx: number, food_id: string, newGrams: number) => {
+    setQuickEditMeals(prev => prev.map((meal, i) => {
+      if (i !== mealIdx) return meal
+      const ings = (meal.custom_ingredients || []).map((ing: any) => {
+        if (ing.food_id !== food_id) return ing
+        const oldGrams = ing.grams || 100
+        const ratio = oldGrams > 0 ? newGrams / oldGrams : 0
+        return { ...ing, grams: newGrams, calories: ing.calories * ratio, protein: ing.protein * ratio, carbs: ing.carbs * ratio, fat: ing.fat * ratio }
+      })
+      const totals = ings.reduce((acc: any, ing: any) => ({
+        calories: acc.calories + (ing.calories || 0), protein: acc.protein + (ing.protein || 0),
+        carbs: acc.carbs + (ing.carbs || 0), fat: acc.fat + (ing.fat || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+      return { ...meal, custom_ingredients: ings, ...{ calories: Math.round(totals.calories), protein: Math.round(totals.protein * 10) / 10, carbs: Math.round(totals.carbs * 10) / 10, fat: Math.round(totals.fat * 10) / 10 } }
+    }))
+  }
+
+  const removeIng = (mealIdx: number, food_id: string) => {
+    setQuickEditMeals(prev => prev.map((meal, i) => {
+      if (i !== mealIdx) return meal
+      const ings = (meal.custom_ingredients || []).filter((ing: any) => ing.food_id !== food_id)
+      const totals = ings.reduce((acc: any, ing: any) => ({
+        calories: acc.calories + (ing.calories || 0), protein: acc.protein + (ing.protein || 0),
+        carbs: acc.carbs + (ing.carbs || 0), fat: acc.fat + (ing.fat || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+      return { ...meal, custom_ingredients: ings, ...{ calories: Math.round(totals.calories), protein: Math.round(totals.protein * 10) / 10, carbs: Math.round(totals.carbs * 10) / 10, fat: Math.round(totals.fat * 10) / 10 } }
+    }))
+  }
+
+  const addIng = (mealIdx: number, food: any) => {
+    setQuickEditMeals(prev => prev.map((meal, i) => {
+      if (i !== mealIdx) return meal
+      const currentIngs = meal.custom_ingredients || []
+      if (currentIngs.find((ing: any) => ing.food_id === food.id)) return meal
+      const newIng = { food_id: food.id, name: food.name, grams: 100, calories: food.calories_per_100g, protein: food.protein_per_100g, carbs: food.carbs_per_100g, fat: food.fat_per_100g }
+      const ings = [...currentIngs, newIng]
+      const totals = ings.reduce((acc: any, ing: any) => ({
+        calories: acc.calories + (ing.calories || 0), protein: acc.protein + (ing.protein || 0),
+        carbs: acc.carbs + (ing.carbs || 0), fat: acc.fat + (ing.fat || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+      return { ...meal, custom_ingredients: ings, ...{ calories: Math.round(totals.calories), protein: Math.round(totals.protein * 10) / 10, carbs: Math.round(totals.carbs * 10) / 10, fat: Math.round(totals.fat * 10) / 10 } }
+    }))
+  }
+
+  const updateMacros = (mealIdx: number, field: string, val: number) => {
+    setQuickEditMeals(prev => prev.map((meal, i) => i !== mealIdx ? meal : { ...meal, [field]: val }))
+  }
 
   useEffect(() => { fetchData() }, [clientId, refreshKey])
 
@@ -705,7 +945,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
     <div className="space-y-4">
 
       {savedMsg && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm ${isDark ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           {savedMsg}
         </div>
@@ -713,19 +953,19 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
 
       {/* Info banneri */}
       {hasTrainingDay && hasRestDay && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
+        <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
           {t('infoBannerBoth')}
         </div>
       )}
       {hasDefault && !hasTrainingDay && !hasRestDay && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-700">
+        <div className={`rounded-lg px-4 py-3 text-sm ${isDark ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' : 'bg-amber-50 border border-amber-200 text-amber-700'}`}>
           {t.rich('infoBannerTip', { strong: (chunks) => <strong>{chunks}</strong> })}
         </div>
       )}
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-sm">{t('assigned', { count: assignedPlans.length })}</p>
+        <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{t('assigned', { count: assignedPlans.length })}</p>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowCreateNew(true)} className="flex items-center gap-2">
             <Plus size={14} /> {t('createNew')}
@@ -738,23 +978,26 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
 
       {/* Empty */}
       {assignedPlans.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <UtensilsCrossed size={24} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500 mb-1">{t('noPlans')}</p>
-            <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-              {t('assignExisting')} →
-            </button>
-          </CardContent>
-        </Card>
+        <div
+          className="rounded-xl py-12 text-center"
+          style={isDark ? { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' } : { background: 'white', border: '1px solid #e5e7eb' }}
+        >
+          <UtensilsCrossed size={24} className={`mx-auto mb-3 ${isDark ? 'text-gray-700' : 'text-gray-300'}`} />
+          <p className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{t('noPlans')}</p>
+          <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-400 transition-colors">
+            {t('assignExisting')} →
+          </button>
+        </div>
       )}
 
       {/* Active plans */}
       {activePlans.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('activePlans')}</p>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('activePlans')}</p>
           {activePlans.map(assigned => {
-            const meals = assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || []
+            const meals = quickEditMealPlanId === assigned.id
+              ? quickEditMeals
+              : (assigned.meals?.length ? assigned.meals : assigned.meal_plan.meals || [])
             const isPersonalized = !!(assigned.meals?.length)
             const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
             const calories = assigned.calories_target ?? assigned.meal_plan.calories_target
@@ -764,96 +1007,159 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
             const extrasTargets = assigned.extras_targets ?? (assigned.meal_plan as any).extras_targets ?? null
 
             return (
-              <Card
+              <div
                 key={assigned.id}
-                className="hover:shadow-sm transition-shadow cursor-pointer"
+                className="rounded-xl overflow-hidden transition-shadow cursor-pointer"
+                style={isDark ? {
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                } : {
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)',
+                }}
                 onDoubleClick={() => setEditTarget(assigned)}
               >
-                <CardContent className="py-0">
-                  <div className="py-4 flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <span className="mt-[5px] w-2 h-2 rounded-full shrink-0 bg-emerald-400" />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{assigned.custom_name || assigned.meal_plan.name}</span>
-                          {assigned.custom_name && (
-                            <span className="text-[10px] text-gray-400 italic">({assigned.meal_plan.name})</span>
-                          )}
-                          <span
-                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}
-                          >
-                            {typeInfo.label}
+                <div className="px-4 py-4 flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="mt-[5px] w-2 h-2 rounded-full shrink-0 bg-emerald-400" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-medium text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{assigned.custom_name || assigned.meal_plan.name}</span>
+                        {assigned.custom_name && (
+                          <span className={`text-[10px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>({assigned.meal_plan.name})</span>
+                        )}
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={isDark ? {
+                            color: typeInfo.color,
+                            background: `${typeInfo.color}18`,
+                            border: `1px solid ${typeInfo.color}40`,
+                          } : {
+                            color: typeInfo.color,
+                            backgroundColor: typeInfo.bg,
+                          }}
+                        >
+                          {typeInfo.label}
+                        </span>
+                        {isPersonalized && (
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${isDark ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+                            {t('personalizedBadge')}
                           </span>
-                          {isPersonalized && (
-                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
-                              {t('personalizedBadge')}
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
-                        </p>
-                        {assigned.notes && <p className="text-xs text-gray-500 mt-1">{assigned.notes}</p>}
+                        )}
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      {editingPlanTypeId === assigned.id ? (
-                        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                          {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
-                            <button key={key} onClick={() => changePlanType(assigned.id, key as any)}
-                              className={`px-2 py-1 rounded text-xs font-semibold border transition-all ${
-                                assigned.plan_type === key ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                              }`}>
-                              {val.label}
-                            </button>
-                          ))}
-                          <button onClick={() => setEditingPlanTypeId(null)} className="text-xs text-gray-400 px-1">✕</button>
-                        </div>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="sm"
-                            onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
-                            className="text-xs h-7 px-3 rounded-full border text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100">
-                            {t('activeStatusBtn')}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
-                            <span className="text-xs text-gray-400">{t('typeLabel')}</span>
-                          </Button>
-                          <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
-                            onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
-                            disabled={savingTemplate === assigned.id}>
-                            <BookMarked size={14} className="text-violet-400" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
-                            <Pencil size={14} />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
-                            <Trash2 size={14} className="text-red-400" />
-                          </Button>
-                        </>
-                      )}
+                      <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
+                      </p>
+                      {assigned.notes && <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{assigned.notes}</p>}
                     </div>
                   </div>
 
-                  {/* Nutritional summary — ostvareno vs. cilj */}
-                  {meals.length > 0 && (
-                    <NutritionalSummary
-                      meals={meals}
-                      caloriesTarget={calories}
-                      proteinTarget={protein}
-                      carbsTarget={carbs}
-                      fatTarget={fat}
-                      activeExtraFields={activeExtraFields}
-                      extrasTargets={extrasTargets}
-                    />
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {editingPlanTypeId === assigned.id ? (
+                      <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                        {(Object.entries(PLAN_TYPE_LABELS) as [string, any][]).map(([key, val]) => (
+                          <button key={key} onClick={() => changePlanType(assigned.id, key as any)}
+                            className={`px-2 py-1 rounded text-xs font-semibold border transition-all ${
+                              assigned.plan_type === key
+                                ? 'border-blue-500 bg-blue-500 text-white'
+                                : isDark ? 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                            }`}>
+                            {val.label}
+                          </button>
+                        ))}
+                        <button onClick={() => setEditingPlanTypeId(null)} className={`text-xs px-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>✕</button>
+                      </div>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm"
+                          onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
+                          className={`text-xs h-7 px-3 rounded-full border ${isDark ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'}`}>
+                          {t('activeStatusBtn')}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditingPlanTypeId(assigned.id) }}>
+                          <span className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('typeLabel')}</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
+                          onClick={e => { e.stopPropagation(); saveAsTemplate(assigned) }}
+                          disabled={savingTemplate === assigned.id}>
+                          <BookMarked size={14} className="text-violet-400" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setEditTarget(assigned) }}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm"
+                          title="Brzi unos"
+                          onClick={e => { e.stopPropagation(); quickEditMealPlanId === assigned.id ? cancelQuickMealEdit() : enterQuickMealEdit(assigned) }}
+                          className={quickEditMealPlanId === assigned.id ? 'text-blue-400' : ''}
+                        >
+                          <Zap size={14} className={quickEditMealPlanId === assigned.id ? 'text-blue-400' : 'text-gray-400'} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setConfirmDelete(assigned.id) }}>
+                          <Trash2 size={14} className="text-red-400" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                  {/* Meals list — collapsible ingredients */}
-                  {meals.length > 0 && <MealAccordion meals={meals} activeExtraFields={activeExtraFields} recipes={availableRecipes} />}
-                </CardContent>
-              </Card>
+                {/* Nutritional summary — ostvareno vs. cilj */}
+                {meals.length > 0 && (
+                  <NutritionalSummary
+                    meals={meals}
+                    caloriesTarget={calories}
+                    proteinTarget={protein}
+                    carbsTarget={carbs}
+                    fatTarget={fat}
+                    activeExtraFields={activeExtraFields}
+                    extrasTargets={extrasTargets}
+                    isDark={isDark}
+                  />
+                )}
+
+                {/* Meals list — collapsible ingredients */}
+                {meals.length > 0 && (
+                  <MealAccordion
+                    meals={meals}
+                    activeExtraFields={activeExtraFields}
+                    recipes={availableRecipes}
+                    isDark={isDark}
+                    isEditing={quickEditMealPlanId === assigned.id}
+                    onUpdateIngGrams={(mealIdx, food_id, newGrams) => updateIngGrams(mealIdx, food_id, newGrams)}
+                    onRemoveIng={(mealIdx, food_id) => removeIng(mealIdx, food_id)}
+                    onAddIng={(mealIdx, food) => addIng(mealIdx, food)}
+                    onUpdateMacros={(mealIdx, field, val) => updateMacros(mealIdx, field, val)}
+                    foods={foods}
+                  />
+                )}
+
+                {/* Quick edit save/cancel bar */}
+                {quickEditMealPlanId === assigned.id && (
+                  <div
+                    className="px-4 py-2.5 flex items-center gap-2"
+                    style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f0f0f0' }}
+                  >
+                    <Zap size={11} className="text-blue-400 shrink-0" />
+                    <span className={`text-xs flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Brzi unos aktiviran</span>
+                    <Button
+                      variant="ghost" size="sm"
+                      onClick={cancelQuickMealEdit}
+                      className={`text-xs h-7 px-3 ${isDark ? 'text-gray-500 hover:text-gray-300' : ''}`}
+                    >
+                      Odustani
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={saveQuickMealEdit}
+                      disabled={quickEditSaving}
+                      className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white gap-1"
+                    >
+                      {quickEditSaving ? '...' : <><Check size={12} />Spremi</>}
+                    </Button>
+                  </div>
+                )}
+              </div>
             )
           })}
         </div>
@@ -862,26 +1168,47 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
       {/* Inactive plans */}
       {inactivePlans.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('inactivePlans')}</p>
+          <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('inactivePlans')}</p>
           {inactivePlans.map(assigned => {
             const typeInfo = PLAN_TYPE_LABELS[assigned.plan_type || 'default']
             return (
-              <Card key={assigned.id} className="opacity-55 hover:opacity-75 transition-opacity cursor-pointer" onDoubleClick={() => setEditTarget(assigned)}>
-                <CardContent className="py-3 flex items-center justify-between gap-4">
+              <div
+                key={assigned.id}
+                className="rounded-xl opacity-55 hover:opacity-75 transition-opacity cursor-pointer"
+                style={isDark ? {
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                } : {
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                }}
+                onDoubleClick={() => setEditTarget(assigned)}
+              >
+                <div className="px-4 py-3 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-2 h-2 rounded-full shrink-0 bg-gray-300" />
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm">{assigned.custom_name || assigned.meal_plan.name}</p>
-                        {assigned.custom_name && <span className="text-[10px] text-gray-400 italic">({assigned.meal_plan.name})</span>}
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: typeInfo.color, backgroundColor: typeInfo.bg }}>{typeInfo.label}</span>
+                        <p className={`font-medium text-sm ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{assigned.custom_name || assigned.meal_plan.name}</p>
+                        {assigned.custom_name && <span className={`text-[10px] italic ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>({assigned.meal_plan.name})</span>}
+                        <span
+                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={isDark ? {
+                            color: typeInfo.color,
+                            background: `${typeInfo.color}18`,
+                            border: `1px solid ${typeInfo.color}40`,
+                          } : {
+                            color: typeInfo.color,
+                            backgroundColor: typeInfo.bg,
+                          }}
+                        >{typeInfo.label}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Button variant="ghost" size="sm"
                       onClick={e => { e.stopPropagation(); toggleActive(assigned.id, assigned.active) }}
-                      className="text-xs h-7 px-3 rounded-full border text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100">
+                      className={`text-xs h-7 px-3 rounded-full border ${isDark ? 'text-gray-500 bg-white/5 border-white/15 hover:bg-white/10' : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
                       {t('inactiveStatusBtn')}
                     </Button>
                     <Button variant="ghost" size="sm" title={t('saveAsTemplateTooltip')}
@@ -896,8 +1223,8 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
                       <Trash2 size={14} className="text-red-400" />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )
           })}
         </div>

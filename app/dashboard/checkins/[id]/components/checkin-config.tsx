@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import { Check } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Props = { clientId: string }
 
@@ -17,6 +16,12 @@ export default function CheckinConfig({ clientId }: Props) {
   const tDays = useTranslations('days')
   const tDaysShort = useTranslations('daysShort')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
+
+  const inactivePill = isDark
+    ? { backgroundColor: 'rgba(255,255,255,0.06)', color: '#9ca3af', borderColor: 'rgba(255,255,255,0.12)' }
+    : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
 
   const tConfig = (key: string) => t(`detail.config.${key}` as any)
   const tForm = (key: string) => t(`detail.form.${key}` as any)
@@ -101,19 +106,23 @@ export default function CheckinConfig({ clientId }: Props) {
 
   if (loading) return (
     <div className="space-y-3 max-w-lg">
-      {[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+      {[1,2,3].map(i => <div key={i} className={`h-16 rounded-xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />)}
     </div>
   )
 
   const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
 
+  const cardCls = `rounded-xl border px-4 py-3.5 space-y-3 ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`
+  const sectionLabelCls = `text-xs font-bold uppercase tracking-wide mb-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`
+  const dividerCls = `pt-2 border-t space-y-2 ${isDark ? 'border-white/8' : 'border-gray-50'}`
+
   return (
     <div className="space-y-3 max-w-lg">
 
       {/* Check-in day */}
-      <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-3">
+      <div className={cardCls}>
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('checkinDay')}</p>
+          <p className={sectionLabelCls}>{tConfig('checkinDay')}</p>
           <p className="text-[11px] text-gray-400">{t2('checkinDayHint')}</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -122,8 +131,7 @@ export default function CheckinConfig({ clientId }: Props) {
               className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
               style={config.checkin_day === i
                 ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
-                : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
-              }>
+                : inactivePill}>
               {DAY_NAMES[i]}
             </button>
           ))}
@@ -131,9 +139,9 @@ export default function CheckinConfig({ clientId }: Props) {
       </div>
 
       {/* Photo frequency */}
-      <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-3">
+      <div className={cardCls}>
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('photoFrequency')}</p>
+          <p className={sectionLabelCls}>{tConfig('photoFrequency')}</p>
           <p className="text-[11px] text-gray-400">{t2('photoFreqHint')}</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -142,24 +150,22 @@ export default function CheckinConfig({ clientId }: Props) {
               className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
               style={config.photo_frequency === f.value
                 ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
-                : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
-              }>
+                : inactivePill}>
               {f.label}
             </button>
           ))}
         </div>
 
         {config.photo_frequency !== 'none' && (
-          <div className="pt-2 border-t border-gray-50 space-y-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{tConfig('photoPositionsLabel')}</p>
+          <div className={dividerCls}>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-400'}`}>{tConfig('photoPositionsLabel')}</p>
             <div className="flex gap-1.5">
               {PHOTO_POSITIONS.map(pos => (
                 <button key={pos} type="button" onClick={() => togglePosition(pos)}
                   className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
                   style={config.photo_positions.includes(pos)
                     ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
-                    : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
-                  }>
+                    : inactivePill}>
                   {tForm(`photoPositions.${pos}` as any)}
                 </button>
               ))}
@@ -169,17 +175,20 @@ export default function CheckinConfig({ clientId }: Props) {
       </div>
 
       {/* Notes */}
-      <div className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 space-y-2">
+      <div className={cardCls}>
         <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-0.5">{tConfig('clientInstructions')}</p>
+          <p className={sectionLabelCls}>{tConfig('clientInstructions')}</p>
           <p className="text-[11px] text-gray-400">{t2('instructionsHint')}</p>
         </div>
         <textarea
           value={config.notes}
           onChange={(e) => setConfig({ ...config, notes: e.target.value })}
           placeholder={tConfig('clientInstructionsPlaceholder')}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm min-h-24 resize-none focus:outline-none transition-colors"
-        style={{ '--tw-ring-color': 'var(--app-accent)' } as any}
+          className={`w-full border rounded-xl px-3 py-2.5 text-sm min-h-24 resize-none focus:outline-none transition-colors ${
+            isDark
+              ? 'bg-white/[0.05] border-white/12 text-gray-100 placeholder:text-gray-500 focus:border-white/25'
+              : 'border-gray-200 focus:border-gray-300'
+          }`}
         />
       </div>
 

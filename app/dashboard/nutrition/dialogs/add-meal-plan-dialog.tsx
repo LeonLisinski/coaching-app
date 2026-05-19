@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
 import { Plus, X, CalendarDays } from 'lucide-react'
@@ -80,6 +81,8 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
     { value: 'default',      label: t('planTypeDefault'),      desc: t('planTypeDefaultDesc'),      color: 'border-gray-300 bg-gray-50 text-gray-700' },
@@ -240,7 +243,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+        <DialogContent className={`max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden ${isDark ? 'bg-[oklch(0.195_0.018_264)]' : 'bg-white'}`} showCloseButton={false}>
         <DialogTitle className="sr-only">{t('addTitle')}</DialogTitle>
         <DialogDescription className="sr-only">{t('addTitle')}</DialogDescription>
 
@@ -269,14 +272,14 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-gray-500">{t('planTypeLabel')}</Label>
+                <Label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('planTypeLabel')}</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {PLAN_TYPE_OPTIONS.map(opt => (
                     <button key={opt.value} type="button" onClick={() => setPlanType(opt.value)}
                       className={`rounded-lg border-2 px-3 py-2 text-left transition-all ${
                         planType === opt.value
                           ? opt.color + ' border-opacity-100 ring-1 ring-offset-1 ' + (opt.value === 'default' ? 'ring-gray-400' : opt.value === 'training_day' ? 'ring-blue-400' : 'ring-purple-400')
-                          : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                          : isDark ? 'border-white/10 bg-white/[0.04] text-gray-400 hover:border-white/20' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
                       }`}>
                       <p className="font-semibold text-xs">{opt.label}</p>
                       <p className="text-xs opacity-70 mt-0.5">{opt.desc}</p>
@@ -313,7 +316,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
             </div>
 
             {/* Sticky: Obroci header — sticks when form fields scroll out of view */}
-            <div className="sticky top-0 z-10 bg-white border-y border-gray-100 px-6 py-2 flex items-center justify-between">
+            <div className={`sticky top-0 z-10 border-y px-6 py-2 flex items-center justify-between ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white border-gray-100'}`}>
               <Label>{t('meals', { count: meals.length })}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
                 <Plus size={12} /> {t('addMeal')}
@@ -342,9 +345,9 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
         </div>
 
         {/* Sticky footer — summary + buttons */}
-        <div className="px-6 py-4 border-t bg-white shrink-0 space-y-3">
+        <div className={`px-6 py-4 border-t shrink-0 space-y-3 ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white'}`}>
           {meals.length > 0 && (
-            <div className="rounded-md bg-gray-50 px-4 py-2.5 grid grid-cols-4 gap-2 text-center text-xs">
+            <div className={`rounded-md px-4 py-2.5 grid grid-cols-4 gap-2 text-center text-xs ${isDark ? 'bg-white/[0.04]' : 'bg-gray-50'}`}>
               {([
                 { label: t('kcalSummaryLabel'),    val: Math.round(totals.calories), tgt: tgt.calories, unit: '' },
                 { label: t('proteinSummaryLabel'), val: Math.round(totals.protein),  tgt: tgt.protein,  unit: 'g' },
@@ -353,7 +356,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
               ] as const).map(item => (
                 <div key={item.label}>
                   <p className="text-gray-400 font-medium">{item.label}</p>
-                  <p className="font-semibold text-gray-800">{item.val}{item.unit}</p>
+                  <p className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.val}{item.unit}</p>
                   {item.tgt != null && (
                     <p className={`text-[10px] ${item.val > item.tgt ? 'text-red-500' : 'text-green-600'}`}>
                       / {item.tgt}{item.unit}
@@ -380,7 +383,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
           )}
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+            <Button type="button" variant="outline" onClick={onClose} className={`flex-1 ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/[0.06]' : ''}`}>{tCommon('cancel')}</Button>
             <Button type="submit" form="add-meal-plan-form" disabled={loading} className="flex-1 bg-purple-600 hover:bg-purple-700">
               {loading ? tCommon('saving') : t('save')}
             </Button>

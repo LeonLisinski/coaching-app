@@ -2,7 +2,6 @@
 
 import { useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
 
 export default function LocaleSwitcher() {
   const locale = useLocale()
@@ -15,14 +14,12 @@ export default function LocaleSwitcher() {
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="h-8 min-w-[52px] px-3 font-semibold"
-      onClick={toggleLocale}
+    <button
       type="button"
+      className="hdr-icon h-8 min-w-[46px] px-2.5 rounded-lg border border-transparent flex items-center justify-center text-xs font-semibold transition-colors lg:border-gray-200 lg:text-gray-700 lg:hover:text-gray-900 lg:hover:bg-gray-50 dark:lg:border-white/10 dark:lg:text-gray-300 dark:lg:hover:text-white dark:lg:hover:bg-white/10"
+      onClick={toggleLocale}
     >
       {locale === 'hr' ? 'HR' : 'EN'}
-    </Button>
+    </button>
   )
 }

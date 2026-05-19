@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { MessageSquare, CheckCircle2, AlertTriangle, Clock, ChevronRight, ListChecks } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 function isoDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -35,14 +36,10 @@ type CiClient = {
   status: 'submitted' | 'late' | 'neutral'
 }
 
-const STATUS_CFG = {
-  submitted: { icon: CheckCircle2, color: '#16a34a', bg: '#f0fdf4', label: 'Predano',    dot: 'bg-emerald-500' },
-  late:      { icon: AlertTriangle, color: '#dc2626', bg: '#fef2f2', label: 'Kasni',      dot: 'bg-red-500'     },
-  neutral:   { icon: Clock,         color: '#6b7280', bg: '#f9fafb', label: 'Na čekanju', dot: 'bg-gray-300'    },
-}
-
 export default function MobileCheckinsView() {
   const router = useRouter()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [clients, setClients] = useState<CiClient[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'late' | 'submitted'>('all')
@@ -89,41 +86,72 @@ export default function MobileCheckinsView() {
     setLoading(false)
   }
 
+  const STATUS_CFG = {
+    submitted: {
+      icon: CheckCircle2,
+      color: isDark ? '#34d399' : '#16a34a',
+      bg: isDark ? 'rgba(52,211,153,0.1)' : '#f0fdf4',
+      label: 'Predano',
+      dotCls: 'bg-emerald-500',
+    },
+    late: {
+      icon: AlertTriangle,
+      color: isDark ? '#f87171' : '#dc2626',
+      bg: isDark ? 'rgba(248,113,113,0.1)' : '#fef2f2',
+      label: 'Kasni',
+      dotCls: 'bg-red-500',
+    },
+    neutral: {
+      icon: Clock,
+      color: isDark ? '#6b7280' : '#6b7280',
+      bg: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+      label: 'Na čekanju',
+      dotCls: isDark ? 'bg-gray-600' : 'bg-gray-300',
+    },
+  }
+
   const lateCount      = clients.filter(c => c.status === 'late').length
   const submittedCount = clients.filter(c => c.status === 'submitted').length
 
   const displayed = filter === 'all' ? clients
     : clients.filter(c => c.status === filter)
 
+  const cardBg     = isDark ? 'oklch(0.2 0.025 264)' : 'white'
+  const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'
+  const textPrimary   = isDark ? 'white' : '#111827'
+  const textSecondary = isDark ? '#9ca3af' : '#6b7280'
+  const rowDivider    = isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb'
+
   if (loading) return (
     <div className="space-y-3 animate-pulse">
-      <div className="h-8 bg-gray-100 rounded-xl w-40" />
-      {[1,2,3,4].map(i => <div key={i} className="h-16 bg-gray-100 rounded-2xl" />)}
+      <div className="h-8 rounded-xl w-40" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }} />
+      {[1,2,3,4].map(i => <div key={i} className="h-16 rounded-2xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }} />)}
     </div>
   )
 
   return (
     <div className="space-y-4 pb-4">
       <div>
-        <h1 className="text-xl font-extrabold text-gray-900">Check-ini</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Status ovog tjedna</p>
+        <h1 className="text-xl font-extrabold" style={{ color: textPrimary }}>Check-ini</h1>
+        <p className="text-sm mt-0.5" style={{ color: textSecondary }}>Status ovog tjedna</p>
       </div>
 
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-2.5">
         {[
-          { label: 'Kasne',     value: lateCount,               color: lateCount > 0 ? '#dc2626' : '#9ca3af', bg: lateCount > 0 ? '#fef2f2' : '#f9fafb', icon: AlertTriangle },
-          { label: 'Predano',  value: submittedCount,           color: '#16a34a', bg: '#f0fdf4',              icon: CheckCircle2 },
-          { label: 'Na čekanju',value: clients.length - lateCount - submittedCount, color: '#6b7280', bg: '#f9fafb', icon: Clock },
+          { value: lateCount,                                   ...STATUS_CFG.late      },
+          { value: submittedCount,                              ...STATUS_CFG.submitted },
+          { value: clients.length - lateCount - submittedCount, ...STATUS_CFG.neutral   },
         ].map(s => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl border border-gray-100 bg-white shadow-sm p-3 text-center">
+            <div key={s.label} className="rounded-2xl border p-3 text-center"
+              style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-1" style={{ backgroundColor: s.bg }}>
                 <Icon size={15} style={{ color: s.color }} />
               </div>
-              <p className="text-xl font-black text-gray-900">{s.value}</p>
-              <p className="text-[10px] text-gray-400 font-medium">{s.label}</p>
+              <p className="text-xl font-black" style={{ color: textPrimary }}>{s.value}</p>
+              <p className="text-[10px] font-medium" style={{ color: textSecondary }}>{s.label}</p>
             </div>
           )
         })}
@@ -137,8 +165,12 @@ export default function MobileCheckinsView() {
           { key: 'submitted', label: `Predano (${submittedCount})` },
         ] as const).map(f => (
           <button key={f.key} onClick={() => setFilter(f.key)}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors ${filter === f.key ? 'text-white' : 'bg-gray-100 text-gray-500'}`}
-            style={filter === f.key ? { backgroundColor: f.key === 'late' ? '#dc2626' : f.key === 'submitted' ? '#16a34a' : 'var(--app-accent)' } : {}}>
+            className="px-3.5 py-1.5 rounded-full text-sm font-semibold transition-colors"
+            style={filter === f.key
+              ? { backgroundColor: f.key === 'late' ? '#dc2626' : f.key === 'submitted' ? '#16a34a' : 'var(--app-accent)', color: 'white' }
+              : { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6', color: isDark ? '#9ca3af' : '#6b7280' }
+            }
+          >
             {f.label}
           </button>
         ))}
@@ -148,47 +180,51 @@ export default function MobileCheckinsView() {
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
-          <p className="text-sm font-semibold text-gray-500">Nema kasnih check-ina</p>
+          <p className="text-sm font-semibold" style={{ color: textSecondary }}>Nema kasnih check-ina</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="divide-y divide-gray-50">
-            {displayed.map(c => {
-              const sc = STATUS_CFG[c.status]
-              const StatusIcon = sc.icon
-              return (
-                <div key={c.id}
-                  onClick={() => router.push(`/dashboard/clients/${c.id}`)}
-                  className="flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 cursor-pointer">
-                  {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-xl ${avatarCls(c.gender)} flex items-center justify-center shrink-0`}>
-                    <span className="text-white text-xs font-bold">{getInitials(c.full_name)}</span>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{c.full_name}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
-                      <span className="text-[11px] font-medium" style={{ color: sc.color }}>{sc.label}</span>
-                      {c.checkin_day !== null && (
-                        <span className="text-[11px] text-gray-400">· {DAY_NAMES[c.checkin_day]}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick chat */}
-                  <button
-                    onClick={e => { e.stopPropagation(); router.push(`/dashboard/chat?clientId=${c.id}`) }}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center bg-blue-50 shrink-0"
-                  >
-                    <MessageSquare size={13} className="text-blue-500" />
-                  </button>
-                  <ChevronRight size={14} className="text-gray-300" />
+        <div className="rounded-2xl border overflow-hidden"
+          style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+          {displayed.map((c, idx) => {
+            const sc = STATUS_CFG[c.status]
+            const StatusIcon = sc.icon
+            return (
+              <div key={c.id}
+                onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                className="flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors"
+                style={{
+                  borderTop: idx > 0 ? `1px solid ${rowDivider}` : 'none',
+                }}
+              >
+                {/* Avatar */}
+                <div className={`w-10 h-10 rounded-xl ${avatarCls(c.gender)} flex items-center justify-center shrink-0`}>
+                  <span className="text-white text-xs font-bold">{getInitials(c.full_name)}</span>
                 </div>
-              )
-            })}
-          </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>{c.full_name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${sc.dotCls}`} />
+                    <span className="text-[11px] font-medium" style={{ color: sc.color }}>{sc.label}</span>
+                    {c.checkin_day !== null && (
+                      <span className="text-[11px]" style={{ color: textSecondary }}>· {DAY_NAMES[c.checkin_day]}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick chat */}
+                <button
+                  onClick={e => { e.stopPropagation(); router.push(`/dashboard/chat?clientId=${c.id}`) }}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff', color: isDark ? '#60a5fa' : '#3b82f6' }}
+                >
+                  <MessageSquare size={13} />
+                </button>
+                <ChevronRight size={14} style={{ color: isDark ? '#374151' : '#d1d5db' }} />
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

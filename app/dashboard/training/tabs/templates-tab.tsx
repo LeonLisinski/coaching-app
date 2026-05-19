@@ -10,6 +10,7 @@ import AddTemplateDialog from '../dialogs/add-template-dialog'
 import EditTemplateDialog from '../dialogs/edit-template-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Template = {
   id: string
@@ -34,6 +35,8 @@ function TemplateCard({
   onDelete: () => void
 }) {
   const t = useTranslations('training.templatesTab')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `template-drop::${template.id}`,
@@ -57,12 +60,12 @@ function TemplateCard({
     <div
       ref={setDropRef}
       style={{ opacity: isDragging ? 0.35 : 1 }}
-      className={`relative border rounded-xl p-3 transition-all duration-150 bg-white cursor-default select-none ${
+      className={`relative border rounded-xl p-3 transition-all duration-150 cursor-default select-none ${isDark ? 'bg-white/[0.03]' : 'bg-white'} ${
         isActive
           ? 'border-primary shadow-md ring-2 ring-primary/25 bg-primary/5'
           : showDropHint
           ? 'border-dashed border-primary/40'
-          : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
+          : isDark ? 'border-white/8 hover:shadow-sm hover:border-white/10' : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
       }`}
       onDoubleClick={() => !isDragging && onEdit()}
     >
@@ -80,7 +83,7 @@ function TemplateCard({
           type="button"
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-indigo-400 shrink-0 touch-none transition-colors"
+          className={`cursor-grab active:cursor-grabbing shrink-0 touch-none transition-colors ${isDark ? 'text-gray-600 hover:text-indigo-400' : 'text-gray-300 hover:text-indigo-400'}`}
           title={t('dragTooltip')}
           onDoubleClick={e => e.stopPropagation()}
         >
@@ -92,18 +95,18 @@ function TemplateCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate text-gray-800">{template.name}</p>
+          <p className={`font-medium text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{template.name}</p>
           {template.description && (
-            <p className="text-xs text-gray-400 truncate">{template.description}</p>
+            <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{template.description}</p>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
+          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{t('dblClickHint')}</p>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
           <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium border border-blue-100">
             {template.exercises?.length ?? 0} {t('exercisesShort')}
           </span>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700"
+          <Button variant="ghost" size="sm" className={`h-7 w-7 p-0 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-700'}`}
             onClick={e => { e.stopPropagation(); onEdit() }}>
             <Pencil size={13} />
           </Button>
@@ -117,12 +120,12 @@ function TemplateCard({
       {template.exercises?.length > 0 && !isActive && (
         <div className="flex flex-wrap gap-1 mt-2 ml-8">
           {template.exercises.slice(0, 5).map((ex: any) => (
-            <span key={ex.exercise_id} className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded border border-gray-100">
+            <span key={ex.exercise_id} className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
               {ex.name}
             </span>
           ))}
           {template.exercises.length > 5 && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded border border-gray-100">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
               +{template.exercises.length - 5}
             </span>
           )}
@@ -136,6 +139,8 @@ function TemplateCard({
 export default function TemplatesTab({ activeType, onExerciseCreated }: { activeType?: 'exercise' | 'template' | null; onExerciseCreated?: () => void }) {
   const t = useTranslations('training.templatesTab')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -189,7 +194,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
   return (
     <>
       {/* Fixed: header + search */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+      <div className={`shrink-0 px-4 pt-3 pb-3 border-b space-y-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
         <div className="flex items-center justify-between">
           <p className="text-gray-500 text-xs">{sorted.length} / {t('count', { count: templates.length })}</p>
           <div className="flex items-center gap-2">
@@ -209,15 +214,15 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
           </div>
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} size={14} />
           <Input
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''} ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
               <X size={13} />
             </button>
           )}
@@ -229,9 +234,9 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-blue-50/60 rounded-xl p-3 space-y-3 border border-blue-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/8' : 'bg-blue-50/60 border-blue-100'}`}>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
                 { key: 'date_desc', label: t('sortNewest') },
@@ -242,7 +247,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    sort === opt.key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                    sort === opt.key ? 'bg-blue-600 text-white border-blue-600' : isDark ? 'bg-white/[0.04] text-gray-400 border-white/10 hover:border-blue-400' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -250,12 +255,12 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('minExercisesHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('minExercisesHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {[0, 3, 5, 8].map(n => (
                 <button key={n} type="button" onClick={() => setMinExercises(n)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    minExercises === n ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                    minExercises === n ? 'bg-blue-600 text-white border-blue-600' : isDark ? 'bg-white/[0.04] text-gray-400 border-white/10 hover:border-blue-400' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
                   }`}>
                   {n === 0 ? t('allLabel') : `${n}+`}
                 </button>
@@ -273,7 +278,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       {/* Active sort chip */}
       {hasFilters && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
+          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('activeFilters')}</span>
           {sort !== 'date_desc' && (
             <button type="button" onClick={() => setSort('date_desc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-600 text-white">
@@ -299,16 +304,16 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className={`h-14 rounded-xl animate-pulse ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />)}
         </div>
       ) : sorted.length === 0 ? (
         <div className={`py-10 text-center border-2 border-dashed rounded-xl transition-colors ${
-          activeType === 'exercise' ? 'border-primary/40 bg-primary/5' : 'border-gray-100'
+          activeType === 'exercise' ? 'border-primary/40 bg-primary/5' : isDark ? 'border-white/8' : 'border-gray-100'
         }`}>
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-2">
             <Dumbbell size={20} className="text-blue-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? t('noSearchResults') : t('noTemplates')}</p>
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{search ? t('noSearchResults') : t('noTemplates')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 mx-auto">
               <Plus size={11} /> {t('createFirst')}

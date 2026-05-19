@@ -17,6 +17,7 @@ import ExercisesTab from '@/app/dashboard/training/tabs/exercises-tab'
 import TemplatesTab from '@/app/dashboard/training/tabs/templates-tab'
 import PlansTab from './tabs/plans-tab'
 import { Dumbbell, LayoutList, CalendarDays } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type ActiveDrag = {
   type: 'exercise' | 'template'
@@ -35,6 +36,9 @@ function TrainingPageContent() {
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
   const [mobileTab, setMobileTab] = usePersistedTab('training_tab', 'exercises')
+
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -135,7 +139,7 @@ function TrainingPageContent() {
       {/* Floating drag overlay */}
       <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
         {activeDrag && (
-          <div className="flex items-center gap-2 bg-white border-2 border-primary rounded-xl px-3 py-2 shadow-2xl text-sm font-medium text-gray-800 select-none pointer-events-none rotate-2 scale-105">
+          <div className={`flex items-center gap-2 border-2 border-primary rounded-xl px-3 py-2 shadow-2xl text-sm font-medium select-none pointer-events-none rotate-2 scale-105 ${isDark ? 'bg-gray-900 text-gray-200' : 'bg-white text-gray-800'}`}>
             {activeDrag.type === 'exercise'
               ? <Dumbbell size={14} className="text-primary shrink-0" />
               : <LayoutList size={14} className="text-indigo-500 shrink-0" />
@@ -186,7 +190,7 @@ function TrainingPageContent() {
                 <span className="text-[10px] text-emerald-100/80 font-medium">{t('dragToExercise')}</span>
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <ExercisesTab activeType={activeType} refreshKey={exerciseRefreshKey} />
             </div>
           </div>
@@ -211,7 +215,7 @@ function TrainingPageContent() {
                 }
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <TemplatesTab key={templateRefreshKey} activeType={activeType} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -236,7 +240,7 @@ function TrainingPageContent() {
                 }
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <PlansTab key={planRefreshKey} activeType={activeType} />
             </div>
           </div>

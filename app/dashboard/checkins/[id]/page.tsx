@@ -32,8 +32,9 @@ export default function ClientCheckinPage() {
   const router = useRouter()
   const t = useTranslations('checkins')
   const tCommon = useTranslations('common')
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
 
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
@@ -74,29 +75,33 @@ export default function ClientCheckinPage() {
     <div className="space-y-5">
       {/* Hero header */}
       {(() => {
-        const headerGrad = client.gender === 'F'
-          ? 'linear-gradient(135deg, #be123c, #881337)'
+        const genderColor = client.gender === 'F' ? '#e11d48' : client.gender === 'M' ? '#2563eb' : accentHex
+        const avatarGrad = client.gender === 'F'
+          ? 'linear-gradient(135deg, #f43f5e, #be123c)'
           : client.gender === 'M'
-          ? 'linear-gradient(135deg, #1d4ed8, #1e3a8a)'
-          : `linear-gradient(135deg, color-mix(in srgb, ${accentHex} 70%, #0f0a1e), color-mix(in srgb, ${accentHex} 50%, #0f0a1e))`
+          ? 'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+          : `linear-gradient(135deg, ${accentHex}, color-mix(in srgb, ${accentHex} 70%, #000))`
         return (
-      <div className="rounded-2xl overflow-hidden shadow-sm">
-        <div className="px-6 py-5 flex items-center gap-4" style={{ background: headerGrad }}>
-          <button
-            onClick={() => router.push('/dashboard/checkins')}
-            className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors shrink-0"
-          >
-            <ArrowLeft size={15} className="text-white" />
-          </button>
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-sm">{initials}</span>
+          <div className={`rounded-2xl overflow-hidden border ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`}
+            style={{ background: isDark
+              ? `linear-gradient(to right, ${genderColor}14 0%, transparent 55%), oklch(0.195 0.018 264)`
+              : `linear-gradient(to right, ${genderColor}08 0%, transparent 60%), white`
+            }}>
+            <div className="px-5 py-4 flex items-center gap-4">
+              <button onClick={() => router.push('/dashboard/checkins')}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors shrink-0 ${isDark ? 'bg-white/8 hover:bg-white/15 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}>
+                <ArrowLeft size={15} />
+              </button>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                style={{ background: avatarGrad }}>
+                <span className="text-white font-bold text-sm">{initials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className={`font-bold text-lg leading-tight truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{client.full_name}</h1>
+                <p className="text-gray-400 text-xs mt-0.5">{t('page.clientSubtitle')}</p>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold text-lg leading-tight truncate">{client.full_name}</h1>
-            <p className="text-white/60 text-xs mt-0.5">{t('page.clientSubtitle')}</p>
-          </div>
-        </div>
-      </div>
         )
       })()}
 

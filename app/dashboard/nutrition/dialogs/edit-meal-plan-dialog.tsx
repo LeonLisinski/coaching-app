@@ -11,6 +11,7 @@ import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer
 import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
 import { Plus, X, CalendarDays } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -81,6 +82,8 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   const tCommon = useTranslations('common')
   const isClientEdit = !!clientAssignId
   const { settings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const PLAN_TYPE_OPTIONS: { value: PlanType; label: string; desc: string; color: string }[] = [
     { value: 'default',      label: t('planTypeDefault'),      desc: t('planTypeDefaultDesc'),      color: 'border-gray-300 bg-gray-50 text-gray-700' },
@@ -306,7 +309,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
                     placeholder={plan.name}
                     className="h-8 text-sm"
                   />
-                  <p className="text-[10px] text-gray-400">{t('clientPlanNameHint', { planName: plan.name })}</p>
+                  <p className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('clientPlanNameHint', { planName: plan.name })}</p>
                 </div>
               )}
 
@@ -363,8 +366,19 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
             </div>
 
             {/* Sticky: Obroci header — sticks when form fields scroll out of view */}
-            <div className="sticky top-0 z-10 bg-white border-y border-gray-100 px-6 py-2 flex items-center justify-between">
-              <Label>{t('meals', { count: meals.length })}</Label>
+            <div
+              className="sticky top-0 z-10 px-6 py-2 flex items-center justify-between"
+              style={isDark ? {
+                background: 'rgb(8,8,13)',
+                borderTop: '1px solid rgba(255,255,255,0.07)',
+                borderBottom: '1px solid rgba(255,255,255,0.07)',
+              } : {
+                background: 'white',
+                borderTop: '1px solid #f3f4f6',
+                borderBottom: '1px solid #f3f4f6',
+              }}
+            >
+              <Label className={isDark ? 'text-gray-300' : ''}>{t('meals', { count: meals.length })}</Label>
               <Button type="button" variant="outline" size="sm" onClick={addMeal} className="gap-1">
                 <Plus size={12} /> {t('addMeal')}
               </Button>
@@ -392,9 +406,26 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
         </div>
 
         {/* Sticky footer — summary + buttons */}
-        <div className="px-6 py-4 border-t bg-white shrink-0 space-y-3">
+        <div
+          className="px-6 py-4 shrink-0 space-y-3"
+          style={isDark ? {
+            background: 'rgb(8,8,13)',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+          } : {
+            background: 'white',
+            borderTop: '1px solid #f3f4f6',
+          }}
+        >
           {meals.length > 0 && (
-            <div className="rounded-md bg-gray-50 px-4 py-2.5 grid grid-cols-4 gap-2 text-center text-xs">
+            <div
+              className="rounded-md px-4 py-2.5 grid grid-cols-4 gap-2 text-center text-xs"
+              style={isDark ? {
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+              } : {
+                background: '#f9fafb',
+              }}
+            >
               {([
                 { label: t('kcalSummaryLabel'),    val: Math.round(totals.calories), tgt: tgt.calories, unit: '' },
                 { label: t('proteinSummaryLabel'), val: Math.round(totals.protein),  tgt: tgt.protein,  unit: 'g' },
@@ -402,10 +433,10 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
                 { label: t('fatSummaryLabel'),     val: Math.round(totals.fat),      tgt: tgt.fat,      unit: 'g' },
               ] as const).map(item => (
                 <div key={item.label}>
-                  <p className="text-gray-400 font-medium">{item.label}</p>
-                  <p className="font-semibold text-gray-800">{item.val}{item.unit}</p>
+                  <p className={`font-medium ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{item.label}</p>
+                  <p className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.val}{item.unit}</p>
                   {item.tgt != null && (
-                    <p className={`text-[10px] ${item.val > item.tgt ? 'text-red-500' : 'text-green-600'}`}>
+                    <p className={`text-[10px] ${item.val > item.tgt ? 'text-red-500' : isDark ? 'text-emerald-500' : 'text-green-600'}`}>
                       / {item.tgt}{item.unit}
                     </p>
                   )}
@@ -420,9 +451,9 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
                 const actual = Math.round(extraTotals[f.key] * 10) / 10
                 const over = tgtVal != null && actual > tgtVal
                 return (
-                  <span key={f.key} className="text-xs text-gray-400">
-                    {f.label}: <span className={`font-medium ${over ? 'text-red-500' : 'text-gray-700'}`}>{actual}{f.unit}</span>
-                    {tgtVal != null && <span className={`text-[10px] ${over ? 'text-red-400' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
+                  <span key={f.key} className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    {f.label}: <span className={`font-medium ${over ? 'text-red-500' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>{actual}{f.unit}</span>
+                    {tgtVal != null && <span className={`text-[10px] ${over ? 'text-red-400' : isDark ? 'text-emerald-500' : 'text-green-600'}`}> / {tgtVal}{f.unit}</span>}
                   </span>
                 )
               })}

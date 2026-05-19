@@ -1,6 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
+import nextDynamic from 'next/dynamic'
 import MobileDashboard from '@/app/dashboard/mobile-dashboard'
 import { useEffect, useState } from 'react'
 import { usePersistedTab } from '@/app/contexts/tab-state'
@@ -9,15 +10,13 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { useIsLg } from '@/hooks/use-mobile'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie,
-} from 'recharts'
-import {
   Users, CheckCircle2, AlertCircle, TrendingUp, Banknote,
   Clock, ArrowRight, MessageSquare, Activity, ClipboardCheck, CreditCard,
   CalendarDays, Package, Sun, Globe, ChevronRight, Check, AlertTriangle,
   Loader2, PartyPopper,
 } from 'lucide-react'
+
+const DashboardRevenueCharts = nextDynamic(() => import('@/app/dashboard/dashboard-revenue-charts'), { ssr: false })
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { isoDateLocal as isoDate, getCheckinStatus, getCheckinRate } from '@/lib/checkin-engagement'
 
@@ -195,14 +194,31 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
 
 // ─── Page content ─────────────────────────────────────────────────────────────
 
+// Module-level stale cache to avoid full refetch on in-session navigation back to dashboard
+const DASH_STALE_MS = 90_000 // 90 seconds
+let _dashLastFetch = 0
+
+type DashSnap = {
+  trainerName: string
+  todayCheckinClients: { id: string; full_name: string; submitted: boolean }[]
+  expiringPackages: { id: string; client_name: string; pkg_name: string; end_date: string; days_left: number; client_id: string }[]
+  stats: { activeClients: number; submitted: number; late: number; neutral: number; expectedMonth: number; collectedMonth: number; paidByStart: number; totalMonth: number; latePayments: number; avgCheckinRate: number; unreadMessages: number }
+  monthlyRevenue: { month: string; ocekivano: number; naplaceno: number }[]
+  progressPercent: number
+  recentActivity: ActivityItem[]
+  yearRevenue: number
+}
+let _dashSnap: DashSnap | null = null
+
 function DashboardPageContent() {
   const t      = useTranslations('dashboard')
   const t2     = useTranslations('dashboard2')
   const tDays  = useTranslations('days')
   const locale = useLocale()
   const router = useRouter()
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
 
   // Setup-pending banner (after new registration flow)
   const [showSetupBanner, setShowSetupBanner] = useState(false)
@@ -216,25 +232,33 @@ function DashboardPageContent() {
     }
   }, [])
 
-  const [loading, setLoading] = useState(true)
-  const [trainerName, setTrainerName] = useState('')
+  const [loading, setLoading] = useState(() => !(_dashSnap && Date.now() - _dashLastFetch < DASH_STALE_MS))
+  const [trainerName, setTrainerName] = useState(() => _dashSnap?.trainerName ?? '')
   const [dashView, setDashView] = usePersistedTab('dashboard_view', 'global') as [string, (v: string) => void]
-  const [todayCheckinClients, setTodayCheckinClients] = useState<{ id: string; full_name: string; submitted: boolean }[]>([])
-  const [expiringPackages, setExpiringPackages] = useState<{ id: string; client_name: string; pkg_name: string; end_date: string; days_left: number; client_id: string }[]>([])
-  const [stats, setStats] = useState({
+  const [todayCheckinClients, setTodayCheckinClients] = useState<{ id: string; full_name: string; submitted: boolean }[]>(() => _dashSnap?.todayCheckinClients ?? [])
+  const [expiringPackages, setExpiringPackages] = useState<{ id: string; client_name: string; pkg_name: string; end_date: string; days_left: number; client_id: string }[]>(() => _dashSnap?.expiringPackages ?? [])
+  const [stats, setStats] = useState(() => _dashSnap?.stats ?? {
     activeClients: 0, submitted: 0, late: 0, neutral: 0,
     expectedMonth: 0, collectedMonth: 0, paidByStart: 0, totalMonth: 0, latePayments: 0,
     avgCheckinRate: 0, unreadMessages: 0,
   })
   const [clients, setClients]             = useState<ClientRow[]>([])
-  const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; ocekivano: number; naplaceno: number }[]>([])
-  const [progressPercent, setProgressPercent] = useState(0)
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
-  const [yearRevenue, setYearRevenue] = useState(0)
+  const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; ocekivano: number; naplaceno: number }[]>(() => _dashSnap?.monthlyRevenue ?? [])
+  const [progressPercent, setProgressPercent] = useState(() => _dashSnap?.progressPercent ?? 0)
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>(() => _dashSnap?.recentActivity ?? [])
+  const [yearRevenue, setYearRevenue] = useState(() => _dashSnap?.yearRevenue ?? 0)
 
   const getMonthLabel = (d: Date) => d.toLocaleDateString(locale, { month: 'short' })
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    const now = Date.now()
+    if (_dashSnap && now - _dashLastFetch < DASH_STALE_MS) {
+      // Cache is fresh — render immediately, no fetch
+      return
+    }
+    _dashLastFetch = now
+    fetchData()
+  }, [])
 
   // Real-time: refresh unread message count as messages arrive / get read
   useEffect(() => {
@@ -281,7 +305,8 @@ function DashboardPageContent() {
       supabase.from('profiles').select('full_name').eq('id', user.id).single(),
       supabase.from('clients').select(`id, start_date, profiles!clients_user_id_fkey(full_name)`).eq('trainer_id', user.id).eq('active', true).limit(2000),
     ])
-    if (profileData) setTrainerName(profileData.full_name?.split(' ')[0] || '')
+    const name = profileData?.full_name?.split(' ')[0] || ''
+    if (profileData) setTrainerName(name)
 
     const clientIds = clientsData?.map(c => c.id) || []
 
@@ -516,7 +541,20 @@ function DashboardPageContent() {
 
     const all = [...recentCi, ...recentMsgActivities, ...recentPayActivities]
     all.sort((a, b) => b.ts - a.ts)
-    setRecentActivity(all.slice(0, 8).map(a => ({ ...a, time: formatRelTime(a.ts) })))
+    const activitySlice = all.slice(0, 8).map(a => ({ ...a, time: formatRelTime(a.ts) }))
+    setRecentActivity(activitySlice)
+
+    // Save snapshot for in-session cache (avoids full re-fetch on navigation back)
+    _dashSnap = {
+      trainerName: name,
+      todayCheckinClients: todayClients,
+      expiringPackages: expiring,
+      stats: { activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, paidByStart, totalMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 },
+      monthlyRevenue: Object.entries(monthly).map(([month, v]) => ({ month, ...v })),
+      progressPercent: progress,
+      recentActivity: activitySlice,
+      yearRevenue: ytdRevenue,
+    }
 
     } catch (err) {
       console.error('[dashboard] fetchData error:', err)
@@ -586,24 +624,62 @@ function DashboardPageContent() {
         const todayDayName = (tDays as any)(String(new Date().getDay()))
         const submittedCount = todayCheckinClients.filter(c => c.submitted).length
         const waitingCount   = todayCheckinClients.filter(c => !c.submitted).length
+
+        // Dark-mode aware stat definitions
+        const miniStats = [
+          {
+            label: t2('miniStatCheckins'), value: todayCheckinClients.length,
+            icon: CalendarDays,
+            color: accentHex,
+            bg: isDark ? `${accentHex}28` : `${accentHex}12`,
+          },
+          {
+            label: t2('miniStatSubmitted'), value: submittedCount,
+            icon: Check,
+            color: isDark ? '#4ade80' : '#16a34a',
+            bg: isDark ? 'rgba(22,163,74,0.2)' : '#dcfce7',
+          },
+          {
+            label: t2('miniStatWaiting'), value: waitingCount,
+            icon: Clock,
+            color: isDark ? '#fbbf24' : '#d97706',
+            bg: isDark ? 'rgba(217,119,6,0.2)' : '#fef3c7',
+          },
+          {
+            label: t2('miniStatExpiring'), value: expiringPackages.length,
+            icon: AlertTriangle,
+            color: expiringPackages.length > 0
+              ? (isDark ? '#f87171' : '#dc2626')
+              : (isDark ? '#6b7280' : '#9ca3af'),
+            bg: expiringPackages.length > 0
+              ? (isDark ? 'rgba(220,38,38,0.2)' : '#fee2e2')
+              : (isDark ? 'rgba(255,255,255,0.06)' : '#f9fafb'),
+          },
+        ]
+
+        const cardCls = isDark
+          ? 'rounded-2xl border border-white/8 overflow-hidden'
+          : 'bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden'
+        const cardStyle = isDark ? { background: 'oklch(0.195 0.018 264)' } : {}
+        const headerBorderCls = isDark ? 'border-white/8' : 'border-gray-50'
+
         return (
           <div className="space-y-5">
 
             {/* Mini stat row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: t2('miniStatCheckins'), value: todayCheckinClients.length, icon: CalendarDays, color: accentHex, bg: `${accentHex}12` },
-                { label: t2('miniStatSubmitted'), value: submittedCount, icon: Check, color: '#16a34a', bg: '#dcfce7' },
-                { label: t2('miniStatWaiting'), value: waitingCount, icon: Clock, color: '#d97706', bg: '#fef3c7' },
-                { label: t2('miniStatExpiring'), value: expiringPackages.length, icon: AlertTriangle, color: expiringPackages.length > 0 ? '#dc2626' : '#9ca3af', bg: expiringPackages.length > 0 ? '#fee2e2' : '#f9fafb' },
-              ].map(s => (
-                <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3.5 flex items-center gap-3">
+              {miniStats.map(s => (
+                <div
+                  key={s.label}
+                  className={`px-4 py-3.5 flex items-center gap-3 rounded-2xl border ${isDark ? 'border-white/8' : 'border-gray-100 shadow-sm bg-white'}`}
+                  style={isDark ? { background: 'oklch(0.195 0.018 264)' } : {}}
+                >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.bg }}>
                     <s.icon size={16} style={{ color: s.color }} />
                   </div>
                   <div>
-                    <p className="text-xl font-bold text-gray-900 leading-none">{s.value}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{s.label}</p>
+                    <p className={`text-xl font-bold leading-none ${isDark ? 'text-white' : 'text-gray-900'}`}>{s.value}</p>
+                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{s.label}</p>
                   </div>
                 </div>
               ))}
@@ -611,14 +687,14 @@ function DashboardPageContent() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Check-ins today */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
+              <div className={cardCls} style={cardStyle}>
+                <div className={`flex items-center gap-3 px-5 py-4 border-b ${headerBorderCls}`}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
                     <CalendarDays size={15} style={{ color: accentHex }} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">{t2('miniStatCheckins')}</p>
-                    <p className="text-xs text-gray-400 capitalize">{todayDayName}</p>
+                    <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('miniStatCheckins')}</p>
+                    <p className={`text-xs capitalize ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{todayDayName}</p>
                   </div>
                   {todayCheckinClients.length > 0 && (
                     <button onClick={() => router.push('/dashboard/checkins')}
@@ -630,36 +706,36 @@ function DashboardPageContent() {
                 </div>
                 {todayCheckinClients.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center px-5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}10` }}>
-                      <CalendarDays size={22} style={{ color: accentHex, opacity: 0.4 }} />
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}${isDark ? '20' : '10'}` }}>
+                      <CalendarDays size={22} style={{ color: accentHex, opacity: 0.5 }} />
                     </div>
-                    <p className="text-sm font-medium text-gray-500">{t2('noCheckinsToday')}</p>
-                    <p className="text-xs text-gray-400 mt-1">{t2('clientsWithCheckinOn')} {todayDayName}</p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('noCheckinsToday')}</p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('clientsWithCheckinOn')} {todayDayName}</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50">
+                  <div className={`divide-y ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
                     {todayCheckinClients.map(c => (
                       <div
                         key={c.id}
                         onClick={() => router.push(`/dashboard/clients/${c.id}?tab=checkin`)}
-                        className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors group"
+                        className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
                       >
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}15` }}>
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
                           <span className="text-xs font-bold" style={{ color: accentHex }}>
                             {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                           </span>
                         </div>
-                        <span className="flex-1 text-sm font-medium text-gray-800">{c.full_name}</span>
+                        <span className={`flex-1 text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.full_name}</span>
                         {c.submitted ? (
-                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                             <Check size={10} /> {t2('miniStatSubmitted')}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                             <Clock size={10} /> {t2('miniStatWaiting')}
                           </span>
                         )}
-                        <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors ml-1" />
+                        <ChevronRight size={13} className={`ml-1 transition-colors ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-400'}`} />
                       </div>
                     ))}
                   </div>
@@ -667,58 +743,69 @@ function DashboardPageContent() {
               </div>
 
               {/* Expiring packages */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
-                  <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center">
-                    <Package size={15} className="text-amber-500" />
+              <div className={cardCls} style={cardStyle}>
+                <div className={`flex items-center gap-3 px-5 py-4 border-b ${headerBorderCls}`}>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDark ? '' : 'bg-amber-50'}`}
+                    style={isDark ? { backgroundColor: 'rgba(217,119,6,0.2)' } : {}}>
+                    <Package size={15} style={{ color: isDark ? '#fbbf24' : undefined }} className={!isDark ? 'text-amber-500' : ''} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900">{t2('packagesExpiringTitle')}</p>
-                    <p className="text-xs text-gray-400">{t2('expiresIn7Days')}</p>
+                    <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('packagesExpiringTitle')}</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t2('expiresIn7Days')}</p>
                   </div>
                   {expiringPackages.length > 0 && (
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                       {expiringPackages.length}
                     </span>
                   )}
                 </div>
                 {expiringPackages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 text-center px-5">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
-                      <Package size={22} className="text-amber-300" />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${isDark ? '' : 'bg-amber-50'}`}
+                      style={isDark ? { backgroundColor: 'rgba(217,119,6,0.15)' } : {}}>
+                      <Package size={22} style={{ color: isDark ? '#d97706' : undefined, opacity: 0.5 }} className={!isDark ? 'text-amber-300' : ''} />
                     </div>
-                    <p className="text-sm font-medium text-gray-500">{t2('noExpiringPackages')}</p>
-                    <p className="text-xs text-gray-400 mt-1">{t2('allPackagesActiveThisWeek')}</p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('noExpiringPackages')}</p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('allPackagesActiveThisWeek')}</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-50 max-h-[416px] overflow-y-auto">
+                  <div className={`divide-y max-h-[416px] overflow-y-auto ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
                     {expiringPackages.map(pkg => {
                       const urgent = pkg.days_left <= 2
                       return (
                         <div
                           key={pkg.id}
                           onClick={() => router.push(`/dashboard/clients/${pkg.client_id}?tab=paketi`)}
-                          className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors group"
+                          className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
                         >
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${urgent ? 'bg-red-50' : 'bg-amber-50'}`}>
-                            <span className={`text-xs font-bold ${urgent ? 'text-red-500' : 'text-amber-600'}`}>
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: urgent
+                              ? (isDark ? 'rgba(220,38,38,0.2)' : undefined)
+                              : (isDark ? 'rgba(217,119,6,0.2)' : undefined),
+                            }}
+                          >
+                            <span
+                              className={`text-xs font-bold ${!isDark ? (urgent ? 'text-red-500' : 'text-amber-600') : ''}`}
+                              style={isDark ? { color: urgent ? '#f87171' : '#fbbf24' } : {}}
+                            >
                               {pkg.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{pkg.client_name}</p>
-                            <p className="text-xs text-gray-400 truncate">{pkg.pkg_name}</p>
+                            <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{pkg.client_name}</p>
+                            <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{pkg.pkg_name}</p>
                           </div>
                           <div className="flex flex-col items-end shrink-0 gap-0.5">
                             <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
-                              pkg.days_left === 0 ? 'bg-red-50 text-red-600 border-red-100' :
-                              urgent ? 'bg-red-50 text-red-600 border-red-100' :
-                              'bg-amber-50 text-amber-700 border-amber-100'
+                              pkg.days_left <= 0 || urgent
+                                ? (isDark ? 'bg-red-500/15 text-red-400 border-red-500/25' : 'bg-red-50 text-red-600 border-red-100')
+                                : (isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-100')
                             }`}>
                               {pkg.days_left === 0 ? t2('expiresToday') : `${pkg.days_left}d`}
                             </span>
                           </div>
-                          <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
+                          <ChevronRight size={13} className={`transition-colors ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-400'}`} />
                         </div>
                       )
                     })}
@@ -745,63 +832,16 @@ function DashboardPageContent() {
       {/* Charts + checkin list */}
       <div className={`grid grid-cols-1 lg:grid-cols-3 gap-5 ${dashView === 'today' ? 'hidden' : ''}`}>
 
-        {/* Revenue bar chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{t('revenue.title')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{t2('revenueLastSixMonths')}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `${accentHex}35` }} />
-                <span className="text-xs text-gray-400">{t('revenue.expected')}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: accentHex }} />
-                <span className="text-xs text-gray-400">{t('revenue.collected')}</span>
-              </div>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={monthlyRevenue} barCategoryGap="40%">
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={36} />
-              <Tooltip
-                formatter={(v: number | undefined, name: string | undefined) => [`${v ?? 0}€`, name === 'ocekivano' ? t('revenue.expected') : t('revenue.collected')]}
-                contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-              />
-              <Bar dataKey="naplaceno" stackId="rev" fill={accentHex} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="ocekivano" stackId="rev" fill={`${accentHex}35`} radius={[5, 5, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Donut — this month */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center justify-center">
-          <p className="text-sm font-semibold text-gray-900 mb-1">{t('revenue.thisMonth')}</p>
-          <p className="text-xs text-gray-400 mb-4">{now.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</p>
-          <div className="relative">
-            <PieChart width={150} height={150}>
-              <Pie data={pieData} cx={70} cy={70} innerRadius={48} outerRadius={65} startAngle={90} endAngle={-270} dataKey="value" strokeWidth={0}>
-                <Cell fill={accentHex} />
-                <Cell fill={`${accentHex}25`} />
-              </Pie>
-            </PieChart>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-2xl font-extrabold leading-none" style={{ color: accentHex }}>{progressPercent}%</p>
-              <p className="text-[10px] text-gray-400 mt-1">{t('revenue.paid')}</p>
-            </div>
-          </div>
-          <p className="text-sm font-semibold text-gray-700 mt-3">
-            {stats.paidByStart}€
-            <span className="text-gray-300 mx-1">/</span>
-            <span className="text-gray-400 font-normal">{stats.totalMonth}€</span>
-          </p>
-          {stats.latePayments > 0 && (
-            <p className="text-xs text-rose-500 mt-1.5 font-medium">{t2('latePaymentCount', { count: stats.latePayments })}</p>
-          )}
-        </div>
+        {/* Revenue bar chart + Donut */}
+        <DashboardRevenueCharts
+          monthlyRevenue={monthlyRevenue}
+          accentHex={accentHex}
+          isDark={isDark}
+          progressPercent={progressPercent}
+          paidByStart={stats.paidByStart}
+          totalMonth={stats.totalMonth}
+          latePayments={stats.latePayments}
+        />
       </div>
 
       {/* Recent activity feed */}
@@ -823,27 +863,27 @@ function DashboardPageContent() {
               const icon = item.type === 'checkin'
                 ? <ClipboardCheck size={13} style={{ color: accentHex }} />
                 : item.type === 'message'
-                ? <MessageSquare size={13} className="text-sky-500" />
-                : <CreditCard size={13} className="text-emerald-500" />
+                ? <MessageSquare size={13} style={{ color: isDark ? '#38bdf8' : '#0284c7' }} />
+                : <CreditCard size={13} style={{ color: isDark ? '#34d399' : '#059669' }} />
               const dot = item.type === 'checkin'
-                ? { backgroundColor: `${accentHex}20`, color: accentHex }
+                ? { backgroundColor: isDark ? `${accentHex}35` : `${accentHex}20`, color: accentHex }
                 : item.type === 'message'
-                ? { backgroundColor: '#e0f2fe', color: '#0284c7' }
-                : { backgroundColor: '#d1fae5', color: '#059669' }
+                ? { backgroundColor: isDark ? 'rgba(2,132,199,0.22)' : '#e0f2fe', color: isDark ? '#38bdf8' : '#0284c7' }
+                : { backgroundColor: isDark ? 'rgba(5,150,105,0.22)' : '#d1fae5', color: isDark ? '#34d399' : '#059669' }
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                  className={`flex items-center gap-3 px-2.5 py-2 rounded-xl cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
                   onClick={() => item.clientId && router.push(`/dashboard/clients/${item.clientId}`)}
                 >
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={dot}>
                     {icon}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-semibold text-gray-800">{item.title}</span>
-                    <span className="text-xs text-gray-400 ml-1.5">{item.subtitle}</span>
+                    <span className={`text-xs font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.title}</span>
+                    <span className={`text-xs ml-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{item.subtitle}</span>
                   </div>
-                  <span className="text-[11px] text-gray-400 tabular-nums shrink-0">{item.time}</span>
+                  <span className={`text-[11px] tabular-nums shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{item.time}</span>
                 </div>
               )
             })}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   Activity,
@@ -25,8 +25,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { Card, CardContent } from '@/components/ui/card'
 import { supabase } from '@/lib/supabase'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import type {
   CheckinParameterSnapshot,
   CheckinPhotoEntry,
@@ -37,6 +37,10 @@ import type {
   WeeklyTrainings,
 } from '@/lib/weekly-report'
 
+// Internal context so sub-components don't need prop drilling
+const DCtx = React.createContext(false)
+const useDark = () => useContext(DCtx)
+
 type Props = {
   snapshot: WeeklyReportSnapshot
   /** Optional override for trainer notes (used in live preview). */
@@ -46,6 +50,8 @@ type Props = {
 export default function WeeklyReportView({ snapshot, trainerNotesOverride }: Props) {
   const t = useTranslations('clients.weeklyReports')
   const locale = useLocale()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const fmtDate = (iso: string | null | undefined) => {
     if (!iso) return '—'
@@ -58,63 +64,80 @@ export default function WeeklyReportView({ snapshot, trainerNotesOverride }: Pro
     : snapshot.trainerNotes
 
   return (
-    <div className="space-y-5">
-      {/* HEADER */}
-      <Card>
-        <CardContent className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <DCtx.Provider value={isDark}>
+      <div className="space-y-4">
+        {/* HEADER */}
+        <SectionCard>
+          <div className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
             <FileText size={13} />
             {t('section.header')}
           </div>
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 className="text-xl font-bold text-gray-900">{snapshot.client.name}</h2>
-            <span className="text-sm text-gray-500">·</span>
-            <span className="text-sm text-gray-700">{fmtRange}</span>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-2">
+            <h2 className={`text-xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{snapshot.client.name}</h2>
+            <span className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>·</span>
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{fmtRange}</span>
             {snapshot.range.isPartial ? (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-100 text-amber-800'}`}>
                 {t('list.partialBadge')}
               </span>
             ) : null}
           </div>
           {snapshot.client.goal ? (
-            <p className="text-sm text-gray-600">
-              <span className="font-semibold">{t('summary.workouts').slice(0, 0)}</span>
-              <Target size={12} className="inline mr-1 text-gray-400" />
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <Target size={12} className={`inline mr-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
               {snapshot.client.goal}
             </p>
           ) : null}
-        </CardContent>
-      </Card>
+        </SectionCard>
 
-      {/* TL;DR SUMMARY */}
-      <SummarySection snapshot={snapshot} />
+        {/* TL;DR SUMMARY */}
+        <SummarySection snapshot={snapshot} />
 
-      {/* TRAININGS */}
-      <SectionShell icon={<Dumbbell size={14} />} label={t('section.trainings')}>
-        <TrainingsSection trainings={snapshot.trainings} />
-      </SectionShell>
-
-      {/* NUTRITION */}
-      <SectionShell icon={<UtensilsCrossed size={14} />} label={t('section.nutrition')}>
-        <NutritionSection nutrition={snapshot.nutrition} />
-      </SectionShell>
-
-      {/* PARAMETERS */}
-      <SectionShell icon={<Activity size={14} />} label={t('section.parameters')}>
-        <ParametersSection parameters={snapshot.parameters} />
-      </SectionShell>
-
-      {/* PHOTOS */}
-      <SectionShell icon={<Camera size={14} />} label={t('section.photos')}>
-        <PhotosSection photoSets={snapshot.photoSets} />
-      </SectionShell>
-
-      {/* TRAINER NOTES */}
-      {trainerNotes && trainerNotes.trim() ? (
-        <SectionShell icon={<StickyNote size={14} />} label={t('section.trainerNotes')}>
-          <p className="whitespace-pre-wrap text-sm text-gray-700">{trainerNotes}</p>
+        {/* TRAININGS */}
+        <SectionShell icon={<Dumbbell size={14} />} label={t('section.trainings')}>
+          <TrainingsSection trainings={snapshot.trainings} />
         </SectionShell>
-      ) : null}
+
+        {/* NUTRITION */}
+        <SectionShell icon={<UtensilsCrossed size={14} />} label={t('section.nutrition')}>
+          <NutritionSection nutrition={snapshot.nutrition} />
+        </SectionShell>
+
+        {/* PARAMETERS */}
+        <SectionShell icon={<Activity size={14} />} label={t('section.parameters')}>
+          <ParametersSection parameters={snapshot.parameters} />
+        </SectionShell>
+
+        {/* PHOTOS */}
+        <SectionShell icon={<Camera size={14} />} label={t('section.photos')}>
+          <PhotosSection photoSets={snapshot.photoSets} />
+        </SectionShell>
+
+        {/* TRAINER NOTES */}
+        {trainerNotes && trainerNotes.trim() ? (
+          <SectionShell icon={<StickyNote size={14} />} label={t('section.trainerNotes')}>
+            <p className={`whitespace-pre-wrap text-sm ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{trainerNotes}</p>
+          </SectionShell>
+        ) : null}
+      </div>
+    </DCtx.Provider>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared card wrapper
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SectionCard({ children }: { children: React.ReactNode }) {
+  const isDark = useDark()
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={isDark
+        ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }
+        : { background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}
+    >
+      {children}
     </div>
   )
 }
@@ -126,16 +149,15 @@ export default function WeeklyReportView({ snapshot, trainerNotesOverride }: Pro
 function SectionShell({
   icon, label, children,
 }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  const isDark = useDark()
   return (
-    <Card>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          {icon}
-          {label}
-        </div>
-        {children}
-      </CardContent>
-    </Card>
+    <SectionCard>
+      <div className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+        {icon}
+        {label}
+      </div>
+      {children}
+    </SectionCard>
   )
 }
 
@@ -146,6 +168,7 @@ function SectionShell({
 function SummarySection({ snapshot }: { snapshot: WeeklyReportSnapshot }) {
   const t = useTranslations('clients.weeklyReports.summary')
   const tSec = useTranslations('clients.weeklyReports.section')
+  const isDark = useDark()
   const s = snapshot.summary
 
   const workoutsValue = s.workoutsPlannedCount > 0
@@ -159,73 +182,71 @@ function SummarySection({ snapshot }: { snapshot: WeeklyReportSnapshot }) {
   const weightValue = (() => {
     if (s.weightDelta != null && s.weightStart != null && s.weightEnd != null) {
       const sign = s.weightDelta > 0 ? '+' : ''
-      const dColor = s.weightDelta > 0 ? 'text-emerald-700' : s.weightDelta < 0 ? 'text-rose-700' : 'text-gray-700'
+      const dColor = s.weightDelta > 0 ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : s.weightDelta < 0 ? (isDark ? 'text-rose-400' : 'text-rose-700') : (isDark ? 'text-gray-300' : 'text-gray-700')
       return (
         <span className={dColor}>
           {sign}{s.weightDelta} kg
-          <span className="ml-1 text-xs text-gray-400">({s.weightStart} → {s.weightEnd})</span>
+          <span className={`ml-1 text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>({s.weightStart} → {s.weightEnd})</span>
         </span>
       )
     }
     if (s.weightEnd != null) return <span>{s.weightEnd} kg</span>
-    return <span className="text-gray-400">{t('weightNone')}</span>
+    return <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>{t('weightNone')}</span>
   })()
 
   return (
-    <Card>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          <Flame size={14} />
-          {tSec('summary')}
+    <SectionCard>
+      <div className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+        <Flame size={14} />
+        {tSec('summary')}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryStat
+          label={t('workouts')}
+          value={workoutsValue}
+          valueClass={
+            s.workoutsPlannedCount > 0 && s.workoutsCompletedCount >= s.workoutsPlannedCount
+              ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
+              : s.workoutsPlannedCount > 0 && s.workoutsCompletedCount === 0
+                ? (isDark ? 'text-rose-400' : 'text-rose-700')
+                : (isDark ? 'text-gray-200' : 'text-gray-900')
+          }
+        />
+        <SummaryStat
+          label={t('nutrition')}
+          value={nutritionValue}
+          valueClass={
+            s.nutritionTotalDays > 0 && s.nutritionConfirmedDays / s.nutritionTotalDays >= 0.85
+              ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
+              : s.nutritionTotalDays > 0 && s.nutritionConfirmedDays / s.nutritionTotalDays < 0.5
+                ? (isDark ? 'text-rose-400' : 'text-rose-700')
+                : (isDark ? 'text-gray-200' : 'text-gray-900')
+          }
+        />
+        <SummaryStat label={t('weight')} value={weightValue} />
+        <SummaryStat
+          label={t('totalVolume')}
+          value={`${formatNumber(s.totalVolumeKg)} ${t('totalVolumeUnit')}`}
+        />
+      </div>
+      {(s.avgCalories != null || s.avgProtein != null) ? (
+        <div
+          className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 mt-3"
+          style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f3f4f6' }}
+        >
+          <SummaryStat
+            label={t('avgKcal')}
+            value={s.avgCalories != null ? `${s.avgCalories} kcal` : t('avgKcalNone')}
+            compact
+          />
+          <SummaryStat
+            label={t('avgProtein')}
+            value={s.avgProtein != null ? `${s.avgProtein} g` : t('avgKcalNone')}
+            compact
+          />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SummaryStat
-            label={t('workouts')}
-            value={workoutsValue}
-            valueClass={
-              s.workoutsPlannedCount > 0 && s.workoutsCompletedCount >= s.workoutsPlannedCount
-                ? 'text-emerald-700'
-                : s.workoutsPlannedCount > 0 && s.workoutsCompletedCount === 0
-                  ? 'text-rose-700'
-                  : 'text-gray-900'
-            }
-          />
-          <SummaryStat
-            label={t('nutrition')}
-            value={nutritionValue}
-            valueClass={
-              s.nutritionTotalDays > 0 && s.nutritionConfirmedDays / s.nutritionTotalDays >= 0.85
-                ? 'text-emerald-700'
-                : s.nutritionTotalDays > 0 && s.nutritionConfirmedDays / s.nutritionTotalDays < 0.5
-                  ? 'text-rose-700'
-                  : 'text-gray-900'
-            }
-          />
-          <SummaryStat
-            label={t('weight')}
-            value={weightValue}
-          />
-          <SummaryStat
-            label={t('totalVolume')}
-            value={`${formatNumber(s.totalVolumeKg)} ${t('totalVolumeUnit')}`}
-          />
-        </div>
-        {(s.avgCalories != null || s.avgProtein != null) ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 border-t border-gray-100">
-            <SummaryStat
-              label={t('avgKcal')}
-              value={s.avgCalories != null ? `${s.avgCalories} kcal` : t('avgKcalNone')}
-              compact
-            />
-            <SummaryStat
-              label={t('avgProtein')}
-              value={s.avgProtein != null ? `${s.avgProtein} g` : t('avgKcalNone')}
-              compact
-            />
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : null}
+    </SectionCard>
   )
 }
 
@@ -237,10 +258,11 @@ function SummaryStat({
   valueClass?: string;
   compact?: boolean
 }) {
+  const isDark = useDark()
   return (
     <div className={compact ? 'space-y-0' : 'space-y-0.5'}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{label}</p>
-      <p className={`text-sm font-semibold leading-tight ${valueClass || 'text-gray-900'}`}>{value}</p>
+      <p className={`text-[11px] font-medium uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{label}</p>
+      <p className={`text-sm font-semibold leading-tight ${valueClass || (isDark ? 'text-gray-200' : 'text-gray-900')}`}>{value}</p>
     </div>
   )
 }
@@ -252,6 +274,7 @@ function SummaryStat({
 function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
   const t = useTranslations('clients.weeklyReports.trainings')
   const locale = useLocale()
+  const isDark = useDark()
   const fmtDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', weekday: 'short' })
 
@@ -261,8 +284,8 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
       {trainings.plannedDays.length > 0 ? (
         <div>
           <div className="flex items-baseline justify-between mb-2">
-            <p className="text-xs font-semibold text-gray-700">{t('plannedVsDone')}</p>
-            <p className="text-xs text-gray-500">
+            <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('plannedVsDone')}</p>
+            <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
               {trainings.plannedDays.filter(d => d.logged).length}/{trainings.plannedDays.length}
             </p>
           </div>
@@ -270,11 +293,15 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
             {trainings.plannedDays.map(d => (
               <div
                 key={`${d.date}-${d.dayName}`}
-                className={`rounded-lg border px-3 py-2 text-xs ${
-                  d.logged
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                    : 'border-rose-200 bg-rose-50 text-rose-900'
-                }`}
+                className="rounded-lg px-3 py-2 text-xs"
+                style={d.logged
+                  ? isDark
+                    ? { background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#6ee7b7' }
+                    : { background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46' }
+                  : isDark
+                    ? { background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)', color: '#fca5a5' }
+                    : { background: '#fff1f2', border: '1px solid #fecdd3', color: '#9f1239' }
+                }
               >
                 <p className="font-semibold">{d.dayName}</p>
                 <p className="text-[11px] opacity-75">{fmtDate(d.date)}</p>
@@ -286,15 +313,15 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
           </div>
         </div>
       ) : (
-        <p className="text-xs text-gray-500">{t('noPlannedDays')}</p>
+        <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{t('noPlannedDays')}</p>
       )}
 
       {/* Sessions */}
       {trainings.sessions.length === 0 ? (
-        <p className="text-sm text-gray-500">{t('noSessions')}</p>
+        <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{t('noSessions')}</p>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-700">{t('sessionsList')}</p>
+          <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('sessionsList')}</p>
           {trainings.sessions.map(s => (
             <SessionRow key={s.id} session={s} />
           ))}
@@ -304,7 +331,7 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
       {/* Volume bar chart */}
       {trainings.sessions.length >= 2 && (
         <div>
-          <p className="mb-2 text-xs font-semibold text-gray-700">Volumen po sesiji</p>
+          <p className={`mb-2 text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>Volumen po sesiji</p>
           <ResponsiveContainer width="100%" height={130}>
             <BarChart
               data={trainings.sessions.map(s => ({
@@ -313,12 +340,12 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
               }))}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f0'} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#6b7280' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#6b7280' }} axisLine={false} tickLine={false} />
               <Tooltip
                 formatter={(v: unknown) => [`${formatNumber(Number(v))} kg`, 'Volumen']}
-                contentStyle={{ fontSize: 11 }}
+                contentStyle={{ fontSize: 11, background: isDark ? 'rgb(18,18,26)' : 'white', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb', borderRadius: 8, color: isDark ? '#e5e7eb' : '#111827' }}
               />
               <Bar dataKey="vol" radius={[4, 4, 0, 0]}>
                 {trainings.sessions.map((_, i) => (
@@ -332,15 +359,20 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
 
       {/* Volume row */}
       {trainings.totalVolumeKg > 0 ? (
-        <div className="grid grid-cols-2 gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+        <div
+          className="grid grid-cols-2 gap-3 rounded-lg px-4 py-3 text-sm"
+          style={isDark
+            ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }
+            : { background: '#f9fafb', border: '1px solid #e5e7eb' }}
+        >
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{t('totalVolume')}</p>
-            <p className="font-semibold text-gray-900">{formatNumber(trainings.totalVolumeKg)} {t('volumeUnit')}</p>
+            <p className={`text-[11px] font-medium uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('totalVolume')}</p>
+            <p className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{formatNumber(trainings.totalVolumeKg)} {t('volumeUnit')}</p>
           </div>
           {trainings.avgSessionVolumeKg != null ? (
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">{t('avgVolume')}</p>
-              <p className="font-semibold text-gray-900">{formatNumber(trainings.avgSessionVolumeKg)} {t('volumeUnit')}</p>
+              <p className={`text-[11px] font-medium uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('avgVolume')}</p>
+              <p className={`font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{formatNumber(trainings.avgSessionVolumeKg)} {t('volumeUnit')}</p>
             </div>
           ) : null}
         </div>
@@ -358,27 +390,31 @@ function TrainingsSection({ trainings }: { trainings: WeeklyTrainings }) {
 function SessionRow({ session }: { session: WeeklySessionSummary }) {
   const t = useTranslations('clients.weeklyReports.trainings')
   const locale = useLocale()
+  const isDark = useDark()
   const fmtDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', weekday: 'short' })
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
-      {/* top row: name + stats */}
+    <div
+      className="rounded-lg p-3 space-y-1.5"
+      style={isDark
+        ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }
+        : { background: 'white', border: '1px solid #e5e7eb' }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold leading-tight text-gray-900">
+          <p className={`truncate text-sm font-semibold leading-tight ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
             {session.dayName || t('session')}
           </p>
-          <p className="text-[11px] text-gray-400">{fmtDate(session.date)}</p>
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{fmtDate(session.date)}</p>
         </div>
-        <div className="shrink-0 text-right text-[11px] text-gray-500 leading-tight">
+        <div className={`shrink-0 text-right text-[11px] leading-tight ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           <p>{t('exerciseCount', { count: session.exerciseCount })} · {t('setCount', { count: session.totalSetsCompleted })}</p>
-          <p className="font-semibold text-gray-800">{formatNumber(session.totalVolumeKg)} {t('volumeUnit')}</p>
+          <p className={`font-semibold ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{formatNumber(session.totalVolumeKg)} {t('volumeUnit')}</p>
         </div>
       </div>
-      {/* progression row — completely separate block, border to visually separate */}
       {session.topProgression ? (
-        <div className="border-t border-gray-100 pt-1.5">
+        <div style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f3f4f6', paddingTop: 6 }}>
           <ProgressionInline highlight={{
             exerciseName: session.topProgression.exerciseName,
             sessionDate: session.date,
@@ -394,18 +430,19 @@ function SessionRow({ session }: { session: WeeklySessionSummary }) {
 
 function ProgressionsBlock({ highlights, kind }: { highlights: ExerciseHighlight[]; kind: 'up' | 'down' }) {
   const t = useTranslations('clients.weeklyReports.trainings')
+  const isDark = useDark()
   if (highlights.length === 0) return null
   const Icon = kind === 'up' ? TrendingUp : TrendingDown
 
   return (
     <div>
       <div className="mb-2 flex items-center gap-1.5">
-        <Icon size={14} className={kind === 'up' ? 'text-emerald-600' : 'text-rose-600'} />
-        <p className="text-xs font-semibold text-gray-700">
+        <Icon size={14} className={kind === 'up' ? (isDark ? 'text-emerald-400' : 'text-emerald-600') : (isDark ? 'text-rose-400' : 'text-rose-600')} />
+        <p className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>
           {kind === 'up' ? t('bestProgressionsTitle') : t('regressionsTitle')}
         </p>
       </div>
-      <p className="mb-2 text-[11px] text-gray-500">
+      <p className={`mb-2 text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
         {kind === 'up' ? t('bestProgressionsSub') : t('regressionsSub')}
       </p>
       <ul className="space-y-1.5">
@@ -421,8 +458,13 @@ function ProgressionsBlock({ highlights, kind }: { highlights: ExerciseHighlight
 
 function ProgressionInline({ highlight }: { highlight: ExerciseHighlight }) {
   const t = useTranslations('clients.weeklyReports.trainings')
+  const isDark = useDark()
   const colorClass =
-    highlight.kind === 'up' ? 'text-emerald-700' : highlight.kind === 'down' ? 'text-rose-700' : 'text-gray-600'
+    highlight.kind === 'up'
+      ? (isDark ? 'text-emerald-400' : 'text-emerald-700')
+      : highlight.kind === 'down'
+        ? (isDark ? 'text-rose-400' : 'text-rose-700')
+        : (isDark ? 'text-gray-500' : 'text-gray-600')
 
   let deltaText = ''
   const w = highlight.weightDelta
@@ -435,7 +477,7 @@ function ProgressionInline({ highlight }: { highlight: ExerciseHighlight }) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap text-[11px]">
-      <span className="font-medium text-gray-800">{highlight.exerciseName}</span>
+      <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{highlight.exerciseName}</span>
       {deltaText ? <span className={`font-semibold ${colorClass}`}>{deltaText}</span> : null}
     </div>
   )
@@ -448,11 +490,12 @@ function ProgressionInline({ highlight }: { highlight: ExerciseHighlight }) {
 function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
   const t = useTranslations('clients.weeklyReports.nutrition')
   const locale = useLocale()
+  const isDark = useDark()
   const fmtDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', weekday: 'short' })
 
   if (nutrition.totalDays === 0 || nutrition.confirmedDays === 0) {
-    return <p className="text-sm text-gray-500">{t('noLogs')}</p>
+    return <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{t('noLogs')}</p>
   }
 
   const pct = nutrition.totalDays > 0
@@ -468,12 +511,8 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-gray-700">
-        {t('confirmedRatio', {
-          confirmed: nutrition.confirmedDays,
-          total: nutrition.totalDays,
-          pct,
-        })}
+      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>
+        {t('confirmedRatio', { confirmed: nutrition.confirmedDays, total: nutrition.totalDays, pct })}
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -482,13 +521,19 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
             ? Math.round(((m.avg - m.target) / m.target) * 100)
             : null
           const devColor =
-            dev == null ? 'text-gray-500' :
-              Math.abs(dev) <= 10 ? 'text-emerald-700' :
-                Math.abs(dev) <= 20 ? 'text-amber-700' : 'text-rose-700'
+            dev == null ? (isDark ? 'text-gray-500' : 'text-gray-500') :
+              Math.abs(dev) <= 10 ? (isDark ? 'text-emerald-400' : 'text-emerald-700') :
+                Math.abs(dev) <= 20 ? (isDark ? 'text-amber-400' : 'text-amber-700') : (isDark ? 'text-rose-400' : 'text-rose-700')
           return (
-            <div key={m.key} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{m.label}</p>
-              <p className="text-sm font-semibold text-gray-900">
+            <div
+              key={m.key}
+              className="rounded-lg px-3 py-2.5"
+              style={isDark
+                ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }
+                : { background: 'white', border: '1px solid #e5e7eb' }}
+            >
+              <p className={`text-[10px] font-medium uppercase tracking-wide ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{m.label}</p>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                 {m.avg != null ? `${m.avg} ${m.unit}` : '—'}
               </p>
               {m.target != null ? (
@@ -497,7 +542,7 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
                   {dev != null ? <span className="ml-1">({dev > 0 ? '+' : ''}{dev}%)</span> : null}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-400">{t('noTarget')}</p>
+                <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('noTarget')}</p>
               )}
             </div>
           )
@@ -506,7 +551,7 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
 
       {/* Per-day grid */}
       <div>
-        <p className="mb-2 text-xs font-semibold text-gray-700">{t('perDayTitle')}</p>
+        <p className={`mb-2 text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('perDayTitle')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
           {nutrition.days.map(d => {
             const targetKcal = nutrition.targets?.calories ?? null
@@ -515,21 +560,28 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
             const isOnTarget = d.confirmed && targetKcal != null && d.calories != null
               ? Math.abs(d.calories - targetKcal) / targetKcal <= 0.1
               : null
+
+            let style: React.CSSProperties
+            if (!d.confirmed) {
+              style = isDark
+                ? { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', color: '#4b5563' }
+                : { background: 'rgba(249,250,251,0.5)', border: '1px solid #e5e7eb', color: '#9ca3af' }
+            } else if (isBest) {
+              style = isDark
+                ? { background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)', color: '#6ee7b7' }
+                : { background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46' }
+            } else if (isWorst) {
+              style = isDark
+                ? { background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', color: '#fcd34d' }
+                : { background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }
+            } else {
+              style = isDark
+                ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: '#d1d5db' }
+                : { background: 'white', border: '1px solid #e5e7eb', color: '#111827' }
+            }
+
             return (
-              <div
-                key={d.date}
-                className={`rounded-lg border px-2.5 py-2 text-xs ${
-                  !d.confirmed
-                    ? 'border-gray-200 bg-gray-50/50 text-gray-400'
-                    : isBest
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                      : isWorst
-                        ? 'border-amber-300 bg-amber-50 text-amber-900'
-                        : isOnTarget === true
-                          ? 'border-emerald-200 bg-white text-gray-900'
-                          : 'border-gray-200 bg-white text-gray-900'
-                }`}
-              >
+              <div key={d.date} className="rounded-lg px-2.5 py-2 text-xs" style={style}>
                 <p className="font-semibold text-[10px]">{fmtDate(d.date)}</p>
                 {d.confirmed && d.calories != null ? (
                   <p className="font-bold text-sm leading-tight">{d.calories}</p>
@@ -550,7 +602,7 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
       {/* Calories bar chart */}
       {nutrition.days.filter(d => d.confirmed && d.calories != null).length >= 2 && (
         <div>
-          <p className="mb-2 text-xs font-semibold text-gray-700">Kalorije po danu</p>
+          <p className={`mb-2 text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>Kalorije po danu</p>
           <ResponsiveContainer width="100%" height={130}>
             <BarChart
               data={nutrition.days.map(d => ({
@@ -559,19 +611,19 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
               }))}
               margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} domain={['auto', 'auto']} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f0'} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#6b7280' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#6b7280' }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
               <Tooltip
                 formatter={(v: unknown) => [v != null ? `${v} kcal` : '—', 'Kalorije']}
-                contentStyle={{ fontSize: 11 }}
+                contentStyle={{ fontSize: 11, background: isDark ? 'rgb(18,18,26)' : 'white', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb', borderRadius: 8, color: isDark ? '#e5e7eb' : '#111827' }}
               />
               {nutrition.targets?.calories != null && (
                 <ReferenceLine
                   y={nutrition.targets.calories}
-                  stroke="#6b7280"
+                  stroke={isDark ? '#6b7280' : '#9ca3af'}
                   strokeDasharray="4 4"
-                  label={{ value: 'cilj', position: 'insideTopRight', fontSize: 10, fill: '#9ca3af' }}
+                  label={{ value: 'cilj', position: 'insideTopRight', fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }}
                 />
               )}
               <Bar dataKey="kcal" radius={[4, 4, 0, 0]}>
@@ -579,7 +631,7 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
                   <Cell
                     key={i}
                     fill={!d.confirmed || d.calories == null
-                      ? '#e5e7eb'
+                      ? (isDark ? '#374151' : '#e5e7eb')
                       : nutrition.targets?.calories != null && Math.abs(d.calories - nutrition.targets.calories) / nutrition.targets.calories <= 0.1
                         ? '#34d399'
                         : '#fb923c'}
@@ -588,7 +640,7 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <p className="mt-1 text-[10px] text-gray-400">
+          <p className={`mt-1 text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             Zelena = ±10% od cilja · Narančasta = izvan cilja · Siva = nepotvrđeno
           </p>
         </div>
@@ -604,35 +656,47 @@ function NutritionSection({ nutrition }: { nutrition: WeeklyNutrition }) {
 function ParametersSection({ parameters }: { parameters: CheckinParameterSnapshot[] }) {
   const t = useTranslations('clients.weeklyReports.parameters')
   const locale = useLocale()
+  const isDark = useDark()
   const fmtDate = (iso: string | null) =>
     iso ? new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short' }) : '—'
 
   if (parameters.length === 0) {
-    return <p className="text-sm text-gray-500">{t('noParams')}</p>
+    return <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{t('noParams')}</p>
   }
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {parameters.map(p => (
-        <div key={p.paramId} className="rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+        <div
+          key={p.paramId}
+          className="rounded-lg px-3 py-2.5"
+          style={isDark
+            ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }
+            : { background: 'white', border: '1px solid #e5e7eb' }}
+        >
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-gray-900">{p.paramName}</p>
-            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+            <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{p.paramName}</p>
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+              style={isDark
+                ? { background: 'rgba(255,255,255,0.07)', color: '#9ca3af' }
+                : { background: '#f3f4f6', color: '#6b7280' }}
+            >
               {p.paramType === 'number' && p.series.length > 1 ? t('dailyParam') : t('weeklyParam')}
             </span>
           </div>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-            <span className="text-lg font-bold text-gray-900">
+            <span className={`text-lg font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
               {formatParamValue(p.currentValue)}
-              {p.paramUnit ? <span className="ml-0.5 text-xs font-medium text-gray-500">{p.paramUnit}</span> : null}
+              {p.paramUnit ? <span className={`ml-0.5 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{p.paramUnit}</span> : null}
             </span>
             {p.avgValue != null && p.series.length > 1 ? (
-              <span className="text-[11px] text-gray-500">
+              <span className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
                 ⌀ {p.avgValue}{p.paramUnit ? ` ${p.paramUnit}` : ''}
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] text-gray-400 mt-0.5">
+          <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             {t('lastEntry', { date: fmtDate(p.currentValueDate) })}
           </p>
           {p.series.length > 2 ? <Sparkline points={p.series.map(s => s.value)} /> : null}
@@ -670,6 +734,7 @@ function Sparkline({ points }: { points: number[] }) {
 function PhotosSection({ photoSets }: { photoSets: WeeklyReportSnapshot['photoSets'] }) {
   const t = useTranslations('clients.weeklyReports.photos')
   const locale = useLocale()
+  const isDark = useDark()
   const fmtDate = (iso: string) =>
     new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' })
 
@@ -713,7 +778,7 @@ function PhotosSection({ photoSets }: { photoSets: WeeklyReportSnapshot['photoSe
   }, [paths])
 
   if (photoSets.length === 0) {
-    return <p className="text-sm text-gray-500">{t('noPhotos')}</p>
+    return <p className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{t('noPhotos')}</p>
   }
 
   const resolve = (p: CheckinPhotoEntry) =>
@@ -723,14 +788,17 @@ function PhotosSection({ photoSets }: { photoSets: WeeklyReportSnapshot['photoSe
     <div className="space-y-3">
       {photoSets.map(set => (
         <div key={set.checkinId}>
-          <p className="mb-1.5 text-xs font-semibold text-gray-700">{t('fromDate', { date: fmtDate(set.date) })}</p>
+          <p className={`mb-1.5 text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('fromDate', { date: fmtDate(set.date) })}</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {set.photos.map((p, i) => {
               const url = resolve(p)
               return (
                 <div
                   key={`${set.checkinId}-${i}`}
-                  className="relative aspect-[3/4] overflow-hidden rounded-lg border border-gray-200 bg-gray-100"
+                  className="relative aspect-[3/4] overflow-hidden rounded-lg"
+                  style={isDark
+                    ? { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }
+                    : { background: '#f3f4f6', border: '1px solid #e5e7eb' }}
                 >
                   {url ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -741,7 +809,7 @@ function PhotosSection({ photoSets }: { photoSets: WeeklyReportSnapshot['photoSe
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                    <div className={`flex h-full items-center justify-center text-xs ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
                       {loading ? '…' : t('loadError')}
                     </div>
                   )}

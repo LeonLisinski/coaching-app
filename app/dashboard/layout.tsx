@@ -55,6 +55,14 @@ const navItems = [
   { href: '/dashboard/profile',     labelKey: 'profile',   icon: User,            color: 'text-rose-400'   },
 ]
 
+// Patch releasePointerCapture globally to suppress the dnd-kit NotFoundError
+if (typeof window !== 'undefined') {
+  const _origRelease = Element.prototype.releasePointerCapture
+  Element.prototype.releasePointerCapture = function (pointerId: number) {
+    try { _origRelease.call(this, pointerId) } catch (_) { /* ignore stale pointer */ }
+  }
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const tNav    = useTranslations('nav')
   const tCommon = useTranslations('common')
@@ -628,10 +636,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <span className="hdr-logo-text font-black text-sm text-gray-900 tracking-tight">UnitLift</span>
           </Link>
-          {/* Search trigger */}
+          {/* Search trigger — desktop only */}
           <button
             onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
-            className="hdr-search flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs flex-1 lg:flex-none lg:min-w-[180px]"
+            className="hdr-search hidden lg:flex items-center gap-2 h-8 px-3 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors text-xs lg:min-w-[180px]"
           >
             <Search size={13} />
             <span className="flex-1 text-left">{tLayout('searchPlaceholder')}</span>
@@ -641,16 +649,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
             <LocaleSwitcher />
-            <button
-              type="button"
-              data-tour="tour-help"
-              onClick={() => openHelpFromHeader()}
-              className="hdr-icon w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-              title={tLayout('helpTooltip')}
-              aria-label={tLayout('helpTooltip')}
-            >
-              <span className="text-sm font-bold text-gray-500">?</span>
-            </button>
             {/* Notification bell */}
             <div className="relative">
               <button

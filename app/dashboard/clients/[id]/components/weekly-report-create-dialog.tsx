@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { FileDown, Loader2 } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   Dialog,
   DialogContent,
@@ -12,9 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { supabase } from '@/lib/supabase'
 import {
   buildWeeklyReportSnapshot,
@@ -48,6 +46,8 @@ export default function WeeklyReportCreateDialog({
   const t = useTranslations('clients.weeklyReports.create')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -247,19 +247,29 @@ export default function WeeklyReportCreateDialog({
 
         <div className="flex-1 overflow-y-auto space-y-5 pr-1">
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-500">
+            <div className={`flex items-center justify-center py-12 ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>
               <Loader2 className="animate-spin" size={20} />
             </div>
           ) : (
             <>
               {/* Range picker */}
-              <section className="space-y-3 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+              <section
+                className="space-y-3 rounded-xl p-4"
+                style={isDark
+                  ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }
+                  : { background: 'rgba(249,250,251,0.6)', border: '1px solid #e5e7eb' }}
+              >
                 <div className="flex items-baseline justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-700">{t('rangeSection')}</p>
+                  <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('rangeSection')}</p>
                   {activeRange ? (
-                    <span className="text-[11px] text-gray-500">
+                    <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                       {fmtDate(activeRange.start)} — {fmtDate(activeRange.end)}{' '}
-                      <span className="ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-700 border border-gray-200">
+                      <span
+                        className={`ml-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold`}
+                        style={isDark
+                          ? { background: 'rgba(255,255,255,0.07)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }
+                          : { background: 'white', color: '#374151', border: '1px solid #e5e7eb' }}
+                      >
                         {activeRange.isPartial
                           ? t('rangePartialBadge', { days: activeRange.days })
                           : t('rangeFullBadge')}
@@ -269,31 +279,36 @@ export default function WeeklyReportCreateDialog({
                 </div>
 
                 {noCheckinsNotice ? (
-                  <p className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                  <p
+                    className="rounded-md px-3 py-2 text-xs"
+                    style={isDark
+                      ? { background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }
+                      : { background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e' }}
+                  >
                     {t('noticeNoCheckins')}
                   </p>
                 ) : null}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <PresetButton
-                    active={preset === 'sinceLast'}
+                    active={preset === 'sinceLast'} isDark={isDark}
                     onClick={() => setPreset('sinceLast')}
                     label={t('rangePresetSinceLastCheckin')}
                     badge={t('rangeDefaultLabel')}
                   />
                   <PresetButton
-                    active={preset === 'lastFull'}
+                    active={preset === 'lastFull'} isDark={isDark}
                     onClick={() => setPreset('lastFull')}
                     label={t('rangePresetLastFullWeek')}
                     disabled={pairs.length === 0}
                   />
                   <PresetButton
-                    active={preset === 'last7'}
+                    active={preset === 'last7'} isDark={isDark}
                     onClick={() => setPreset('last7')}
                     label={t('rangePresetLast7')}
                   />
                   <PresetButton
-                    active={preset === 'specificWeek'}
+                    active={preset === 'specificWeek'} isDark={isDark}
                     onClick={() => setPreset('specificWeek')}
                     label={t('rangeOtherWeeks')}
                     disabled={pairs.length === 0}
@@ -301,26 +316,38 @@ export default function WeeklyReportCreateDialog({
                 </div>
 
                 {preset === 'specificWeek' && pairs.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-1 max-h-44 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
+                  <div
+                    className="grid grid-cols-1 gap-1 max-h-44 overflow-y-auto rounded-md p-1"
+                    style={isDark
+                      ? { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }
+                      : { background: 'white', border: '1px solid #e5e7eb' }}
+                  >
                     {pairs.map((p, i) => (
                       <button
                         key={`${p.start}-${p.end}`}
                         type="button"
                         onClick={() => setSpecificWeekIdx(i)}
-                        className={`text-left text-xs px-2.5 py-1.5 rounded ${
+                        className={`text-left text-xs px-2.5 py-1.5 rounded transition-colors ${
                           specificWeekIdx === i
-                            ? 'bg-blue-50 text-blue-900 font-semibold border border-blue-200'
-                            : 'hover:bg-gray-100 text-gray-700'
+                            ? isDark
+                              ? 'bg-blue-500/15 text-blue-300 font-semibold border border-blue-500/30'
+                              : 'bg-blue-50 text-blue-900 font-semibold border border-blue-200'
+                            : isDark
+                              ? 'hover:bg-white/5 text-gray-400'
+                              : 'hover:bg-gray-100 text-gray-700'
                         }`}
                       >
                         {fmtDate(p.start)} → {fmtDate(p.end)}{' '}
-                        <span className="text-gray-400">({daysBetween(p.start, p.end) + 1}d)</span>
+                        <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>({daysBetween(p.start, p.end) + 1}d)</span>
                       </button>
                     ))}
                   </div>
                 ) : null}
 
-                <div className="border-t border-gray-200 pt-3">
+                <div
+                  className="pt-3"
+                  style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #e5e7eb' }}
+                >
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -329,67 +356,74 @@ export default function WeeklyReportCreateDialog({
                       onChange={() => setPreset(preset === 'custom' ? 'sinceLast' : 'custom')}
                       className="h-4 w-4"
                     />
-                    <Label htmlFor="custom-range-toggle" className="text-sm cursor-pointer">
+                    <label htmlFor="custom-range-toggle" className={`text-sm cursor-pointer ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       {t('rangePresetCustom')}
-                    </Label>
+                    </label>
                   </div>
                   {preset === 'custom' ? (
                     <div className="grid grid-cols-2 gap-3 mt-2">
                       <div>
-                        <Label className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 block">
+                        <label className={`text-[11px] uppercase tracking-wide mb-1 block ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                           {t('rangeCustomFrom')}
-                        </Label>
-                        <Input
+                        </label>
+                        <input
                           type="date"
                           value={customStart}
                           onChange={e => setCustomStart(e.target.value)}
                           max={customEnd || todayIso()}
+                          className={`w-full h-9 rounded-md border px-3 text-sm focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-white/30 [color-scheme:dark]' : 'bg-white border-gray-300 text-gray-900 focus:border-blue-400'}`}
                         />
                       </div>
                       <div>
-                        <Label className="text-[11px] uppercase tracking-wide text-gray-500 mb-1 block">
+                        <label className={`text-[11px] uppercase tracking-wide mb-1 block ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                           {t('rangeCustomTo')}
-                        </Label>
-                        <Input
+                        </label>
+                        <input
                           type="date"
                           value={customEnd}
                           onChange={e => setCustomEnd(e.target.value)}
                           max={todayIso()}
                           min={customStart}
+                          className={`w-full h-9 rounded-md border px-3 text-sm focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-white/30 [color-scheme:dark]' : 'bg-white border-gray-300 text-gray-900 focus:border-blue-400'}`}
                         />
                       </div>
                     </div>
                   ) : null}
 
                   {preset === 'custom' && customStart && customEnd && customStart > customEnd ? (
-                    <p className="mt-1.5 text-xs text-rose-600">{t('rangeError')}</p>
+                    <p className="mt-1.5 text-xs text-rose-500">{t('rangeError')}</p>
                   ) : null}
                   {futureWarning ? (
-                    <p className="mt-1.5 text-xs text-amber-700">{t('noticeFutureRange')}</p>
+                    <p className={`mt-1.5 text-xs ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>{t('noticeFutureRange')}</p>
                   ) : null}
                 </div>
               </section>
 
               {/* Trainer notes */}
               <section className="space-y-1.5">
-                <Label htmlFor="trainer-notes" className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+                <label className={`text-xs font-semibold uppercase tracking-wide block ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>
                   {t('trainerNotes')}
-                </Label>
-                <Textarea
+                </label>
+                <textarea
                   id="trainer-notes"
                   value={trainerNotes}
                   onChange={e => setTrainerNotes(e.target.value)}
                   placeholder={t('trainerNotesPlaceholder')}
                   rows={3}
-                  className="resize-none"
+                  className={`w-full rounded-md border px-3 py-2 text-sm resize-none focus:outline-none transition-colors ${isDark ? 'bg-white/5 border-white/15 text-gray-200 placeholder:text-gray-700 focus:border-white/30' : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-blue-400'}`}
                 />
               </section>
 
               {/* Preview */}
               <section className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-700">{t('preview')}</p>
+                <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{t('preview')}</p>
                 {previewLoading || !previewSnapshot ? (
-                  <div className="flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 py-8 text-gray-500">
+                  <div
+                    className="flex items-center justify-center rounded-xl py-8"
+                    style={isDark
+                      ? { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', color: '#4b5563' }
+                      : { background: '#f9fafb', border: '1px solid #e5e7eb', color: '#6b7280' }}
+                  >
                     <Loader2 className="animate-spin" size={18} />
                   </div>
                 ) : (
@@ -403,8 +437,11 @@ export default function WeeklyReportCreateDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t border-gray-100 pt-3 mt-2">
-          {error ? <p className="mr-auto text-xs text-rose-600">{error}</p> : null}
+        <DialogFooter
+          className="pt-3 mt-2"
+          style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f3f4f6' }}
+        >
+          {error ? <p className="mr-auto text-xs text-rose-500">{error}</p> : null}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             {tCommon('cancel')}
           </Button>
@@ -438,13 +475,14 @@ export default function WeeklyReportCreateDialog({
 }
 
 function PresetButton({
-  active, onClick, label, badge, disabled,
+  active, onClick, label, badge, disabled, isDark,
 }: {
   active: boolean
   onClick: () => void
   label: string
   badge?: string
   disabled?: boolean
+  isDark?: boolean
 }) {
   return (
     <button
@@ -453,15 +491,21 @@ function PresetButton({
       disabled={disabled}
       className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
         active
-          ? 'border-blue-300 bg-blue-50 text-blue-900 ring-1 ring-blue-200'
+          ? isDark
+            ? 'border-blue-500/40 bg-blue-500/10 text-blue-300 ring-1 ring-blue-500/25'
+            : 'border-blue-300 bg-blue-50 text-blue-900 ring-1 ring-blue-200'
           : disabled
-            ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-            : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50'
+            ? isDark
+              ? 'border-white/8 bg-transparent text-gray-700 cursor-not-allowed'
+              : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+            : isDark
+              ? 'border-white/12 bg-white/[0.03] text-gray-300 hover:bg-white/[0.06] hover:border-white/20'
+              : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
       <span className="flex-1">{label}</span>
       {badge ? (
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-800'}`}>
           {badge}
         </span>
       ) : null}

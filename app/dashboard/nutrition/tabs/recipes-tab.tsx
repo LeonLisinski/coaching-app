@@ -11,6 +11,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Recipe = {
   id: string
@@ -42,6 +43,8 @@ function RecipeCard({
   activeExtraFields: typeof NUTRITION_FIELD_OPTIONS
 }) {
   const t = useTranslations('nutrition.recipesTab')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: `recipe-drop::${recipe.id}`,
     data: { type: 'recipe-drop', recipeId: recipe.id },
@@ -64,12 +67,14 @@ function RecipeCard({
     <div
       ref={setDropRef}
       style={{ opacity: isDragging ? 0.35 : 1 }}
-      className={`relative border rounded-xl p-3 transition-all duration-150 bg-white cursor-default select-none ${
+      className={`relative border rounded-xl p-3 transition-all duration-150 cursor-default select-none ${
         isActive
           ? 'border-rose-400 shadow-md ring-2 ring-rose-400/25 bg-rose-50/30'
           : showDropHint
-          ? 'border-dashed border-rose-300'
-          : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
+          ? `border-dashed border-rose-300 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`
+          : isDark
+          ? 'bg-white/[0.03] border-white/8 hover:bg-white/[0.06] hover:border-white/10'
+          : 'bg-white border-gray-100 hover:shadow-sm hover:border-gray-200'
       }`}
       onDoubleClick={() => !isDragging && onEdit()}
     >
@@ -87,22 +92,22 @@ function RecipeCard({
           type="button"
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-rose-400 shrink-0 touch-none transition-colors"
+          className={`cursor-grab active:cursor-grabbing shrink-0 touch-none transition-colors hover:text-rose-400 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}
           onDoubleClick={e => e.stopPropagation()}
         >
           <GripVertical size={14} />
         </button>
 
-        <div className="w-6 h-6 rounded-lg bg-rose-50 flex items-center justify-center shrink-0">
+        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-white/8' : 'bg-rose-50'}`}>
           <BookOpen size={12} className="text-rose-500" />
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate text-gray-800">{recipe.name}</p>
+          <p className={`font-medium text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{recipe.name}</p>
           {recipe.description && (
-            <p className="text-xs text-gray-400 truncate">{recipe.description}</p>
+            <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{recipe.description}</p>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
+          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{t('dblClickHint')}</p>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
@@ -123,7 +128,7 @@ function RecipeCard({
       {/* Macro summary + ingredient chips */}
       {!isActive && (
         <div className={`mt-1.5 ml-8 ${isActive ? 'opacity-0' : ''}`}>
-          <div className="flex gap-2.5 text-[10px] text-gray-400 mb-1 flex-wrap">
+          <div className={`flex gap-2.5 text-[10px] mb-1 flex-wrap ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             <span>🔥 {Math.round(recipe.total_calories)} kcal</span>
             <span>🥩 {Math.round(recipe.total_protein)}g</span>
             <span>🍞 {Math.round(recipe.total_carbs)}g</span>
@@ -137,12 +142,12 @@ function RecipeCard({
           {recipe.ingredients?.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {recipe.ingredients.slice(0, 4).map((ing: any) => (
-                <span key={ing.food_id} className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded border border-gray-100">
+                <span key={ing.food_id} className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
                   {ing.name}
                 </span>
               ))}
               {recipe.ingredients.length > 4 && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded border border-gray-100">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.05] text-gray-500 border-white/8' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
                   +{recipe.ingredients.length - 4}
                 </span>
               )}
@@ -164,6 +169,8 @@ export default function RecipesTab({
 }) {
   const tTab = useTranslations('nutrition.recipesTab')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const { settings } = useTrainerSettings()
   const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -209,9 +216,9 @@ export default function RecipesTab({
   return (
     <>
       {/* Fixed: header + search */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+      <div className={`shrink-0 px-4 pt-3 pb-3 border-b space-y-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{sorted.length} / {tTab('count', { count: recipes.length })}</p>
+          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{sorted.length} / {tTab('count', { count: recipes.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -234,10 +241,10 @@ export default function RecipesTab({
             placeholder={tTab('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''} ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
               <X size={13} />
             </button>
           )}
@@ -251,7 +258,7 @@ export default function RecipesTab({
       {showFilters && (
         <div className="bg-rose-50/60 rounded-xl p-3 space-y-3 border border-rose-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tTab('sortByHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{tTab('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
                 { key: 'date_desc', label: tTab('sortNewest') },
@@ -262,7 +269,11 @@ export default function RecipesTab({
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    sort === opt.key ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-600 border-gray-200 hover:border-rose-300'
+                    sort === opt.key
+                      ? 'bg-rose-500 text-white border-rose-500'
+                      : isDark
+                      ? 'bg-white/[0.05] text-gray-300 border-white/10 hover:border-rose-400'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-rose-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -286,16 +297,16 @@ export default function RecipesTab({
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className={`h-16 rounded-xl animate-pulse ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />)}
         </div>
       ) : sorted.length === 0 ? (
         <div className={`py-10 text-center border-2 border-dashed rounded-xl transition-colors ${
-          activeType === 'food' ? 'border-rose-300/50 bg-rose-50/30' : 'border-gray-100'
+          activeType === 'food' ? 'border-rose-300/50 bg-rose-50/30' : isDark ? 'border-white/8' : 'border-gray-100'
         }`}>
-          <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mx-auto mb-2">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${isDark ? 'bg-white/8' : 'bg-rose-50'}`}>
             <BookOpen size={20} className="text-rose-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? tTab('noSearchResults') : tTab('noRecipes')}</p>
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{search ? tTab('noSearchResults') : tTab('noRecipes')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-rose-600 hover:text-rose-800 font-medium flex items-center gap-1 mx-auto">
               <Plus size={11} /> {tTab('createFirst')}

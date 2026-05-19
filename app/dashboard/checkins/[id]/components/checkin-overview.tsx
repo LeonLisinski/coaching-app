@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Send, CalendarCheck, CalendarX } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   getWeekDays,
   isoDate,
@@ -36,6 +37,8 @@ export default function CheckinOverview({ clientId }: Props) {
   const tHist = useTranslations('clients.history')
   const tDays = useTranslations('days')
   const tDaysShort = useTranslations('daysShort')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [dailyParams, setDailyParams] = useState<Parameter[]>([])
   const [weeklyParams, setWeeklyParams] = useState<Parameter[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
@@ -166,11 +169,15 @@ export default function CheckinOverview({ clientId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Week navigator — mora biti jasno na mobitelu (strelica lijevo = prošlost) */}
-      <div className="rounded-2xl border-2 border-teal-200/80 bg-gradient-to-b from-teal-50/90 to-white px-3 py-3 sm:px-4 shadow-sm">
+      {/* Week navigator */}
+      <div className={`rounded-2xl border-2 px-3 py-3 sm:px-4 shadow-sm ${
+        isDark
+          ? 'border-white/10 bg-white/[0.04]'
+          : 'border-teal-200/80 bg-gradient-to-b from-teal-50/90 to-white'
+      }`}>
         <div className="mb-2">
-          <p className="text-sm font-bold text-gray-900">{t('weekRangeTitle')}</p>
-          <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{t('weekRangeSubtitle')}</p>
+          <p className={`text-sm font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('weekRangeTitle')}</p>
+          <p className={`text-[11px] mt-0.5 leading-snug ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('weekRangeSubtitle')}</p>
         </div>
         <div className="flex items-center justify-between gap-2">
           <button
@@ -178,15 +185,19 @@ export default function CheckinOverview({ clientId }: Props) {
             aria-label={t('weekBackAria')}
             onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
             disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
-            className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-white border-2 border-teal-200 text-teal-700 shadow-sm hover:bg-teal-50 active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-white"
+            className={`min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl border-2 shadow-sm active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed transition-colors ${
+              isDark
+                ? 'bg-white/8 border-white/15 text-gray-200 hover:bg-white/14 disabled:hover:bg-white/8'
+                : 'bg-white border-teal-200 text-teal-700 hover:bg-teal-50 disabled:hover:bg-white'
+            }`}
           >
             <ChevronLeft size={22} strokeWidth={2.5} />
           </button>
           <div className="text-center min-w-0 flex-1 px-1">
-            <p className="text-sm sm:text-base font-bold text-gray-900 tabular-nums">{fmt(days[0])} — {fmt(days[6])}</p>
-            {weekOffset === 0 && <p className="text-[11px] text-teal-600 font-semibold mt-0.5">{t('thisWeek')}</p>}
+            <p className={`text-sm sm:text-base font-bold tabular-nums ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{fmt(days[0])} — {fmt(days[6])}</p>
+            {weekOffset === 0 && <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{t('thisWeek')}</p>}
             {weekOffset < 0 && (
-              <p className="text-[11px] text-gray-500 font-medium mt-0.5">
+              <p className="text-[11px] text-gray-400 font-medium mt-0.5">
                 {Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}
               </p>
             )}
@@ -196,13 +207,18 @@ export default function CheckinOverview({ clientId }: Props) {
             aria-label={t('weekForwardAria')}
             onClick={() => setWeekOffset(w => w + 1)}
             disabled={weekOffset >= 0}
-            className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl bg-white border-2 border-gray-200 text-gray-600 shadow-sm hover:bg-gray-50 active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed"
+            className={`min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl border-2 shadow-sm active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed transition-colors ${
+              isDark
+                ? 'bg-white/8 border-white/15 text-gray-300 hover:bg-white/14'
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
           >
             <ChevronRight size={22} strokeWidth={2.5} />
           </button>
         </div>
       </div>
 
+      {/* Quick jump */}
       <div className="flex flex-col gap-2">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{tHist('quickJumpWeeks')}</p>
         <div className="flex flex-wrap gap-2">
@@ -211,7 +227,11 @@ export default function CheckinOverview({ clientId }: Props) {
               key={n}
               type="button"
               onClick={() => setWeekOffset(-n)}
-              className="text-[11px] px-3 py-1.5 rounded-full font-medium border border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/50 transition-colors"
+              className={`text-[11px] px-3 py-1.5 rounded-full font-medium border transition-colors ${
+                isDark
+                  ? 'border-white/15 bg-white/[0.04] text-gray-300 hover:border-white/30 hover:bg-white/8'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/50'
+              }`}
             >
               {n === 1 ? tHist('weeksAgo1') : n === 2 ? tHist('weeksAgo2') : tHist('weeksAgo3')}
             </button>
@@ -222,44 +242,55 @@ export default function CheckinOverview({ clientId }: Props) {
 
       {loading ? (
         <div className="space-y-3">
-          <div className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+          <div className={`h-20 rounded-xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
+          <div className={`h-40 rounded-xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
         </div>
       ) : (
         <>
           {/* Weekly check-in card */}
-          <div className={`rounded-xl border transition-all ${checkin ? 'border-emerald-200 bg-emerald-50/30' : 'border-gray-100 bg-white'}`}>
+          <div className={`rounded-xl border transition-all ${
+            checkin
+              ? isDark ? 'border-emerald-500/25 bg-emerald-500/[0.07]' : 'border-emerald-200 bg-emerald-50/30'
+              : isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'
+          }`}>
             <div className="px-4 py-3">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   {checkin
                     ? <CalendarCheck size={15} className="text-emerald-500" />
-                    : <CalendarX size={15} className="text-gray-300" />
+                    : <CalendarX size={15} className={isDark ? 'text-white/20' : 'text-gray-300'} />
                   }
-                  <p className="font-semibold text-sm text-gray-800">{t('weeklyCheckin')}</p>
+                  <p className={`font-semibold text-sm ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('weeklyCheckin')}</p>
                   <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-2">
-                  {/* Remind: email (Resend) + push; prije je bio samo push */}
-                  {!checkin && weekOffset === 0 && (
-                    <button
-                      onClick={() => pingClient(t2('remindMessage'))}
-                      disabled={pinging || pinged}
-                      className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border transition-all ${pinged ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'}`}
-                    >
-                      {pinged ? t2('remindSent') : pinging ? '...' : t2('remindBtn')}
-                    </button>
-                  )}
-                  <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${checkin ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                    {checkin
-                      ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
-                      : t('notSent')
-                    }
-                  </span>
+                    {!checkin && weekOffset === 0 && (
+                      <button
+                        onClick={() => pingClient(t2('remindMessage'))}
+                        disabled={pinging || pinged}
+                        className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border transition-all ${
+                          pinged
+                            ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                            : isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                        }`}
+                      >
+                        {pinged ? t2('remindSent') : pinging ? '...' : t2('remindBtn')}
+                      </button>
+                    )}
+                    <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${
+                      checkin
+                        ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : isDark ? 'bg-white/8 text-gray-400 border-white/15' : 'bg-gray-100 text-gray-400 border-gray-200'
+                    }`}>
+                      {checkin
+                        ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
+                        : t('notSent')
+                      }
+                    </span>
                   </div>
                   {remindError && (
-                    <p className="text-[10px] text-red-600 max-w-[220px] text-right leading-tight">{remindError}</p>
+                    <p className="text-[10px] text-red-500 max-w-[220px] text-right leading-tight">{remindError}</p>
                   )}
                 </div>
               </div>
@@ -274,12 +305,16 @@ export default function CheckinOverview({ clientId }: Props) {
                     const isBoolean = p.type === 'boolean'
                     const boolYes = isBoolean && (raw === true || raw === 'true')
                     return (
-                      <div key={p.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${hasVal ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div key={p.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${
+                        hasVal
+                          ? isDark ? 'bg-white/8 border-white/12' : 'bg-white border-gray-200'
+                          : isDark ? 'bg-white/[0.03] border-white/8' : 'bg-gray-50 border-gray-100'
+                      }`}>
                         <span className="text-[11px] text-gray-400 font-medium">{p.name}</span>
                         <span className={`text-sm font-bold ${
-                          !hasVal ? 'text-gray-300' :
-                          isBoolean ? (boolYes ? 'text-emerald-600' : 'text-red-500') :
-                          'text-gray-800'
+                          !hasVal ? (isDark ? 'text-white/20' : 'text-gray-300') :
+                          isBoolean ? (boolYes ? 'text-emerald-500' : 'text-red-500') :
+                          isDark ? 'text-gray-100' : 'text-gray-800'
                         }`}>
                           {hasVal ? `${display}${!isBoolean && p.unit ? ` ${p.unit}` : ''}` : '—'}
                         </span>
@@ -291,13 +326,15 @@ export default function CheckinOverview({ clientId }: Props) {
 
               {/* Trainer comment */}
               {checkin && (
-                <div className="pt-3 border-t border-gray-100 space-y-2">
+                <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('commentToClient')}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('commentToClient')}</p>
                     <p className="text-[11px] text-gray-400">{t('sendAsChat')}</p>
                   </div>
                   {checkin.trainer_comment && (
-                    <div className="bg-teal-50 rounded-lg px-3 py-2 text-xs text-teal-700 border border-teal-100">
+                    <div className={`rounded-lg px-3 py-2 text-xs border ${
+                      isDark ? 'bg-teal-500/10 text-teal-300 border-teal-500/20' : 'bg-teal-50 text-teal-700 border-teal-100'
+                    }`}>
                       {t('lastLabel')}: &ldquo;{checkin.trainer_comment}&rdquo;
                     </div>
                   )}
@@ -307,7 +344,11 @@ export default function CheckinOverview({ clientId }: Props) {
                       onChange={e => setComment(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
                       placeholder={t('commentPlaceholder')}
-                      className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-300 transition-colors"
+                      className={`flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none transition-colors ${
+                        isDark
+                          ? 'bg-white/[0.05] border-white/12 text-gray-100 placeholder:text-gray-500 focus:border-teal-500/50'
+                          : 'border-gray-200 focus:border-teal-300'
+                      }`}
                     />
                     <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent}
                       className={`flex-shrink-0 gap-1.5 h-9 text-xs px-3 ${sent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
@@ -324,15 +365,15 @@ export default function CheckinOverview({ clientId }: Props) {
           {dailyParams.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('dailyEntries')}</p>
-              <div className="rounded-xl border border-gray-100 overflow-hidden bg-white">
+              <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-white/10 bg-white/[0.02]' : 'border-gray-100 bg-white'}`}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50/60">
+                      <tr className={`border-b ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-gray-100 bg-gray-50/60'}`}>
                         <th className="text-left px-4 py-2.5 text-xs font-semibold text-gray-400 w-28">{t('day')}</th>
                         {dailyParams.map(p => (
                           <th key={p.id} className="text-center px-4 py-2.5 text-xs font-semibold text-gray-400">
-                            {p.name}{p.unit && <span className="font-normal text-gray-300"> ({p.unit})</span>}
+                            {p.name}{p.unit && <span className={`font-normal ${isDark ? 'text-white/20' : 'text-gray-300'}`}> ({p.unit})</span>}
                           </th>
                         ))}
                       </tr>
@@ -344,15 +385,21 @@ export default function CheckinOverview({ clientId }: Props) {
                         const isToday = iso === isoDate(new Date())
                         const isCheckinDayRow = day.getDay() === checkinDay
                         return (
-                          <tr key={iso} className={`border-b border-gray-50 last:border-0 transition-colors ${
-                            isToday ? 'bg-teal-50/60' : i % 2 !== 0 ? 'bg-gray-50/30' : ''
+                          <tr key={iso} className={`border-b last:border-0 transition-colors ${isDark ? 'border-white/[0.06]' : 'border-gray-50'} ${
+                            isToday
+                              ? isDark ? 'bg-teal-500/10' : 'bg-teal-50/60'
+                              : i % 2 !== 0
+                                ? isDark ? 'bg-white/[0.02]' : 'bg-gray-50/30'
+                                : ''
                           }`}>
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${log ? 'bg-emerald-400' : isDark ? 'bg-white/15' : 'bg-gray-200'}`} />
                                 <div>
                                   <div className="flex items-center gap-1">
-                                    <span className={`text-xs font-semibold ${isToday ? 'text-teal-600' : 'text-gray-700'}`}>{tDaysShort(String(day.getDay()))}</span>
+                                    <span className={`text-xs font-semibold ${isToday ? (isDark ? 'text-teal-400' : 'text-teal-600') : (isDark ? 'text-gray-200' : 'text-gray-700')}`}>
+                                      {tDaysShort(String(day.getDay()))}
+                                    </span>
                                     {isCheckinDayRow && <span className="text-indigo-400 text-[10px] font-bold">●</span>}
                                   </div>
                                   <div className="text-[11px] text-gray-400">{fmt(day)}</div>
@@ -365,8 +412,8 @@ export default function CheckinOverview({ clientId }: Props) {
                               return (
                                 <td key={p.id} className="text-center px-4 py-2.5">
                                   {display !== null
-                                    ? <span className="font-semibold text-gray-800 text-sm">{display}</span>
-                                    : <span className="text-gray-200 text-sm">—</span>
+                                    ? <span className={`font-semibold text-sm ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{display}</span>
+                                    : <span className={`text-sm ${isDark ? 'text-white/15' : 'text-gray-200'}`}>—</span>
                                   }
                                 </td>
                               )
@@ -374,11 +421,11 @@ export default function CheckinOverview({ clientId }: Props) {
                           </tr>
                         )
                       })}
-                      <tr className="border-t-2 border-gray-100 bg-gray-50">
-                        <td className="px-4 py-2.5 text-xs font-bold text-gray-500">{t('average')}</td>
+                      <tr className={`border-t-2 ${isDark ? 'border-white/10 bg-white/[0.04]' : 'border-gray-100 bg-gray-50'}`}>
+                        <td className={`px-4 py-2.5 text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>{t('average')}</td>
                         {dailyParams.map(p => (
-                          <td key={p.id} className="text-center px-4 py-2.5 text-xs font-bold text-teal-600">
-                            {p.type === 'number' ? (avg(p.id) ?? <span className="text-gray-300">—</span>) : <span className="text-gray-300">—</span>}
+                          <td key={p.id} className={`text-center px-4 py-2.5 text-xs font-bold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                            {p.type === 'number' ? (avg(p.id) ?? <span className={isDark ? 'text-white/20' : 'text-gray-300'}>—</span>) : <span className={isDark ? 'text-white/20' : 'text-gray-300'}>—</span>}
                           </td>
                         ))}
                       </tr>

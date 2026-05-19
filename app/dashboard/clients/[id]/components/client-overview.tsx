@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   Dumbbell, UtensilsCrossed, MessageSquare, ClipboardCheck,
-  TrendingUp, ArrowRight, Calendar, Activity, Percent, ClipboardList, Scale,
-  ChevronLeft, ChevronRight,
+  ArrowRight, Calendar, Activity, Percent, ClipboardList, Scale,
+  ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useTranslations } from 'next-intl'
-import { consistencyScore, getCheckinStatus } from '@/lib/checkin-engagement'
+import { getCheckinStatus } from '@/lib/checkin-engagement'
 import { getWeekDays, isoDate } from '@/lib/client-tracking-week'
 import {
   buildPlannedRows,
@@ -21,6 +21,7 @@ import {
 import { findAssignmentForPlanId } from '@/lib/workout-log-sets'
 import { parseNumericCheckinValue, type CheckinParamRow } from '@/lib/checkin-weight-parameter'
 import { Button } from '@/components/ui/button'
+import EngagementCard from './engagement-card'
 
 type ParamSnapshot = {
   parameterId: string
@@ -49,9 +50,11 @@ function fmtDate(d: string | null) {
 
 export default function ClientOverview({ clientId }: Props) {
   const router = useRouter()
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const t = useTranslations('clientDetail')
+  const tDays = useTranslations('days')
   const tTrack = useTranslations('clients.trainingTracking')
   const tHist = useTranslations('clients.history')
 
@@ -74,32 +77,27 @@ export default function ClientOverview({ clientId }: Props) {
   const [activeWorkout, setActiveWorkout] = useState<{ name: string; id: string } | null>(null)
   const [activeMeal, setActiveMeal] = useState<{ name: string; id: string } | null>(null)
   const [lastMessage, setLastMessage] = useState<{ content: string; created_at: string; isTrainer: boolean } | null>(null)
-  const [engagementScore, setEngagementScore] = useState<number | null>(null)
+  const [startDate, setStartDate] = useState<string | null>(null)
 
   const [paramSnapshots, setParamSnapshots] = useState<ParamSnapshot[]>([])
   const [eligibleParams, setEligibleParams] = useState<CheckinParamRow[]>([])
   const [snapshotWorkoutsDone, setSnapshotWorkoutsDone] = useState(0)
   const [snapshotWorkoutsPlanned, setSnapshotWorkoutsPlanned] = useState(0)
   const [snapshotCheckinStatus, setSnapshotCheckinStatus] = useState<'submitted' | 'late' | 'neutral'>('neutral')
+  const [checkinDay, setCheckinDay] = useState<number | null>(null)
   const [snapshotAdherence, setSnapshotAdherence] = useState<number | null>(null)
   const [paramSnapIdx, setParamSnapIdx] = useState(0)
 
   useEffect(() => { fetchOverview() }, [clientId])
 
   const paramSnapKey = paramSnapshots.map(s => s.parameterId).join('|')
-  useEffect(() => {
-    setParamSnapIdx(0)
-  }, [paramSnapKey])
+  useEffect(() => { setParamSnapIdx(0) }, [paramSnapKey])
 
   const fetchOverview = async () => {
     setLoading(true)
-
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    if (!user) { setLoading(false); return }
 
     const [
       { data: recentCheckins, error: e1 },
@@ -117,19 +115,9 @@ export default function ClientOverview({ clientId }: Props) {
       supabase.from('checkins').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
       supabase.from('clients').select('start_date').eq('id', clientId).maybeSingle(),
       supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
-      supabase
-        .from('client_workout_plans')
-        .select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)')
-        .eq('client_id', clientId)
-        .order('assigned_at', { ascending: true })
-        .limit(50),
+      supabase.from('client_workout_plans').select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)').eq('client_id', clientId).order('assigned_at', { ascending: true }).limit(50),
       supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
-      supabase
-        .from('workout_logs')
-        .select('id, date, day_name, plan_id, exercises')
-        .eq('client_id', clientId)
-        .order('date', { ascending: false })
-        .limit(300),
+      supabase.from('workout_logs').select('id, date, day_name, plan_id, exercises').eq('client_id', clientId).order('date', { ascending: false }).limit(300),
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview').eq('trainer_id', user.id).order('order_index'),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(180),
@@ -137,10 +125,10 @@ export default function ClientOverview({ clientId }: Props) {
 
     if (e1) console.error('client-overview checkins', e1)
 
+    setStartDate(clientRow?.start_date ?? null)
+
     const assignments = (assignsData as unknown as TrainingAssignment[]) || []
     const workouts = (workoutLogs as unknown as TrainingWorkoutLog[]) || []
-
-    setEngagementScore(consistencyScore(checkinTotal ?? 0, clientRow?.start_date ?? null))
 
     const sorted = [...(recentCheckins || [])].sort((a, b) => b.date.localeCompare(a.date))
     if (sorted[0]) setLastCheckin({ id: sorted[0].id, date: sorted[0].date })
@@ -148,7 +136,6 @@ export default function ClientOverview({ clientId }: Props) {
     const params = (paramsData as CheckinParamRow[] | null) ?? []
     const dailyRows = (dailyLogsData as { date: string; values: Record<string, unknown> }[] | null) ?? []
 
-    // Isti default kao Check-in pregled (checkin-overview): nedostajući dan → ponedjeljak
     const resolvedCheckinDay = checkinCfg?.checkin_day ?? 1
     const weekDaysBounds = getWeekDays(resolvedCheckinDay, 0)
     const weekStartStr = isoDate(weekDaysBounds[0])
@@ -158,7 +145,6 @@ export default function ClientOverview({ clientId }: Props) {
       return d >= weekStartStr && d <= weekEndStr
     }
 
-    // Jedan zapis po datumu: daily_logs + checkins (isto kao grafovi) — inače daily vrijednosti iz check-ina ne ulaze
     const mergedByDate: Record<string, Record<string, unknown>> = {}
     for (const row of dailyRows) {
       if (!inSnapshotWeek(row.date)) continue
@@ -172,9 +158,7 @@ export default function ClientOverview({ clientId }: Props) {
       mergedByDate[d] = { ...mergedByDate[d], ...vals }
     }
 
-    const numericDailyWeekly = params.filter(
-      p => p.type === 'number' && (p.frequency === 'daily' || p.frequency === 'weekly'),
-    )
+    const numericDailyWeekly = params.filter(p => p.type === 'number' && (p.frequency === 'daily' || p.frequency === 'weekly'))
     setEligibleParams(numericDailyWeekly)
 
     const orderedParamIds = numericDailyWeekly
@@ -182,25 +166,18 @@ export default function ClientOverview({ clientId }: Props) {
       .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
       .slice(0, 3)
       .map(p => p.id)
-    setParamSnapshots(
-      orderedParamIds.map(pid => {
-        const p = params.find(x => x.id === pid)
-        const nums: number[] = []
-        for (const day of Object.keys(mergedByDate).sort()) {
-          const v = parseNumericCheckinValue(mergedByDate[day]?.[pid])
-          if (v != null) nums.push(v)
-        }
-        const n = nums.length
-        const weekAverage = n > 0 ? nums.reduce((a, b) => a + b, 0) / n : null
-        return {
-          parameterId: pid,
-          name: p?.name ?? '—',
-          unit: p?.unit?.trim() ?? '',
-          weekAverage,
-          samplesInWeek: n,
-        }
-      }),
-    )
+
+    setParamSnapshots(orderedParamIds.map(pid => {
+      const p = params.find(x => x.id === pid)
+      const nums: number[] = []
+      for (const day of Object.keys(mergedByDate).sort()) {
+        const v = parseNumericCheckinValue(mergedByDate[day]?.[pid])
+        if (v != null) nums.push(v)
+      }
+      const n = nums.length
+      const weekAverage = n > 0 ? nums.reduce((a, b) => a + b, 0) / n : null
+      return { parameterId: pid, name: p?.name ?? '—', unit: p?.unit?.trim() ?? '', weekAverage, samplesInWeek: n }
+    }))
 
     const activeAssign = assignments.find(a => a.active)
     if (activeAssign?.workout_plan) setActiveWorkout({ name: activeAssign.workout_plan.name, id: activeAssign.id })
@@ -212,29 +189,17 @@ export default function ClientOverview({ clientId }: Props) {
     if (msgs) setLastMessage({ content: msgs.content, created_at: msgs.created_at, isTrainer: msgs.sender_id === msgs.trainer_id })
     else setLastMessage(null)
 
-    const checkinDay = checkinCfg?.checkin_day ?? null
+    const checkinDayVal = checkinCfg?.checkin_day ?? null
     const lastDate = sorted[0]?.date ?? null
-    setSnapshotCheckinStatus(getCheckinStatus(checkinDay, lastDate))
-
-    const weekStart = weekStartStr
-    const weekEnd = weekEndStr
+    setCheckinDay(checkinDayVal)
+    setSnapshotCheckinStatus(getCheckinStatus(checkinDayVal, lastDate))
 
     const findPlanName = (planId: string | null) => {
       if (!planId) return tTrack('legacyLogs')
       const a = findAssignmentForPlanId(planId, assignments)
       return a?.workout_plan.name ?? tTrack('unknownPlan')
     }
-
-    const rows = buildPlannedRows(
-      weekStart,
-      weekEnd,
-      assignments,
-      workouts,
-      n => tTrack('dayNumber', { n }),
-      findPlanName,
-      tHist('other'),
-      tTrack('legacyLogs'),
-    )
+    const rows = buildPlannedRows(weekStartStr, weekEndStr, assignments, workouts, n => tTrack('dayNumber', { n }), findPlanName, tHist('other'), tTrack('legacyLogs'))
     const { planned, done } = countPlannedVsDone(rows)
     setSnapshotWorkoutsDone(done)
     setSnapshotWorkoutsPlanned(planned)
@@ -245,10 +210,14 @@ export default function ClientOverview({ clientId }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
-        ))}
+      <div className="space-y-3">
+        <div className={`h-20 rounded-2xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
+        <div className="grid grid-cols-2 gap-3">
+          {[1,2,3,4].map(i => <div key={i} className={`h-28 rounded-2xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />)}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[1,2].map(i => <div key={i} className={`h-24 rounded-2xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />)}
+        </div>
       </div>
     )
   }
@@ -257,300 +226,274 @@ export default function ClientOverview({ clientId }: Props) {
   const goCheckinTab = () => router.push(`/dashboard/clients/${clientId}?tab=checkin`)
   const goChat = () => router.push(`/dashboard/chat?clientId=${clientId}`)
 
-  const checkinLabel =
-    snapshotCheckinStatus === 'submitted' ? t('snapshotCheckinSubmitted')
-      : snapshotCheckinStatus === 'late' ? t('snapshotCheckinLate')
-        : t('snapshotCheckinNeutral')
-
   const paramSnapSafe = Math.min(paramSnapIdx, Math.max(0, paramSnapshots.length - 1))
   const paramDisplay = paramSnapshots.length > 0 ? paramSnapshots[paramSnapSafe] : null
   const paramNavCount = paramSnapshots.length
 
-  const snapCard =
-    'bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col min-h-[140px] cursor-pointer transition-all hover:shadow-md hover:border-gray-200'
+  // Check-in status config
+  const checkinIsLate = snapshotCheckinStatus === 'late'
+  const checkinOk = snapshotCheckinStatus === 'submitted'
+
+  // Card base
+  const card = `rounded-2xl border p-4 transition-all ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`
+  const cardClickable = `${card} cursor-pointer group ${isDark ? 'hover:bg-white/[0.07] hover:border-white/15' : 'hover:shadow-md hover:border-gray-200'}`
+
+  // Icon container
+  const iconBox = (color: string, bg: string) =>
+    `w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? '' : bg}`
 
   return (
-    <div className="space-y-6">
-      {/* Weekly snapshot — sve iz jednog Promise.all */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">{t('snapshotSectionTitle')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <div className={`${snapCard} text-left w-full flex flex-col`}>
-            <button
-              type="button"
-              className="flex items-center gap-2 mb-2 shrink-0 w-full text-left rounded-lg -m-1 p-1 hover:bg-gray-50/80 transition-colors"
-              onClick={goCheckinTab}
-            >
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-slate-50">
-                <Scale size={14} className="text-slate-600" />
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{t('snapshotParamsCardTitle')}</p>
-            </button>
-            <div className="flex-1 flex items-stretch gap-0 min-h-[88px]">
-              {paramNavCount > 1 ? (
-                <button
-                  type="button"
-                  className="shrink-0 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 -ml-1 self-center"
-                  aria-label={t('snapshotParamsPrevAria')}
-                  onClick={() => setParamSnapIdx(i => (i - 1 + paramNavCount) % paramNavCount)}
-                >
-                  <ChevronLeft size={20} strokeWidth={2} />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="flex-1 flex flex-col justify-center items-center text-center min-w-0 px-0.5 rounded-xl -my-1 py-1 hover:bg-gray-50/80 transition-colors cursor-pointer"
-                onClick={goCheckinTab}
-              >
-                {paramSnapshots.length === 0 ? (
-                  <p className="text-sm text-gray-400">
-                    {eligibleParams.length > 0 ? t('snapshotParamsEmpty') : t('snapshotParamsNoNumeric')}
-                  </p>
-                ) : paramDisplay?.weekAverage != null ? (
-                  <>
-                    <p className="text-xs text-gray-500 mb-1 truncate max-w-full">
-                      {paramDisplay.name}{paramDisplay.unit ? ` · ${paramDisplay.unit}` : ''}
-                    </p>
-                    <p className="text-2xl font-extrabold tabular-nums text-gray-900">
-                      {fmtWeekAvg(paramDisplay.weekAverage)}
-                      {paramDisplay.unit ? ` ${paramDisplay.unit}` : ''}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">{t('snapshotParamsWeekAvgCaption')}</p>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-400">{t('snapshotParamsNoValueWeek')}</p>
-                )}
-              </button>
-              {paramNavCount > 1 ? (
-                <button
-                  type="button"
-                  className="shrink-0 w-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 -mr-1 self-center"
-                  aria-label={t('snapshotParamsNextAria')}
-                  onClick={() => setParamSnapIdx(i => (i + 1) % paramNavCount)}
-                >
-                  <ChevronRight size={20} strokeWidth={2} />
-                </button>
-              ) : null}
-            </div>
-          </div>
+    <div className="space-y-3">
 
-          <button type="button" className={`${snapCard} text-left w-full`} onClick={goTrainingTab}>
-            <div className="flex items-center gap-2 mb-2 shrink-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-50">
-                <Activity size={14} className="text-emerald-600" />
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{t('snapshotWorkoutsTitle')}</p>
+      {/* ── Status tjedna: horizontalni strip ── */}
+      <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`}>
+        <p className={`text-[11px] font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('snapshotSectionTitle')}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+          {/* Check-in status */}
+          <button type="button" onClick={goCheckinTab}
+            className={`rounded-xl px-3 py-2.5 text-left transition-all border ${
+              checkinIsLate
+                ? isDark ? 'bg-red-500/10 border-red-500/25 hover:bg-red-500/15' : 'bg-red-50 border-red-200 hover:bg-red-100'
+                : checkinOk
+                  ? isDark ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                  : isDark ? 'bg-white/[0.03] border-white/8 hover:bg-white/8' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+            }`}>
+            <div className="flex items-center gap-1.5 mb-1">
+              {checkinIsLate
+                ? <AlertCircle size={12} className="text-red-400" />
+                : checkinOk
+                  ? <CheckCircle2 size={12} className="text-emerald-400" />
+                  : <Clock size={12} className="text-gray-400" />
+              }
+              <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('snapshotCheckinTitle')}</span>
             </div>
-            <div className="flex-1 flex flex-col justify-center items-center text-center min-h-[88px]">
-              {snapshotWorkoutsPlanned > 0 ? (
-                <>
-                  <p className="text-2xl font-extrabold tabular-nums text-gray-900">
-                    {t('snapshotWorkoutsRatio', { done: snapshotWorkoutsDone, planned: snapshotWorkoutsPlanned })}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{t('snapshotWorkoutsHint')}</p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-400">{t('snapshotEmptyWorkouts')}</p>
-              )}
-            </div>
+            <p className={`text-base font-bold leading-tight ${
+              checkinIsLate ? 'text-red-500' : checkinOk ? 'text-emerald-500' : isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              {checkinIsLate ? t('snapshotCheckinLate') : checkinOk ? t('snapshotCheckinSubmitted') : t('snapshotCheckinNeutral')}
+            </p>
           </button>
 
-          <button type="button" className={`${snapCard} text-left w-full`} onClick={goCheckinTab}>
-            <div className="flex items-center gap-2 mb-2 shrink-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-teal-50">
-                <ClipboardList size={14} className="text-teal-600" />
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{t('snapshotCheckinTitle')}</p>
+          {/* Treninzi */}
+          <button type="button" onClick={goTrainingTab}
+            className={`rounded-xl px-3 py-2.5 text-left transition-all border ${isDark ? 'bg-white/[0.03] border-white/8 hover:bg-white/8' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Activity size={12} className="text-emerald-400" />
+              <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('snapshotWorkoutsTitle')}</span>
             </div>
-            <div className="flex-1 flex flex-col justify-center items-center text-center min-h-[88px]">
-              <p
-                className={`text-2xl font-extrabold ${
-                  snapshotCheckinStatus === 'late'
-                    ? 'text-rose-600'
-                    : snapshotCheckinStatus === 'submitted'
-                      ? 'text-emerald-600'
-                      : 'text-gray-600'
-                }`}
-              >
-                {checkinLabel}
+            {snapshotWorkoutsPlanned > 0 ? (
+              <p className={`text-base font-bold leading-tight ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>
+                {snapshotWorkoutsDone}<span className={`text-sm font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>/{snapshotWorkoutsPlanned}</span>
               </p>
-            </div>
+            ) : (
+              <p className={`text-sm font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>—</p>
+            )}
           </button>
 
-          <button type="button" className={`${snapCard} text-left w-full`} onClick={goTrainingTab}>
-            <div className="flex items-center gap-2 mb-2 shrink-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-violet-50">
-                <Percent size={14} className="text-violet-600" />
-              </div>
-              <p className="text-sm font-semibold text-gray-900">{t('snapshotAdherenceTitle')}</p>
+          {/* Pridržavanje */}
+          <button type="button" onClick={goTrainingTab}
+            className={`rounded-xl px-3 py-2.5 text-left transition-all border ${isDark ? 'bg-white/[0.03] border-white/8 hover:bg-white/8' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Percent size={12} style={{ color: accentHex }} />
+              <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('snapshotAdherenceTitle')}</span>
             </div>
-            <div className="flex-1 flex flex-col justify-center items-center text-center min-h-[88px]">
-              {snapshotAdherence != null ? (
-                <>
-                  <p className="text-2xl font-extrabold tabular-nums" style={{ color: accentHex }}>
-                    {t('snapshotAdherenceValue', { n: snapshotAdherence })}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {t('snapshotWorkoutsRatio', { done: snapshotWorkoutsDone, planned: snapshotWorkoutsPlanned })}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-gray-400">{t('snapshotEmptyAdherence')}</p>
-              )}
-            </div>
+            {snapshotAdherence != null ? (
+              <p className="text-base font-bold leading-tight" style={{ color: accentHex }}>{snapshotAdherence}%</p>
+            ) : (
+              <p className={`text-sm font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>—</p>
+            )}
           </button>
+
+          {/* Dan check-ina */}
+          {(() => {
+            const dayName = checkinDay !== null ? tDays(String(checkinDay)) : null
+            return (
+              <button type="button" onClick={goCheckinTab}
+                className={`rounded-xl px-3 py-2.5 text-left transition-all border ${isDark ? 'bg-white/[0.03] border-white/8 hover:bg-white/8' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Calendar size={12} className="text-teal-400" />
+                  <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('engagementCheckinDay')}</span>
+                </div>
+                <p className={`text-base font-bold leading-tight ${dayName ? (isDark ? 'text-gray-100' : 'text-gray-800') : (isDark ? 'text-gray-500' : 'text-gray-400')}`}>
+                  {dayName ?? '—'}
+                </p>
+              </button>
+            )
+          })()}
+
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* ── Srednji red: Parametri + Zadnji check-in ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-        {/* Last check-in — full card click */}
-        <div
-          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 cursor-pointer group transition-all hover:shadow-md hover:border-gray-200"
-          onClick={() => router.push(`/dashboard/checkins/${clientId}`)}
-        >
+        {/* Check-in parametri */}
+        <div className={`${card} flex flex-col`}>
+          <button type="button" className={`flex items-center gap-2 mb-3 text-left rounded-lg p-0.5 -m-0.5 transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`} onClick={goCheckinTab}>
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/8' : 'bg-slate-50'}`}>
+              <Scale size={14} className={isDark ? 'text-gray-300' : 'text-slate-600'} />
+            </div>
+            <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('snapshotParamsCardTitle')}</p>
+          </button>
+          <div className="flex-1 flex items-center gap-0">
+            {paramNavCount > 1 && (
+              <button type="button" className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/8' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+                onClick={() => setParamSnapIdx(i => (i - 1 + paramNavCount) % paramNavCount)}>
+                <ChevronLeft size={18} />
+              </button>
+            )}
+            <button type="button" className={`flex-1 flex flex-col justify-center items-center text-center rounded-xl py-3 transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`} onClick={goCheckinTab}>
+              {paramSnapshots.length === 0 ? (
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  {eligibleParams.length > 0 ? t('snapshotParamsEmpty') : t('snapshotParamsNoNumeric')}
+                </p>
+              ) : paramDisplay?.weekAverage != null ? (
+                <>
+                  <p className={`text-xs mb-1 truncate max-w-full ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {paramDisplay.name}{paramDisplay.unit ? ` · ${paramDisplay.unit}` : ''}
+                  </p>
+                  <p className={`text-3xl font-extrabold tabular-nums ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+                    {fmtWeekAvg(paramDisplay.weekAverage)}
+                    {paramDisplay.unit && <span className={`text-base font-normal ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{paramDisplay.unit}</span>}
+                  </p>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('snapshotParamsWeekAvgCaption')}</p>
+                  {paramNavCount > 1 && (
+                    <div className="flex gap-1 mt-2">
+                      {paramSnapshots.map((_, i) => (
+                        <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === paramSnapSafe ? '' : isDark ? 'bg-white/15' : 'bg-gray-200'}`}
+                          style={i === paramSnapSafe ? { backgroundColor: accentHex } : {}} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('snapshotParamsNoValueWeek')}</p>
+              )}
+            </button>
+            {paramNavCount > 1 && (
+              <button type="button" className={`shrink-0 w-7 flex items-center justify-center rounded-lg transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/8' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'}`}
+                onClick={() => setParamSnapIdx(i => (i + 1) % paramNavCount)}>
+                <ChevronRight size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Zadnji check-in */}
+        <div className={cardClickable} onClick={() => router.push(`/dashboard/checkins/${clientId}`)}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-teal-50">
-                <ClipboardCheck size={14} className="text-teal-600" />
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-teal-500/15' : 'bg-teal-50'}`}>
+                <ClipboardCheck size={14} className="text-teal-500" />
               </div>
-              <p className="text-sm font-semibold text-gray-900">{t('lastCheckin')}</p>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('lastCheckin')}</p>
             </div>
-            <ArrowRight size={14} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
+            <ArrowRight size={14} className={`transition-colors ${isDark ? 'text-white/20 group-hover:text-white/40' : 'text-gray-300 group-hover:text-gray-400'}`} />
           </div>
           {lastCheckin ? (
             <div className="flex items-center gap-2">
               <Calendar size={13} className="text-gray-400" />
-              <span className="text-sm text-gray-700 font-medium">{fmtDate(lastCheckin.date)}</span>
+              <span className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{fmtDate(lastCheckin.date)}</span>
             </div>
           ) : (
             <>
-              <p className="text-xs text-gray-400 mb-3">{t('noCheckins')}</p>
-              <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={e => { e.stopPropagation(); goCheckinTab() }}>
+              <p className={`text-xs mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noCheckins')}</p>
+              <Button type="button" variant="outline" size="sm" onClick={e => { e.stopPropagation(); goCheckinTab() }}>
                 {t('snapshotCtaOpenCheckin')}
               </Button>
             </>
           )}
         </div>
+      </div>
 
-        {/* Consistency / engagement score */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-violet-50">
-                <TrendingUp size={14} className="text-violet-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{t('consistencyTitle')}</p>
-                <p className="text-[11px] text-gray-400 leading-snug">{t('consistencyHint')}</p>
-              </div>
-            </div>
-            {engagementScore !== null && (
-              <span className="text-lg font-extrabold tabular-nums" style={{ color: accentHex }}>{engagementScore}%</span>
-            )}
-          </div>
-          {engagementScore !== null && (
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${engagementScore}%`,
-                  backgroundColor: engagementScore >= 70 ? '#34d399' : engagementScore >= 40 ? '#fbbf24' : '#fb7185',
-                }}
-              />
-            </div>
-          )}
-        </div>
+      {/* ── Donji red: Aktivni planovi + Zadnja poruka ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-        {/* Active plans — each plan row is clickable */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
+        {/* Aktivni planovi */}
+        <div className={card}>
+          <div className="flex items-center gap-2 mb-2">
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center`} style={{ backgroundColor: `${accentHex}20` }}>
               <Dumbbell size={14} style={{ color: accentHex }} />
             </div>
-            <p className="text-sm font-semibold text-gray-900">{t('activePlans')}</p>
+            <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('activePlans')}</p>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {activeWorkout ? (
-              <div
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer group/row hover:bg-gray-50 transition-colors"
-                onClick={() => router.push(`/dashboard/clients/${clientId}?tab=treninzi`)}
-              >
+              <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer group/row transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`}
+                onClick={() => router.push(`/dashboard/clients/${clientId}?tab=treninzi`)}>
                 <Dumbbell size={12} className="text-gray-400 shrink-0" />
-                <span className="text-sm font-medium text-gray-700 truncate flex-1">{activeWorkout.name}</span>
-                <ArrowRight size={12} className="text-gray-300 group-hover/row:text-gray-400 shrink-0 transition-colors" />
+                <span className={`text-sm font-medium truncate flex-1 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{activeWorkout.name}</span>
+                <ArrowRight size={12} className={`shrink-0 transition-colors ${isDark ? 'text-white/20 group-hover/row:text-white/40' : 'text-gray-300 group-hover/row:text-gray-400'}`} />
               </div>
             ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-400 flex items-center gap-1.5 px-2 py-1">
-                  <Dumbbell size={11} /> {t('noTrainingPlan')}
-                </p>
-                <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={goTrainingTab}>
-                  {t('snapshotCtaAssignTraining')}
-                </Button>
-              </div>
+              <p className={`text-xs flex items-center gap-1.5 px-2 py-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <Dumbbell size={11} /> {t('noTrainingPlan')}
+              </p>
             )}
             {activeMeal ? (
-              <div
-                className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer group/row hover:bg-gray-50 transition-colors"
-                onClick={() => router.push(`/dashboard/clients/${clientId}?tab=prehrana`)}
-              >
+              <div className={`flex items-center gap-2.5 px-2.5 py-2 rounded-xl cursor-pointer group/row transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`}
+                onClick={() => router.push(`/dashboard/clients/${clientId}?tab=prehrana`)}>
                 <UtensilsCrossed size={12} className="text-gray-400 shrink-0" />
-                <span className="text-sm font-medium text-gray-700 truncate flex-1">{activeMeal.name}</span>
-                <ArrowRight size={12} className="text-gray-300 group-hover/row:text-gray-400 shrink-0 transition-colors" />
+                <span className={`text-sm font-medium truncate flex-1 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{activeMeal.name}</span>
+                <ArrowRight size={12} className={`shrink-0 transition-colors ${isDark ? 'text-white/20 group-hover/row:text-white/40' : 'text-gray-300 group-hover/row:text-gray-400'}`} />
               </div>
             ) : (
-              <div className="space-y-2 pt-1">
-                <p className="text-xs text-gray-400 flex items-center gap-1.5 px-2 py-1">
-                  <UtensilsCrossed size={11} /> {t('noMealPlan')}
-                </p>
-                <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => router.push(`/dashboard/clients/${clientId}?tab=prehrana`)}>
-                  {t('snapshotCtaAssignMeal')}
-                </Button>
+              <p className={`text-xs flex items-center gap-1.5 px-2 py-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <UtensilsCrossed size={11} /> {t('noMealPlan')}
+              </p>
+            )}
+            {!activeWorkout && !activeMeal && (
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" size="sm" onClick={goTrainingTab}>{t('snapshotCtaAssignTraining')}</Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/clients/${clientId}?tab=prehrana`)}>{t('snapshotCtaAssignMeal')}</Button>
               </div>
             )}
           </div>
         </div>
 
-        {/* Last message */}
-        <div
-          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 cursor-pointer group transition-all hover:shadow-md hover:border-gray-200"
-          onClick={goChat}
-        >
-          <div className="flex items-center justify-between mb-3">
+        {/* Zadnja poruka */}
+        <div className={cardClickable} onClick={goChat}>
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-sky-50">
-                <MessageSquare size={14} className="text-sky-600" />
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-sky-500/15' : 'bg-sky-50'}`}>
+                <MessageSquare size={14} className="text-sky-500" />
               </div>
-              <p className="text-sm font-semibold text-gray-900">{t('lastMessage')}</p>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('lastMessage')}</p>
             </div>
             <span className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: accentHex }}>
               {t('openChat')} <ArrowRight size={11} />
             </span>
           </div>
           {lastMessage ? (
-            <div className="flex items-start gap-3">
-              <div className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                lastMessage.isTrainer ? 'bg-gray-100 text-gray-500' : 'bg-sky-100 text-sky-700'
+            <div className="flex items-start gap-2.5">
+              <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                lastMessage.isTrainer
+                  ? isDark ? 'bg-white/8 text-gray-400' : 'bg-gray-100 text-gray-500'
+                  : isDark ? 'bg-sky-500/15 text-sky-400' : 'bg-sky-100 text-sky-700'
               }`}>
                 {lastMessage.isTrainer ? t('senderYou') : t('senderClient')}
-              </div>
+              </span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-700 truncate">{lastMessage.content}</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">{fmtRelTime(lastMessage.created_at)}</p>
+                <p className={`text-sm truncate ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{lastMessage.content}</p>
+                <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{fmtRelTime(lastMessage.created_at)}</p>
               </div>
             </div>
           ) : (
-            <>
-              <p className="text-xs text-gray-400 mb-3">{t('noMessages')}</p>
-              <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={e => { e.stopPropagation(); goChat() }}>
-                {t('snapshotCtaChat')}
-              </Button>
-            </>
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noMessages')}</p>
           )}
         </div>
 
       </div>
+
+      {/* ── Angažman — full card ── */}
+      <EngagementCard
+        clientId={clientId}
+        startDate={startDate}
+        isDark={isDark}
+        accentHex={accentHex}
+      />
+
     </div>
   )
 }

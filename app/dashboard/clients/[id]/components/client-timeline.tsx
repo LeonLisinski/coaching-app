@@ -7,6 +7,7 @@ import {
   TrendingDown, TrendingUp, Minus,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type TimelineEvent = {
   id: string
@@ -26,6 +27,8 @@ function formatDate(iso: string) {
 
 export default function ClientTimeline({ clientId }: { clientId: string }) {
   const t = useTranslations('clientDetail')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -165,10 +168,10 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
       <div className="space-y-3">
         {[1, 2, 3, 4].map(i => (
           <div key={i} className="flex gap-4 animate-pulse">
-            <div className="w-8 h-8 rounded-full bg-gray-100 shrink-0" />
+            <div className={`w-8 h-8 rounded-full shrink-0 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />
             <div className="flex-1 space-y-1.5 pt-1">
-              <div className="h-3 bg-gray-100 rounded w-40" />
-              <div className="h-2.5 bg-gray-100 rounded w-24" />
+              <div className={`h-3 rounded w-40 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />
+              <div className={`h-2.5 rounded w-24 ${isDark ? 'bg-white/[0.04]' : 'bg-gray-100'}`} />
             </div>
           </div>
         ))}
@@ -179,9 +182,9 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
   if (events.length === 0) {
     return (
       <div className="text-center py-16">
-        <ClipboardList size={32} className="mx-auto text-gray-200 mb-3" />
-        <p className="text-sm text-gray-400">{t('timelineEmpty')}</p>
-        <p className="text-xs text-gray-300 mt-1">{t('timelineEmptyHint')}</p>
+        <ClipboardList size={32} className={`mx-auto mb-3 ${isDark ? 'text-white/10' : 'text-gray-200'}`} />
+        <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('timelineEmpty')}</p>
+        <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{t('timelineEmptyHint')}</p>
       </div>
     )
   }
@@ -204,15 +207,15 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
           <div key={monthKey}>
             {/* Month header */}
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest capitalize">{label}</span>
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[11px] text-gray-300">{monthEvents.length}</span>
+              <span className={`text-xs font-bold uppercase tracking-widest capitalize ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{label}</span>
+              <div className={`flex-1 h-px ${isDark ? 'bg-white/[0.07]' : 'bg-gray-100'}`} />
+              <span className={`text-[11px] ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>{monthEvents.length}</span>
             </div>
 
             {/* Events */}
             <div className="relative">
-              {/* Vertical line */}
-              <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-100" />
+              {/* Vertical connecting line */}
+              <div className={`absolute left-[15px] top-0 bottom-0 w-px ${isDark ? 'bg-white/[0.07]' : 'bg-gray-100'}`} />
 
               <div className="space-y-4">
                 {monthEvents.map((event) => {
@@ -223,10 +226,13 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
 
                   return (
                     <div key={event.id} className="flex gap-4 relative">
-                      {/* Icon dot */}
+                      {/* Icon dot — border matches background for seamless cut-through on line */}
                       <div
-                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 relative z-10 border-2 border-white"
-                        style={{ backgroundColor: `${event.color}20` }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 relative z-10 border-2"
+                        style={{
+                          backgroundColor: `${event.color}20`,
+                          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'white',
+                        }}
                       >
                         <Icon size={13} style={{ color: event.color }} />
                       </div>
@@ -235,23 +241,25 @@ export default function ClientTimeline({ clientId }: { clientId: string }) {
                       <div className="flex-1 min-w-0 pt-0.5 pb-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-800 leading-tight">{event.title}</p>
+                            <p className={`text-sm font-medium leading-tight ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{event.title}</p>
                             {event.subtitle && (
-                              <p className="text-xs text-gray-400 mt-0.5 truncate">{event.subtitle}</p>
+                              <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{event.subtitle}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             {weightDiff && (
                               <span className={`flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${
-                                isPositive ? 'bg-amber-50 text-amber-600' :
-                                isNegative ? 'bg-emerald-50 text-emerald-600' :
-                                'bg-gray-50 text-gray-400'
+                                isPositive
+                                  ? isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'
+                                  : isNegative
+                                    ? isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                                    : isDark ? 'bg-white/[0.05] text-gray-600' : 'bg-gray-50 text-gray-400'
                               }`}>
                                 {isPositive ? <TrendingUp size={10} /> : isNegative ? <TrendingDown size={10} /> : <Minus size={10} />}
                                 {weightDiff}
                               </span>
                             )}
-                            <span className="text-[11px] text-gray-300 whitespace-nowrap">
+                            <span className={`text-[11px] whitespace-nowrap ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>
                               {new Date(event.date).toLocaleDateString('hr-HR', { day: '2-digit', month: '2-digit' })}
                             </span>
                           </div>

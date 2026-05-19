@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Card } from '@/components/ui/card'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, BarChart, Bar,
+  ResponsiveContainer, ReferenceLine,
 } from 'recharts'
 
 type Grouping = 'daily' | 'weekly' | 'monthly'
@@ -30,6 +30,8 @@ export default function CheckinGraphs({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.graphs')
   const t2 = useTranslations('checkins2')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [params, setParams] = useState<Parameter[]>([])
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
@@ -171,12 +173,12 @@ export default function CheckinGraphs({ clientId }: Props) {
         const hasChart = data.length >= 2
 
         return (
-          <Card key={param.id} className="overflow-hidden">
+          <div key={param.id} className={`rounded-xl border overflow-hidden ${isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-100'}`}>
             <div className="p-3">
               {/* Top: name left, value+trend right */}
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <p className="font-semibold text-sm leading-tight">{param.name}</p>
+                  <p className={`font-semibold text-sm leading-tight ${isDark ? 'text-gray-100' : ''}`}>{param.name}</p>
                   {param.unit && <p className="text-xs text-gray-400">{param.unit}</p>}
                 </div>
                 {stats && (
@@ -184,7 +186,7 @@ export default function CheckinGraphs({ clientId }: Props) {
                     <p className="font-bold text-xl leading-tight" style={{ color }}>
                       {fmt(stats.last)}{param.unit ? ` ${param.unit}` : ''}
                     </p>
-                    <p className={`text-xs ${stats.trend > 0 ? 'text-green-500' : stats.trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                    <p className={`text-xs ${stats.trend > 0 ? 'text-emerald-500' : stats.trend < 0 ? 'text-red-500' : 'text-gray-400'}`}>
                       {stats.trend > 0 ? t2('trendUp') : stats.trend < 0 ? t2('trendDown') : t2('trendNeutral')} {fmt(Math.abs(stats.trend))} {t2('trendTotal')}
                     </p>
                   </div>
@@ -197,16 +199,25 @@ export default function CheckinGraphs({ clientId }: Props) {
                   <AreaChart data={data} margin={{ top: 4, right: 0, left: -30, bottom: 0 }}>
                     <defs>
                       <linearGradient id={`g-${param.id}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+                        <stop offset="0%" stopColor={color} stopOpacity={isDark ? 0.35 : 0.2} />
                         <stop offset="100%" stopColor={color} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
                     <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 9, fill: '#9ca3af' }} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
                     {stats && <ReferenceLine y={stats.avg} stroke={color} strokeDasharray="3 3" strokeOpacity={0.4} />}
                     <Tooltip
-                      contentStyle={{ fontSize: 11, borderRadius: 6, border: '1px solid #e5e7eb', padding: '3px 8px' }}
+                      cursor={{ stroke: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)', strokeWidth: 1 }}
+                      contentStyle={{
+                        fontSize: 11,
+                        borderRadius: 8,
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#e5e7eb'}`,
+                        backgroundColor: isDark ? '#1e2030' : '#ffffff',
+                        color: isDark ? '#e8eaf0' : '#111827',
+                        boxShadow: isDark ? '0 4px 16px rgba(0,0,0,0.5)' : '0 2px 8px rgba(0,0,0,0.08)',
+                        padding: '4px 10px',
+                      }}
                       formatter={(v: any) => [`${v}${param.unit ? ` ${param.unit}` : ''}`, param.name]}
                     />
                     <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2}
@@ -214,7 +225,6 @@ export default function CheckinGraphs({ clientId }: Props) {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : data.length === 1 ? (
-                /* Single value — show as big centered stat */
                 <div className="h-16 flex items-center justify-center">
                   <div className="text-center">
                     <p className="text-3xl font-bold" style={{ color }}>{fmt(data[0].value)}{param.unit ? ` ${param.unit}` : ''}</p>
@@ -223,21 +233,21 @@ export default function CheckinGraphs({ clientId }: Props) {
                 </div>
               ) : (
                 <div className="h-10 flex items-center">
-                  <p className="text-xs text-gray-300">{t2('noData')}</p>
+                  <p className={`text-xs ${isDark ? 'text-white/20' : 'text-gray-300'}`}>{t2('noData')}</p>
                 </div>
               )}
 
               {/* Bottom stats strip */}
               {stats && stats.count >= 2 && (
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 text-xs text-gray-500">
-                  <span>{t2('statsMin')} <strong className="text-gray-700">{fmt(stats.min)}</strong></span>
-                  <span>{t2('statsAvg')} <strong className="text-gray-700">{fmt(stats.avg)}</strong></span>
-                  <span>{t2('statsMax')} <strong className="text-gray-700">{fmt(stats.max)}</strong></span>
+                <div className={`flex items-center justify-between mt-2 pt-2 border-t text-xs ${isDark ? 'border-white/8 text-gray-400' : 'border-gray-50 text-gray-500'}`}>
+                  <span>{t2('statsMin')} <strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>{fmt(stats.min)}</strong></span>
+                  <span>{t2('statsAvg')} <strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>{fmt(stats.avg)}</strong></span>
+                  <span>{t2('statsMax')} <strong className={isDark ? 'text-gray-200' : 'text-gray-700'}>{fmt(stats.max)}</strong></span>
                   <span className="text-gray-400">{t2('entriesCount', { count: stats.count })}</span>
                 </div>
               )}
             </div>
-          </Card>
+          </div>
         )
       })}
     </div>

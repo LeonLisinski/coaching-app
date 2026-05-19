@@ -3,6 +3,7 @@ import MobileUnavailable from '@/app/components/mobile-unavailable'
 export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import { supabase } from '@/lib/supabase'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import { useIsLg } from '@/hooks/use-mobile'
@@ -28,6 +29,8 @@ type ActiveDrag = {
 
 function NutritionPageContent() {
   const t = useTranslations('nutrition.page')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [activeDrag, setActiveDrag] = useState<ActiveDrag | null>(null)
   const [activeType, setActiveType] = useState<'food' | 'recipe' | null>(null)
   const [foodRefreshKey, setFoodRefreshKey] = useState(0)
@@ -141,16 +144,16 @@ function NutritionPageContent() {
       {/* Floating drag overlay */}
       <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
         {activeDrag && (
-          <div className={`flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-2xl text-sm font-medium text-gray-800 select-none pointer-events-none rotate-2 scale-105 border-2 ${
-            activeDrag.type === 'recipe' ? 'border-rose-400' : 'border-orange-400'
-          }`}>
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 shadow-2xl text-sm font-medium select-none pointer-events-none rotate-2 scale-105 border-2 ${
+            isDark ? 'bg-gray-900 text-gray-100' : 'bg-white text-gray-800'
+          } ${activeDrag.type === 'recipe' ? 'border-rose-400' : 'border-orange-400'}`}>
             {activeDrag.type === 'recipe'
               ? <BookOpen size={14} className="text-rose-500 shrink-0" />
               : <UtensilsCrossed size={14} className="text-orange-500 shrink-0" />
             }
             <div>
               <p className="leading-tight">{activeDrag.name}</p>
-              {activeDrag.subtitle && <p className="text-xs text-gray-400 font-normal">{activeDrag.subtitle}</p>}
+              {activeDrag.subtitle && <p className={`text-xs font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{activeDrag.subtitle}</p>}
             </div>
           </div>
         )}
@@ -190,7 +193,7 @@ function NutritionPageContent() {
                 <span className="text-[10px] text-orange-100/80 font-medium">{t('dragToRecipe')}</span>
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <FoodsTab activeType={activeType} refreshKey={foodRefreshKey} onFoodCreated={() => setFoodRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -213,7 +216,7 @@ function NutritionPageContent() {
                 }
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <RecipesTab key={recipeRefreshKey} activeType={activeType} onFoodCreated={() => setFoodRefreshKey(k => k + 1)} />
             </div>
           </div>
@@ -236,7 +239,7 @@ function NutritionPageContent() {
                 }
               </div>
             </div>
-            <div className="flex flex-col flex-1 min-h-0 bg-white">
+            <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
               <PlansTab activeType={activeType} refreshKey={planRefreshKey} />
             </div>
           </div>

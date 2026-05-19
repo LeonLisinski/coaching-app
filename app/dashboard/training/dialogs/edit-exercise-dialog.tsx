@@ -9,31 +9,36 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { X, Dumbbell, Pencil } from 'lucide-react'
 import { Exercise, EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Props = { exercise: Exercise; open: boolean; onClose: () => void; onSuccess: () => void }
 
 function MuscleChipSelect({
-  value, onChange, label, color = 'emerald',
+  value, onChange, label, color = 'emerald', isDark = false,
 }: {
   value: string[]
   onChange: (v: string[]) => void
   label: string
   color?: 'emerald' | 'gray'
+  isDark?: boolean
 }) {
   const toggle = (m: string) =>
     onChange(value.includes(m) ? value.filter(x => x !== m) : [...value, m])
   const activeClass = color === 'emerald'
     ? 'bg-emerald-600 text-white border-emerald-600'
     : 'bg-gray-600 text-white border-gray-600'
+  const inactiveClass = isDark
+    ? 'bg-white/[0.04] text-gray-400 border-white/10 hover:border-emerald-500'
+    : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-semibold text-gray-600">{label}</Label>
+      <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</Label>
       <div className="flex flex-wrap gap-1.5">
         {MUSCLE_GROUPS.map(m => (
           <button
             key={m} type="button" onClick={() => toggle(m)}
             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-              value.includes(m) ? activeClass : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
+              value.includes(m) ? activeClass : inactiveClass
             }`}
           >
             {m}
@@ -47,6 +52,8 @@ function MuscleChipSelect({
 export default function EditExerciseDialog({ exercise, open, onClose, onSuccess }: Props) {
   const t = useTranslations('training.dialogs.exercise')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [form, setForm] = useState({
     name: exercise.name,
     category: exercise.category || 'Slobodni utezi',
@@ -113,7 +120,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false}>
+      <DialogContent className="max-w-lg flex flex-col p-0 gap-0 overflow-hidden max-h-[92vh]" showCloseButton={false} style={{ background: isDark ? 'oklch(0.195 0.018 264)' : 'white' }}>
         <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
         <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
@@ -134,8 +141,8 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
         </div>
 
         {isFork && (
-          <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 shrink-0">
-            <p className="text-xs text-amber-700">
+          <div className={`px-6 py-2.5 border-b shrink-0 ${isDark ? 'bg-amber-900/20 border-amber-800/40' : 'bg-amber-50 border-amber-100'}`}>
+            <p className={`text-xs ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
               {t('forkNotice')}
             </p>
           </div>
@@ -145,13 +152,13 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-gray-600">{t('name')}</Label>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('name')}</Label>
               <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                required className="h-9" />
+                required className={`h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200' : ''}`} />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">{t('exerciseType')}</Label>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('exerciseType')}</Label>
               <div className="flex gap-2">
                 {(['strength', 'endurance'] as const).map(exType => (
                   <button key={exType} type="button"
@@ -159,7 +166,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
                     className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
                       form.exercise_type === exType
                         ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
-                        : 'text-gray-500 border-gray-200 hover:border-emerald-300'
+                        : isDark ? 'text-gray-400 border-white/10 bg-white/[0.04] hover:border-emerald-500' : 'text-gray-500 border-gray-200 hover:border-emerald-300'
                     }`}>
                     {exType === 'strength' ? `🏋️ ${t('strengthType')}` : `🏃 ${t('enduranceType')}`}
                   </button>
@@ -168,14 +175,14 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">{t('sectionLabel')}</Label>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('sectionLabel')}</Label>
               <div className="flex gap-2">
                 <button type="button"
                   onClick={() => setForm(f => ({ ...f, section: 'main' }))}
                   className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
                     form.section === 'main'
                       ? 'bg-emerald-700 text-white border-emerald-700 font-semibold'
-                      : 'text-gray-500 border-gray-200 hover:border-emerald-300'
+                      : isDark ? 'text-gray-400 border-white/10 bg-white/[0.04] hover:border-emerald-500' : 'text-gray-500 border-gray-200 hover:border-emerald-300'
                   }`}>
                   💪 {t('sectionMain')}
                 </button>
@@ -184,7 +191,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
                   className={`flex-1 text-xs px-3 py-2 rounded-lg border transition-colors ${
                     form.section === 'warmup'
                       ? 'bg-amber-600 text-white border-amber-600 font-semibold'
-                      : 'text-gray-500 border-gray-200 hover:border-amber-300'
+                      : isDark ? 'text-gray-400 border-white/10 bg-white/[0.04] hover:border-amber-500' : 'text-gray-500 border-gray-200 hover:border-amber-300'
                   }`}>
                   🔥 {t('sectionWarmup')}
                 </button>
@@ -192,43 +199,44 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">{t('equipment')}</Label>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('equipment')}</Label>
               <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400">
+                className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200' : ''}`}>
                 {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
 
             <MuscleChipSelect value={primaryMuscles} onChange={setPrimaryMuscles}
-              label={t('primaryMuscles')} color="emerald" />
+              label={t('primaryMuscles')} color="emerald" isDark={isDark} />
 
             <MuscleChipSelect value={secondaryMuscles} onChange={setSecondaryMuscles}
-              label={`${t('secondaryMuscles')} (${tCommon('optional')})`} color="gray" />
+              label={`${t('secondaryMuscles')} (${tCommon('optional')})`} color="gray" isDark={isDark} />
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">
-                {t('description')} <span className="text-gray-400 font-normal">({tCommon('optional')})</span>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {t('description')} <span className={`font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({tCommon('optional')})</span>
               </Label>
               <textarea value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 placeholder={t('descriptionPlaceholder')}
                 rows={3}
-                className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder:text-gray-400" />
+                className={`w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder:text-gray-400 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-600">
-                {t('videoUrl')} <span className="text-gray-400 font-normal">({tCommon('optional')})</span>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {t('videoUrl')} <span className={`font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({tCommon('optional')})</span>
               </Label>
               <Input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
-                placeholder="https://youtube.com/..." />
+                placeholder="https://youtube.com/..." className={isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''} />
             </div>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
           </div>
 
-          <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+          <div className={`px-6 py-4 border-t shrink-0 flex gap-3 ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-white'}`}>
+            <Button type="button" variant="outline" onClick={onClose}
+              className={`flex-1 ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/[0.05]' : ''}`}>{tCommon('cancel')}</Button>
             <Button type="submit" disabled={loading || !form.name}
               className="flex-1 bg-emerald-600 hover:bg-emerald-700">
               {loading ? tCommon('saving') : t('save')}

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 import {
   DndContext, DragOverlay, closestCenter, PointerSensor, KeyboardSensor,
@@ -53,7 +54,7 @@ type Props = { template: Template; open: boolean; onClose: () => void; onSuccess
 
 // ─── Sortable exercise item ────────────────────────────────────────────────────
 function SortableItem({
-  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, isNew,
+  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, isNew, isDark,
 }: {
   ex: TemplateExercise
   index: number
@@ -62,6 +63,7 @@ function SortableItem({
   onUpdateExtra: (key: string, value: string) => void
   onRemove: () => void
   isNew?: boolean
+  isDark?: boolean
 }) {
   const t = useTranslations('training.dialogs.template')
   const [expanded, setExpanded] = useState(true)
@@ -75,8 +77,8 @@ function SortableItem({
 
   const isWarmup = ex.section === 'warmup'
   const palette = isWarmup
-    ? { border: 'border-amber-300', bg: 'bg-amber-50/60', grip: 'text-amber-300 hover:text-amber-500', numBg: 'bg-amber-200 text-amber-700', chevron: 'text-amber-400', summary: 'text-amber-600', divider: 'border-amber-200', inputBorder: 'border-amber-200 focus:border-amber-400', text: 'text-amber-700', iconHover: 'hover:text-amber-500' }
-    : { border: 'border-emerald-300', bg: 'bg-emerald-50', grip: 'text-emerald-300 hover:text-emerald-500', numBg: 'bg-emerald-200 text-emerald-700', chevron: 'text-emerald-400', summary: 'text-emerald-600', divider: 'border-emerald-200', inputBorder: 'border-emerald-200 focus:border-emerald-400', text: 'text-emerald-700', iconHover: 'hover:text-emerald-500' }
+    ? { border: isDark ? 'border-amber-800/60' : 'border-amber-300', bg: isDark ? 'bg-amber-900/10' : 'bg-amber-50/60', grip: 'text-amber-300 hover:text-amber-500', numBg: isDark ? 'bg-amber-900/40 text-amber-400' : 'bg-amber-200 text-amber-700', chevron: 'text-amber-400', summary: 'text-amber-600', divider: isDark ? 'border-amber-800/40' : 'border-amber-200', inputBorder: isDark ? 'border-amber-800/40 focus:border-amber-600' : 'border-amber-200 focus:border-amber-400', text: isDark ? 'text-amber-400' : 'text-amber-700', iconHover: 'hover:text-amber-500', inputBg: isDark ? 'bg-white/[0.05]' : 'bg-white', noteBg: isDark ? 'bg-white/[0.05]' : 'bg-white' }
+    : { border: isDark ? 'border-emerald-800/60' : 'border-emerald-300', bg: isDark ? 'bg-emerald-900/10' : 'bg-emerald-50', grip: 'text-emerald-300 hover:text-emerald-500', numBg: isDark ? 'bg-emerald-900/40 text-emerald-400' : 'bg-emerald-200 text-emerald-700', chevron: 'text-emerald-400', summary: 'text-emerald-600', divider: isDark ? 'border-emerald-800/40' : 'border-emerald-200', inputBorder: isDark ? 'border-emerald-800/40 focus:border-emerald-600' : 'border-emerald-200 focus:border-emerald-400', text: isDark ? 'text-emerald-400' : 'text-emerald-700', iconHover: 'hover:text-emerald-500', inputBg: isDark ? 'bg-white/[0.05]' : 'bg-white', noteBg: isDark ? 'bg-white/[0.05]' : 'bg-white' }
 
   return (
     <div
@@ -102,9 +104,9 @@ function SortableItem({
           <div className={`w-5 h-5 rounded-full ${palette.numBg} text-[10px] font-bold flex items-center justify-center shrink-0`}>
             {index + 1}
           </div>
-          <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{ex.name}</span>
+          <span className={`text-sm font-semibold flex-1 truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{ex.name}</span>
           {isWarmup && (
-            <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200 shrink-0 font-medium">
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full border shrink-0 font-medium ${isDark ? 'bg-amber-900/30 text-amber-400 border-amber-800/40' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
               🔥 {t('warmupBadge')}
             </span>
           )}
@@ -122,7 +124,7 @@ function SortableItem({
           ? <ChevronUp size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(false)} />
           : <ChevronDown size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(true)} />}
         <button type="button" onClick={onRemove}
-          className="shrink-0 p-1 rounded hover:bg-red-50 transition-colors text-gray-300 hover:text-red-500"
+          className={`shrink-0 p-1 rounded transition-colors ${isDark ? 'text-gray-600 hover:text-red-400 hover:bg-red-900/20' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}
           title={t('removeExerciseHandleTitle')}>
           <X size={13} />
         </button>
@@ -138,7 +140,7 @@ function SortableItem({
                 type="text" inputMode="numeric" value={ex.sets || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('sets', isNaN(v) ? 0 : v) }}
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border ${palette.inputBorder} ${palette.inputBg} px-2 text-xs focus:outline-none ${isDark ? 'text-gray-200 placeholder:text-gray-600' : ''}`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{t('repsLabel')}</p>
@@ -147,7 +149,7 @@ function SortableItem({
                 onFocus={e => e.target.select()}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder="8-12"
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border ${palette.inputBorder} ${palette.inputBg} px-2 text-xs focus:outline-none ${isDark ? 'text-gray-200 placeholder:text-gray-600' : ''}`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{t('restSecsLabel')}</p>
@@ -155,7 +157,7 @@ function SortableItem({
                 type="text" inputMode="numeric" value={ex.rest_seconds || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('rest_seconds', isNaN(v) ? 0 : v) }}
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border ${palette.inputBorder} ${palette.inputBg} px-2 text-xs focus:outline-none ${isDark ? 'text-gray-200 placeholder:text-gray-600' : ''}`} />
             </div>
             {extraFields.map(f => (
               <div key={f.key} className="flex-1 basis-12 flex flex-col gap-0.5">
@@ -165,7 +167,7 @@ function SortableItem({
                   onFocus={e => e.target.select()}
                   onChange={e => onUpdateExtra(f.key, e.target.value)}
                   placeholder="—"
-                  className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`}
+                  className={`h-6 w-full rounded border ${palette.inputBorder} ${palette.inputBg} px-2 text-xs focus:outline-none ${isDark ? 'text-gray-200 placeholder:text-gray-600' : ''}`}
                 />
               </div>
             ))}
@@ -175,7 +177,7 @@ function SortableItem({
             value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={t('notePlaceholder')}
-            className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none`}
+            className={`h-6 w-full rounded border ${palette.inputBorder} ${palette.noteBg} px-2 text-xs focus:outline-none ${isDark ? 'text-gray-400 placeholder:text-gray-600' : 'text-gray-600 placeholder:text-gray-400'}`}
           />
         </div>
       )}
@@ -188,6 +190,8 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
   const t = useTranslations('training.dialogs.template')
   const tCommon = useTranslations('common')
   const { settings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || '')
@@ -352,7 +356,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
         }}
       />
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden" style={{ height: '90vh' }} showCloseButton={false}>
+        <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden" style={{ height: '90vh', background: isDark ? 'oklch(0.195 0.018 264)' : 'white' }} showCloseButton={false}>
           <DialogTitle className="sr-only">{t('editTitle')}</DialogTitle>
           <DialogDescription className="sr-only">{t('editTitle')}</DialogDescription>
 
@@ -373,22 +377,22 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
 
             {/* Fixed: name + description */}
-            <div className="px-6 pt-4 pb-3 border-b shrink-0 bg-blue-50/30">
+            <div className={`px-6 pt-4 pb-3 border-b shrink-0 ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-blue-50/30'}`}>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-600">{t('name')}</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} required className="h-9" />
+                  <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('name')}</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} required className={`h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200' : ''}`} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-gray-600">{t('description')}</Label>
-                  <Input value={description} onChange={e => setDescription(e.target.value)} className="h-9" />
+                  <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('description')}</Label>
+                  <Input value={description} onChange={e => setDescription(e.target.value)} className={`h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
                 </div>
               </div>
             </div>
 
             {/* Fixed: search — always visible, never scrolls away */}
-            <div className="px-6 py-3 border-b shrink-0 bg-white">
-              <Label className="text-xs font-semibold text-gray-600">{t('addExercise')}</Label>
+            <div className={`px-6 py-3 border-b shrink-0 ${isDark ? 'bg-white/[0.02] border-white/8' : 'bg-white'}`}>
+              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('addExercise')}</Label>
               <div className="relative mt-1.5">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
                 <Input
@@ -408,7 +412,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                   }}
                   onKeyDown={handleSearchKeyDown}
                   placeholder={t('searchAddPlaceholder')}
-                  className="pl-9 h-9 border-blue-200 focus:border-blue-400"
+                  className={`pl-9 h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600 focus:border-blue-500' : 'border-blue-200 focus:border-blue-400'}`}
                 />
                 {search && (
                   <button type="button" onClick={() => { setSearch(''); searchRef.current?.focus() }}
@@ -419,7 +423,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
 
                 {/* Overlay dropdown */}
                 {showDropdown && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+                  <div className={`absolute top-full left-0 right-0 z-50 mt-1 border rounded-xl shadow-lg overflow-hidden ${isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-blue-100 bg-white'}`}>
                     {!exercisesLoaded ? (
                       <p className="px-4 py-3 text-xs text-gray-400 text-center">{t('loadingExercises')}</p>
                     ) : (
@@ -436,8 +440,10 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                               onMouseDown={ev => ev.preventDefault()}
                               onClick={() => addExercise(e)}
                               onMouseEnter={() => setDropdownIndex(i)}
-                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b border-gray-50 last:border-0 transition-colors ${
-                                dropdownIndex === i ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'
+                              className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-sm border-b last:border-0 transition-colors ${
+                                dropdownIndex === i
+                                  ? 'bg-blue-600 text-white'
+                                  : isDark ? 'border-white/5 hover:bg-white/[0.06] text-gray-200' : 'border-gray-50 hover:bg-blue-50'
                               }`}
                             >
                               <div>
@@ -446,7 +452,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                                   <span className={`ml-2 text-xs ${dropdownIndex === i ? 'text-blue-200' : 'text-gray-400'}`}>{muscles.join(', ')}</span>
                                 )}
                               </div>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ml-2 ${dropdownIndex === i ? 'bg-blue-500 text-white border-blue-400' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ml-2 ${dropdownIndex === i ? 'bg-blue-500 text-white border-blue-400' : isDark ? 'bg-white/[0.08] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                                 {e.category}
                               </span>
                             </button>
@@ -454,7 +460,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                         })}
                       </div>
                     )}
-                    <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
+                    <div className={`border-t px-3 py-2 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-blue-50 bg-blue-50/40'}`}>
                       <button type="button"
                         onMouseDown={ev => ev.preventDefault()}
                         onClick={() => setShowAddExercise(true)}
@@ -475,7 +481,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
               {selected.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">
+                    <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       {t('exerciseCount', { count: selected.length })}
                     </span>
                     <span className="text-[11px] text-gray-400 flex items-center gap-1">
@@ -495,6 +501,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                             onUpdateExtra={(key, value) => updateExtra(ex.exercise_id, key, value)}
                             onRemove={() => setConfirmRemove(ex.exercise_id)}
                             isNew={flashId === ex.exercise_id}
+                            isDark={isDark}
                           />
                         ))}
                       </div>
@@ -505,7 +512,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                         const ex = selected.find(s => s.exercise_id === activeDragId)
                         if (!ex) return null
                         return (
-                          <div className="border-2 border-blue-400 rounded-xl px-3 py-2 bg-white shadow-xl text-sm font-semibold text-gray-800 flex items-center gap-2 rotate-1">
+                          <div className={`border-2 border-blue-400 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 rotate-1 ${isDark ? 'bg-[oklch(0.22_0.018_264)] text-gray-200' : 'bg-white text-gray-800'}`}>
                             <GripVertical size={14} className="text-blue-400" />
                             {ex.name}
                           </div>
@@ -517,8 +524,8 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
               )}
 
               {selected.length === 0 && !showDropdown && (
-                <div className="py-8 text-center border-2 border-dashed border-blue-100 rounded-xl">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mx-auto mb-2">
+                <div className={`py-8 text-center border-2 border-dashed rounded-xl ${isDark ? 'border-white/10' : 'border-blue-100'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${isDark ? 'bg-white/[0.05]' : 'bg-blue-50'}`}>
                     <LayoutList size={18} className="text-blue-400" />
                   </div>
                   <p className="text-sm text-gray-400">{t('noExercises')}</p>
@@ -529,8 +536,9 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
             </div>
 
             {/* Sticky footer */}
-            <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+            <div className={`px-6 py-4 border-t shrink-0 flex gap-3 ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-white'}`}>
+              <Button type="button" variant="outline" onClick={onClose}
+                className={`flex-1 ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/[0.05]' : ''}`}>
                 {tCommon('cancel')}
               </Button>
               <Button type="submit" disabled={loading || !name}

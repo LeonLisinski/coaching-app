@@ -66,10 +66,15 @@ export default function ClientsCheckinTab() {
   const tDaysShort = useTranslations('daysShort')
   const tDaysFull = useTranslations('days')
 
+  const { accent, mode } = useAppTheme()
+  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
+  const todayDow = new Date().getDay()
+
   const STATUS_CONFIG = {
-    submitted: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: t2('statusSubmitted') },
-    late:      { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-600 border-red-200',             label: t2('statusLate') },
-    neutral:   { dot: 'bg-gray-300',    badge: 'bg-gray-50 text-gray-400 border-gray-200',          label: t2('statusWaiting') },
+    submitted: { dot: 'bg-emerald-500', badge: isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200', label: t2('statusSubmitted') },
+    late:      { dot: 'bg-red-500',     badge: isDark ? 'bg-red-500/20 text-red-400 border-red-500/30'             : 'bg-red-50 text-red-600 border-red-200',             label: t2('statusLate') },
+    neutral:   { dot: 'bg-gray-300',    badge: isDark ? 'bg-white/10 text-gray-400 border-white/15'                : 'bg-gray-50 text-gray-400 border-gray-200',          label: t2('statusWaiting') },
   }
 
   const DAY_NAMES_SHORT = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
@@ -89,8 +94,6 @@ export default function ClientsCheckinTab() {
   const [dayFilter, setDayFilter] = useState<'all' | number>('all')
   const [showFilters, setShowFilters] = useState(false)
   const router = useRouter()
-  const { accent } = useAppTheme()
-  const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
 
   useEffect(() => { fetchClients() }, [])
 
@@ -137,8 +140,22 @@ export default function ClientsCheckinTab() {
     <div className="space-y-3">
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <p className="text-gray-500 text-xs">{t2('clientCountDisplay', { filtered: filtered.length, total: clients.length })}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <p className="text-gray-500 text-xs">{t2('clientCountDisplay', { filtered: filtered.length, total: clients.length })}</p>
+          <button
+            type="button"
+            onClick={() => setDayFilter(f => f === todayDow ? 'all' : todayDow)}
+            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-colors ${
+              dayFilter === todayDow
+                ? 'bg-teal-600 text-white border-teal-600'
+                : isDark
+                  ? 'bg-teal-500/15 text-teal-400 border-teal-500/30 hover:bg-teal-500/25'
+                  : 'bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100'
+            }`}>
+            {t2('filterToday')}
+          </button>
+        </div>
         <Button
           variant="outline" size="sm"
           onClick={() => setShowFilters(f => !f)}
@@ -173,14 +190,19 @@ export default function ClientsCheckinTab() {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-teal-50/60 rounded-xl p-3 space-y-3 border border-teal-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-teal-50/60 border-teal-100'}`}>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortLabel')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {SORT_OPTIONS.map(opt => (
-                <button key={opt.value} type="button" onClick={() => setSort(opt.value)}
+                <button key={opt.value} type="button"
+                  onClick={() => setSort(s => s === opt.value && opt.value !== 'name_asc' ? 'name_asc' : opt.value)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    sort === opt.value ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                    sort === opt.value
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : isDark
+                        ? 'bg-white/8 text-gray-300 border-white/15 hover:border-teal-400'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -192,18 +214,36 @@ export default function ClientsCheckinTab() {
             <div className="flex gap-1.5 flex-wrap">
               <button type="button" onClick={() => setDayFilter('all')}
                 className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                  dayFilter === 'all' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
+                  dayFilter === 'all'
+                    ? 'bg-teal-600 text-white border-teal-600'
+                    : isDark
+                      ? 'bg-white/8 text-gray-300 border-white/15 hover:border-teal-400'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
                 }`}>
                 {t('allDays')}
               </button>
-              {[0,1,2,3,4,5,6].map(d => (
-                <button key={d} type="button" onClick={() => setDayFilter(d)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    dayFilter === d ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300'
-                  }`}>
-                  {DAY_NAMES_SHORT[d]}
-                </button>
-              ))}
+              {[0,1,2,3,4,5,6].map(d => {
+                const isToday = d === todayDow
+                const isActive = dayFilter === d
+                return (
+                  <button key={d} type="button"
+                    onClick={() => setDayFilter(f => f === d ? 'all' : d)}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors relative ${
+                      isActive
+                        ? 'bg-teal-600 text-white border-teal-600 font-bold'
+                        : isToday
+                          ? isDark
+                            ? 'bg-white/8 text-white border-white/40 font-bold hover:border-teal-400'
+                            : 'bg-white text-gray-800 border-gray-400 font-bold hover:border-teal-300'
+                          : isDark
+                            ? 'bg-white/8 text-gray-300 border-white/15 font-medium hover:border-teal-400'
+                            : 'bg-white text-gray-600 border-gray-200 font-medium hover:border-teal-300'
+                    }`}>
+                    {DAY_NAMES_SHORT[d]}
+                    {isToday && !isActive && <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-teal-500" />}
+                  </button>
+                )
+              })}
             </div>
           </div>
           {hasFilters && (
@@ -234,7 +274,11 @@ export default function ClientsCheckinTab() {
               <div
                 key={client.id}
                 onClick={() => router.push(`/dashboard/checkins/${client.id}`)}
-                className="border border-gray-100 rounded-xl p-3 bg-white hover:shadow-sm hover:border-teal-200 transition-all cursor-pointer select-none group"
+                className={`border rounded-xl p-3 transition-all cursor-pointer select-none group ${
+                  isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-100'
+                }`}
+                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = `${accentHex}60` }}
+                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '' }}
               >
                 <div className="flex items-center gap-3">
                   {/* Avatar */}

@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, ChevronRight, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
+import { UserPlus, X, Dumbbell, UtensilsCrossed, CalendarDays, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { edgeFunctionUrl } from '@/lib/supabase-edge'
@@ -40,8 +40,9 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   const tCommon = useTranslations('common')
   const tAdd = useTranslations('addClient')
   const tDaysShort = useTranslations('daysShort')
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
 
   const GOAL_CHIPS = tAdd.raw('goalChips') as string[]
 
@@ -110,8 +111,8 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
     const user = session?.user
     if (!user) { setPlansLoading(false); return }
     const [{ data: wp }, { data: mp }, { data: pkgs }] = await Promise.all([
-      supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).order('name'),
-      supabase.from('meal_plans').select('id, name').eq('trainer_id', user.id).order('name'),
+      supabase.from('workout_plans').select('id, name').eq('trainer_id', user.id).eq('is_template', true).order('name'),
+      supabase.from('meal_plans').select('id, name').eq('trainer_id', user.id).eq('is_template', true).order('name'),
       supabase.from('packages').select('id, name, price, duration_days, color').eq('trainer_id', user.id).eq('active', true).order('name'),
     ])
     setWorkoutPlans(wp || [])
@@ -322,7 +323,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
         </div>
 
         {/* Step indicator — hidden when limit reached */}
-        <div className={`flex shrink-0 border-b border-gray-100 ${limitInfo || limitChecking ? 'hidden' : ''}`}>
+        <div className={`flex shrink-0 border-b ${isDark ? 'border-white/8' : 'border-gray-100'} ${limitInfo || limitChecking ? 'hidden' : ''}`}>
           {STEPS.map((s, i) => {
             const isActive  = step === s.key
             const isDone    = STEPS.findIndex(x => x.key === step) > i
@@ -330,10 +331,15 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
               <button key={s.key} type="button"
                 onClick={() => isDone && setStep(s.key)}
                 className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${isActive ? '' : 'border-transparent'} ${isDone ? 'cursor-pointer' : 'cursor-default'}`}
-                style={isActive ? { borderBottomColor: accentHex, color: accentHex } : { color: isDone ? '#6b7280' : '#d1d5db' }}>
+                style={isActive
+                  ? { borderBottomColor: accentHex, color: accentHex }
+                  : { color: isDone ? (isDark ? '#9ca3af' : '#6b7280') : (isDark ? '#4b5563' : '#d1d5db') }}>
                 <span className="flex items-center justify-center gap-1.5">
-                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${isActive ? 'text-white' : isDone ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}
-                    style={isActive ? { backgroundColor: accentHex } : {}}>
+                  <span
+                    className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-bold ${isActive ? 'text-white' : isDone ? 'bg-emerald-500 text-white' : ''}`}
+                    style={isActive
+                      ? { backgroundColor: accentHex }
+                      : isDone ? {} : { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : '#e5e7eb', color: isDark ? '#6b7280' : '#9ca3af' }}>
                     {isDone ? '✓' : i + 1}
                   </span>
                   {s.label}
@@ -349,36 +355,35 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           {/* ── Limit checking spinner ── */}
           {limitChecking && (
             <div className="flex-1 flex flex-col items-center justify-center py-12 gap-3">
-              <span className="w-8 h-8 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
-              <p className="text-sm text-gray-400">{tAdd('checkingPlan')}</p>
+              <span className={`w-8 h-8 border-2 rounded-full animate-spin ${isDark ? 'border-white/10 border-t-gray-400' : 'border-gray-200 border-t-gray-500'}`} />
+              <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{tAdd('checkingPlan')}</p>
             </div>
           )}
 
           {/* ── Limit reached screen ── */}
           {!limitChecking && limitInfo && (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center">
-                <AlertTriangle size={26} className="text-amber-500" />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? '' : 'bg-amber-50'}`}
+                style={isDark ? { backgroundColor: 'rgba(217,119,6,0.2)' } : {}}>
+                <AlertTriangle size={26} style={{ color: isDark ? '#fbbf24' : undefined }} className={!isDark ? 'text-amber-500' : ''} />
               </div>
               <div className="space-y-1">
-                <h3 className="font-bold text-gray-900 text-base">{tAdd('limitTitle')}</h3>
-                <p className="text-gray-500 text-sm">
+                <h3 className={`font-bold text-base ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{tAdd('limitTitle')}</h3>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   Na vašem <span className="font-semibold">{PLAN_LABELS[limitInfo.plan] ?? limitInfo.plan}</span> planu možete imati
                   maksimalno <span className="font-semibold">{limitInfo.limit} klijenata</span>.
                 </p>
               </div>
-              <div className="flex items-baseline gap-1.5 px-5 py-3 rounded-xl bg-gray-50 border border-gray-100">
+              <div className={`flex items-baseline gap-1.5 px-5 py-3 rounded-xl border ${isDark ? 'border-white/8 bg-white/[0.04]' : 'bg-gray-50 border-gray-100'}`}>
                 <span className="text-3xl font-extrabold" style={{ color: accentHex }}>{limitInfo.current}</span>
-                <span className="text-gray-400 text-sm">/ {limitInfo.limit} klijenata</span>
+                <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>/ {limitInfo.limit} klijenata</span>
               </div>
-              <p className="text-gray-400 text-xs max-w-[260px]">
+              <p className={`text-xs max-w-[260px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 Nadogradite plan kako biste mogli dodavati više klijenata ili deaktivirajte postojeće klijente.
               </p>
-              <a
-                href="/dashboard/billing"
+              <a href="/dashboard/billing"
                 className="w-full h-10 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2"
-                style={{ backgroundColor: accentHex }}
-              >
+                style={{ backgroundColor: accentHex }}>
                 <TrendingUp size={15} /> {tAdd('limitUpgrade')}
               </a>
             </div>
@@ -393,25 +398,31 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             <div className="space-y-4">
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('fullName')} <span className="text-rose-400">*</span></Label>
-                  <Input value={full_name} onChange={e => setFullName(e.target.value)} placeholder={t('fullNamePlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('fullName')} <span className="text-rose-400">*</span></Label>
+                  <Input value={full_name} onChange={e => setFullName(e.target.value)} placeholder={t('fullNamePlaceholder')} onFocus={inputFocus} onBlur={inputBlur}
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('email')} <span className="text-rose-400">*</span></Label>
-                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="email" />
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('email')} <span className="text-rose-400">*</span></Label>
+                  <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} autoComplete="email"
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
-                <p className="text-[11px] text-gray-500 leading-relaxed">{tAdd('inviteEmailHint')}</p>
+                <p className={`text-[11px] leading-relaxed ${isDark ? 'text-gray-600' : 'text-gray-500'}`}>{tAdd('inviteEmailHint')}</p>
               </div>
 
               {/* Spol */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{tAdd('genderLabel')}</Label>
+                <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{tAdd('genderLabel')}</Label>
                 <div className="flex gap-2">
                   {([['M', tAdd('genderMale')], ['F', tAdd('genderFemale')]] as const).map(([g, lbl]) => (
                     <button key={g} type="button"
                       onClick={() => setGender(gender === g ? '' : g)}
                       className="flex-1 py-2 rounded-xl border text-sm font-medium transition-all"
-                      style={gender === g ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#4b5563' }}>
+                      style={gender === g
+                        ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex }
+                        : isDark
+                        ? { borderColor: 'rgba(255,255,255,0.12)', color: '#9ca3af', backgroundColor: 'rgba(255,255,255,0.04)' }
+                        : { borderColor: '#e5e7eb', color: '#4b5563' }}>
                       {lbl}
                     </button>
                   ))}
@@ -425,59 +436,72 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
             <div className="space-y-4">
               {/* Goal chips */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">{t('goal')}</Label>
+                <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('goal')}</Label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {GOAL_CHIPS.map(chip => (
                     <button key={chip} type="button"
                       onClick={() => setGoal(goal === chip ? '' : chip)}
                       className="text-xs px-2.5 py-1 rounded-full border transition-all font-medium"
-                      style={goal === chip ? { backgroundColor: `${accentHex}15`, borderColor: accentHex, color: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+                      style={goal === chip
+                        ? { backgroundColor: `${accentHex}15`, borderColor: accentHex, color: accentHex }
+                        : isDark
+                        ? { borderColor: 'rgba(255,255,255,0.1)', color: '#9ca3af', backgroundColor: 'rgba(255,255,255,0.04)' }
+                        : { borderColor: '#e5e7eb', color: '#6b7280' }}>
                       {chip}
                     </button>
                   ))}
                 </div>
-                <Input value={goal} onChange={e => setGoal(e.target.value)} placeholder={tAdd('customGoalPlaceholder')} onFocus={inputFocus} onBlur={inputBlur} />
+                <Input value={goal} onChange={e => setGoal(e.target.value)} placeholder={tAdd('customGoalPlaceholder')} onFocus={inputFocus} onBlur={inputBlur}
+                  className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
               </div>
 
               {/* Tjelesne mjere */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('weight')}</Label>
-                  <Input type="text" inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value.replace(',', '.'))} placeholder="80" onFocus={inputFocus} onBlur={inputBlur} />
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('weight')}</Label>
+                  <Input type="text" inputMode="decimal" value={weight} onChange={e => setWeight(e.target.value.replace(',', '.'))} placeholder="80" onFocus={inputFocus} onBlur={inputBlur}
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('height')}</Label>
-                  <Input type="text" inputMode="decimal" value={height} onChange={e => setHeight(e.target.value.replace(',', '.'))} placeholder="180" onFocus={inputFocus} onBlur={inputBlur} />
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('height')}</Label>
+                  <Input type="text" inputMode="decimal" value={height} onChange={e => setHeight(e.target.value.replace(',', '.'))} placeholder="180" onFocus={inputFocus} onBlur={inputBlur}
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('dateOfBirth')}</Label>
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('dateOfBirth')}</Label>
                   <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
                     value={dob_display}
                     onChange={e => { const f = formatDobInput(e.target.value); setDobDisplay(f); setDob(dobToIso(f)) }}
-                    onFocus={inputFocus} onBlur={inputBlur} />
+                    onFocus={inputFocus} onBlur={inputBlur}
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
               </div>
 
               {/* Datum početka suradnje */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-600">{t('startDate')}</Label>
+                  <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('startDate')}</Label>
                   <Input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" maxLength={10}
                     value={start_date_display}
                     onChange={e => { const f = formatDobInput(e.target.value); setStartDateDisplay(f); setStartDate(dobToIso(f)) }}
-                    onFocus={inputFocus} onBlur={inputBlur} />
+                    onFocus={inputFocus} onBlur={inputBlur}
+                    className={isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''} />
                 </div>
               </div>
 
               {/* Activity level */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Razina aktivnosti</Label>
+                <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Razina aktivnosti</Label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {ACTIVITY_OPTIONS.map(opt => (
                     <button key={opt.value} type="button"
                       onClick={() => setActivity(activity_level === opt.value ? '' : opt.value)}
                       className="flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all"
-                      style={activity_level === opt.value ? { backgroundColor: `${accentHex}12`, borderColor: accentHex, color: accentHex } : { borderColor: '#e5e7eb', color: '#374151' }}>
+                      style={activity_level === opt.value
+                        ? { backgroundColor: `${accentHex}12`, borderColor: accentHex, color: accentHex }
+                        : isDark
+                        ? { borderColor: 'rgba(255,255,255,0.1)', color: '#d1d5db', backgroundColor: 'rgba(255,255,255,0.03)' }
+                        : { borderColor: '#e5e7eb', color: '#374151' }}>
                       <div>
                         <p className="text-xs font-medium leading-none">{opt.label}</p>
                         <p className="text-[10px] mt-0.5 opacity-60">{opt.desc}</p>
@@ -489,9 +513,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
 
               {/* Bilješke */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-gray-600">Bilješke</Label>
+                <Label className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Bilješke</Label>
                 <Textarea value={notes} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}
-                  placeholder={tAdd('notesPlaceholder')} rows={3} className="resize-none text-sm" />
+                  placeholder={tAdd('notesPlaceholder')} rows={3}
+                  className={`resize-none text-sm ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : ''}`} />
               </div>
             </div>
           )}
@@ -500,16 +525,16 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
           {step === 'plans' && (
             <div className="space-y-5">
               {plansLoading ? (
-                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className={`h-16 rounded-xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />)}</div>
               ) : (
                 <>
                   {/* Training plan */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                         <Dumbbell size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">{tAdd('trainingPlanLabel')}</p>
+                      <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tAdd('trainingPlanLabel')}</p>
                     </div>
                     <Select value={selectedWorkout || '_none'} onValueChange={v => setSelectedWorkout(v === '_none' ? '' : v)}>
                       <SelectTrigger className="w-full">
@@ -528,16 +553,20 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   {/* Meal plan */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                         <UtensilsCrossed size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">{tAdd('mealPlanLabel')}</p>
+                      <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tAdd('mealPlanLabel')}</p>
                     </div>
                     <div className="flex gap-2">
                       {(['default', 'split'] as const).map((m) => (
                         <button key={m} type="button" onClick={() => setMealPlanMode(m)}
                           className="flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-                          style={mealPlanMode === m ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+                          style={mealPlanMode === m
+                            ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex }
+                            : isDark
+                            ? { borderColor: 'rgba(255,255,255,0.1)', color: '#9ca3af', backgroundColor: 'rgba(255,255,255,0.04)' }
+                            : { borderColor: '#e5e7eb', color: '#6b7280' }}>
                           {m === 'default' ? tAdd('standardType') : tAdd('splitType')}
                         </button>
                       ))}
@@ -558,7 +587,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                     ) : (
                       <div className="space-y-2">
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">{tAdd('trainingDaysLabel')}</p>
+                          <p className={`text-[11px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{tAdd('trainingDaysLabel')}</p>
                           <Select value={selectedMeal || '_none'} onValueChange={v => setSelectedMeal(v === '_none' ? '' : v)}>
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder={tAdd('trainingDayPlaceholder')} />
@@ -570,7 +599,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                           </Select>
                         </div>
                         <div>
-                          <p className="text-[11px] text-gray-500 mb-1">{tAdd('restDaysLabel')}</p>
+                          <p className={`text-[11px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{tAdd('restDaysLabel')}</p>
                           <Select value={selectedMealRest || '_none'} onValueChange={v => setSelectedMealRest(v === '_none' ? '' : v)}>
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder={tAdd('restDayPlaceholder')} />
@@ -588,10 +617,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   {/* Payment package */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                         <CreditCard size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">{tAdd('packageLabel')}</p>
+                      <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tAdd('packageLabel')}</p>
                     </div>
                     <Select value={selectedPackage || '_none'} onValueChange={v => setSelectedPackage(v === '_none' ? '' : v)}>
                       <SelectTrigger className="w-full">
@@ -617,10 +646,10 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   {/* Check-in day */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15`, color: accentHex }}>
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                         <CalendarDays size={12} />
                       </div>
-                      <p className="text-xs font-semibold text-gray-700">{tAdd('checkinDayLabel')}</p>
+                      <p className={`text-xs font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{tAdd('checkinDayLabel')}</p>
                       {checkinDay !== null && <span className="text-[10px] px-1.5 py-0.5 rounded-full text-white font-semibold" style={{ backgroundColor: accentHex }}>{DAY_NAMES[checkinDay]}</span>}
                     </div>
                     <div className="grid grid-cols-7 gap-1">
@@ -628,13 +657,17 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                         <button key={i} type="button"
                           onClick={() => setCheckinDay(checkinDay === i ? null : i)}
                           className="py-2 rounded-xl border text-xs font-semibold transition-all"
-                          style={checkinDay === i ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex } : { borderColor: '#e5e7eb', color: '#6b7280' }}>
+                          style={checkinDay === i
+                            ? { backgroundColor: accentHex, color: 'white', borderColor: accentHex }
+                            : isDark
+                            ? { borderColor: 'rgba(255,255,255,0.1)', color: '#9ca3af', backgroundColor: 'rgba(255,255,255,0.04)' }
+                            : { borderColor: '#e5e7eb', color: '#6b7280' }}>
                           {d}
                         </button>
                       ))}
                     </div>
                     {checkinDay !== null && (
-                      <p className="text-xs text-gray-400 mt-1">Foto postavke i parametri mogu se konfigurirati na profilu klijenta.</p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Foto postavke i parametri mogu se konfigurirati na profilu klijenta.</p>
                     )}
                   </div>
                 </>
@@ -647,23 +680,24 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
+        <div className={`shrink-0 px-6 py-4 border-t ${isDark ? 'border-white/8 bg-[oklch(0.195_0.018_264)]' : 'border-gray-100 bg-white'}`}>
           {limitInfo || limitChecking ? (
             <button type="button" onClick={onClose}
-              className="w-full h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+              className={`w-full h-9 rounded-lg border text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {tCommon('cancel')}
             </button>
           ) : (
             <>
-              {error && <p className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
+              {error && <p className={`text-sm rounded-xl px-3 py-2 mb-3 border ${isDark ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-red-500 bg-red-50 border-red-200'}`}>{error}</p>}
               <div className="flex gap-3">
                 {step !== 'account' ? (
                   <button type="button" onClick={() => setStep(step === 'plans' ? 'profile' : 'account')}
-                    className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    className={`flex-1 h-9 rounded-lg border text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                     {tAdd('prevStep')}
                   </button>
                 ) : (
-                  <button type="button" onClick={onClose} className="flex-1 h-9 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                  <button type="button" onClick={onClose}
+                    className={`flex-1 h-9 rounded-lg border text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                     {tCommon('cancel')}
                   </button>
                 )}
@@ -671,7 +705,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
                   <button type="button" onClick={goNext}
                     className="flex-1 h-9 rounded-lg text-white text-sm font-semibold flex items-center justify-center gap-1.5"
                     style={{ backgroundColor: accentHex }}>
-                    {tAdd('nextStep')} <ChevronRight size={14} />
+                    {tAdd('nextStep')}
                   </button>
                 ) : (
                   <button type="button" onClick={handleSubmit} disabled={loading}

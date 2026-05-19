@@ -19,13 +19,15 @@ import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 /** Custom styled select dropdown — replaces native <select> */
-function CustomSelect({ value, onChange, options, onOpen }: {
+function CustomSelect({ value, onChange, options, onOpen, isDark }: {
   value: string
   onChange: (v: string) => void
   options: { value: string; label: string }[]
   onOpen?: () => void
+  isDark?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -38,19 +40,21 @@ function CustomSelect({ value, onChange, options, onOpen }: {
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => { if (!v) onOpen?.(); return !v })}
-        className="w-full flex items-center justify-between border border-blue-200 rounded-md px-3 h-7 text-xs bg-white text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors">
-        <span className={selected?.value ? 'text-gray-800 font-medium' : 'text-gray-400'}>{selected?.label}</span>
+        className={`w-full flex items-center justify-between border rounded-md px-3 h-7 text-xs focus:outline-none transition-colors ${isDark ? 'border-white/10 bg-white/[0.05] text-gray-300 hover:border-white/20 focus:border-blue-500' : 'border-blue-200 bg-white text-gray-700 hover:border-blue-300 focus:border-blue-400'}`}>
+        <span className={selected?.value ? (isDark ? 'text-gray-200 font-medium' : 'text-gray-800 font-medium') : 'text-gray-400'}>{selected?.label}</span>
         <ChevronDown size={12} className={`text-blue-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+        <div className={`absolute top-full left-0 right-0 z-50 mt-1 border rounded-xl shadow-lg overflow-hidden ${isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-blue-100 bg-white'}`}>
           <div className="max-h-52 overflow-y-auto">
             {options.map(opt => (
               <button key={opt.value} type="button"
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => { onChange(opt.value); setOpen(false) }}
-                className={`w-full text-left px-3 py-2 text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                  opt.value === value ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-blue-50'
+                className={`w-full text-left px-3 py-2 text-xs border-b last:border-0 transition-colors ${
+                  opt.value === value
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : isDark ? 'border-white/5 text-gray-300 hover:bg-white/[0.06]' : 'border-gray-50 text-gray-700 hover:bg-blue-50'
                 }`}>
                 {opt.label}
               </button>
@@ -87,6 +91,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const tCommon   = useTranslations('common')
   const tTemplate = useTranslations('training.dialogs.template')
   const { settings: trainerSettings } = useTrainerSettings()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [name, setName]               = useState('')
   const [description, setDescription] = useState('')
@@ -322,7 +328,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false}>
+        <DialogContent className="max-w-2xl flex flex-col max-h-[90vh] p-0 gap-0 overflow-hidden" showCloseButton={false} style={{ background: isDark ? 'oklch(0.195 0.018 264)' : 'white' }}>
           <DialogTitle className="sr-only">{t('addTitle')}</DialogTitle>
           <DialogDescription className="sr-only">{t('addTitle')}</DialogDescription>
 
@@ -341,15 +347,15 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
           </div>
 
           {/* Fixed: name + description */}
-          <div className="px-6 pt-4 pb-3 border-b shrink-0 bg-indigo-50/30">
+          <div className={`px-6 pt-4 pb-3 border-b shrink-0 ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-indigo-50/30'}`}>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-gray-600">{t('form.name')}</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('form.namePlaceholder')} required className="h-9" />
+                <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('form.name')}</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} placeholder={t('form.namePlaceholder')} required className={`h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs font-semibold text-gray-600">{t('form.description')}</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('form.descriptionPlaceholder')} className="h-9" />
+                <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('form.description')}</Label>
+                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t('form.descriptionPlaceholder')} className={`h-9 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
               </div>
             </div>
           </div>
@@ -357,10 +363,10 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
           <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 pb-2">
             <form id="add-plan-form" onSubmit={handleSubmit} className="space-y-4 py-2">
               <div className="space-y-3">
-                <div className="flex items-center justify-between sticky top-0 z-10 bg-white -mx-6 px-6 py-2 border-b border-gray-100">
-                  <span className="text-xs font-semibold text-gray-600">{t('form.trainingDays')} ({days.length})</span>
+                <div className={`flex items-center justify-between sticky top-0 z-10 -mx-6 px-6 py-2 border-b ${isDark ? 'bg-[oklch(0.195_0.018_264)] border-white/8' : 'bg-white border-gray-100'}`}>
+                  <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('form.trainingDays')} ({days.length})</span>
                   <Button type="button" variant="outline" size="sm" onClick={addDay}
-                    className="flex items-center gap-1 h-7 text-xs px-2.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                    className={`flex items-center gap-1 h-7 text-xs px-2.5 ${isDark ? 'border-white/10 text-indigo-400 hover:bg-white/[0.05]' : 'border-indigo-200 text-indigo-700 hover:bg-indigo-50'}`}>
                     <Plus size={12} />{t('form.addDayLabel')}
                   </Button>
                 </div>
@@ -370,15 +376,15 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
                   {(dayDragHandle) => (
-                  <div className="border border-blue-300 rounded-xl shadow-sm">
+                  <div className={`border rounded-xl shadow-sm ${isDark ? 'border-white/10' : 'border-blue-300'}`}>
                     {/* Accordion header */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-100 border-b border-blue-300 rounded-t-xl">
-                      <button type="button" {...dayDragHandle} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none" tabIndex={-1}>
+                    <div className={`flex items-center gap-2 px-3 py-2.5 border-b rounded-t-xl ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-blue-100 border-blue-300'}`}>
+                      <button type="button" {...dayDragHandle} className={`cursor-grab active:cursor-grabbing shrink-0 touch-none ${isDark ? 'text-gray-600 hover:text-gray-400' : 'text-gray-300 hover:text-gray-500'}`} tabIndex={-1}>
                         <GripVertical size={14} />
                       </button>
                       <button type="button" onClick={() => toggleDay(index)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
                         {isDayExpanded(index) ? <ChevronUp size={14} className="text-gray-400 shrink-0" /> : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
-                        <span className="font-medium text-sm">{t('form.dayLabel')} {day.day_number}</span>
+                        <span className={`font-medium text-sm ${isDark ? 'text-gray-200' : ''}`}>{t('form.dayLabel')} {day.day_number}</span>
                         <span className="text-xs text-gray-400 truncate">{day.name !== `${t('form.dayLabel')} ${day.day_number}` ? `· ${day.name}` : ''}</span>
                         {!isDayExpanded(index) && (
                           <span className="text-xs text-gray-400 ml-auto shrink-0">
@@ -386,11 +392,11 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                           </span>
                         )}
                       </button>
-                      <button type="button" title={t('form.copyDayTooltip')} onClick={() => copyDay(index)} className="p-1 text-gray-400 hover:text-gray-600">
+                      <button type="button" title={t('form.copyDayTooltip')} onClick={() => copyDay(index)} className={`p-1 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
                         <Copy size={13} />
                       </button>
                       <button type="button" onClick={() => setConfirmDay(index)} className="p-1">
-                        <X size={13} className="text-gray-400 hover:text-red-500" />
+                        <X size={13} className={`${isDark ? 'text-gray-600 hover:text-red-400' : 'text-gray-400 hover:text-red-500'}`} />
                       </button>
                     </div>
 
@@ -400,19 +406,19 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         {/* Row 1: name input + segmented mode control */}
                         <div className="flex items-center gap-1.5">
                           <Input value={day.name} onChange={e => updateDayField(index, 'name', e.target.value)}
-                            placeholder="Push, Pull, Legs..." className="flex-1 h-7 text-xs" />
-                          <div className="flex rounded-md border border-gray-300 overflow-hidden shrink-0 text-xs">
-                            {(['template', 'custom'] as const).map((mode, mi) => (
-                              <button key={mode} type="button"
-                                onClick={() => updateDayField(index, 'mode', mode)}
-                                title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
-                                className={`flex items-center gap-1 px-2 py-1 h-7 transition-colors ${mi > 0 ? 'border-l border-gray-300' : ''} ${
-                                  day.mode === mode
+                            placeholder="Push, Pull, Legs..." className={`flex-1 h-7 text-xs ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
+                          <div className={`flex rounded-md border overflow-hidden shrink-0 text-xs ${isDark ? 'border-white/10' : 'border-gray-300'}`}>
+                            {(['template', 'custom'] as const).map((dayMode, mi) => (
+                              <button key={dayMode} type="button"
+                                onClick={() => updateDayField(index, 'mode', dayMode)}
+                                title={dayMode === 'template' ? t('form.template') : t('form.createWorkout')}
+                                className={`flex items-center gap-1 px-2 py-1 h-7 transition-colors ${mi > 0 ? (isDark ? 'border-l border-white/10' : 'border-l border-gray-300') : ''} ${
+                                  day.mode === dayMode
                                     ? 'bg-blue-600 text-white font-semibold'
-                                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                                    : isDark ? 'bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]' : 'bg-white text-gray-500 hover:bg-gray-50'
                                 }`}>
-                                {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
-                                <span>{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
+                                {dayMode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
+                                <span>{dayMode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
                               </button>
                             ))}
                           </div>
@@ -426,6 +432,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               setExerciseSearch(prev => ({ ...prev, [index]: '' }))
                               setSearchFocused(prev => ({ ...prev, [index]: false }))
                             }}
+                            isDark={isDark}
                             options={[
                               { value: '', label: t('form.noTemplate') },
                               ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${tmpl.exercises?.length || 0} ${t('form.exerciseCountSuffix')})` }))
@@ -469,11 +476,11 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                               }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
                               placeholder={t('form.searchExercisePlaceholder')}
-                              className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
+                              className={`h-7 text-xs pl-7 border-dashed focus:border-solid ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600 focus:border-blue-500' : 'focus:border-blue-300'}`}
                             />
                           </div>
                           {!!(searchFocused[index] || exerciseSearch[index]) && (
-                            <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+                            <div className={`absolute top-full left-0 right-0 z-50 mt-1 border rounded-xl shadow-lg overflow-hidden ${isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-blue-100 bg-white'}`}>
                               <div
                                 ref={el => { dropdownRefs.current[index] = el }}
                                 className="overflow-y-auto max-h-48"
@@ -489,18 +496,20 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                                     onMouseDown={ev => ev.preventDefault()}
                                     onClick={() => { addExerciseToDay(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
                                     onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
-                                    className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                                      (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'
+                                    className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b last:border-0 transition-colors ${
+                                      (dropdownKbIndex[index] ?? -1) === ei
+                                        ? 'bg-blue-600 text-white'
+                                        : isDark ? 'border-white/5 text-gray-300 hover:bg-white/[0.06]' : 'border-gray-50 hover:bg-blue-50'
                                     }`}>
                                     <span className="font-medium">{e.name}</span>
                                     <div className="flex items-center gap-1.5">
-                                      {e.exercise_type === 'endurance' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{t('form.enduranceBadge')}</span>}
-                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{e.category}</span>
+                                      {e.exercise_type === 'endurance' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : isDark ? 'bg-blue-900/30 text-blue-400 border-blue-800/40' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{t('form.enduranceBadge')}</span>}
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : isDark ? 'bg-white/[0.08] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{e.category}</span>
                                     </div>
                                   </button>
                                 ))}
                               </div>
-                              <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
+                              <div className={`border-t px-3 py-2 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-blue-50 bg-blue-50/40'}`}>
                                 <button type="button"
                                   onMouseDown={ev => ev.preventDefault()}
                                   onClick={() => { setCreateExerciseName(exerciseSearch[index] || ''); setCreateExerciseFor(index) }}
@@ -532,7 +541,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         </DndContext>
 
                         {day.exercises.length === 0 && (
-                          <p className="text-xs text-gray-400 text-center py-2">
+                          <p className={`text-xs text-center py-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                             {day.mode === 'template' ? t('form.selectTemplate') : t('form.emptyDays')}
                           </p>
                         )}
@@ -546,16 +555,17 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                 </DndContext>
 
                 {days.length === 0 && (
-                  <p className="text-xs text-gray-400 text-center py-2">{t('form.emptyDays')}</p>
+                  <p className={`text-xs text-center py-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('form.emptyDays')}</p>
                 )}
                 <div ref={daysEndRef} />
               </div>
             </form>
           </div>
 
-          <div className="px-6 py-4 border-t bg-white shrink-0 flex gap-3">
+          <div className={`px-6 py-4 border-t shrink-0 flex gap-3 ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-white'}`}>
             {error && <p className="text-red-500 text-sm flex-1">{error}</p>}
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">{tCommon('cancel')}</Button>
+            <Button type="button" variant="outline" onClick={onClose}
+              className={`flex-1 ${isDark ? 'border-white/10 text-gray-300 hover:bg-white/[0.05]' : ''}`}>{tCommon('cancel')}</Button>
             <Button type="submit" form="add-plan-form" disabled={loading || days.length === 0}
               className="flex-1 bg-indigo-600 hover:bg-indigo-700">
               {loading ? tCommon('saving') : t('form.save')}

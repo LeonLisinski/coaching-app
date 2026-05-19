@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import MobileFinanceView from '@/app/dashboard/financije/mobile-finance-view'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useIsLg } from '@/hooks/use-mobile'
 import {
@@ -12,7 +12,7 @@ import {
 import {
   Banknote, TrendingUp, AlertTriangle, Package,
   Check, Clock, ArrowUpRight, ArrowDownRight,
-  Calendar, Filter, Trash2, RotateCcw,
+  Calendar, Filter, Trash2, RotateCcw, ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -125,8 +125,9 @@ function StatusBadge({ status, daysLeftVal, t }: { status: string; daysLeftVal?:
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function FinancijePageContent() {
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
   const tRaw = useTranslations()
   const t = (key: string, values?: any) => tRaw(key as any, values)
   const tF = useTranslations('finance2')
@@ -138,6 +139,10 @@ function FinancijePageContent() {
   const [loading, setLoading] = useState(true)
   const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear())
   const [pkgFilter, setPkgFilter] = useState<string>('all')
+  const [showYearDd, setShowYearDd] = useState(false)
+  const [showPkgDd, setShowPkgDd] = useState(false)
+  const yearDdRef = useRef<HTMLDivElement>(null)
+  const pkgDdRef  = useRef<HTMLDivElement>(null)
   const [showPayDialog, setShowPayDialog] = useState(false)
   const [selectedCp, setSelectedCp] = useState<ClientPackage | null>(null)
   const [payForm, setPayForm] = useState({ amount: '', paid_at: todayIso(), notes: '' })
@@ -148,6 +153,15 @@ function FinancijePageContent() {
   const HIST_PER_PAGE = 10
 
   useEffect(() => { fetchData() }, [])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (yearDdRef.current && !yearDdRef.current.contains(e.target as Node)) setShowYearDd(false)
+      if (pkgDdRef.current  && !pkgDdRef.current.contains(e.target as Node))  setShowPkgDd(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -455,20 +469,66 @@ function FinancijePageContent() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm">
-            <Calendar size={14} className="text-gray-400" />
-            <select value={yearFilter} onChange={e => setYearFilter(Number(e.target.value))}
-              className="bg-transparent text-gray-700 font-medium focus:outline-none text-sm">
-              {availableYears.map(y => <option key={y} value={y}>{y}.</option>)}
-            </select>
+          {/* Year picker */}
+          <div ref={yearDdRef} className="relative">
+            <button
+              type="button"
+              onClick={() => { setShowYearDd(v => !v); setShowPkgDd(false) }}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium border transition-colors ${
+                isDark ? 'bg-white/[0.04] border-white/10 text-gray-200 hover:bg-white/8' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 shadow-sm'
+              }`}>
+              <Calendar size={13} className="text-gray-400" />
+              {yearFilter}.
+              <ChevronDown size={12} className={`text-gray-400 transition-transform ${showYearDd ? 'rotate-180' : ''}`} />
+            </button>
+            {showYearDd && (
+              <div className={`absolute right-0 mt-1 z-50 rounded-xl border overflow-hidden shadow-lg min-w-[90px] ${
+                isDark ? 'bg-[oklch(0.22_0.020_264)] border-white/12' : 'bg-white border-gray-200'
+              }`}>
+                {availableYears.map(y => (
+                  <button key={y} type="button"
+                    onClick={() => { setYearFilter(y); setShowYearDd(false) }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      y === yearFilter
+                        ? isDark ? 'text-white font-semibold bg-white/10' : 'text-gray-900 font-semibold bg-gray-50'
+                        : isDark ? 'text-gray-300 hover:bg-white/8' : 'text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {y}.
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm shadow-sm">
-            <Filter size={14} className="text-gray-400" />
-            <select value={pkgFilter} onChange={e => { setPkgFilter(e.target.value); setHistPage(0) }}
-              className="bg-transparent text-gray-700 font-medium focus:outline-none text-sm max-w-[140px]">
-              <option value="all">{t('finance.allPackages')}</option>
-              {pkgTemplates.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+
+          {/* Package picker */}
+          <div ref={pkgDdRef} className="relative">
+            <button
+              type="button"
+              onClick={() => { setShowPkgDd(v => !v); setShowYearDd(false) }}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium border transition-colors max-w-[180px] ${
+                isDark ? 'bg-white/[0.04] border-white/10 text-gray-200 hover:bg-white/8' : 'bg-white border-gray-200 text-gray-700 hover:border-gray-300 shadow-sm'
+              }`}>
+              <Filter size={13} className="text-gray-400" />
+              <span className="truncate">{pkgFilter === 'all' ? t('finance.allPackages') : (pkgTemplates.find(p => p.id === pkgFilter)?.name ?? t('finance.allPackages'))}</span>
+              <ChevronDown size={12} className={`text-gray-400 shrink-0 transition-transform ${showPkgDd ? 'rotate-180' : ''}`} />
+            </button>
+            {showPkgDd && (
+              <div className={`absolute right-0 mt-1 z-50 rounded-xl border overflow-hidden shadow-lg min-w-[160px] ${
+                isDark ? 'bg-[oklch(0.22_0.020_264)] border-white/12' : 'bg-white border-gray-200'
+              }`}>
+                {[{ id: 'all', name: t('finance.allPackages') }, ...pkgTemplates].map(p => (
+                  <button key={p.id} type="button"
+                    onClick={() => { setPkgFilter(p.id); setHistPage(0); setShowPkgDd(false) }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      p.id === pkgFilter
+                        ? isDark ? 'text-white font-semibold bg-white/10' : 'text-gray-900 font-semibold bg-gray-50'
+                        : isDark ? 'text-gray-300 hover:bg-white/8' : 'text-gray-600 hover:bg-gray-50'
+                    }`}>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -503,15 +563,23 @@ function FinancijePageContent() {
           <p className="text-xs text-gray-400 mb-4">{t('dashboard.revenue.title')}</p>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={monthlyData} barCategoryGap="40%">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'} vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={42} tickFormatter={v => `${v}€`} />
               <Tooltip
+                cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
                 formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? t('dashboard.revenue.collected') : t('dashboard.revenue.expected')] as any}
-                contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 10,
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#e5e7eb'}`,
+                  boxShadow: isDark ? '0 4px 16px rgb(0 0 0 / 0.5)' : '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  backgroundColor: isDark ? '#1e2030' : '#ffffff',
+                  color: isDark ? '#e8eaf0' : '#111827',
+                }}
               />
               <Bar dataKey="naplaceno" stackId="rev" fill={accentHex} fillOpacity={0.85} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="fakturirano" stackId="rev" fill={`${accentHex}30`} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="fakturirano" stackId="rev" fill={isDark ? `${accentHex}80` : `${accentHex}30`} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-5 mt-1">
@@ -560,7 +628,7 @@ function FinancijePageContent() {
       {/* Pending / late */}
       {pendingList.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+          <div className="px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-amber-500" />
               <h2 className="text-sm font-semibold text-gray-800">{t('finance.status.pending')}</h2>
@@ -568,7 +636,7 @@ function FinancijePageContent() {
             </div>
             <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))}</p>
           </div>
-          <div className="divide-y divide-gray-50 max-h-[448px] overflow-y-auto">
+          <div className={`divide-y ${isDark ? 'divide-white/[8%]' : 'divide-gray-50'} max-h-[448px] overflow-y-auto`}>
             {pendingList.map(cp => {
               const s = getPayStatus(cp)
               const left = daysLeft(cp.end_date)
@@ -616,9 +684,9 @@ function FinancijePageContent() {
       )}
 
       {/* Transaction history */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-800">{t('finance.table.title')}</h2>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-800">{t('finance.table.title')}</h2>
           <p className="text-xs text-gray-400">{allHistory.length}</p>
         </div>
 
@@ -634,7 +702,7 @@ function FinancijePageContent() {
               <span>{t('finance.table.client')}</span><span>{t('finance.table.package')}</span><span>{t('finance.table.amount')}</span>
               <span>{t('common.date')}</span><span>{t('finance.status.paid')}</span><span>{t('finance.table.status')}</span><span></span>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className={`divide-y ${isDark ? 'divide-white/[8%]' : 'divide-gray-50'}`}>
               {pagedHistory.map(cp => {
                 const p = cp.payments?.[0]
                 const s = getPayStatus(cp)

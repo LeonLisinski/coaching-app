@@ -10,6 +10,7 @@ import AddPlanDialog from '../dialogs/add-plan-dialog'
 import EditPlanDialog from '../dialogs/edit-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDroppable } from '@dnd-kit/core'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type WorkoutPlan = {
   id: string
@@ -34,6 +35,8 @@ function PlanCard({
   onDelete: () => void
 }) {
   const t = useTranslations('training.plansTab')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const { setNodeRef, isOver } = useDroppable({
     id: `plan-drop::${plan.id}`,
@@ -46,12 +49,12 @@ function PlanCard({
   return (
     <div
       ref={setNodeRef}
-      className={`relative border rounded-xl p-3 transition-all duration-150 bg-white cursor-default select-none ${
+      className={`relative border rounded-xl p-3 transition-all duration-150 cursor-default select-none ${isDark ? 'bg-white/[0.03]' : 'bg-white'} ${
         isActive
           ? 'border-indigo-500 shadow-md ring-2 ring-indigo-400/25 bg-indigo-50/40'
           : showDropHint
           ? 'border-dashed border-indigo-300/50'
-          : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
+          : isDark ? 'border-white/8 hover:shadow-sm hover:border-white/10' : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
       }`}
       onDoubleClick={() => onEdit()}
     >
@@ -69,20 +72,20 @@ function PlanCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate text-gray-800">{plan.name}</p>
+          <p className={`font-medium text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{plan.name}</p>
           {plan.description && (
-            <p className="text-xs text-gray-400 truncate">{plan.description}</p>
+            <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{plan.description}</p>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
+          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{t('dblClickHint')}</p>
           {plan.days?.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {plan.days.slice(0, 4).map((day: any, i: number) => (
-                <span key={i} className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-100 truncate max-w-[80px]">
+                <span key={i} className={`text-[10px] px-1.5 py-0.5 rounded border truncate max-w-[80px] ${isDark ? 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
                   {day.name || `Dan ${i + 1}`}
                 </span>
               ))}
               {plan.days.length > 4 && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded border border-gray-100">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-500 border-white/8' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
                   +{plan.days.length - 4} {t('daysSuffix')}
                 </span>
               )}
@@ -91,10 +94,10 @@ function PlanCard({
         </div>
 
         <div className="flex items-center gap-1 shrink-0" onDoubleClick={e => e.stopPropagation()}>
-          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium border border-indigo-100">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${isDark ? 'bg-indigo-900/40 text-indigo-300 border-indigo-700/50' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
             {plan.days?.length ?? 0}d
           </span>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700"
+          <Button variant="ghost" size="sm" className={`h-7 w-7 p-0 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-700'}`}
             onClick={e => { e.stopPropagation(); onEdit() }}>
             <Pencil size={13} />
           </Button>
@@ -112,6 +115,8 @@ function PlanCard({
 export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'template' | null }) {
   const t = useTranslations('training.plansTab')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [plans, setPlans] = useState<WorkoutPlan[]>([])
   const [search, setSearch] = useState('')
@@ -163,7 +168,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
   return (
     <>
       {/* Fixed: header + search */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+      <div className={`shrink-0 px-4 pt-3 pb-3 border-b space-y-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
         <div className="flex items-center justify-between">
           <p className="text-gray-500 text-xs">{filtered.length} / {t('count', { count: plans.length })}</p>
           <div className="flex items-center gap-2">
@@ -183,15 +188,15 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
           </div>
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} size={14} />
           <Input
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''} ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
               <X size={13} />
             </button>
           )}
@@ -203,9 +208,9 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-indigo-50/60 rounded-xl p-3 space-y-3 border border-indigo-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/8' : 'bg-indigo-50/60 border-indigo-100'}`}>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('sortByHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
                 { key: 'date_desc', label: t('sortNewest') },
@@ -216,7 +221,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    sort === opt.key ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                    sort === opt.key ? 'bg-indigo-600 text-white border-indigo-600' : isDark ? 'bg-white/[0.04] text-gray-400 border-white/10 hover:border-indigo-400' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -224,12 +229,12 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('minDaysHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('minDaysHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {[0, 2, 4, 6].map(n => (
                 <button key={n} type="button" onClick={() => setMinDays(n)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    minDays === n ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
+                    minDays === n ? 'bg-indigo-600 text-white border-indigo-600' : isDark ? 'bg-white/[0.04] text-gray-400 border-white/10 hover:border-indigo-400' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'
                   }`}>
                   {n === 0 ? t('allLabel') : `${n}+`}
                 </button>
@@ -247,7 +252,7 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       {/* Active sort chip */}
       {hasFilters && !showFilters && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-400">{t('activeFilters')}</span>
+          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('activeFilters')}</span>
           {sort !== 'date_desc' && (
             <button type="button" onClick={() => setSort('date_desc')}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-indigo-600 text-white">
@@ -273,16 +278,16 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className={`h-16 rounded-xl animate-pulse ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />)}
         </div>
       ) : filtered.length === 0 ? (
         <div className={`py-10 text-center border-2 border-dashed rounded-xl transition-colors ${
-          activeType === 'template' ? 'border-indigo-300/50 bg-indigo-50/30' : 'border-gray-100'
+          activeType === 'template' ? 'border-indigo-300/50 bg-indigo-50/30' : isDark ? 'border-white/8' : 'border-gray-100'
         }`}>
           <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center mx-auto mb-2">
             <CalendarDays size={20} className="text-indigo-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? t('noSearchResults') : t('noPlans')}</p>
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{search ? t('noSearchResults') : t('noPlans')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 mx-auto">
               <Plus size={11} /> {t('createFirst')}

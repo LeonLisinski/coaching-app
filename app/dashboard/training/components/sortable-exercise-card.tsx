@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 export type PlanExercise = {
   exercise_id: string
@@ -40,6 +41,8 @@ export default function SortableExerciseCard({
   ex, index, onUpdate, onRemove, labelSets, labelRest, labelNotes, activeExerciseFields = [],
 }: Props) {
   const t = useTranslations('training.dialogs.template')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [expanded, setExpanded] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
@@ -54,14 +57,17 @@ export default function SortableExerciseCard({
   ].filter(Boolean).join(' · ')
 
   const palette = isWarmup
-    ? { border: 'border-amber-300', bg: 'bg-amber-50/60', grip: 'text-amber-300 hover:text-amber-500', chevron: 'text-amber-400', summary: 'text-amber-600', labelBorder: 'border-amber-200', inputBorder: 'border-amber-200 focus:border-amber-400', text: 'text-amber-700' }
-    : { border: 'border-emerald-300', bg: 'bg-emerald-50', grip: 'text-emerald-300 hover:text-emerald-500', chevron: 'text-emerald-400', summary: 'text-emerald-600', labelBorder: 'border-emerald-200', inputBorder: 'border-emerald-200 focus:border-emerald-400', text: 'text-emerald-700' }
+    ? isDark
+      ? { borderStyle: { border: '1px solid rgba(251,191,36,0.2)' }, bgStyle: { background: 'rgba(251,191,36,0.05)' }, expandedBorderStyle: { borderTop: '1px solid rgba(251,191,36,0.15)' }, grip: 'text-amber-700 hover:text-amber-500', chevron: 'text-amber-600', summary: 'text-amber-500', inputCls: 'border-amber-900/50 bg-white/5 focus:border-amber-700 text-gray-200', text: 'text-amber-500', nameCls: 'text-gray-200' }
+      : { borderStyle: { border: '1px solid #fcd34d' }, bgStyle: { background: 'rgba(255,251,235,0.6)' }, expandedBorderStyle: { borderTop: '1px solid #fde68a' }, grip: 'text-amber-300 hover:text-amber-500', chevron: 'text-amber-400', summary: 'text-amber-600', inputCls: 'border-amber-200 focus:border-amber-400 bg-white', text: 'text-amber-700', nameCls: 'text-gray-800' }
+    : isDark
+      ? { borderStyle: { border: '1px solid rgba(52,211,153,0.18)' }, bgStyle: { background: 'rgba(52,211,153,0.04)' }, expandedBorderStyle: { borderTop: '1px solid rgba(52,211,153,0.12)' }, grip: 'text-emerald-800 hover:text-emerald-500', chevron: 'text-emerald-700', summary: 'text-emerald-500', inputCls: 'border-emerald-900/50 bg-white/5 focus:border-emerald-700 text-gray-200', text: 'text-emerald-600', nameCls: 'text-gray-200' }
+      : { borderStyle: { border: '1px solid #6ee7b7' }, bgStyle: { background: '#ecfdf5' }, expandedBorderStyle: { borderTop: '1px solid #a7f3d0' }, grip: 'text-emerald-300 hover:text-emerald-500', chevron: 'text-emerald-400', summary: 'text-emerald-600', inputCls: 'border-emerald-200 focus:border-emerald-400 bg-white', text: 'text-emerald-700', nameCls: 'text-gray-800' }
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`border ${palette.border} rounded-lg ${palette.bg} overflow-hidden`}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, ...palette.borderStyle, ...palette.bgStyle, borderRadius: '0.5rem', overflow: 'hidden' }}
     >
       {/* Collapsed header — always visible */}
       <div className="flex items-center gap-1.5 px-2 py-2">
@@ -77,14 +83,14 @@ export default function SortableExerciseCard({
           onClick={() => setExpanded(v => !v)}
           className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
         >
-          <span className="text-sm font-semibold text-gray-800 truncate">{index + 1}. {ex.name}</span>
+          <span className={`text-sm font-semibold truncate ${palette.nameCls}`}>{index + 1}. {ex.name}</span>
           {isWarmup && (
-            <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full border border-amber-200 shrink-0 font-medium">
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full border shrink-0 font-medium ${isDark ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
               🔥 {t('warmupBadge')}
             </span>
           )}
           {isEndurance && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100 shrink-0">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border shrink-0 ${isDark ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
               {t('enduranceBadge')}
             </span>
           )}
@@ -96,13 +102,13 @@ export default function SortableExerciseCard({
           ? <ChevronUp size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(false)} />
           : <ChevronDown size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(true)} />}
         <button type="button" onClick={onRemove} className="shrink-0 pl-0.5">
-          <X size={12} className="text-gray-400 hover:text-red-500" />
+          <X size={12} className={`hover:text-red-500 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
         </button>
       </div>
 
       {/* Expanded inputs */}
       {expanded && (
-        <div className={`px-2 pb-2 pt-1.5 border-t ${palette.labelBorder} space-y-1.5`}>
+        <div className="px-2 pb-2 pt-1.5 space-y-1.5" style={palette.expandedBorderStyle}>
           <div className="flex flex-wrap gap-2">
             <div className="flex-1 basis-12 flex flex-col gap-0.5">
               <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{labelSets}</p>
@@ -110,7 +116,7 @@ export default function SortableExerciseCard({
                 type="text" inputMode="numeric" value={ex.sets || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('sets', isNaN(v) ? 0 : v) }}
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border px-2 text-xs focus:outline-none ${palette.inputCls}`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{isEndurance ? t('durationLabel') : t('reps')}</p>
@@ -119,7 +125,7 @@ export default function SortableExerciseCard({
                 onFocus={e => e.target.select()}
                 onChange={e => onUpdate('reps', e.target.value)}
                 placeholder={isEndurance ? '2min' : '8-12'}
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border px-2 text-xs focus:outline-none ${palette.inputCls}`} />
             </div>
             <div className="flex-1 basis-14 flex flex-col gap-0.5">
               <p className={`text-[10px] font-medium ${palette.text} leading-none`}>{labelRest}</p>
@@ -127,7 +133,7 @@ export default function SortableExerciseCard({
                 type="text" inputMode="numeric" value={ex.rest_seconds || ''}
                 onFocus={e => e.target.select()}
                 onChange={e => { const v = parseInt(e.target.value.replace(/[^0-9]/g, '')); onUpdate('rest_seconds', isNaN(v) ? 0 : v) }}
-                className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`} />
+                className={`h-6 w-full rounded border px-2 text-xs focus:outline-none ${palette.inputCls}`} />
             </div>
             {activeOptional.map(f => (
               <div key={f.key} className="flex-1 basis-12 flex flex-col gap-0.5">
@@ -137,7 +143,7 @@ export default function SortableExerciseCard({
                   onFocus={e => e.target.select()}
                   onChange={e => onUpdate(f.key, e.target.value)}
                   placeholder="—"
-                  className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs focus:outline-none`}
+                  className={`h-6 w-full rounded border px-2 text-xs focus:outline-none ${palette.inputCls}`}
                 />
               </div>
             ))}
@@ -147,7 +153,7 @@ export default function SortableExerciseCard({
             value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
             placeholder={labelNotes}
-            className={`h-6 w-full rounded border ${palette.inputBorder} bg-white px-2 text-xs text-gray-600 placeholder:text-gray-400 focus:outline-none`} />
+            className={`h-6 w-full rounded border px-2 text-xs focus:outline-none ${palette.inputCls} ${isDark ? 'placeholder:text-gray-600' : 'text-gray-600 placeholder:text-gray-400'}`} />
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import {
   Users, AlertTriangle, Banknote, MessageSquare,
-  ChevronRight, CheckCircle2, Clock, UserPlus, ClipboardList,
+  ChevronRight, CheckCircle2, Clock, UserPlus, TrendingUp, ArrowRight,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useTranslations } from 'next-intl'
@@ -47,7 +47,8 @@ type MiniClient = {
 
 export default function MobileDashboard() {
   const router = useRouter()
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const t2 = useTranslations('dashboard2')
   const tNav = useTranslations('nav')
@@ -119,144 +120,216 @@ export default function MobileDashboard() {
   const now = new Date()
   const greeting = now.getHours() < 12 ? t2('greetingMorning') : now.getHours() < 18 ? t2('greetingAfternoon') : t2('greetingEvening')
 
+  const cardBg     = isDark ? 'oklch(0.2 0.025 264)' : 'white'
+  const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'
+  const textPrimary   = isDark ? 'white' : '#111827'
+  const textSecondary = isDark ? '#9ca3af' : '#6b7280'
+  const rowDivider    = isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb'
+
   if (loading) return (
     <div className="space-y-4 animate-pulse">
-      <div className="h-20 bg-gray-100 rounded-3xl" />
+      <div className="h-28 rounded-3xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }} />
       <div className="grid grid-cols-2 gap-3">
-        {[1,2,3,4].map(i => <div key={i} className="h-24 bg-gray-100 rounded-2xl" />)}
+        {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-2xl" style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6' }} />)}
       </div>
     </div>
   )
 
-  const stats = [
-    { label: t2('mobileStat1'), value: totalClients,        icon: Users,          color: accentHex     },
-    { label: t2('mobileStat2'), value: lateClients.length,  icon: AlertTriangle,  color: lateClients.length > 0 ? '#dc2626' : '#16a34a' },
-    { label: t2('mobileStat3'), value: submittedToday,      icon: CheckCircle2,   color: '#16a34a'  },
-    { label: t2('mobileStat4'), value: unpaidCount,         icon: Banknote,       color: unpaidCount > 0 ? '#d97706' : '#6b7280' },
-  ]
+  const neutralCount = totalClients - lateClients.length - submittedToday
 
   return (
-    <div className="space-y-5 pb-4">
-      {/* Greeting */}
-      <div className="rounded-3xl px-5 py-5 text-white overflow-hidden relative"
-        style={{ background: `linear-gradient(135deg, ${accentHex} 0%, color-mix(in srgb, ${accentHex} 70%, #0f0a1e) 100%)` }}>
-        <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20"
+    <div className="space-y-4 pb-4">
+
+      {/* ── Greeting hero ── */}
+      <div
+        className="rounded-3xl px-5 py-5 text-white overflow-hidden relative"
+        style={{ background: `linear-gradient(135deg, ${accentHex} 0%, color-mix(in srgb, ${accentHex} 60%, #050010) 100%)` }}
+      >
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-15 pointer-events-none"
           style={{ backgroundColor: 'white' }} />
-        <p className="text-white/70 text-sm">{greeting},</p>
-        <p className="text-white font-black text-2xl leading-tight mt-0.5">
-          {trainerName.split(' ')[0]}
-        </p>
-        <div className="flex items-center gap-4 mt-4">
+        <div className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full opacity-10 pointer-events-none"
+          style={{ backgroundColor: 'white' }} />
+
+        <p className="text-white/70 text-sm font-medium">{greeting},</p>
+        <p className="text-white font-black text-2xl leading-tight mt-0.5">{trainerName.split(' ')[0]}</p>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-5 mt-4">
           <div>
-            <p className="text-white/60 text-xs">{t2('mobileRevenue')}</p>
-            <p className="text-white font-black text-lg leading-tight">{revenueMonth.toLocaleString('hr-HR')} €</p>
+            <p className="text-white/60 text-[11px] uppercase tracking-wide font-semibold">{t2('mobileRevenue')}</p>
+            <p className="text-white font-black text-xl leading-tight">{revenueMonth.toLocaleString('hr-HR')} €</p>
+          </div>
+          <div className="w-px h-8 bg-white/20" />
+          <div>
+            <p className="text-white/60 text-[11px] uppercase tracking-wide font-semibold">{t2('mobileStat1')}</p>
+            <p className="text-white font-black text-xl leading-tight">{totalClients}</p>
           </div>
           {unpaidCount > 0 && (
-            <div>
-              <p className="text-white/60 text-xs">{t2('mobilePending')}</p>
-              <p className="text-yellow-300 font-black text-lg leading-tight">{unpaidCount} pl.</p>
-            </div>
+            <>
+              <div className="w-px h-8 bg-white/20" />
+              <div>
+                <p className="text-white/60 text-[11px] uppercase tracking-wide font-semibold">{t2('mobilePending')}</p>
+                <p className="text-yellow-300 font-black text-xl leading-tight">{unpaidCount}</p>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Stats 2×2 */}
-      <div className="grid grid-cols-2 gap-3">
-        {stats.map(s => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2"
-                style={{ backgroundColor: `${s.color}18` }}>
-                <Icon size={18} style={{ color: s.color }} />
-              </div>
-              <p className="text-2xl font-black text-gray-900 leading-tight">{s.value}</p>
-              <p className="text-[11px] text-gray-400 font-medium mt-0.5 leading-tight">{s.label}</p>
+      {/* ── Check-in pulse ── */}
+      <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
+        <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: textSecondary }}>Check-ini ovog tjedna</p>
+          <button
+            onClick={() => router.push('/dashboard/checkins')}
+            className="flex items-center gap-1 text-xs font-semibold transition-opacity active:opacity-60"
+            style={{ color: accentHex }}
+          >
+            Sve <ArrowRight size={12} />
+          </button>
+        </div>
+
+        {/* Progress bar */}
+        <div className="px-4 pb-1">
+          <div className="flex gap-1 h-2 rounded-full overflow-hidden"
+            style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6' }}>
+            {submittedToday > 0 && (
+              <div className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{ width: `${Math.round((submittedToday / Math.max(totalClients, 1)) * 100)}%` }} />
+            )}
+            {lateClients.length > 0 && (
+              <div className="h-full rounded-full bg-red-500 transition-all"
+                style={{ width: `${Math.round((lateClients.length / Math.max(totalClients, 1)) * 100)}%` }} />
+            )}
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 divide-x px-0 pb-3 pt-2"
+          style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+          {[
+            { label: 'Predano',    value: submittedToday,     color: '#10b981', bg: isDark ? 'rgba(16,185,129,0.1)' : '#f0fdf4' },
+            { label: 'Kasne',      value: lateClients.length, color: '#ef4444', bg: isDark ? 'rgba(239,68,68,0.1)' : '#fef2f2' },
+            { label: 'Na čekanju', value: neutralCount,       color: isDark ? '#6b7280' : '#9ca3af', bg: isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb' },
+          ].map(s => (
+            <div key={s.label} className="flex flex-col items-center py-1" style={{ borderColor: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }}>
+              <p className="text-xl font-black leading-none" style={{ color: s.value > 0 ? s.color : textSecondary }}>{s.value}</p>
+              <p className="text-[10px] font-medium mt-0.5" style={{ color: textSecondary }}>{s.label}</p>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Late check-ins */}
+      {/* ── Late check-ins ── */}
       {lateClients.length > 0 && (
-        <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-gray-50">
-            <AlertTriangle size={15} className="text-red-500" />
-            <p className="text-sm font-bold text-gray-900">{t2('mobileLateTitle', { count: lateClients.length })}</p>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {lateClients.slice(0, 5).map(c => (
-              <div key={c.id}
-                onClick={() => router.push(`/dashboard/clients/${c.id}`)}
-                className="flex items-center gap-3 px-4 py-3 active:bg-gray-50 cursor-pointer">
-                <div className={`w-9 h-9 rounded-xl ${avatarCls(c.gender)} flex items-center justify-center shrink-0`}>
-                  <span className="text-white text-xs font-bold">{getInitials(c.full_name)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{c.full_name}</p>
-                </div>
-                <button
-                  onClick={e => { e.stopPropagation(); router.push(`/dashboard/chat?clientId=${c.id}`) }}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: '#eff6ff' }}
-                >
-                  <MessageSquare size={14} className="text-blue-500" />
-                </button>
-                <ChevronRight size={14} className="text-gray-300" />
+        <div className="rounded-2xl border overflow-hidden"
+          style={{ backgroundColor: cardBg, borderColor: isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2' }}>
+          <div className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: `1px solid ${isDark ? 'rgba(239,68,68,0.15)' : '#fef2f2'}` }}>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#fee2e2' }}>
+                <AlertTriangle size={13} className="text-red-500" />
               </div>
-            ))}
+              <p className="text-sm font-bold" style={{ color: isDark ? '#f87171' : '#dc2626' }}>
+                {t2('mobileLateTitle', { count: lateClients.length })}
+              </p>
+            </div>
           </div>
-          {lateClients.length > 5 && (
+          {lateClients.slice(0, 4).map((c, idx) => (
+            <div key={c.id}
+              onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors"
+              style={{ borderTop: idx > 0 ? `1px solid ${rowDivider}` : 'none' }}
+            >
+              <div className={`w-9 h-9 rounded-xl ${avatarCls(c.gender)} flex items-center justify-center shrink-0`}>
+                <span className="text-white text-xs font-bold">{getInitials(c.full_name)}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: textPrimary }}>{c.full_name}</p>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); router.push(`/dashboard/chat?clientId=${c.id}`) }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff', color: isDark ? '#60a5fa' : '#3b82f6' }}
+              >
+                <MessageSquare size={14} />
+              </button>
+              <ChevronRight size={14} style={{ color: isDark ? '#374151' : '#d1d5db' }} />
+            </div>
+          ))}
+          {lateClients.length > 4 && (
             <button onClick={() => router.push('/dashboard/clients')}
-              className="w-full py-3 text-xs font-semibold text-center border-t border-gray-50"
-              style={{ color: accentHex }}>
+              className="w-full py-3 text-xs font-semibold text-center transition-colors"
+              style={{ color: accentHex, borderTop: `1px solid ${rowDivider}` }}>
               {t2('mobileSeeAll', { count: lateClients.length })}
             </button>
           )}
         </div>
       )}
 
-      {/* Submitted — if no late */}
+      {/* ── All good banner ── */}
       {lateClients.length === 0 && submittedToday > 0 && (
-        <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3.5">
+        <div className="flex items-center gap-3 rounded-2xl px-4 py-3.5"
+          style={{ backgroundColor: isDark ? 'rgba(16,185,129,0.1)' : '#f0fdf4', border: `1px solid ${isDark ? 'rgba(16,185,129,0.2)' : '#bbf7d0'}` }}>
           <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-          <p className="text-sm font-semibold text-emerald-700">{t2('mobileSubmittedCount', { count: submittedToday })}</p>
+          <p className="text-sm font-semibold" style={{ color: isDark ? '#34d399' : '#059669' }}>
+            {t2('mobileSubmittedCount', { count: submittedToday })}
+          </p>
         </div>
       )}
 
-      {/* Quick actions */}
+      {/* ── Quick actions ── */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">{t2('mobileQuickActions')}</p>
+        <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: textSecondary }}>{t2('mobileQuickActions')}</p>
         <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => router.push('/dashboard/clients?action=add')}
-            className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: `${accentHex}18` }}>
-              <UserPlus size={16} style={{ color: accentHex }} />
-            </div>
-            <span className="text-sm font-semibold text-gray-700">{t2('mobileNewClient')}</span>
-          </button>
-          <button onClick={() => router.push('/dashboard/chat')}
-            className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50">
-              <MessageSquare size={16} className="text-blue-500" />
-            </div>
-            <span className="text-sm font-semibold text-gray-700">{tNav('chat')}</span>
-          </button>
-          <button onClick={() => router.push('/dashboard/clients')}
-            className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-gray-50">
-              <Users size={16} className="text-gray-500" />
-            </div>
-            <span className="text-sm font-semibold text-gray-700">{tNav('clients')}</span>
-          </button>
-          <button onClick={() => router.push('/dashboard/financije')}
-            className="flex items-center gap-2.5 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm active:scale-95 transition-transform">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-emerald-50">
-              <Banknote size={16} className="text-emerald-500" />
-            </div>
-            <span className="text-sm font-semibold text-gray-700">{tNav('finance')}</span>
-          </button>
+          {[
+            {
+              label: t2('mobileNewClient'),
+              icon: UserPlus,
+              iconBg: `${accentHex}1a`,
+              iconColor: accentHex,
+              action: () => router.push('/dashboard/clients?action=add'),
+            },
+            {
+              label: tNav('chat'),
+              icon: MessageSquare,
+              iconBg: isDark ? 'rgba(59,130,246,0.15)' : '#eff6ff',
+              iconColor: isDark ? '#60a5fa' : '#3b82f6',
+              action: () => router.push('/dashboard/chat'),
+            },
+            {
+              label: tNav('clients'),
+              icon: Users,
+              iconBg: isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6',
+              iconColor: isDark ? '#9ca3af' : '#6b7280',
+              action: () => router.push('/dashboard/clients'),
+            },
+            {
+              label: tNav('finance'),
+              icon: Banknote,
+              iconBg: isDark ? 'rgba(16,185,129,0.15)' : '#ecfdf5',
+              iconColor: isDark ? '#34d399' : '#10b981',
+              action: () => router.push('/dashboard/financije'),
+            },
+          ].map(a => {
+            const Icon = a.icon
+            return (
+              <button
+                key={a.label}
+                onClick={a.action}
+                className="flex items-center gap-3 p-4 rounded-2xl border text-left active:scale-95 transition-transform"
+                style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: a.iconBg }}>
+                  <Icon size={18} style={{ color: a.iconColor }} />
+                </div>
+                <span className="text-sm font-semibold leading-tight" style={{ color: textPrimary }}>{a.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

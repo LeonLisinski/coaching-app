@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Send, Zap, ArrowLeft } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 
 type Props = {
@@ -48,6 +49,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const tChat = useTranslations('chatPage')
   const tCommon = useTranslations('common')
   const locale = useLocale()
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const QUICK_TEMPLATES = useMemo(() => [
     { label: tChat('tpl1Label'), text: tChat('tpl1Text') },
@@ -298,10 +301,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   }, {} as Record<string, Message[]>)
 
   return (
-    <div ref={outerRef} className="flex flex-col bg-white z-[60] lg:z-auto lg:h-full">
+    <div ref={outerRef} className={`flex flex-col z-[60] lg:z-auto lg:h-full ${isDark ? 'bg-[oklch(0.13_0.014_264)]' : 'bg-white'}`}>
       {/* Gradient header — covers safe area on mobile (top:0 overlay), matches app style */}
       <div
-        className="flex items-center gap-3 px-4 flex-shrink-0 lg:border-b lg:bg-white lg:shadow-sm"
+        className={`flex items-center gap-3 px-4 flex-shrink-0 lg:border-b lg:shadow-sm ${isDark ? 'lg:bg-[oklch(0.145_0.016_264)] lg:border-white/8' : 'lg:bg-white'}`}
         style={{
           background: `linear-gradient(135deg, ${accentHex}, color-mix(in srgb, ${accentHex} 55%, #0b0018))`,
           paddingTop: 'max(14px, env(safe-area-inset-top, 14px))',
@@ -336,7 +339,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isDark ? 'bg-white/8' : 'bg-gray-100'}`}>
               <Send size={18} className="text-gray-400" />
             </div>
             <p className="text-sm font-medium text-gray-500">{tChat('noMessages')}</p>
@@ -349,7 +352,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                 <button
                   onClick={loadOlderMessages}
                   disabled={loadingOlder}
-                  className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-full border border-gray-200 hover:border-gray-300 transition-colors disabled:opacity-50"
+                  className={`text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50 ${isDark ? 'border-white/15 hover:border-white/30' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   {loadingOlder ? tCommon('loading') : tChat('loadOlder')}
                 </button>
@@ -359,9 +362,9 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             <div key={key} className="space-y-1">
               {/* Date separator */}
               <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-gray-100" />
+                <div className={`flex-1 h-px ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
                 <span className="text-[11px] text-gray-400 font-medium px-1">{fmtDate(dayMessages[0].created_at)}</span>
-                <div className="flex-1 h-px bg-gray-100" />
+                <div className={`flex-1 h-px ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
               </div>
 
               {dayMessages.map((msg, i) => {
@@ -375,7 +378,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                         className={`px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
                           isTrainer
                             ? 'text-white rounded-2xl rounded-br-sm'
-                            : 'bg-white border border-gray-100 text-gray-900 rounded-2xl rounded-bl-sm'
+                            : `${isDark ? 'bg-white/[0.07] border-white/10 text-gray-100' : 'bg-white border border-gray-100 text-gray-900'} rounded-2xl rounded-bl-sm`
                         }`}
                         style={isTrainer ? { background: `linear-gradient(135deg, ${accentHex}, ${accentHex}dd)` } : undefined}
                       >
@@ -401,11 +404,11 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 px-4 py-3 border-t bg-white">
+      <div className={`flex-shrink-0 px-4 py-3 border-t ${isDark ? 'bg-[oklch(0.145_0.016_264)] border-white/8' : 'bg-white border-gray-100'}`}>
         {/* Quick templates panel */}
         {showTemplates && (
-          <div ref={templatesRef} className="mb-2 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden shadow-sm">
-            <div className="px-3 py-2 border-b border-gray-100">
+          <div ref={templatesRef} className={`mb-2 rounded-xl border overflow-hidden shadow-sm ${isDark ? 'border-white/10 bg-white/[0.05]' : 'border-gray-100 bg-gray-50'}`}>
+            <div className={`px-3 py-2 border-b ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
               <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{tChat('quickTemplatesTitle')}</span>
             </div>
             <div className="flex flex-col">
@@ -413,7 +416,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                 <button
                   key={tpl.label}
                   onClick={() => { setInput(tpl.text); setShowTemplates(false) }}
-                  className="text-left px-3 py-2 hover:bg-white transition-colors group border-b border-gray-100 last:border-0"
+                  className={`text-left px-3 py-2 transition-colors group border-b last:border-0 ${isDark ? 'hover:bg-white/8 border-white/8' : 'hover:bg-white border-gray-100'}`}
                 >
                   <span className="text-[11px] font-semibold block" style={{ color: accentHex }}>{tpl.label}</span>
                   <span className="text-xs text-gray-500 leading-tight">{tpl.text}</span>
@@ -422,7 +425,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             </div>
           </div>
         )}
-        <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2.5 transition-colors focus-within:bg-white">
+        <div className="flex items-end gap-2 bg-transparent border border-gray-200 rounded-2xl px-3 py-2.5 transition-colors focus-within:border-gray-300">
           {/* Templates toggle */}
           <button
             onClick={() => setShowTemplates(v => !v)}

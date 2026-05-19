@@ -15,6 +15,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { X, ChevronDown, ChevronUp, GripVertical, Copy, Plus } from 'lucide-react'
 import { NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import AddFoodDialog from '../dialogs/add-food-dialog'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 /** Input za grame koji drži lokalni string state, pa comma→točka radi ispravno */
 function GramInput({ value, onChange, className }: { value: number; onChange: (v: number) => void; className?: string }) {
@@ -119,6 +120,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
+  const { mode: themeMode } = useAppTheme()
+  const isDark = themeMode === 'dark'
 
   const [mode, setMode] = useState<'existing' | 'custom'>(
     meal.custom_ingredients?.length ? 'custom' : 'existing'
@@ -421,16 +424,25 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
       }
     },
     onKeyDown: handleSearchKeyDown,
-    className: 'h-7 text-xs border-orange-200 focus:border-orange-400 pl-7',
+    className: `h-7 text-xs pl-7 ${isDark ? 'border-orange-900/40 bg-white/5 focus:border-orange-700 text-gray-300 placeholder:text-gray-700' : 'border-orange-200 focus:border-orange-400'}`,
   }
 
   const DropdownContent = ({ onAdd }: { onAdd: (f: Food) => void }) => {
     const items = (mode === 'existing' ? filteredRecipeFoods : filteredFoods).slice(0, 20)
     return (
-      <div className="absolute top-full left-0 right-0 z-50 mt-0.5 border border-orange-100 rounded-xl bg-white shadow-lg overflow-hidden">
+      <div
+        className="absolute top-full left-0 right-0 z-50 mt-0.5 rounded-xl shadow-lg overflow-hidden"
+        style={isDark ? {
+          background: 'rgb(14,14,20)',
+          border: '1px solid rgba(251,146,60,0.15)',
+        } : {
+          background: 'white',
+          border: '1px solid #fed7aa',
+        }}
+      >
         <div className="overflow-y-auto max-h-44" onWheel={e => e.stopPropagation()}>
           {items.length === 0 ? (
-            <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
+            <p className={`px-3 py-2.5 text-xs text-center ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               {search ? t('noIngredientResults', { search }) : t('allIngredientsAdded')}
             </p>
           ) : items.map((f, i) => (
@@ -438,11 +450,13 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               onMouseDown={e => e.preventDefault()}
               onClick={() => onAdd(f)}
               onMouseEnter={() => setDropdownIndex(i)}
-              className={`w-full text-left px-3 py-2 text-xs flex justify-between border-b border-gray-50 last:border-0 transition-colors ${
-                dropdownIndex === i ? 'bg-orange-500 text-white' : 'hover:bg-orange-50'
+              className={`w-full text-left px-3 py-2 text-xs flex justify-between last:border-0 transition-colors ${
+                dropdownIndex === i
+                  ? 'bg-orange-500 text-white'
+                  : isDark ? 'text-gray-300 hover:bg-orange-500/10 border-b border-white/[0.04]' : 'hover:bg-orange-50 border-b border-gray-50'
               }`}>
               <span className="font-medium">{f.name}</span>
-              <span className={dropdownIndex === i ? 'text-orange-100' : 'text-gray-400'}>{f.calories_per_100g} kcal/100g</span>
+              <span className={dropdownIndex === i ? 'text-orange-100' : isDark ? 'text-gray-600' : 'text-gray-400'}>{f.calories_per_100g} kcal/100g</span>
             </button>
           ))}
         </div>
@@ -450,7 +464,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           type="button"
           onMouseDown={e => e.preventDefault()}
           onClick={() => { setCreateFoodName(search); setCreateFoodOpen(true); setSearchFocused(false) }}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-orange-600 font-medium border-t border-orange-50 hover:bg-orange-50 transition-colors"
+          className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors ${isDark ? 'text-orange-500 border-t border-orange-900/30 hover:bg-orange-500/10' : 'text-orange-600 border-t border-orange-50 hover:bg-orange-50'}`}
         >
           <Plus size={11} /> {search ? tRecipe('createFood', { search }) : tRecipe('createNewFood')}
         </button>
@@ -459,33 +473,49 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   }
 
   return (
-    <div className={`border border-rose-200 rounded-xl transition-opacity ${isDragging ? 'opacity-40' : ''}`}>
+    <div
+      className={`rounded-xl transition-opacity ${isDragging ? 'opacity-40' : ''}`}
+      style={isDark ? {
+        border: '1px solid rgba(251,113,133,0.2)',
+      } : {
+        border: '1px solid #fecdd3',
+      }}
+    >
       {/* Collapsible header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-rose-50 border-b border-rose-100 rounded-t-xl">
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 rounded-t-xl"
+        style={isDark ? {
+          background: 'rgba(251,113,133,0.07)',
+          borderBottom: '1px solid rgba(251,113,133,0.15)',
+        } : {
+          background: '#fff1f2',
+          borderBottom: '1px solid #fecdd3',
+        }}
+      >
         {dragHandleProps && (
           <button type="button" {...dragHandleProps}
-            className="cursor-grab active:cursor-grabbing text-rose-300 hover:text-rose-500 shrink-0 touch-none"
+            className={`cursor-grab active:cursor-grabbing shrink-0 touch-none ${isDark ? 'text-rose-800 hover:text-rose-500' : 'text-rose-300 hover:text-rose-500'}`}
             tabIndex={-1}>
             <GripVertical size={14} />
           </button>
         )}
         <button type="button" onClick={() => setExpanded(v => !v)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left overflow-hidden">
           {expanded
-            ? <ChevronUp   size={14} className="text-rose-400 shrink-0" />
-            : <ChevronDown size={14} className="text-rose-400 shrink-0" />}
+            ? <ChevronUp   size={14} className={`shrink-0 ${isDark ? 'text-rose-600' : 'text-rose-400'}`} />
+            : <ChevronDown size={14} className={`shrink-0 ${isDark ? 'text-rose-600' : 'text-rose-400'}`} />}
           {expanded ? (
-            <span className="text-sm font-semibold text-rose-800 truncate">{meal.meal_type || t('mealFallback')}</span>
+            <span className={`text-sm font-semibold truncate ${isDark ? 'text-rose-300' : 'text-rose-800'}`}>{meal.meal_type || t('mealFallback')}</span>
           ) : (
-            <span className="text-xs text-gray-500 truncate min-w-0">
+            <span className={`text-xs truncate min-w-0 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               {(meal.calories > 0 || meal.protein > 0)
                 ? `🔥 ${Math.round(meal.calories)} kcal · ${t('macroProteinShort')}: ${Math.round(meal.protein)}g · ${t('macroCarbsShort')}: ${Math.round(meal.carbs)}g · ${t('macroFatShort')}: ${Math.round(meal.fat)}g`
-                : <span className="text-gray-400">{t('emptyMeal')}</span>}
+                : <span className={isDark ? 'text-gray-700' : 'text-gray-400'}>{t('emptyMeal')}</span>}
             </span>
           )}
         </button>
         <div className="flex items-center gap-1 shrink-0">
           <Select value={meal.meal_type} onValueChange={v => onChange(index, 'meal_type', v)}>
-            <SelectTrigger className="h-7 w-36 text-xs border-0 bg-transparent hover:bg-rose-100 px-2">
+            <SelectTrigger className={`h-7 w-36 text-xs border-0 bg-transparent px-2 ${isDark ? 'hover:bg-rose-500/10' : 'hover:bg-rose-100'}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -497,29 +527,36 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           </Select>
           {onCopy && (
             <button type="button" title={t('copyMealTooltip')} onClick={() => onCopy(index)} className="p-1">
-              <Copy size={13} className="text-rose-300 hover:text-rose-600" />
+              <Copy size={13} className={`${isDark ? 'text-rose-700 hover:text-rose-400' : 'text-rose-300 hover:text-rose-600'}`} />
             </button>
           )}
           <button type="button" onClick={() => setConfirmRemove(true)} className="p-1">
-            <X size={13} className="text-rose-300 hover:text-red-500" />
+            <X size={13} className={`hover:text-red-500 ${isDark ? 'text-rose-800' : 'text-rose-300'}`} />
           </button>
         </div>
       </div>
 
       {expanded && (
-      <div className="p-3 space-y-3 bg-white">
+      <div
+        className="p-3 space-y-3"
+        style={isDark ? { background: 'rgba(15,15,20,0.8)' } : { background: 'white' }}
+      >
 
       {/* Mode toggle */}
       <div className="flex gap-2">
         <button type="button" onClick={() => setMode('existing')}
           className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-            mode === 'existing' ? 'bg-rose-500 text-white border-rose-500 font-semibold' : 'text-gray-500 border-gray-300 hover:border-rose-300 hover:text-rose-600'
+            mode === 'existing'
+              ? 'bg-rose-500 text-white border-rose-500 font-semibold'
+              : isDark ? 'text-gray-500 border-white/10 hover:border-rose-500/40 hover:text-rose-400' : 'text-gray-500 border-gray-300 hover:border-rose-300 hover:text-rose-600'
           }`}>
           {t('useRecipe')}
         </button>
         <button type="button" onClick={() => setMode('custom')}
           className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-            mode === 'custom' ? 'bg-rose-500 text-white border-rose-500 font-semibold' : 'text-gray-500 border-gray-300 hover:border-rose-300 hover:text-rose-600'
+            mode === 'custom'
+              ? 'bg-rose-500 text-white border-rose-500 font-semibold'
+              : isDark ? 'text-gray-500 border-white/10 hover:border-rose-500/40 hover:text-rose-400' : 'text-gray-500 border-gray-300 hover:border-rose-300 hover:text-rose-600'
           }`}>
           {t('customMeal')}
         </button>
@@ -531,7 +568,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             value={meal.recipe_id || 'none'}
             onValueChange={handleSelectRecipe}
           >
-            <SelectTrigger className="text-sm border-rose-200 focus:border-rose-400">
+            <SelectTrigger className={`text-sm ${isDark ? 'border-rose-900/40 focus:border-rose-700' : 'border-rose-200 focus:border-rose-400'}`}>
               <SelectValue placeholder={t('selectDishPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -550,28 +587,28 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               <button
                 type="button"
                 onClick={() => setShowIngredients(!showIngredients)}
-                className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700"
+                className={`flex items-center gap-1 text-xs ${isDark ? 'text-rose-500 hover:text-rose-400' : 'text-rose-500 hover:text-rose-700'}`}
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {t('editIngredientsLabel', { count: recipeIngredients.length })}
-                <span className="text-gray-300 ml-1">· {t('doesNotAffectOriginal')}</span>
+                <span className={`ml-1 ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>· {t('doesNotAffectOriginal')}</span>
               </button>
               {showIngredients && (
-                <div className="space-y-1 pt-1 pl-1 border-l-2 border-orange-100">
+                <div className={`space-y-1 pt-1 pl-1 border-l-2 ${isDark ? 'border-orange-900/50' : 'border-orange-100'}`}>
                   {recipeIngredients.map(ing => (
                     <div key={ing.food_id} className={`flex items-center gap-2 text-xs rounded px-1 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
-                      <span className="flex-1 text-gray-700">{ing.name}</span>
-                      <GramInput value={ing.grams} onChange={v => updateRecipeIngredientGrams(ing.food_id, v)} className="w-16 h-6 text-xs border-orange-200 focus:border-orange-400" />
-                      <span className="text-gray-400">g</span>
-                      <span className="text-orange-500 font-medium w-14 text-right">{Math.round(ing.calories)} kcal</span>
+                      <span className={`flex-1 ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{ing.name}</span>
+                      <GramInput value={ing.grams} onChange={v => updateRecipeIngredientGrams(ing.food_id, v)} className={`w-16 h-6 text-xs ${isDark ? 'border-orange-900/50 bg-white/5 focus:border-orange-700' : 'border-orange-200 focus:border-orange-400'}`} />
+                      <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>g</span>
+                      <span className={`font-medium w-14 text-right ${isDark ? 'text-orange-400' : 'text-orange-500'}`}>{Math.round(ing.calories)} kcal</span>
                       <button type="button" onClick={() => removeRecipeIngredient(ing.food_id)}>
-                        <X size={11} className="text-gray-300 hover:text-red-500" />
+                        <X size={11} className={`hover:text-red-500 ${isDark ? 'text-gray-700' : 'text-gray-300'}`} />
                       </button>
                     </div>
                   ))}
                   {/* Add ingredient to recipe copy */}
                   <div className="relative pt-1">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-orange-300 pointer-events-none mt-0.5">
+                    <span className={`absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none mt-0.5 ${isDark ? 'text-orange-700' : 'text-orange-400'}`}>
                       <Plus size={11} />
                     </span>
                     <Input
@@ -592,7 +629,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             value={customName}
             onChange={e => { setCustomName(e.target.value); updateCustomTotals(ingredients, e.target.value, saveAsRecipe) }}
             placeholder={`${t('mealName')}...`}
-            className="h-8 text-sm border-rose-200 focus:border-rose-400"
+            className={`h-8 text-sm ${isDark ? 'border-rose-900/40 focus:border-rose-700' : 'border-rose-200 focus:border-rose-400'}`}
           />
 
           {ingredients.length > 0 && (
@@ -600,25 +637,25 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               <button
                 type="button"
                 onClick={() => setShowIngredients(!showIngredients)}
-                className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700"
+                className={`flex items-center gap-1 text-xs ${isDark ? 'text-rose-500 hover:text-rose-400' : 'text-rose-500 hover:text-rose-700'}`}
               >
                 {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {t('editIngredientsLabel', { count: ingredients.length })}
               </button>
               {showIngredients && (
-                <div className="space-y-1 pt-1 pl-1 border-l-2 border-orange-100">
+                <div className={`space-y-1 pt-1 pl-1 border-l-2 ${isDark ? 'border-orange-900/50' : 'border-orange-100'}`}>
                   {ingredients.map(ing => (
                     <div key={ing.food_id} className={`flex items-center gap-2 text-xs rounded px-1 ${flashIngId === ing.food_id ? 'item-added' : ''}`}>
-                      <span className="flex-1 text-gray-700">{ing.name}</span>
-                      <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className="w-16 h-6 text-xs border-orange-200 focus:border-orange-400" />
-                      <span className="text-gray-400">g</span>
-                      <span className="text-orange-500 font-medium w-16 text-right">{Math.round(ing.calories)} kcal</span>
+                      <span className={`flex-1 ${isDark ? 'text-gray-400' : 'text-gray-700'}`}>{ing.name}</span>
+                      <GramInput value={ing.grams} onChange={v => updateCustomGrams(ing.food_id, v)} className={`w-16 h-6 text-xs ${isDark ? 'border-orange-900/50 bg-white/5 focus:border-orange-700' : 'border-orange-200 focus:border-orange-400'}`} />
+                      <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>g</span>
+                      <span className={`font-medium w-16 text-right ${isDark ? 'text-orange-400' : 'text-orange-500'}`}>{Math.round(ing.calories)} kcal</span>
                       <button type="button" onClick={() => removeIngredient(ing.food_id)}>
-                        <X size={11} className="text-gray-400 hover:text-red-500" />
+                        <X size={11} className={`hover:text-red-500 ${isDark ? 'text-gray-700' : 'text-gray-400'}`} />
                       </button>
                     </div>
                   ))}
-                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer pt-0.5">
+                  <label className={`flex items-center gap-2 text-xs cursor-pointer pt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
                     <input type="checkbox" checked={saveAsRecipe}
                       onChange={e => { setSaveAsRecipe(e.target.checked); updateCustomTotals(ingredients, customName, e.target.checked) }}
                       className="rounded" />
@@ -631,7 +668,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
 
           {/* Search — uvijek vidljiv za dodavanje novih namirnica */}
           <div className="relative">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-orange-300 pointer-events-none">
+            <span className={`absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-orange-700' : 'text-orange-300'}`}>
               <Plus size={11} />
             </span>
             <Input
@@ -647,12 +684,21 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
 
       {/* Makro prikaz */}
       {(meal.recipe_id || meal.custom_ingredients?.length) ? (
-        <div className="space-y-1 bg-orange-50/60 border border-orange-100 rounded-lg px-3 py-2">
-          <p className="text-xs text-orange-700 font-medium">
+        <div
+          className="space-y-1 rounded-lg px-3 py-2"
+          style={isDark ? {
+            background: 'rgba(251,146,60,0.08)',
+            border: '1px solid rgba(251,146,60,0.15)',
+          } : {
+            background: 'rgba(255,247,237,0.6)',
+            border: '1px solid #fed7aa',
+          }}
+        >
+          <p className={`text-xs font-medium ${isDark ? 'text-orange-400' : 'text-orange-700'}`}>
             🔥 {Math.round(meal.calories)} kcal · 🥩 {Math.round(meal.protein)}g · 🍞 {Math.round(meal.carbs)}g · 🫒 {Math.round(meal.fat)}g
           </p>
           {extraNutritionFields.length > 0 && activeIngredients.length > 0 && (
-            <p className="text-xs text-gray-400">
+            <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               {extraNutritionFields.map(f => {
                 const total = activeIngredients.reduce((acc, ing) => acc + ((ing.extras?.[f.key] as number) || 0), 0)
                 return `${f.label}: ${Math.round(total * 10) / 10}${f.unit}`

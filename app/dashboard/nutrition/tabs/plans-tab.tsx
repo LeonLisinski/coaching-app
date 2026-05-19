@@ -11,6 +11,7 @@ import EditMealPlanDialog from '../dialogs/edit-meal-plan-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useTranslations } from 'next-intl'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type MealPlan = {
   id: string
@@ -49,6 +50,8 @@ function DroppablePlanCard({
     return acc
   }, {} as Record<string, number>)
   const t = useTranslations('nutrition.plansTab')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const { setNodeRef, isOver } = useDroppable({
     id: `plan-drop::${plan.id}`,
     data: { type: 'plan-drop', planId: plan.id },
@@ -58,10 +61,12 @@ function DroppablePlanCard({
     <div
       ref={setNodeRef}
       onDoubleClick={onEdit}
-      className={`border rounded-xl p-3 bg-white transition-all cursor-default select-none ${
+      className={`border rounded-xl p-3 transition-all cursor-default select-none ${
         isActive
           ? 'border-purple-400 ring-2 ring-purple-400/20 bg-purple-50/40 shadow-sm'
-          : 'border-gray-100 hover:shadow-sm hover:border-gray-200'
+          : isDark
+          ? 'bg-white/[0.03] border-white/8 hover:bg-white/[0.06] hover:border-white/10'
+          : 'bg-white border-gray-100 hover:shadow-sm hover:border-gray-200'
       }`}
     >
       {isActive && (
@@ -70,28 +75,28 @@ function DroppablePlanCard({
         </div>
       )}
       <div className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
+        <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${isDark ? 'bg-white/8' : 'bg-purple-50'}`}>
           <CalendarDays size={12} className="text-purple-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate text-gray-800">{plan.name}</p>
+          <p className={`font-medium text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{plan.name}</p>
           {activeExtraFields.length > 0 && (
             <div className="flex gap-2 flex-wrap mt-0.5">
               {activeExtraFields.map(f => {
                 const val = planExtras[f.key]
                 if (!val) return null
-                return <span key={f.key} className="text-[10px] text-gray-400">{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
+                return <span key={f.key} className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{f.label}: {Math.round(val * 10) / 10}{f.unit}</span>
               })}
             </div>
           )}
-          <p className="text-[10px] text-gray-300 mt-0.5">{t('dblClickHint')}</p>
+          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{t('dblClickHint')}</p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
           <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-full font-medium border border-purple-100">
             {t('mealsCountBadge', { count: plan.meals?.length ?? 0 })}
           </span>
           {plan.calories_target && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded-full border border-gray-100">
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
               🎯 {plan.calories_target} kcal
             </span>
           )}
@@ -114,6 +119,8 @@ type Props = { activeType?: 'food' | 'recipe' | null; refreshKey?: number }
 export default function PlansTab({ activeType, refreshKey }: Props) {
   const tTab = useTranslations('nutrition.plansTab')
   const tCommon = useTranslations('common')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const { settings } = useTrainerSettings()
   const activeExtraFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
 
@@ -171,9 +178,9 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
   return (
     <>
       {/* Fixed: header + search */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+      <div className={`shrink-0 px-4 pt-3 pb-3 border-b space-y-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
         <div className="flex items-center justify-between">
-          <p className="text-gray-500 text-xs">{sorted.length} / {tTab('count', { count: plans.length })}</p>
+          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{sorted.length} / {tTab('count', { count: plans.length })}</p>
           <div className="flex items-center gap-2">
             <Button
               variant="outline" size="sm"
@@ -196,10 +203,10 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
             placeholder={tTab('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''} ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`}
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button onClick={() => setSearch('')} className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
               <X size={13} />
             </button>
           )}
@@ -213,7 +220,7 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
       {showFilters && (
         <div className="bg-purple-50/60 rounded-xl p-3 space-y-3 border border-purple-100">
           <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{tTab('sortByHeader')}</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{tTab('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
               {([
                 { key: 'date_desc', label: tTab('sortNewest') },
@@ -223,7 +230,11 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
               ] as const).map(opt => (
                 <button key={opt.key} type="button" onClick={() => setSort(opt.key)}
                   className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
-                    sort === opt.key ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'
+                    sort === opt.key
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : isDark
+                      ? 'bg-white/[0.05] text-gray-300 border-white/10 hover:border-purple-400'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300'
                   }`}>
                   {opt.label}
                 </button>
@@ -240,14 +251,14 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className={`h-14 rounded-xl animate-pulse ${isDark ? 'bg-white/[0.06]' : 'bg-gray-100'}`} />)}
         </div>
       ) : sorted.length === 0 ? (
-        <div className="py-10 text-center border-2 border-dashed border-gray-100 rounded-xl">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center mx-auto mb-2">
+        <div className={`py-10 text-center border-2 border-dashed rounded-xl ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${isDark ? 'bg-white/8' : 'bg-purple-50'}`}>
             <CalendarDays size={20} className="text-purple-400" />
           </div>
-          <p className="text-gray-400 text-sm">{search ? tTab('noSearchResults') : tTab('noPlans')}</p>
+          <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{search ? tTab('noSearchResults') : tTab('noPlans')}</p>
           {!search && (
             <button onClick={() => setShowAdd(true)} className="mt-2 text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mx-auto">
               <Plus size={11} /> {tTab('createFirst')}

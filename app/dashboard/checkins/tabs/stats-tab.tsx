@@ -63,16 +63,22 @@ function StatCard({ icon: Icon, label, value, sub, color }: any) {
   )
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, unit = '' }: any) => {
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs">
+    <div style={{
+      backgroundColor: isDark ? '#1e2030' : '#ffffff',
+      border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#f3f4f6'}`,
+      boxShadow: isDark ? '0 4px 16px rgb(0 0 0 / 0.5)' : '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+    }} className="rounded-xl px-3 py-2 text-xs">
       <p className="font-semibold text-gray-700 mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: p.fill || p.stroke }} />
           <span className="text-gray-500">{p.name}: </span>
-          <span className="font-semibold text-gray-700">{p.value}</span>
+          <span className="font-semibold text-gray-700">{p.value}{unit}</span>
         </div>
       ))}
     </div>
@@ -80,8 +86,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export default function CheckinStatsTab() {
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
   const router = useRouter()
   const tDays = useTranslations('daysShort')
   const tMonths = useTranslations('common.months')
@@ -285,10 +292,10 @@ export default function CheckinStatsTab() {
           ) : (
             <ResponsiveContainer width="100%" height={120}>
               <BarChart data={dayDist} barSize={20} margin={{ top: 0, right: 0, bottom: 0, left: -30 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f9fafb' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }} />
                 <Bar dataKey="count" name={t('count')} fill={accentHex} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -306,10 +313,10 @@ export default function CheckinStatsTab() {
                   <stop offset="95%" stopColor={accentHex} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
               <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip unit="%" />} />
               <Area type="monotone" dataKey="rate" name={t('submitted')} stroke={accentHex} strokeWidth={2} fill="url(#compGrad)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -327,10 +334,10 @@ export default function CheckinStatsTab() {
                 <stop offset="95%" stopColor={accentHex} stopOpacity={0.5} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f9fafb' }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }} />
             <Bar dataKey="count" name={t('totalSubmitted')} fill="url(#barGrad)" radius={[5, 5, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -377,7 +384,7 @@ export default function CheckinStatsTab() {
             <div className="space-y-2">
               {lateClients.map(c => (
                 <button key={c.id} onClick={() => router.push(`/dashboard/checkins/${c.id}`)}
-                  className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-red-50 transition-colors text-left group">
+                  className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors text-left group ${isDark ? 'hover:bg-red-900/20' : 'hover:bg-red-50'}`}>
                   <div className={`w-7 h-7 rounded-lg ${avatarStyle(c.gender)} flex items-center justify-center shrink-0`}>
                     <span className="text-white text-[10px] font-bold">{getInitials(c.name)}</span>
                   </div>
@@ -387,7 +394,7 @@ export default function CheckinStatsTab() {
                       {c.last ? new Date(c.last).toLocaleDateString() : '—'}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 shrink-0">{t('late')}</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${isDark ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-50 text-red-600 border border-red-100'}`}>{t('late')}</span>
                   <ChevronRight size={13} className="text-gray-300 group-hover:text-red-400" />
                 </button>
               ))}

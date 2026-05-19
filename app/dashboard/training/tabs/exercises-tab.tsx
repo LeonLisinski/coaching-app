@@ -10,6 +10,7 @@ import AddExerciseDialog from '../dialogs/add-exercise-dialog'
 import EditExerciseDialog from '../dialogs/edit-exercise-dialog'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable } from '@dnd-kit/core'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 export type Exercise = {
   id: string
@@ -67,6 +68,9 @@ function DraggableExerciseCard({
 export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 'exercise' | 'template' | null; refreshKey?: number }) {
   const t = useTranslations('training.exercisesTab')
   const tCommon = useTranslations('common')
+
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
 
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
@@ -147,14 +151,14 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       blue: 'bg-emerald-500 text-white border-emerald-500',
     }
     return `text-xs px-3 py-1 rounded-full border transition-colors cursor-pointer font-medium ${
-      active ? activeColors[variant] : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
+      active ? activeColors[variant] : isDark ? 'bg-white/[0.05] text-gray-400 border-white/10 hover:border-emerald-500' : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300'
     }`
   }
 
   return (
     <>
       {/* Fixed: header + search */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b border-gray-100 bg-white space-y-2.5">
+      <div className={`shrink-0 px-4 pt-3 pb-3 border-b space-y-2.5 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
         <div className="flex items-center justify-between">
           <p className="text-gray-500 text-xs">{filtered.length} / {t('count', { count: exercises.length })}</p>
           <div className="flex items-center gap-2">
@@ -183,7 +187,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''}`}
+            className={`pl-9 h-9 text-sm ${search ? 'pr-8' : ''} ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`}
           />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -198,7 +202,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-emerald-50/60 rounded-xl p-3 space-y-3 border border-emerald-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/8' : 'bg-emerald-50/60 border-emerald-100'}`}>
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('muscleGroupHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
@@ -240,9 +244,9 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-700">{t('onlyMineToggle')}</p>
+            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t('onlyMineToggle')}</p>
             <button type="button" onClick={() => setShowOnlyMine(!showOnlyMine)}
-              className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-primary' : 'bg-gray-200'}`}>
+              className={`w-10 h-5 rounded-full transition-colors flex items-center px-0.5 ${showOnlyMine ? 'bg-primary' : isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
               <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${showOnlyMine ? 'translate-x-5' : ''}`} />
             </button>
           </div>
@@ -279,7 +283,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           )}
           {sortKey !== 'name_asc' && (
             <button type="button" onClick={() => setSortKey('name_asc')}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border border-gray-200 text-gray-600 bg-white">
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${isDark ? 'border-white/10 text-gray-400 bg-white/[0.05]' : 'border-gray-200 text-gray-600 bg-white'}`}>
               {t('sortedChipZA')} <X size={10} />
             </button>
           )}
@@ -292,7 +296,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       {loading ? (
         <p className="text-gray-500 text-sm">{tCommon('loading')}</p>
       ) : filtered.length === 0 ? (
-        <div className="py-10 text-center border-2 border-dashed rounded-xl border-gray-100">
+        <div className={`py-10 text-center border-2 border-dashed rounded-xl ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mx-auto mb-2">
             <Dumbbell size={20} className="text-emerald-400" />
           </div>
@@ -314,7 +318,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
               <DraggableExerciseCard key={ex.id} ex={ex}>
                 {(dragHandleProps) => (
                   <div
-                    className="border border-gray-100 rounded-xl p-2.5 bg-white hover:shadow-sm hover:border-gray-200 transition-all cursor-default select-none"
+                    className={`border rounded-xl p-2.5 transition-all cursor-default select-none ${isDark ? 'border-white/8 bg-white/[0.03] hover:bg-white/5 hover:border-white/10' : 'border-gray-100 bg-white hover:shadow-sm hover:border-gray-200'}`}
                     onDoubleClick={() => setEditExercise(ex)}
                     title={t('dblClickHint')}
                   >
@@ -338,7 +342,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="font-medium text-sm text-gray-800">{ex.name}</p>
+                          <p className={`font-medium text-sm ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{ex.name}</p>
                           {ex.is_default && <span className="text-[10px] text-gray-400">(default)</span>}
                           {ex.exercise_type === 'endurance' && (
                             <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-100">
@@ -359,7 +363,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                               </span>
                             ))}
                             {secondary.map(m => (
-                              <span key={m} className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-400 rounded-full border border-gray-100">
+                              <span key={m} className={`text-[10px] px-1.5 py-0.5 rounded-full border ${isDark ? 'bg-white/[0.05] text-gray-500 border-white/8' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
                                 {m}
                               </span>
                             ))}
@@ -368,7 +372,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
                       </div>
 
                       <div className="flex items-center gap-0.5 shrink-0">
-                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded border border-gray-100 mr-1">{ex.category}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border mr-1 ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>{ex.category}</span>
                         {ex.video_url && (
                           <a href={ex.video_url} target="_blank" rel="noreferrer"
                             className="text-gray-400 hover:text-blue-500 transition-colors p-1"

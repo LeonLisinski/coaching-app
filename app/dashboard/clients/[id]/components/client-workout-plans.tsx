@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2, BookMarked } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2, BookMarked, Zap, Check } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
@@ -97,76 +97,171 @@ function DayAccordion({
   trackedExerciseIds,
   onToggleTracked,
   togglingId,
+  isDark,
+  isEditing = false,
+  onUpdateEx,
+  onRemoveEx,
+  onAddEx,
+  allExercises = [],
 }: {
   days: any[]
   trackedExerciseIds: string[]
   onToggleTracked: (exerciseId: string) => void
   togglingId: string | null
+  isDark: boolean
+  isEditing?: boolean
+  onUpdateEx?: (dayIdx: number, exId: string, field: string, val: any) => void
+  onRemoveEx?: (dayIdx: number, exId: string) => void
+  onAddEx?: (dayIdx: number, ex: Exercise) => void
+  allExercises?: Exercise[]
 }) {
   const t = useTranslations('clients.workoutPlans')
   const [openDays, setOpenDays] = useState<Record<number, boolean>>({})
   const toggle = (i: number) => setOpenDays(prev => ({ ...prev, [i]: !(prev[i] ?? false) }))
   const tracked = new Set(trackedExerciseIds)
   const atLimit = trackedExerciseIds.length >= 10
+
+  const [exSearch, setExSearch] = useState<Record<number, string>>({})
+  const [searchFocused, setSearchFocused] = useState<Record<number, boolean>>({})
+  const blurTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
+
+  useEffect(() => {
+    if (isEditing) setOpenDays(Object.fromEntries(days.map((_, i) => [i, true])))
+  }, [isEditing, days.length])
+
   return (
-    <div className="border-t border-gray-100 divide-y divide-gray-50">
+    <div style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f3f4f6' }}>
       {days.map((day: any, dayIdx: number) => (
-        <div key={dayIdx}>
+        <div key={dayIdx} style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid #f9fafb' }}>
           <button
             type="button"
             onClick={() => toggle(dayIdx)}
-            className="w-full flex items-center gap-2 px-2 py-2 hover:bg-gray-50 transition-colors text-left"
+            className={`w-full flex items-center gap-2 px-4 py-2 transition-colors text-left ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-gray-50'}`}
           >
-            {openDays[dayIdx] ? <ChevronUp size={12} className="text-gray-400 shrink-0" /> : <ChevronDown size={12} className="text-gray-400 shrink-0" />}
-            <span className="text-xs font-semibold text-gray-600">{day.name}</span>
-            <span className="text-xs text-gray-400 ml-1">{t('exerciseCountBadge', { count: day.exercises?.length || 0 })}</span>
+            {openDays[dayIdx]
+              ? <ChevronUp size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+              : <ChevronDown size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />}
+            <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{day.name}</span>
+            <span className={`text-xs ml-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('exerciseCountBadge', { count: day.exercises?.length || 0 })}</span>
           </button>
           {openDays[dayIdx] && (
-            <div className="px-2 pb-2">
+            <div className="px-4 pb-2">
               {(day.exercises || []).map((ex: any, exIdx: number) => {
                 const isOn = tracked.has(ex.exercise_id)
                 const disabled = !isOn && atLimit
                 return (
                   <div
                     key={ex.exercise_id}
-                    className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0"
+                    className="flex items-center gap-2 py-1.5"
+                    style={{ borderBottom: isDark ? '1px solid rgba(255,255,255,0.04)' : '1px solid #f9fafb' }}
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="text-xs text-gray-300 w-4 text-right tabular-nums shrink-0">{exIdx + 1}</span>
-                      <span className="text-sm text-gray-800 truncate">{ex.name}</span>
-                    </div>
-                    <span className="text-xs text-gray-400 tabular-nums shrink-0 hidden sm:inline">
-                      {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
-                    </span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[10px] text-gray-400 max-w-[72px] leading-tight text-right hidden sm:block">
-                        {t('trackInAnalyticsShort')}
-                      </span>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={isOn}
-                        aria-label={t('trackInAnalyticsAria')}
-                        disabled={disabled || togglingId === ex.exercise_id}
-                        title={disabled ? t('trackLimitReached') : isOn ? t('trackRemoveHint') : t('trackAddHint')}
-                        onClick={e => {
-                          e.stopPropagation()
-                          onToggleTracked(ex.exercise_id)
-                        }}
-                        className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
-                          isOn ? 'bg-violet-600' : 'bg-gray-200'
-                        } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                            isOn ? 'translate-x-4' : 'translate-x-0'
-                          }`}
+                    <span className={`text-xs w-4 text-right tabular-nums shrink-0 ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>{exIdx + 1}</span>
+                    <span className={`text-sm flex-1 min-w-0 truncate ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{ex.name}</span>
+
+                    {isEditing ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input
+                          type="number" min={1} value={ex.sets || ''}
+                          onFocus={e => e.target.select()}
+                          onChange={e => onUpdateEx?.(dayIdx, ex.exercise_id, 'sets', parseInt(e.target.value) || 0)}
+                          className={`w-7 h-5 text-center text-xs rounded border focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-blue-500/60' : 'bg-white border-gray-200 focus:border-blue-400'}`}
                         />
-                      </button>
-                    </div>
+                        <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>×</span>
+                        <input
+                          value={ex.reps || ''} onFocus={e => e.target.select()}
+                          onChange={e => onUpdateEx?.(dayIdx, ex.exercise_id, 'reps', e.target.value)}
+                          className={`w-12 h-5 text-center text-xs rounded border focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-blue-500/60' : 'bg-white border-gray-200 focus:border-blue-400'}`}
+                        />
+                        <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>·</span>
+                        <input
+                          type="number" min={0} value={ex.rest_seconds || ''}
+                          onFocus={e => e.target.select()}
+                          onChange={e => onUpdateEx?.(dayIdx, ex.exercise_id, 'rest_seconds', parseInt(e.target.value) || 0)}
+                          className={`w-10 h-5 text-center text-xs rounded border focus:outline-none ${isDark ? 'bg-white/5 border-white/15 text-gray-200 focus:border-blue-500/60' : 'bg-white border-gray-200 focus:border-blue-400'}`}
+                        />
+                        <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>s</span>
+                        <button type="button" onClick={() => onRemoveEx?.(dayIdx, ex.exercise_id)} className="ml-0.5 shrink-0">
+                          <X size={11} className="text-red-400/50 hover:text-red-400 transition-colors" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <span className={`text-xs tabular-nums shrink-0 hidden sm:inline ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                          {ex.sets}×{ex.reps}{ex.rest_seconds ? ` · ${ex.rest_seconds}s` : ''}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[10px] max-w-[72px] leading-tight text-right hidden sm:block ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>
+                            {t('trackInAnalyticsShort')}
+                          </span>
+                          <button
+                            type="button" role="switch" aria-checked={isOn}
+                            aria-label={t('trackInAnalyticsAria')}
+                            disabled={disabled || togglingId === ex.exercise_id}
+                            title={disabled ? t('trackLimitReached') : isOn ? t('trackRemoveHint') : t('trackAddHint')}
+                            onClick={e => { e.stopPropagation(); onToggleTracked(ex.exercise_id) }}
+                            className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${isOn ? 'bg-violet-600' : isDark ? 'bg-white/15' : 'bg-gray-200'} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}
+
+              {/* Add exercise search — only in edit mode */}
+              {isEditing && (
+                <div className="relative mt-2">
+                  <input
+                    value={exSearch[dayIdx] || ''}
+                    onChange={e => setExSearch(prev => ({ ...prev, [dayIdx]: e.target.value }))}
+                    onFocus={() => {
+                      if (blurTimers.current[dayIdx]) clearTimeout(blurTimers.current[dayIdx])
+                      setSearchFocused(prev => ({ ...prev, [dayIdx]: true }))
+                    }}
+                    onBlur={() => {
+                      blurTimers.current[dayIdx] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [dayIdx]: false })), 150)
+                    }}
+                    placeholder="+ Dodaj vježbu..."
+                    className={`w-full h-7 text-xs rounded-lg border px-3 focus:outline-none transition-colors ${isDark ? 'bg-transparent border-white/10 border-dashed text-gray-400 placeholder:text-gray-700 focus:border-white/25 focus:bg-white/[0.03]' : 'bg-white border-gray-200 border-dashed placeholder:text-gray-400 focus:border-blue-400'}`}
+                  />
+                  {(searchFocused[dayIdx] || !!(exSearch[dayIdx])) && (
+                    <div
+                      className="absolute top-full left-0 right-0 z-50 mt-0.5 rounded-lg overflow-hidden shadow-xl"
+                      style={isDark ? { background: 'rgb(12,12,18)', border: '1px solid rgba(255,255,255,0.1)' } : { background: 'white', border: '1px solid #e5e7eb' }}
+                    >
+                      <div className="max-h-44 overflow-y-auto" onWheel={e => e.stopPropagation()}>
+                        {allExercises
+                          .filter(e =>
+                            e.name.toLowerCase().includes((exSearch[dayIdx] || '').toLowerCase()) &&
+                            !(day.exercises || []).find((de: any) => de.exercise_id === e.id)
+                          )
+                          .slice(0, 15)
+                          .map(e => (
+                            <button
+                              key={e.id} type="button"
+                              onMouseDown={ev => ev.preventDefault()}
+                              onClick={() => {
+                                onAddEx?.(dayIdx, e)
+                                setExSearch(prev => ({ ...prev, [dayIdx]: '' }))
+                                setSearchFocused(prev => ({ ...prev, [dayIdx]: false }))
+                              }}
+                              className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${isDark ? 'text-gray-300 hover:bg-white/5 border-b border-white/[0.04] last:border-0' : 'text-gray-700 hover:bg-gray-50 border-b border-gray-50 last:border-0'}`}
+                            >
+                              <span>{e.name}</span>
+                              {e.category && <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{e.category}</span>}
+                            </button>
+                          ))
+                        }
+                        {allExercises.filter(e => e.name.toLowerCase().includes((exSearch[dayIdx] || '').toLowerCase())).length === 0 && (
+                          <p className={`px-3 py-2.5 text-xs text-center ${isDark ? 'text-gray-700' : 'text-gray-400'}`}>Nema rezultata</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -179,7 +274,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
   const t = useTranslations('clients.workoutPlans')
   const tCommon = useTranslations('common')
   const locale = useLocale()
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const { settings: trainerSettings } = useTrainerSettings()
 
@@ -221,6 +317,30 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     existingName: string
     execute: () => Promise<void>
   } | null>(null)
+
+  // Quick inline edit state
+  const [quickEditPlanId, setQuickEditPlanId] = useState<string | null>(null)
+  const [quickEditDays, setQuickEditDays] = useState<any[]>([])
+  const [quickEditSaving, setQuickEditSaving] = useState(false)
+
+  const enterQuickEdit = (assigned: AssignedPlan) => {
+    const planDays = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
+    setQuickEditDays(JSON.parse(JSON.stringify(planDays)))
+    setQuickEditPlanId(assigned.id)
+    setPlanExpanded(prev => ({ ...prev, [assigned.id]: true }))
+  }
+
+  const cancelQuickEdit = () => { setQuickEditPlanId(null); setQuickEditDays([]) }
+
+  const saveQuickEdit = async () => {
+    if (!quickEditPlanId) return
+    setQuickEditSaving(true)
+    await supabase.from('client_workout_plans').update({ days: quickEditDays }).eq('id', quickEditPlanId)
+    setAssignedPlans(prev => prev.map(p => p.id === quickEditPlanId ? { ...p, days: quickEditDays } : p))
+    setQuickEditPlanId(null)
+    setQuickEditDays([])
+    setQuickEditSaving(false)
+  }
 
   // Initialise expanded state once plans load: active = open, inactive = closed
   useEffect(() => {
@@ -545,7 +665,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
     <div className="space-y-4">
 
       {savedMsg && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm ${isDark ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-700'}`}>
           <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 16 16"><path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
           {savedMsg}
         </div>
@@ -553,7 +673,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-500">
+        <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           {assignedPlans.length === 0 ? t('noAssignedPlans') : t('assigned', { count: assignedPlans.length })}
         </p>
         <div className="flex items-center gap-2">
@@ -568,22 +688,25 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
 
       {/* Empty state */}
       {assignedPlans.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Dumbbell size={24} className="text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500 mb-1">{t('clientNoPlans')}</p>
-            <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-700 transition-colors">
-              {t('assignFirst')}
-            </button>
-          </CardContent>
-        </Card>
+        <div
+          className="rounded-xl py-12 text-center"
+          style={isDark ? { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' } : { background: 'white', border: '1px solid #e5e7eb' }}
+        >
+          <Dumbbell size={24} className={`mx-auto mb-3 ${isDark ? 'text-gray-700' : 'text-gray-300'}`} />
+          <p className={`text-sm mb-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{t('clientNoPlans')}</p>
+          <button onClick={() => setShowAssignDialog(true)} className="text-xs text-blue-500 hover:text-blue-400 transition-colors">
+            {t('assignFirst')}
+          </button>
+        </div>
       )}
 
       {/* Plan cards — each with inline per-plan analysis */}
       {(() => {
         const exerciseMap = new Map(allExercises.map(e => [e.id, e]))
         return [...assignedPlans].sort((a, b) => Number(b.active) - Number(a.active)).map(assigned => {
-          const days = assigned.days?.length ? assigned.days : assigned.workout_plan.days || []
+          const days = quickEditPlanId === assigned.id
+            ? quickEditDays
+            : (assigned.days?.length ? assigned.days : assigned.workout_plan.days || [])
           const isPersonalized = !!(assigned.days?.length)
           const isOpen = planExpanded[assigned.id] ?? assigned.active
 
@@ -618,29 +741,39 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
           const hasAnalysis    = totalSets > 0
 
           return (
-            <Card key={assigned.id} className={`transition-shadow ${!assigned.active ? 'opacity-70' : ''}`}>
-              <CardContent className="py-0">
+            <div
+              key={assigned.id}
+              className={`rounded-xl overflow-hidden transition-shadow ${!assigned.active ? 'opacity-70' : ''}`}
+              style={isDark ? {
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.09)',
+              } : {
+                background: 'white',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)',
+              }}
+            >
 
                 {/* ── Header — click = expand/collapse ── */}
                 <div
-                  className="py-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-gray-50/50 rounded-t-xl transition-colors"
+                  className={`py-3.5 px-4 flex items-center justify-between gap-3 cursor-pointer select-none rounded-t-xl transition-colors ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-gray-50/50'}`}
                   onClick={() => setPlanExpanded(prev => ({ ...prev, [assigned.id]: !isOpen }))}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                     {isOpen
-                      ? <ChevronUp size={13} className="text-gray-400 shrink-0" />
-                      : <ChevronDown size={13} className="text-gray-400 shrink-0" />}
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${assigned.active ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                      ? <ChevronUp size={13} className={`shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                      : <ChevronDown size={13} className={`shrink-0 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />}
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${assigned.active ? 'bg-emerald-400' : isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">{assigned.workout_plan.name}</span>
+                        <span className={`font-semibold text-sm ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{assigned.workout_plan.name}</span>
                           {isPersonalized && (
-                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-200 bg-amber-50">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${isDark ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
                             {t('personalizedBadge')}
-                          </Badge>
+                          </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                         {t('days', { count: days.length })} · {t('exerciseCountBadge', { count: totalExercises })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                         {assigned.notes && <> · {assigned.notes}</>}
                       </p>
@@ -652,8 +785,8 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                       onClick={() => toggleActive(assigned.id, assigned.active)}
                       className={`text-xs h-7 px-3 rounded-full border ${
                         assigned.active
-                          ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                          : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          ? isDark ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                          : isDark ? 'text-gray-500 bg-white/5 border-white/15 hover:bg-white/10' : 'text-gray-500 bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}>
                       {assigned.active ? t('activeStatusLabel') : t('inactiveStatusLabel')}
                     </Button>
@@ -667,6 +800,14 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setEditTarget(assigned)}>
                       <Pencil size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost" size="sm"
+                      title="Brzi unos"
+                      onClick={() => quickEditPlanId === assigned.id ? cancelQuickEdit() : enterQuickEdit(assigned)}
+                      className={quickEditPlanId === assigned.id ? 'text-blue-400' : ''}
+                    >
+                      <Zap size={14} className={quickEditPlanId === assigned.id ? 'text-blue-400' : 'text-gray-400'} />
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteId(assigned.id)}>
                       <Trash2 size={14} className="text-red-400" />
@@ -684,17 +825,83 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                         trackedExerciseIds={trackedExerciseIds}
                         onToggleTracked={toggleTrackedExercise}
                         togglingId={togglingTrackedId}
+                        isDark={isDark}
+                        isEditing={quickEditPlanId === assigned.id}
+                        onUpdateEx={(dayIdx, exId, field, val) => {
+                          setQuickEditDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
+                            ...d,
+                            exercises: (d.exercises || []).map((e: any) => e.exercise_id !== exId ? e : { ...e, [field]: val }),
+                          }))
+                        }}
+                        onRemoveEx={(dayIdx, exId) => {
+                          setQuickEditDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
+                            ...d,
+                            exercises: (d.exercises || []).filter((e: any) => e.exercise_id !== exId),
+                          }))
+                        }}
+                        onAddEx={(dayIdx, ex) => {
+                          const defaults = trainerSettings.workoutDefaults
+                          setQuickEditDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
+                            ...d,
+                            exercises: [...(d.exercises || []), {
+                              exercise_id: ex.id,
+                              name: ex.name,
+                              sets: defaults?.sets || 3,
+                              reps: ex.exercise_type === 'endurance' ? '5min' : (String(defaults?.reps || '8-12')),
+                              rest_seconds: defaults?.rest_seconds || 90,
+                              notes: '',
+                              exercise_type: ex.exercise_type || 'strength',
+                              section: ex.section || 'main',
+                            }],
+                          }))
+                        }}
+                        allExercises={allExercises}
                       />
+                    )}
+
+                    {/* Quick edit save/cancel bar */}
+                    {quickEditPlanId === assigned.id && (
+                      <div
+                        className="px-4 py-2.5 flex items-center gap-2"
+                        style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f0f0f0' }}
+                      >
+                        <Zap size={11} className="text-blue-400 shrink-0" />
+                        <span className={`text-xs flex-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Brzi unos aktiviran</span>
+                        <Button
+                          variant="ghost" size="sm"
+                          onClick={cancelQuickEdit}
+                          className={`text-xs h-7 px-3 ${isDark ? 'text-gray-500 hover:text-gray-300' : ''}`}
+                        >
+                          Odustani
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={saveQuickEdit}
+                          disabled={quickEditSaving}
+                          className="text-xs h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white gap-1"
+                        >
+                          {quickEditSaving ? '...' : <><Check size={12} />Spremi</>}
+                        </Button>
+                      </div>
                     )}
 
                     {/* Per-plan analysis */}
                     {hasAnalysis && (
-                      <div className="border-t border-gray-50 bg-gradient-to-br from-slate-50/70 to-white px-4 pt-4 pb-5 rounded-b-xl">
+                      <div
+                        className="px-4 pt-4 pb-5 rounded-b-xl"
+                        style={isDark ? {
+                          borderTop: '1px solid rgba(255,255,255,0.06)',
+                          background: 'rgba(255,255,255,0.02)',
+                        } : {
+                          borderTop: '1px solid #f9fafb',
+                          background: 'linear-gradient(135deg, rgba(248,250,252,0.7), white)',
+                        }}
+                      >
                         <div className="flex items-center gap-2 mb-4">
                           <div className="w-5 h-5 rounded flex items-center justify-center" style={{ backgroundColor: `${accentHex}18` }}>
                             <BarChart2 size={11} style={{ color: accentHex }} />
                           </div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{t('analysisTitle')}</p>
+                          <p className={`text-[11px] font-semibold uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('analysisTitle')}</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -708,16 +915,19 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                               ].map(({ label, value }) => (
                                 <div key={label} className="rounded-lg px-2 py-2 text-center" style={{ backgroundColor: `${accentHex}0d` }}>
                                   <p className="text-base font-black" style={{ color: accentHex }}>{value}</p>
-                                  <p className="text-[10px] text-gray-400 font-medium">{label}</p>
+                                  <p className={`text-[10px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{label}</p>
                                 </div>
                               ))}
                             </div>
                             <ResponsiveContainer width="100%" height={dayChartH}>
                               <BarChart data={setsByDay} layout="vertical" margin={{ top: 0, right: 36, left: 4, bottom: 0 }} barCategoryGap="28%">
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                                <XAxis type="number" domain={[0, maxSets + 2]} tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
-                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
-                                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 10 }} cursor={{ fill: `${accentHex}0a` } as any} />
+                                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'} horizontal={false} />
+                                <XAxis type="number" domain={[0, maxSets + 2]} tick={{ fontSize: 10, fill: isDark ? 'rgba(255,255,255,0.2)' : '#d1d5db' }} axisLine={false} tickLine={false} />
+                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: isDark ? 'rgba(255,255,255,0.4)' : '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                                <Tooltip
+                                  contentStyle={{ fontSize: 12, borderRadius: 10, background: isDark ? 'rgb(18,18,26)' : 'white', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb', color: isDark ? '#e5e7eb' : '#111827' }}
+                                  cursor={{ fill: `${accentHex}0a` } as any}
+                                />
                                 <Bar dataKey="sets" fill={accentHex} fillOpacity={0.9} radius={[0, 6, 6, 0]}>
                                   <LabelList dataKey="sets" position="right" style={{ fontSize: 11, fontWeight: 600, fill: accentHex }} />
                                 </Bar>
@@ -729,13 +939,13 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                           {muscleData.length > 0 && (
                             <div>
                               <div className="flex items-center justify-between mb-3">
-                                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">{t('muscleGroupsTitle')}</p>
+                                <p className={`text-[11px] font-semibold uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('muscleGroupsTitle')}</p>
                                 <div className="flex items-center gap-3">
-                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                  <span className={`flex items-center gap-1 text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex }} />
                                     {t('primaryLegend')}
                                   </span>
-                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                  <span className={`flex items-center gap-1 text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                                     <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.3 }} />
                                     {t('secondaryLegend')}
                                   </span>
@@ -743,17 +953,17 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                               </div>
                               <ResponsiveContainer width="100%" height={muscleChartH}>
                                 <BarChart data={muscleData} layout="vertical" margin={{ top: 0, right: 40, left: 4, bottom: 0 }} barCategoryGap="28%">
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-                                  <XAxis type="number" tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} />
-                                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={80} />
+                                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'} horizontal={false} />
+                                  <XAxis type="number" tick={{ fontSize: 10, fill: isDark ? 'rgba(255,255,255,0.2)' : '#d1d5db' }} axisLine={false} tickLine={false} />
+                                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: isDark ? 'rgba(255,255,255,0.4)' : '#6b7280' }} axisLine={false} tickLine={false} width={80} />
                                   <Tooltip
                                     content={({ active, payload, label }: any) => {
                                       if (!active || !payload?.length) return null
                                       const pri = payload.find((p: any) => p.dataKey === 'primary')?.value ?? 0
                                       const sec = payload.find((p: any) => p.dataKey === 'secondary')?.value ?? 0
                                       return (
-                                        <div className="bg-white border border-gray-100 shadow-lg rounded-xl px-3 py-2 text-xs space-y-0.5">
-                                          <p className="font-bold text-gray-800 mb-1">{label}</p>
+                                        <div style={{ background: isDark ? 'rgb(18,18,26)' : 'white', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb' }} className="shadow-lg rounded-xl px-3 py-2 text-xs space-y-0.5">
+                                          <p className={`font-bold mb-1 ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{label}</p>
                                           {pri > 0 && <p style={{ color: accentHex }} className="font-semibold">{t('primaryTooltip', { count: pri })}</p>}
                                           {sec > 0 && <p style={{ color: accentHex, opacity: 0.6 }} className="font-semibold">{t('secondaryTooltip', { count: sec })}</p>}
                                         </div>
@@ -772,7 +982,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                                     <LabelList content={({ x, y, width, height, value, index }: any) => {
                                       const pri = muscleData[index]?.primary ?? 0
                                       const total = pri + (value ?? 0)
-                                      return total > 0 && Number(width) > 0 ? <text x={Number(x)+Number(width)+6} y={Number(y)+Number(height)/2} dominantBaseline="middle" fill="#9ca3af" fontSize={11} fontWeight={600}>{total}</text> : null
+                                      return total > 0 && Number(width) > 0 ? <text x={Number(x)+Number(width)+6} y={Number(y)+Number(height)/2} dominantBaseline="middle" fill={isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af'} fontSize={11} fontWeight={600}>{total}</text> : null
                                     }} />
                                   </Bar>
                                 </BarChart>
@@ -784,8 +994,7 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                     )}
                   </>
                 )}
-              </CardContent>
-            </Card>
+            </div>
           )
         })
       })()}

@@ -30,8 +30,9 @@ function ChatPageContent() {
   const searchParams = useSearchParams()
   const tCommon = useTranslations('common')
   const locale = useLocale()
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+  const isDark = mode === 'dark'
   const { setInActiveChat } = useActiveChat()
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
@@ -129,7 +130,14 @@ function ChatPageContent() {
     return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
   }
 
-  const AVATAR_COLORS = [
+  const AVATAR_COLORS = isDark ? [
+    'bg-violet-500/20 text-violet-300',
+    'bg-blue-500/20 text-blue-300',
+    'bg-emerald-500/20 text-emerald-300',
+    'bg-amber-500/20 text-amber-300',
+    'bg-rose-500/20 text-rose-300',
+    'bg-cyan-500/20 text-cyan-300',
+  ] : [
     'bg-violet-100 text-violet-700',
     'bg-blue-100 text-blue-700',
     'bg-emerald-100 text-emerald-700',
@@ -139,16 +147,17 @@ function ChatPageContent() {
   ]
 
   return (
-    <div className="flex h-full overflow-hidden rounded-2xl border border-gray-100 shadow-sm bg-white">
-      {/* Sidebar — full screen on mobile when no chat selected, fixed width on desktop */}
-      <div className={`${selectedClientId ? 'hidden lg:flex' : 'flex'} w-full lg:w-72 border-r flex-col flex-shrink-0`}>
+    <div className={`flex h-full overflow-hidden rounded-2xl border shadow-sm ${isDark ? 'bg-[oklch(0.13_0.014_264)] border-white/8' : 'bg-white border-gray-100'}`}>
+      {/* Sidebar */}
+      <div className={`${selectedClientId ? 'hidden lg:flex' : 'flex'} w-full lg:w-72 border-r flex-col flex-shrink-0 ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b" style={{ background: `linear-gradient(135deg, ${accentHex}12, ${accentHex}06)` }}>
+        <div className={`px-4 pt-4 pb-3 border-b ${isDark ? 'bg-white/[0.03] border-white/8' : 'border-gray-100'}`}
+          style={!isDark ? { background: `linear-gradient(135deg, ${accentHex}12, ${accentHex}06)` } : undefined}>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}18` }}>
               <MessageCircle size={14} style={{ color: accentHex }} />
             </div>
-            <h2 className="text-sm font-bold text-gray-900">{t('page.title')}</h2>
+            <h2 className={`text-sm font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('page.title')}</h2>
             {clients.some(c => c.unread > 0) && (
               <span className="ml-auto text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ backgroundColor: accentHex }}>
                 {clients.reduce((s, c) => s + c.unread, 0)}
@@ -161,7 +170,7 @@ function ChatPageContent() {
               placeholder={t('page.searchPlaceholder')}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 text-sm bg-white/80 border-gray-200"
+              className={`pl-8 h-8 text-sm ${isDark ? 'bg-white/8 border-white/10' : 'bg-white/80 border-gray-200'}`}
             />
           </div>
         </div>
@@ -172,10 +181,10 @@ function ChatPageContent() {
             <div className="p-4 space-y-3">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="flex items-center gap-3 animate-pulse">
-                  <div className="w-9 h-9 rounded-full bg-gray-100 flex-shrink-0" />
+                  <div className={`w-9 h-9 rounded-full flex-shrink-0 ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-3 bg-gray-100 rounded w-3/4" />
-                    <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+                    <div className={`h-3 rounded w-3/4 ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
+                    <div className={`h-2.5 rounded w-1/2 ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />
                   </div>
                 </div>
               ))}
@@ -194,9 +203,9 @@ function ChatPageContent() {
                     onClick={() => setSelectedClientId(client.id)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
                     style={isSelected
-                      ? { backgroundColor: `${accentHex}10`, borderRight: `2px solid ${accentHex}` }
+                      ? { backgroundColor: `${accentHex}${isDark ? '18' : '10'}`, borderRight: `2px solid ${accentHex}` }
                       : { borderRight: '2px solid transparent' }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${accentHex}06` }}
+                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = `${accentHex}${isDark ? '0e' : '06'}` }}
                     onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '' }}
                   >
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-semibold ${avatarColor}`}>
@@ -204,7 +213,7 @@ function ChatPageContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <p className={`text-sm truncate ${client.unread > 0 ? 'font-semibold text-gray-900' : 'font-medium text-gray-800'}`}>
+                        <p className={`text-sm truncate ${client.unread > 0 ? `font-semibold ${isDark ? 'text-white' : 'text-gray-900'}` : `font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}`}>
                           {client.full_name}
                         </p>
                         <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums">
@@ -212,7 +221,7 @@ function ChatPageContent() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-1 mt-0.5">
-                        <p className={`text-xs truncate ${client.unread > 0 ? 'text-gray-600' : 'text-gray-400'}`}>
+                        <p className={`text-xs truncate ${client.unread > 0 ? (isDark ? 'text-gray-300' : 'text-gray-600') : 'text-gray-400'}`}>
                           {client.last_message || t('page.noMessages')}
                         </p>
                         {client.unread > 0 && (
@@ -227,13 +236,13 @@ function ChatPageContent() {
               })}
             </div>
           )}
-          {/* Spacer so last item isn't hidden behind mobile tab bar */}
           {!selectedClientId && <div className="lg:hidden h-14" />}
         </div>
       </div>
 
-      {/* Chat area — hidden on mobile when no chat selected */}
-      <div className={`${!selectedClientId ? 'hidden lg:flex' : 'flex'} flex-1 flex-col overflow-hidden`} style={{ backgroundColor: `${accentHex}04` }}>
+      {/* Chat area */}
+      <div className={`${!selectedClientId ? 'hidden lg:flex' : 'flex'} flex-1 flex-col overflow-hidden`}
+        style={{ backgroundColor: isDark ? 'oklch(0.13 0.014 264)' : `${accentHex}04` }}>
         {selectedClientId ? (
           <ChatWindow
             clientId={selectedClientId}
@@ -248,13 +257,13 @@ function ChatPageContent() {
               <MessageCircle size={28} style={{ color: accentHex }} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-700">{tChat('selectClient')}</p>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{tChat('selectClient')}</p>
               <p className="text-xs text-gray-400 mt-1">{tChat('selectClientHint')}</p>
             </div>
             <div className="flex gap-2 mt-2">
               {clients.slice(0, 3).map(c => (
                 <button key={c.id} onClick={() => setSelectedClientId(c.id)}
-                  className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors bg-white border-gray-200 text-gray-600 hover:border-gray-300">
+                  className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${isDark ? 'bg-white/8 border-white/15 text-gray-300 hover:border-white/30' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}>
                   {c.full_name.split(' ')[0]}
                 </button>
               ))}

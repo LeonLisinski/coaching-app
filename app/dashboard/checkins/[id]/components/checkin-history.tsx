@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, GitCompare, ArrowUpDown, X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react'
+import { ChevronDown, ChevronUp, GitCompare, ArrowUpDown, X, ChevronLeft, ChevronRight, ZoomIn, MessageSquare } from 'lucide-react'
+import { useAppTheme } from '@/app/contexts/app-theme'
 
 type Props = { clientId: string }
 
@@ -63,6 +63,8 @@ export default function CheckinHistory({ clientId }: Props) {
   const locale = useLocale()
   const t = useTranslations('checkins.detail.history')
   const t2 = useTranslations('checkins2')
+  const { mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const [params, setParams] = useState<Parameter[]>([])
   const [checkins, setCheckins] = useState<Checkin[]>([])
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([])
@@ -181,19 +183,13 @@ export default function CheckinHistory({ clientId }: Props) {
         const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
         return (
           <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-white/10 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <p className="text-white font-semibold text-sm uppercase tracking-wide">{position}</p>
                 <div className="flex gap-1">
                   {comparePositions.map((pos, i) => (
-                    <button
-                      key={pos}
-                      onClick={() => setCompareLightbox({ positionIdx: i })}
-                      className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors capitalize ${
-                        i === posIdx ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'
-                      }`}
-                    >
+                    <button key={pos} onClick={() => setCompareLightbox({ positionIdx: i })}
+                      className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors capitalize ${i === posIdx ? 'bg-white text-black' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
                       {pos}
                     </button>
                   ))}
@@ -203,7 +199,6 @@ export default function CheckinHistory({ clientId }: Props) {
                 <X size={24} />
               </button>
             </div>
-            {/* Photos — equal size columns */}
             <div className="flex-1 flex gap-3 px-4 py-3 overflow-x-auto min-h-0">
               {compareCheckins.map((checkin) => {
                 const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
@@ -216,12 +211,7 @@ export default function CheckinHistory({ clientId }: Props) {
                     </div>
                     <div className="flex-1 min-h-0" style={{ height: 'calc(100vh - 160px)' }}>
                       {photo ? (
-                        <img
-                          src={photo.url}
-                          alt={position}
-                          className="w-full h-full object-contain rounded-lg cursor-zoom-in"
-                          onClick={() => setLightbox(photo.url)}
-                        />
+                        <img src={photo.url} alt={position} className="w-full h-full object-contain rounded-lg cursor-zoom-in" onClick={() => setLightbox(photo.url)} />
                       ) : (
                         <div className="w-full h-full bg-white/5 rounded-lg border border-white/10 flex items-center justify-center">
                           <p className="text-white/30 text-xs text-center px-3">Nema {position} foto</p>
@@ -232,21 +222,14 @@ export default function CheckinHistory({ clientId }: Props) {
                 )
               })}
             </div>
-            {/* Position nav arrows */}
             {comparePositions.length > 1 && (
               <div className="flex justify-center gap-4 pb-4 flex-shrink-0">
-                <button
-                  onClick={() => setCompareLightbox({ positionIdx: posIdx - 1 })}
-                  disabled={posIdx === 0}
-                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors"
-                >
+                <button onClick={() => setCompareLightbox({ positionIdx: posIdx - 1 })} disabled={posIdx === 0}
+                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors">
                   <ChevronLeft size={16} /> Prethodna pozicija
                 </button>
-                <button
-                  onClick={() => setCompareLightbox({ positionIdx: posIdx + 1 })}
-                  disabled={posIdx === comparePositions.length - 1}
-                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors"
-                >
+                <button onClick={() => setCompareLightbox({ positionIdx: posIdx + 1 })} disabled={posIdx === comparePositions.length - 1}
+                  className="flex items-center gap-1.5 text-white/60 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed text-sm transition-colors">
                   Sljedeća pozicija <ChevronRight size={16} />
                 </button>
               </div>
@@ -255,25 +238,18 @@ export default function CheckinHistory({ clientId }: Props) {
         )
       })()}
 
+      {/* Toolbar */}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-gray-500">{t('totalCount', { count: checkins.length })}</p>
+        <p className="text-sm text-gray-400">{t('totalCount', { count: checkins.length })}</p>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSortDesc(v => !v)}
-            className="flex items-center gap-1.5 text-xs"
-          >
+          <Button variant="outline" size="sm" onClick={() => setSortDesc(v => !v)} className="flex items-center gap-1.5 text-xs">
             <ArrowUpDown size={12} />
             {sortDesc ? t2('sortNewest') : t2('sortOldest')}
           </Button>
           {checkinsWithPhotos.length >= 1 && (
-            <Button
-              variant={compareMode ? 'default' : 'outline'}
-              size="sm"
+            <Button variant={compareMode ? 'default' : 'outline'} size="sm"
               onClick={() => { setCompareMode(v => !v); setCompareSelected([]) }}
-              className="flex items-center gap-1.5"
-            >
+              className="flex items-center gap-1.5">
               <GitCompare size={13} />
               {compareMode ? t2('closeCompare') : t2('comparePhotos')}
             </Button>
@@ -283,12 +259,10 @@ export default function CheckinHistory({ clientId }: Props) {
 
       {/* Compare mode */}
       {compareMode && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
-
-          {/* Header */}
+        <div className={`rounded-xl border p-4 space-y-4 ${isDark ? 'bg-white/[0.03] border-white/10' : 'bg-gray-50 border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">{t2('selectWeeks')}</p>
+              <p className={`text-sm font-medium ${isDark ? 'text-gray-100' : ''}`}>{t2('selectWeeks')}</p>
               <p className="text-xs text-gray-400 mt-0.5">
                 {compareSelected.length === 0
                   ? t2('clickWeekHint', { max: MAX_COMPARE })
@@ -297,89 +271,62 @@ export default function CheckinHistory({ clientId }: Props) {
             </div>
             <div className="flex gap-2">
               {checkinsWithPhotos.length >= 2 && (
-                <button type="button"
-              onClick={() => {
-                  const sorted = [...checkinsWithPhotos].sort((a, b) => a.date.localeCompare(b.date))
-                  setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date])
-                }}
-                  className="text-xs text-primary underline font-medium whitespace-nowrap">
-                  {t2('firstToLast')}
-                </button>
+                <button type="button" onClick={() => { const sorted = [...checkinsWithPhotos].sort((a, b) => a.date.localeCompare(b.date)); setCompareSelected([sorted[0].date, sorted[sorted.length - 1].date]) }}
+                  className="text-xs text-primary underline font-medium whitespace-nowrap">{t2('firstToLast')}</button>
               )}
               {compareSelected.length > 0 && (
-                <button type="button"
-                  onClick={() => setCompareSelected([])}
-                  className="text-xs text-gray-400 underline whitespace-nowrap">
-                  {t2('clearSelection')}
-                </button>
+                <button type="button" onClick={() => setCompareSelected([])}
+                  className="text-xs text-gray-400 underline whitespace-nowrap">{t2('clearSelection')}</button>
               )}
             </div>
           </div>
 
-          {/* Thumbnail grid — newest (highest week #) first */}
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-            {[...checkinsWithPhotos]
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .map((c, idx, arr) => {
-                const selected = compareSelected.includes(c.date)
-                const selIdx = compareSelected.indexOf(c.date)
-                const atMax = !selected && compareSelected.length >= MAX_COMPARE
-                const thumbPhoto = (c.photo_urls as any[])?.[0]
-                const weekNum = arr.length - idx  // T(max) first, T1 last
-                return (
-                  <button
-                    key={c.date}
-                    type="button"
-                    onClick={() => !atMax && toggleCompareSelect(c.date)}
-                    title={atMax ? t2('maxWeeks', { max: MAX_COMPARE }) : fmtDateYear(c.date)}
-                    className={`relative rounded-lg overflow-hidden border-2 transition-all ${
-                      selected
-                        ? 'border-primary shadow-md ring-2 ring-primary/30'
-                        : atMax
-                        ? 'border-gray-200 opacity-40 cursor-not-allowed'
-                        : 'border-gray-200 hover:border-primary/50 cursor-pointer'
-                    }`}
-                  >
-                    {thumbPhoto ? (
-                      <img src={thumbPhoto.url} alt="" className="w-full aspect-square object-cover" />
-                    ) : (
-                      <div className="w-full aspect-square bg-gray-200 flex items-center justify-center">
-                        <span className="text-xs text-gray-400">—</span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-4 pb-1">
-                      <p className="text-[11px] text-white font-bold leading-tight">{t2('weekLabel', { n: weekNum })}</p>
-                      <p className="text-[9px] text-white/60 leading-tight">{fmtDate(c.date)}</p>
+            {[...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date)).map((c, idx, arr) => {
+              const selected = compareSelected.includes(c.date)
+              const selIdx = compareSelected.indexOf(c.date)
+              const atMax = !selected && compareSelected.length >= MAX_COMPARE
+              const thumbPhoto = (c.photo_urls as any[])?.[0]
+              const weekNum = arr.length - idx
+              return (
+                <button key={c.date} type="button" onClick={() => !atMax && toggleCompareSelect(c.date)}
+                  title={atMax ? t2('maxWeeks', { max: MAX_COMPARE }) : fmtDateYear(c.date)}
+                  className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                    selected ? 'border-primary shadow-md ring-2 ring-primary/30'
+                    : atMax ? 'border-gray-200 opacity-40 cursor-not-allowed'
+                    : isDark ? 'border-white/15 hover:border-primary/50 cursor-pointer' : 'border-gray-200 hover:border-primary/50 cursor-pointer'
+                  }`}>
+                  {thumbPhoto
+                    ? <img src={thumbPhoto.url} alt="" className="w-full aspect-square object-cover" />
+                    : <div className={`w-full aspect-square flex items-center justify-center ${isDark ? 'bg-white/8' : 'bg-gray-200'}`}><span className="text-xs text-gray-400">—</span></div>
+                  }
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 pt-4 pb-1">
+                    <p className="text-[11px] text-white font-bold leading-tight">{t2('weekLabel', { n: weekNum })}</p>
+                    <p className="text-[9px] text-white/60 leading-tight">{fmtDate(c.date)}</p>
+                  </div>
+                  {selected && (
+                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center shadow-md">
+                      {selIdx + 1}
                     </div>
-                    {selected && (
-                      <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center shadow-md">
-                        {selIdx + 1}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+                  )}
+                </button>
+              )
+            })}
           </div>
 
-          {/* Comparison result */}
           {compareCheckins.length >= 2 && (
-            <div className="border-t border-gray-200 pt-4 space-y-5">
+            <div className={`border-t pt-4 space-y-5 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {comparePositions.map((position, posIdx) => {
                 const sortedForNum = [...checkinsWithPhotos].sort((a, b) => b.date.localeCompare(a.date))
                 return (
                   <div key={position}>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide capitalize">{position}</p>
-                      <button
-                        type="button"
-                        onClick={() => setCompareLightbox({ positionIdx: posIdx })}
-                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                      >
-                        <ZoomIn size={13} />
-                        Proširi
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide capitalize">{position}</p>
+                      <button type="button" onClick={() => setCompareLightbox({ positionIdx: posIdx })}
+                        className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                        <ZoomIn size={13} /> Proširi
                       </button>
                     </div>
-                    {/* Horizontally scrollable row of photos */}
                     <div className="flex gap-3 overflow-x-auto pb-1">
                       {compareCheckins.map((checkin) => {
                         const photo = (checkin.photo_urls as any[])?.find((p: any) => p.position === position)
@@ -387,21 +334,13 @@ export default function CheckinHistory({ clientId }: Props) {
                         return (
                           <div key={checkin.date} className="flex-none w-40">
                             <div className="text-center mb-1">
-                              <p className="text-xs font-bold text-gray-800">{t2('weekLabel', { n: weekNum })}</p>
+                              <p className={`text-xs font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{t2('weekLabel', { n: weekNum })}</p>
                               <p className="text-[10px] text-gray-400">{fmtDate(checkin.date)}</p>
                             </div>
-                            {photo ? (
-                              <img
-                                src={photo.url}
-                                alt={position}
-                                className="w-full aspect-[3/4] object-cover rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity"
-                                onClick={() => setCompareLightbox({ positionIdx: posIdx })}
-                              />
-                            ) : (
-                              <div className="w-full aspect-[3/4] bg-gray-100 rounded-lg border flex items-center justify-center">
-                                <p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p>
-                              </div>
-                            )}
+                            {photo
+                              ? <img src={photo.url} alt={position} className={`w-full aspect-[3/4] object-cover rounded-lg border cursor-zoom-in hover:opacity-90 transition-opacity ${isDark ? 'border-white/10' : 'border-gray-200'}`} onClick={() => setCompareLightbox({ positionIdx: posIdx })} />
+                              : <div className={`w-full aspect-[3/4] rounded-lg border flex items-center justify-center ${isDark ? 'bg-white/[0.03] border-white/8' : 'bg-gray-100 border-gray-200'}`}><p className="text-xs text-gray-400 text-center px-2">Nema {position} foto</p></div>
+                            }
                           </div>
                         )
                       })}
@@ -411,129 +350,138 @@ export default function CheckinHistory({ clientId }: Props) {
               })}
             </div>
           )}
-
           {compareCheckins.length === 1 && (
             <p className="text-xs text-center text-gray-400 pt-2">{t2('selectAnotherWeek')}</p>
           )}
         </div>
       )}
 
+      {/* Check-in cards */}
       {(() => {
-        // Assign week numbers based on chronological order (oldest = week 1)
         const chronological = [...checkins].sort((a, b) => a.date.localeCompare(b.date))
         const weekNumberMap = Object.fromEntries(chronological.map((c, i) => [c.date, i + 1]))
-        const sorted = [...checkins].sort((a, b) =>
-          sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date)
-        )
+        const sorted = [...checkins].sort((a, b) => sortDesc ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date))
         return sorted.map(c => {
-        const weekNum = weekNumberMap[c.date]
-        const { start: weekStart, end: weekEnd } = getWeekBounds(c.date, checkinDay)
-        const isOpen = expanded === weekEnd
-        const photos = (c.photo_urls as any[]) || []
-        const dailyAvgs = getDailyAvgs(weekStart, weekEnd)
+          const weekNum = weekNumberMap[c.date]
+          const { start: weekStart, end: weekEnd } = getWeekBounds(c.date, checkinDay)
+          const isOpen = expanded === weekEnd
+          const photos = (c.photo_urls as any[]) || []
+          const dailyAvgs = getDailyAvgs(weekStart, weekEnd)
 
-        return (
-          <Card key={weekEnd} className="overflow-hidden">
-            <button
-              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-              onClick={() => setExpanded(isOpen ? null : weekEnd)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold">{t2('weekLabel', { n: weekNum })}</p>
-                  <p className="text-xs text-gray-400">
-                    {fmtDate(weekStart)} — {fmtDateYear(weekEnd)}
-                    {photos.length > 0 && ` · ${photos.length} ${t('foto')}`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {weeklyParams.slice(0, 2).map(p => {
-                  const display = formatCheckinVal(c.values?.[p.id], p.type)
-                  if (!display) return null
-                  return (
-                    <span key={p.id} className="hidden sm:block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                      {p.name}: {display}{p.type !== 'boolean' && p.unit ? ` ${p.unit}` : ''}
-                    </span>
-                  )
-                })}
-                {isOpen ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
-              </div>
-            </button>
-
-            {isOpen && (
-              <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-4">
-
-                {/* Tjedni parametri + dnevni prosjeci u jednoj tablici */}
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('weekInNumbers')}</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {weeklyParams.map(p => {
-                      const raw = c.values?.[p.id]
-                      const display = formatCheckinVal(raw, p.type)
-                      const isBoolean = p.type === 'boolean'
-                      const boolYes = isBoolean && (raw === true || raw === 'true')
-                      return (
-                        <div key={p.id} className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-center min-w-[72px]">
-                          <p className="text-xs text-gray-400">{p.name}</p>
-                          <p className={`font-bold text-sm mt-0.5 ${
-                            !display ? 'text-gray-300' :
-                            isBoolean ? (boolYes ? 'text-emerald-600' : 'text-red-500') :
-                            'text-gray-800'
-                          }`}>
-                            {display ? `${display}${!isBoolean && p.unit ? ` ${p.unit}` : ''}` : '—'}
-                          </p>
-                        </div>
-                      )
-                    })}
-                    {dailyAvgs && dailyParams.map(p => {
-                      const a = dailyAvgs[p.id]
-                      if (!a) return null
-                      return (
-                        <div key={p.id} className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-center min-w-[72px]">
-                          <p className="text-xs text-blue-400">{p.name} <span className="text-blue-300">{t2('avgSuffix')}</span></p>
-                          <p className="font-bold text-sm mt-0.5 text-blue-700">
-                            {a}{p.unit ? ` ${p.unit}` : ''}
-                          </p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Fotografije */}
-                {photos.length > 0 && (
+          return (
+            <div key={weekEnd} className={`rounded-xl border overflow-hidden transition-all ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
+              {/* Card header */}
+              <button className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}
+                onClick={() => setExpanded(isOpen ? null : weekEnd)}>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('photosLabel')}</p>
-                    <div className="flex gap-2">
-                      {photos.map((photo: any, i: number) => (
-                        <div key={i} className="flex-1 min-w-0">
-                          <img
-                            src={photo.url}
-                            alt={photo.position}
-                            className="w-full h-48 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => setLightbox(photo.url)}
-                          />
-                          <p className="text-xs text-center text-gray-400 mt-1 capitalize">{photo.position}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : ''}`}>{t2('weekLabel', { n: weekNum })}</p>
+                    <p className="text-xs text-gray-400">
+                      {fmtDate(weekStart)} — {fmtDateYear(weekEnd)}
+                      {photos.length > 0 && <span className="ml-1">· {photos.length} {t('foto')}</span>}
+                    </p>
                   </div>
-                )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {weeklyParams.slice(0, 2).map(p => {
+                    const display = formatCheckinVal(c.values?.[p.id], p.type)
+                    if (!display) return null
+                    return (
+                      <span key={p.id} className={`hidden sm:block text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-white/8 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                        {p.name}: {display}{p.type !== 'boolean' && p.unit ? ` ${p.unit}` : ''}
+                      </span>
+                    )
+                  })}
+                  {isOpen ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+                </div>
+              </button>
 
-                {/* Komentar trenera */}
-                {c.trainer_comment && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <p className="text-xs text-blue-500 font-medium mb-1">💬 {t('trainerComment')}</p>
-                    <p className="text-sm text-blue-800">{c.trainer_comment}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        )
-      })})()}
+              {/* Expanded content */}
+              {isOpen && (
+                <div className={`border-t px-4 pb-4 pt-3 space-y-4 ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+
+                  {/* Stat chips */}
+                  {(weeklyParams.length > 0 || dailyAvgs) && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('weekInNumbers')}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {weeklyParams.map(p => {
+                          const raw = c.values?.[p.id]
+                          const display = formatCheckinVal(raw, p.type)
+                          const isBoolean = p.type === 'boolean'
+                          const boolYes = isBoolean && (raw === true || raw === 'true')
+                          return (
+                            <div key={p.id} className={`rounded-lg px-3 py-2 text-center min-w-[72px] border ${isDark ? 'bg-white/[0.04] border-white/8' : 'bg-gray-50 border-gray-100'}`}>
+                              <p className="text-[11px] text-gray-400">{p.name}</p>
+                              <p className={`font-bold text-sm mt-0.5 ${
+                                !display ? (isDark ? 'text-white/20' : 'text-gray-300') :
+                                isBoolean ? (boolYes ? 'text-emerald-500' : 'text-red-500') :
+                                isDark ? 'text-gray-100' : 'text-gray-800'
+                              }`}>
+                                {display ? `${display}${!isBoolean && p.unit ? ` ${p.unit}` : ''}` : '—'}
+                              </p>
+                            </div>
+                          )
+                        })}
+                        {dailyAvgs && dailyParams.map(p => {
+                          const a = dailyAvgs[p.id]
+                          if (!a) return null
+                          return (
+                            <div key={p.id} className={`rounded-lg px-3 py-2 text-center min-w-[72px] border ${isDark ? 'bg-sky-500/10 border-sky-500/20' : 'bg-blue-50 border-blue-100'}`}>
+                              <p className={`text-[11px] ${isDark ? 'text-sky-400' : 'text-blue-400'}`}>
+                                {p.name} <span className={isDark ? 'text-sky-500/60' : 'text-blue-300'}>{t2('avgSuffix')}</span>
+                              </p>
+                              <p className={`font-bold text-sm mt-0.5 ${isDark ? 'text-sky-300' : 'text-blue-700'}`}>
+                                {a}{p.unit ? ` ${p.unit}` : ''}
+                              </p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Photos */}
+                  {photos.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t('photosLabel')}</p>
+                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(photos.length, 3)}, 1fr)` }}>
+                        {photos.map((photo: any, i: number) => (
+                          <div key={i} className="relative group overflow-hidden rounded-lg cursor-pointer" onClick={() => setLightbox(photo.url)}>
+                            <img src={photo.url} alt={photo.position}
+                              className="w-full h-44 object-cover transition-transform duration-200 group-hover:scale-[1.02]" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
+                              <p className="text-[11px] text-white/90 capitalize font-medium">{photo.position}</p>
+                            </div>
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="w-7 h-7 rounded-full bg-black/50 flex items-center justify-center">
+                                <ZoomIn size={13} className="text-white" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trainer comment */}
+                  {c.trainer_comment && (
+                    <div className={`rounded-lg px-3 py-2.5 border flex gap-2.5 ${isDark ? 'bg-white/[0.04] border-white/8' : 'bg-gray-50 border-gray-100'}`}>
+                      <MessageSquare size={14} className="text-gray-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-[11px] text-gray-400 font-medium mb-0.5">{t('trainerComment')}</p>
+                        <p className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{c.trainer_comment}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })
+      })()}
     </div>
   )
 }
