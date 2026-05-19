@@ -174,7 +174,7 @@ export default function WeeklyReportDetailDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base leading-snug">
               {t('title')} · {fmtDate(report.range_start)} — {fmtDate(report.range_end)}
             </DialogTitle>
             <DialogDescription>
@@ -187,31 +187,22 @@ export default function WeeklyReportDetailDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Action bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <div className="flex items-start gap-2 flex-1 min-w-0">
+          {/* Action bar — stacks vertically on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-center gap-2">
               {visible ? (
-                <Eye size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                <Eye size={16} className="text-emerald-600 shrink-0" />
               ) : (
-                <EyeOff size={18} className="text-gray-400 shrink-0 mt-0.5" />
+                <EyeOff size={16} className="text-gray-400 shrink-0" />
               )}
               <div className="text-xs">
                 <p className="font-semibold text-gray-800">{t('toggleVisibility')}</p>
-                <p className="text-gray-600">
-                  {visible ? t('toggleVisibilityOn') : t('toggleVisibilityOff')}
-                </p>
+                <p className="text-gray-500">{visible ? t('toggleVisibilityOn') : t('toggleVisibilityOff')}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleExportPdf}
-                disabled={exportingPdf}
-              >
-                {exportingPdf
-                  ? <Loader2 className="animate-spin mr-1" size={14} />
-                  : <FileDown size={14} className="mr-1" />}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={handleExportPdf} disabled={exportingPdf} className="flex-1 sm:flex-none">
+                {exportingPdf ? <Loader2 className="animate-spin mr-1" size={14} /> : <FileDown size={14} className="mr-1" />}
                 PDF
               </Button>
               <Button
@@ -219,13 +210,14 @@ export default function WeeklyReportDetailDialog({
                 variant={visible ? 'outline' : 'default'}
                 onClick={handleToggleVisibility}
                 disabled={updatingVisibility}
+                className="flex-1 sm:flex-none"
               >
                 {updatingVisibility ? <Loader2 className="animate-spin" size={14} /> : (visible ? tList('hiddenFromClient') : tList('visibleToClient'))}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
+                className="flex-1 sm:flex-none text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
                 onClick={() => setConfirmDelete(true)}
               >
                 <Trash2 size={14} className="mr-1" />
