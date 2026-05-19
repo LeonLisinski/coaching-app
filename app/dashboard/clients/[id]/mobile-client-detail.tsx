@@ -7,6 +7,7 @@ import {
   Phone, AlertTriangle, CheckCircle2, Clock, Monitor,
   FileText, Eye, EyeOff, ChevronRight, Loader2,
 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import dynamic from 'next/dynamic'
@@ -14,6 +15,10 @@ import type { SavedReport } from '@/app/dashboard/clients/[id]/components/weekly
 
 const WeeklyReportDetailDialog = dynamic(
   () => import('@/app/dashboard/clients/[id]/components/weekly-report-detail-dialog'),
+  { ssr: false, loading: () => null }
+)
+const WeeklyReportCreateDialog = dynamic(
+  () => import('@/app/dashboard/clients/[id]/components/weekly-report-create-dialog'),
   { ssr: false, loading: () => null }
 )
 
@@ -91,6 +96,7 @@ export default function MobileClientDetail() {
   const [reportsLoading, setReportsLoading] = useState(true)
   const [selectedReport, setSelectedReport] = useState<SavedReport | null>(null)
   const [reportDetailOpen, setReportDetailOpen] = useState(false)
+  const [reportCreateOpen, setReportCreateOpen] = useState(false)
 
   useEffect(() => { fetchData() }, [id])
 
@@ -323,6 +329,13 @@ export default function MobileClientDetail() {
             <FileText size={14} style={{ color: isDark ? '#60a5fa' : '#3b82f6' }} />
           </div>
           <p className="text-sm font-bold flex-1" style={{ color: textPrimary }}>{tDetail('mobileReportsTitle')}</p>
+          <button
+            onClick={() => setReportCreateOpen(true)}
+            className="w-7 h-7 rounded-lg flex items-center justify-center active:opacity-70 transition-opacity"
+            style={{ backgroundColor: isDark ? 'rgba(96,165,250,0.18)' : '#dbeafe' }}
+          >
+            <Plus size={14} style={{ color: isDark ? '#60a5fa' : '#3b82f6' }} />
+          </button>
           {reports.length > 0 && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
               style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6', color: textSecondary }}>
@@ -422,6 +435,14 @@ export default function MobileClientDetail() {
           onDeleted={() => { setReportDetailOpen(false); fetchData() }}
         />
       )}
+
+      <WeeklyReportCreateDialog
+        open={reportCreateOpen}
+        onOpenChange={setReportCreateOpen}
+        clientId={client.id}
+        clientName={client.full_name}
+        onSaved={() => { setReportCreateOpen(false); fetchData() }}
+      />
 
       {/* Primary action */}
       <button
