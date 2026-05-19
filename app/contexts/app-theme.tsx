@@ -28,11 +28,14 @@ const AppThemeContext = createContext<AppThemeCtx>({
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [accent, setAccentState] = useState<AccentColor>('violet')
+  const [mode, setModeState] = useState<AppMode>('light')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     const a = localStorage.getItem('app-accent') as AccentColor | null
     if (a) setAccentState(a)
+    const m = localStorage.getItem('app-mode') as AppMode | null
+    if (m === 'dark' || m === 'light') setModeState(m)
     setMounted(true)
   }, [])
 
@@ -45,13 +48,23 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     if (meta) meta.setAttribute('content', hex)
   }, [accent, mounted])
 
+  useEffect(() => {
+    if (!mounted) return
+    if (mode === 'dark') document.documentElement.classList.add('dark')
+    else document.documentElement.classList.remove('dark')
+  }, [mode, mounted])
+
   const setAccent = useCallback((a: AccentColor) => {
     setAccentState(a); localStorage.setItem('app-accent', a)
   }, [])
 
+  const setMode = useCallback((m: AppMode) => {
+    setModeState(m); localStorage.setItem('app-mode', m)
+  }, [])
+
   const ctxValue = useMemo(
-    () => ({ accent, mode: 'light' as AppMode, setAccent, setMode: () => {} }),
-    [accent, setAccent],
+    () => ({ accent, mode, setAccent, setMode }),
+    [accent, mode, setAccent, setMode],
   )
 
   return (

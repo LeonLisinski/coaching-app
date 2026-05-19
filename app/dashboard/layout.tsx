@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import LocaleSwitcher from '@/components/locale-switcher'
+import ThemeSwitcher from '@/components/theme-switcher'
 import SettingsDialog from '@/app/components/settings-dialog'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import GlobalSearch from '@/app/components/global-search'
@@ -638,6 +639,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <ThemeSwitcher />
             <LocaleSwitcher />
             <button
               type="button"

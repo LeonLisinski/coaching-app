@@ -67,6 +67,11 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="UnitLift" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('app-mode');if(m==='dark')document.documentElement.classList.add('dark');var a=localStorage.getItem('app-accent');if(a)document.documentElement.setAttribute('data-accent',a);}catch(e){}})();`,
+          }}
+        />
       </head>
       <body
         className={`${roboto.variable} ${robotoMono.variable} font-sans antialiased`}

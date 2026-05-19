@@ -123,6 +123,8 @@
     "delete": "Delete",
     "add": "Add",
     "close": "Close",
+    "theme_switch_to_dark": "Dark theme",
+    "theme_switch_to_light": "Light theme",
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No",

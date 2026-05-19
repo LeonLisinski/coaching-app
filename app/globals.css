@@ -341,6 +341,13 @@ html, body {
       #f9fafb 100px
     ) !important;
   }
+  .dark .mobile-tinted-bg {
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--app-accent) 12%, oklch(0.117 0.025 264)) 0px,
+      oklch(0.117 0.025 264) 100px
+    ) !important;
+  }
 }
 
 @keyframes item-added {

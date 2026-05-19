@@ -123,6 +123,8 @@
     "delete": "Obriši",
     "add": "Dodaj",
     "close": "Zatvori",
+    "theme_switch_to_dark": "Tamna tema",
+    "theme_switch_to_light": "Svijetla tema",
     "confirm": "Potvrdi",
     "yes": "Da",
     "no": "Ne",
