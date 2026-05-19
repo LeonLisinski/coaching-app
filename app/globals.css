@@ -203,60 +203,174 @@ html, body {
 ───────────────────────────────────────────────── */
 .dark {
   color-scheme: dark;
-  --background: oklch(0.117 0.025 264);
-  --foreground: oklch(0.975 0.005 264);
-  --card: oklch(0.165 0.025 264);
-  --card-foreground: oklch(0.975 0.005 264);
-  --popover: oklch(0.165 0.025 264);
-  --popover-foreground: oklch(0.975 0.005 264);
+  /* Page background — deepest level */
+  --background: oklch(0.085 0.012 264);
+  --foreground: oklch(0.965 0.005 264);
+  /* Card / panel — clearly lighter than background for visible elevation */
+  --card: oklch(0.195 0.018 264);
+  --card-foreground: oklch(0.965 0.005 264);
+  --popover: oklch(0.215 0.020 264);
+  --popover-foreground: oklch(0.965 0.005 264);
   --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.22 0.03 264);
-  --secondary-foreground: oklch(0.975 0.005 264);
-  --muted: oklch(0.22 0.03 264);
-  --muted-foreground: oklch(0.65 0.02 264);
-  --accent: oklch(0.22 0.03 264);
-  --accent-foreground: oklch(0.975 0.005 264);
+  --secondary: oklch(0.225 0.022 264);
+  --secondary-foreground: oklch(0.965 0.005 264);
+  --muted: oklch(0.225 0.022 264);
+  --muted-foreground: oklch(0.68 0.018 264);
+  --accent: oklch(0.235 0.024 264);
+  --accent-foreground: oklch(0.965 0.005 264);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 12%);
   --sidebar: oklch(0.13 0.02 264);
   --sidebar-foreground: oklch(0.975 0.005 264);
   --sidebar-border: oklch(1 0 0 / 6%);
 }
 
-/* Dark mode: override static Tailwind color classes */
-.dark .bg-white                  { background-color: oklch(0.165 0.025 264) !important; }
-.dark .bg-gray-50                { background-color: oklch(0.137 0.022 264) !important; }
-.dark .bg-gray-100               { background-color: oklch(0.195 0.025 264) !important; }
-.dark .bg-gray-200               { background-color: oklch(0.23 0.025 264) !important; }
+/* ── Dark mode: solid backgrounds (whites + gray ladder) ─────────────── */
+.dark .bg-white                  { background-color: oklch(0.195 0.018 264) !important; }
+.dark .bg-gray-50                { background-color: oklch(0.155 0.015 264) !important; }
+.dark .bg-gray-100               { background-color: oklch(0.225 0.020 264) !important; }
+.dark .bg-gray-200               { background-color: oklch(0.27 0.022 264) !important; }
+.dark .bg-gray-300               { background-color: oklch(0.32 0.024 264) !important; }
+.dark .bg-slate-50               { background-color: oklch(0.155 0.015 264) !important; }
+.dark .bg-slate-100              { background-color: oklch(0.225 0.020 264) !important; }
+.dark .bg-neutral-50,
+.dark .bg-zinc-50,
+.dark .bg-stone-50               { background-color: oklch(0.155 0.015 264) !important; }
 
-.dark .border-gray-100           { border-color: oklch(1 0 0 / 7%) !important; }
-.dark .border-gray-200           { border-color: oklch(1 0 0 / 10%) !important; }
+/* Translucent whites (overlays / modals) */
+.dark .bg-white\/50              { background-color: oklch(0.195 0.018 264 / 0.5) !important; }
+.dark .bg-white\/80              { background-color: oklch(0.195 0.018 264 / 0.85) !important; }
+.dark .bg-white\/90              { background-color: oklch(0.195 0.018 264 / 0.92) !important; }
+.dark .bg-gray-50\/60            { background-color: oklch(0.155 0.015 264 / 0.6) !important; }
 
+/* Hovers used across the app */
+.dark .hover\:bg-gray-50:hover   { background-color: oklch(0.235 0.020 264) !important; }
+.dark .hover\:bg-gray-100:hover  { background-color: oklch(0.265 0.022 264) !important; }
+.dark .hover\:bg-white:hover     { background-color: oklch(0.235 0.020 264) !important; }
+
+/* Striped table rows / even rows */
+.dark .even\:bg-gray-50:nth-child(even),
+.dark .odd\:bg-white:nth-child(odd) { background-color: inherit !important; }
+
+/* ── Dark mode: borders ──────────────────────────────────────────────── */
+.dark .border-gray-50            { border-color: oklch(1 0 0 / 7%) !important; }
+.dark .border-gray-100           { border-color: oklch(1 0 0 / 10%) !important; }
+.dark .border-gray-200           { border-color: oklch(1 0 0 / 14%) !important; }
+.dark .border-gray-300           { border-color: oklch(1 0 0 / 18%) !important; }
+.dark .border-slate-100,
+.dark .border-slate-200          { border-color: oklch(1 0 0 / 12%) !important; }
+
+/* Divide-y between rows */
+.dark .divide-gray-100 > * + *   { border-color: oklch(1 0 0 / 8%) !important; }
+.dark .divide-gray-200 > * + *   { border-color: oklch(1 0 0 / 12%) !important; }
+
+/* ── Dark mode: text greys ───────────────────────────────────────────── */
 .dark .text-gray-900             { color: oklch(0.96 0.008 264) !important; }
-.dark .text-gray-800             { color: oklch(0.90 0.010 264) !important; }
-.dark .text-gray-700             { color: oklch(0.83 0.012 264) !important; }
-.dark .text-gray-600             { color: oklch(0.74 0.014 264) !important; }
-.dark .text-gray-500             { color: oklch(0.61 0.015 264) !important; }
-.dark .text-gray-400             { color: oklch(0.52 0.014 264) !important; }
+.dark .text-gray-800             { color: oklch(0.92 0.010 264) !important; }
+.dark .text-gray-700             { color: oklch(0.85 0.012 264) !important; }
+.dark .text-gray-600             { color: oklch(0.78 0.014 264) !important; }
+.dark .text-gray-500             { color: oklch(0.66 0.015 264) !important; }
+.dark .text-gray-400             { color: oklch(0.55 0.014 264) !important; }
+.dark .text-gray-300             { color: oklch(0.45 0.012 264) !important; }
+.dark .text-slate-700,
+.dark .text-slate-800,
+.dark .text-slate-900            { color: oklch(0.92 0.010 264) !important; }
+.dark .text-black                { color: oklch(0.96 0.008 264) !important; }
 
-/* Card / panel backgrounds */
-.dark .rounded-xl.border,
-.dark [class*="rounded-xl"][class*="border"],
-.dark [class*="rounded-2xl"][class*="border"] {
-  background-color: oklch(0.165 0.025 264);
+/* Placeholder text contrast */
+.dark .placeholder-gray-400::placeholder,
+.dark .placeholder-gray-500::placeholder { color: oklch(0.5 0.014 264) !important; }
+
+/* ── Dark mode: panel / card autodetection (rounded + border combo) ──── */
+.dark [class*="rounded-xl"][class*="border"]:not([class*="bg-"]),
+.dark [class*="rounded-2xl"][class*="border"]:not([class*="bg-"]),
+.dark [class*="rounded-lg"][class*="border"]:not([class*="bg-"]) {
+  background-color: oklch(0.195 0.018 264);
 }
 
-/* Inputs */
-.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-.dark textarea,
+/* ── Dark mode: inputs ───────────────────────────────────────────────── */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]),
+.dark textarea:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-rose"]):not([class*="bg-orange"]):not([class*="bg-blue"]):not([class*="bg-violet"]):not([class*="bg-purple"]),
 .dark select {
-  background-color: oklch(0.22 0.025 264) !important;
+  background-color: oklch(0.235 0.022 264) !important;
   color: oklch(0.95 0.008 264) !important;
-  border-color: oklch(1 0 0 / 12%) !important;
+  border-color: oklch(1 0 0 / 14%) !important;
 }
 .dark input::placeholder,
-.dark textarea::placeholder { color: oklch(0.5 0.015 264) !important; }
+.dark textarea::placeholder { color: oklch(0.52 0.015 264) !important; }
+
+/* ── Dark mode: tinted accent backgrounds (warmup amber, recipe orange, plan colors etc) ── */
+/* Pattern: keep the hue, but base it on dark surface — clearly readable, not blinding */
+.dark .bg-emerald-50  { background-color: color-mix(in srgb, #10b981 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-emerald-100 { background-color: color-mix(in srgb, #10b981 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-green-50    { background-color: color-mix(in srgb, #22c55e 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-green-100   { background-color: color-mix(in srgb, #22c55e 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-amber-50    { background-color: color-mix(in srgb, #f59e0b 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-amber-100   { background-color: color-mix(in srgb, #f59e0b 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-yellow-50   { background-color: color-mix(in srgb, #eab308 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-orange-50   { background-color: color-mix(in srgb, #f97316 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-orange-100  { background-color: color-mix(in srgb, #f97316 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-rose-50     { background-color: color-mix(in srgb, #f43f5e 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-rose-100    { background-color: color-mix(in srgb, #f43f5e 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-pink-50     { background-color: color-mix(in srgb, #ec4899 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-red-50      { background-color: color-mix(in srgb, #ef4444 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-blue-50     { background-color: color-mix(in srgb, #3b82f6 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-blue-100    { background-color: color-mix(in srgb, #3b82f6 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-sky-50      { background-color: color-mix(in srgb, #0ea5e9 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-indigo-50   { background-color: color-mix(in srgb, #6366f1 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-violet-50   { background-color: color-mix(in srgb, #8b5cf6 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-violet-100  { background-color: color-mix(in srgb, #8b5cf6 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-purple-50   { background-color: color-mix(in srgb, #a855f7 14%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-purple-100  { background-color: color-mix(in srgb, #a855f7 22%, oklch(0.195 0.018 264)) !important; }
+.dark .bg-teal-50     { background-color: color-mix(in srgb, #14b8a6 14%, oklch(0.195 0.018 264)) !important; }
+
+/* Light gradient buckets shifted to dark surfaces with a slight hue tint */
+.dark .from-white     { --tw-gradient-from: oklch(0.195 0.018 264) var(--tw-gradient-from-position) !important; }
+.dark .to-white       { --tw-gradient-to: oklch(0.195 0.018 264) var(--tw-gradient-to-position) !important; }
+.dark .from-gray-50   { --tw-gradient-from: oklch(0.155 0.015 264) var(--tw-gradient-from-position) !important; }
+.dark .to-gray-50     { --tw-gradient-to: oklch(0.155 0.015 264) var(--tw-gradient-to-position) !important; }
+.dark .from-gray-100  { --tw-gradient-from: oklch(0.225 0.020 264) var(--tw-gradient-from-position) !important; }
+.dark .to-gray-100    { --tw-gradient-to: oklch(0.225 0.020 264) var(--tw-gradient-to-position) !important; }
+
+/* ── Dark mode: tinted accent BORDERS (matched to backgrounds) ───────── */
+.dark .border-emerald-100,
+.dark .border-emerald-200 { border-color: color-mix(in srgb, #10b981 35%, transparent) !important; }
+.dark .border-green-100,
+.dark .border-green-200   { border-color: color-mix(in srgb, #22c55e 35%, transparent) !important; }
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-300   { border-color: color-mix(in srgb, #f59e0b 40%, transparent) !important; }
+.dark .border-orange-100,
+.dark .border-orange-200  { border-color: color-mix(in srgb, #f97316 38%, transparent) !important; }
+.dark .border-rose-100,
+.dark .border-rose-200    { border-color: color-mix(in srgb, #f43f5e 38%, transparent) !important; }
+.dark .border-blue-100,
+.dark .border-blue-200    { border-color: color-mix(in srgb, #3b82f6 38%, transparent) !important; }
+.dark .border-violet-100,
+.dark .border-violet-200  { border-color: color-mix(in srgb, #8b5cf6 38%, transparent) !important; }
+.dark .border-purple-100,
+.dark .border-purple-200  { border-color: color-mix(in srgb, #a855f7 38%, transparent) !important; }
+.dark .border-sky-100,
+.dark .border-sky-200     { border-color: color-mix(in srgb, #0ea5e9 38%, transparent) !important; }
+
+/* ── Dark mode: light-accent text colors stay readable (already mostly OK because they're saturated) — bump 700-shade text on tinted bg ── */
+.dark .text-emerald-700 { color: oklch(0.78 0.16 160) !important; }
+.dark .text-emerald-600 { color: oklch(0.72 0.17 160) !important; }
+.dark .text-amber-700   { color: oklch(0.80 0.16 75) !important; }
+.dark .text-amber-600   { color: oklch(0.78 0.18 70) !important; }
+.dark .text-orange-700  { color: oklch(0.78 0.18 50) !important; }
+.dark .text-rose-700    { color: oklch(0.76 0.18 15) !important; }
+.dark .text-blue-700    { color: oklch(0.78 0.16 240) !important; }
+.dark .text-violet-700  { color: oklch(0.78 0.18 295) !important; }
+.dark .text-purple-700  { color: oklch(0.78 0.18 305) !important; }
+
+/* Shadow on dark surfaces — soften / invert */
+.dark .shadow-sm   { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.35) !important; }
+.dark .shadow,
+.dark .shadow-md   { box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.45) !important; }
+.dark .shadow-lg   { box-shadow: 0 8px 24px -4px rgb(0 0 0 / 0.55) !important; }
+.dark .shadow-xl   { box-shadow: 0 14px 36px -8px rgb(0 0 0 / 0.65) !important; }
 
 /* ─────────────────────────────────────────────────
    UTILITY CLASSES using CSS variables
@@ -344,8 +458,8 @@ html, body {
   .dark .mobile-tinted-bg {
     background: linear-gradient(
       to bottom,
-      color-mix(in srgb, var(--app-accent) 12%, oklch(0.117 0.025 264)) 0px,
-      oklch(0.117 0.025 264) 100px
+      color-mix(in srgb, var(--app-accent) 14%, oklch(0.085 0.012 264)) 0px,
+      oklch(0.085 0.012 264) 100px
     ) !important;
   }
 }
