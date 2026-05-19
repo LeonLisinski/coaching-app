@@ -20,8 +20,8 @@ type Props = {
 export default function DashboardRevenueCharts({
   monthlyRevenue, accentHex, isDark, progressPercent, paidByStart, totalMonth, latePayments,
 }: Props) {
-  const t  = useTranslations('dashboard.overview')
-  const t2 = useTranslations('dashboard')
+  const t  = useTranslations('dashboard')
+  const t2 = useTranslations('dashboard2')
   const locale = useLocale()
   const now = new Date()
   const pieData = [{ value: progressPercent }, { value: Math.max(0, 100 - progressPercent) }]
