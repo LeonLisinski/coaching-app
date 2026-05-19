@@ -532,53 +532,71 @@ export default function ProfilePage() {
       </div>{/* end grid */}
 
       {/* ── SECTION: Postavke ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-5">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-6">
         <SectionHeader title={tProfile('displaySettings')} />
 
         {/* Nutrition fields */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('nutritionFields')}</p>
-          <p className="text-xs text-gray-400 mb-3">{tProfile('nutritionFieldsHint')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <p className="text-xs font-semibold text-gray-700">{tProfile('nutritionFields')}</p>
+            <p className="text-[11px] text-gray-400">{tProfile('nutritionFieldsHint')}</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {NUTRITION_FIELD_OPTIONS.map(opt => {
               const active = nutritionFields.includes(opt.key)
               return (
-                <button key={opt.key} type="button" onClick={() => toggleField(opt.key, nutritionFields, setNutritionFields)}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all"
-                  style={active ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' } : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
-                  <div>
-                    <p className="text-sm font-medium">{tProfile(`nutField_${opt.key}_label` as any)}</p>
-                    <p className="text-xs opacity-60">{opt.unit}</p>
-                  </div>
-                  <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0"
-                    style={active ? { backgroundColor: 'white', borderColor: 'white' } : { borderColor: '#d1d5db' }}>
-                    {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke={accentHex} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  </div>
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => toggleField(opt.key, nutritionFields, setNutritionFields)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                    active
+                      ? 'text-white border-transparent'
+                      : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                  }`}
+                  style={active ? { backgroundColor: accentHex, borderColor: accentHex } : undefined}
+                >
+                  {active && (
+                    <svg viewBox="0 0 10 10" fill="none" className="w-2.5 h-2.5 shrink-0">
+                      <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  {tProfile(`nutField_${opt.key}_label` as any)}
+                  <span className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{opt.unit}</span>
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* Exercise fields */}
+        {/* Exercise metrics */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('exerciseMetrics')}</p>
-          <p className="text-xs text-gray-400 mb-3">{tProfile('exerciseMetricsHint')}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <p className="text-xs font-semibold text-gray-700">{tProfile('exerciseMetrics')}</p>
+            <p className="text-[11px] text-gray-400">{tProfile('exerciseMetricsHint')}</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {EXERCISE_FIELD_OPTIONS.map(opt => {
               const active = exerciseFields.includes(opt.key)
               return (
-                <button key={opt.key} type="button" onClick={() => toggleField(opt.key, exerciseFields, setExerciseFields)}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-xl border text-left transition-all"
-                  style={active ? { backgroundColor: accentHex, borderColor: accentHex, color: 'white' } : { backgroundColor: 'white', borderColor: '#e5e7eb', color: '#374151' }}>
-                  <div className="min-w-0 pr-2">
-                    <p className="text-sm font-medium">{tProfile(`exField_${opt.key}_label` as any)}</p>
-                    <p className="text-xs truncate opacity-60">{tProfile(`exField_${opt.key}_desc` as any)}</p>
-                  </div>
-                  <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0"
-                    style={active ? { backgroundColor: 'white', borderColor: 'white' } : { borderColor: '#d1d5db' }}>
-                    {active && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke={accentHex} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  </div>
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => toggleField(opt.key, exerciseFields, setExerciseFields)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                    active
+                      ? 'text-white border-transparent'
+                      : 'border-gray-200 text-gray-600 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'
+                  }`}
+                  style={active ? { backgroundColor: accentHex, borderColor: accentHex } : undefined}
+                >
+                  {active && (
+                    <svg viewBox="0 0 10 10" fill="none" className="w-2.5 h-2.5 shrink-0">
+                      <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  <span>{tProfile(`exField_${opt.key}_label` as any)}</span>
+                  {opt.unit && <span className={`text-[10px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{opt.unit}</span>}
                 </button>
               )
             })}
@@ -587,13 +605,13 @@ export default function ProfilePage() {
 
         {/* Workout defaults */}
         <div>
-          <p className="text-xs font-semibold text-gray-700 mb-0.5">{tProfile('exerciseDefaults')}</p>
-          <p className="text-xs text-gray-400 mb-2">
-            {tProfile('exerciseDefaultsHint')}
-          </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="flex items-baseline gap-2 mb-2.5">
+            <p className="text-xs font-semibold text-gray-700">{tProfile('exerciseDefaults')}</p>
+            <p className="text-[11px] text-gray-400">{tProfile('exerciseDefaultsHint')}</p>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">{tProfile('setsLabel')}</label>
+              <label className="text-[11px] font-medium text-gray-500">{tProfile('setsLabel')}</label>
               <input
                 type="number" min="1"
                 value={workoutDefaults.sets}
@@ -602,7 +620,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">{tProfile('repsLabel')}</label>
+              <label className="text-[11px] font-medium text-gray-500">{tProfile('repsLabel')}</label>
               <input
                 type="text"
                 value={workoutDefaults.reps}
@@ -612,7 +630,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">{tProfile('restLabel')}</label>
+              <label className="text-[11px] font-medium text-gray-500">{tProfile('restLabel')}</label>
               <input
                 type="number" min="0"
                 value={workoutDefaults.rest_seconds}
@@ -621,33 +639,30 @@ export default function ProfilePage() {
                 className="w-full h-8 border border-input rounded-md px-3 text-sm"
               />
             </div>
+            {EXERCISE_FIELD_OPTIONS.filter(f => exerciseFields.includes(f.key)).map(f => (
+              <div key={f.key} className="space-y-1">
+                <label className="text-[11px] font-medium text-gray-500">
+                  {tProfile(`exField_${f.key}_label` as any)}{f.unit ? ` (${f.unit})` : ''}
+                </label>
+                <input
+                  type="text"
+                  value={workoutDefaults[f.key as keyof typeof workoutDefaults] as string}
+                  onChange={e => setWorkoutDefaults(prev => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={`${tProfile('defaultValuePrefix')} ${tProfile(`exField_${f.key}_label` as any)}`}
+                  className="w-full h-8 border border-input rounded-md px-3 text-sm"
+                />
+              </div>
+            ))}
           </div>
-
-          {exerciseFields.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {EXERCISE_FIELD_OPTIONS.filter(f => exerciseFields.includes(f.key)).map(f => (
-                <div key={f.key} className="space-y-1">
-                  <label className="text-xs font-medium text-gray-600">{tProfile(`exField_${f.key}_label` as any)} {f.unit ? `(${f.unit})` : ''}</label>
-                  <input
-                    type="text"
-                    value={workoutDefaults[f.key as keyof typeof workoutDefaults] as string}
-                    onChange={e => setWorkoutDefaults(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    placeholder={`${tProfile('defaultValuePrefix')} ${tProfile(`exField_${f.key}_label` as any)}`}
-                    className="w-full h-8 border border-input rounded-md px-3 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
-        <div className="flex items-center gap-3 pt-1">
+        <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
           <button onClick={saveSettings} disabled={savingSettings}
-            className="h-9 px-4 rounded-lg text-white text-sm font-semibold disabled:opacity-60 transition-opacity"
+            className="h-8 px-4 rounded-lg text-white text-sm font-semibold disabled:opacity-60 transition-opacity mt-3"
             style={{ backgroundColor: accentHex }}>
             {savingSettings ? t('savingSettings') : t('saveSettings')}
           </button>
-          {settingsSaved && <span className="flex items-center gap-1 text-sm text-emerald-600"><Check size={13} /> {t('settingsSaved')}</span>}
+          {settingsSaved && <span className="flex items-center gap-1 text-xs text-emerald-600 mt-3"><Check size={12} /> {t('settingsSaved')}</span>}
         </div>
       </div>
 
