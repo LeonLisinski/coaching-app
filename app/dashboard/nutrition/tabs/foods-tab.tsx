@@ -201,7 +201,7 @@ export default function FoodsTab({
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-orange-50/60 rounded-xl p-3 space-y-3 border border-orange-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-orange-50/60 border-orange-100'}`}>
           <div>
             <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('categoryHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
@@ -319,7 +319,7 @@ export default function FoodsTab({
                       </div>
                     </div>
 
-                    <span className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded-full border border-orange-100 shrink-0 font-medium">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full border shrink-0 font-medium ${isDark ? 'bg-orange-900/30 text-orange-400 border-orange-800/40' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                       {food.category}
                     </span>
 

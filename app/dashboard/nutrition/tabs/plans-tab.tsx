@@ -218,7 +218,7 @@ export default function PlansTab({ activeType, refreshKey }: Props) {
 
       {/* Filter panel */}
       {showFilters && (
-        <div className="bg-purple-50/60 rounded-xl p-3 space-y-3 border border-purple-100">
+        <div className={`rounded-xl p-3 space-y-3 border ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-purple-50/60 border-purple-100'}`}>
           <div>
             <p className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{tTab('sortByHeader')}</p>
             <div className="flex gap-1.5 flex-wrap">
