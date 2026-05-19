@@ -273,7 +273,10 @@ export default function ClientsCheckinTab() {
             return (
               <div
                 key={client.id}
-                onClick={() => router.push(`/dashboard/checkins/${client.id}`)}
+                onClick={() => {
+                  try { sessionStorage.setItem('checkin_nav_list', JSON.stringify(filtered.map(c => ({ id: c.id, full_name: c.full_name, gender: c.gender })))) } catch {}
+                  router.push(`/dashboard/checkins/${client.id}`)
+                }}
                 className={`border rounded-xl p-3 transition-all cursor-pointer select-none group ${
                   isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-100'
                 }`}

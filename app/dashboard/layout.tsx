@@ -776,7 +776,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Global FAB — hidden on mobile when in active chat */}
         <div
           className={`fixed lg:bottom-6 right-4 lg:right-6 z-40 ${inActiveChat ? 'hidden lg:flex' : ''}`}
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 60px)' }}
         >
           <button
             type="button"

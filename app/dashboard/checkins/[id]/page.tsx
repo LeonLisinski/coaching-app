@@ -1,13 +1,13 @@
 'use client'
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, ClipboardList, History, BarChart2, Settings2 } from 'lucide-react'
+import { ArrowLeft, ClipboardList, History, BarChart2, Settings2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -39,6 +39,30 @@ export default function ClientCheckinPage() {
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = usePersistedTab(`checkin_tab_${id as string}`, 'overview')
+
+  // Client navigation (prev/next from the check-in clients list)
+  type NavClient = { id: string; full_name: string; gender: string | null }
+  const [navList, setNavList] = useState<NavClient[]>([])
+  const [showNavPicker, setShowNavPicker] = useState(false)
+  const navBtnRef = useRef<HTMLButtonElement>(null)
+  const [navPickerRect, setNavPickerRect] = useState<DOMRect | null>(null)
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('checkin_nav_list')
+      if (raw) setNavList(JSON.parse(raw))
+    } catch {}
+  }, [])
+
+  const currentNavIdx = navList.findIndex(c => c.id === (id as string))
+  const hasNav = navList.length > 1 && currentNavIdx !== -1
+  const prevNavId = hasNav ? navList[(currentNavIdx - 1 + navList.length) % navList.length].id : null
+  const nextNavId = hasNav ? navList[(currentNavIdx + 1) % navList.length].id : null
+  const goTo = (cid: string) => { setShowNavPicker(false); router.push(`/dashboard/checkins/${cid}`) }
+  const openNavPicker = () => {
+    if (!showNavPicker && navBtnRef.current) setNavPickerRect(navBtnRef.current.getBoundingClientRect())
+    setShowNavPicker(v => !v)
+  }
 
   useEffect(() => {
     fetchClient()
@@ -100,6 +124,79 @@ export default function ClientCheckinPage() {
                 <h1 className={`font-bold text-lg leading-tight truncate ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{client.full_name}</h1>
                 <p className="text-gray-400 text-xs mt-0.5">{t('page.clientSubtitle')}</p>
               </div>
+              {hasNav && (
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    onClick={() => prevNavId && goTo(prevNavId)}
+                    title="Prethodni klijent"
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isDark ? 'bg-white/8 hover:bg-white/15 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <div className="relative">
+                    <button
+                      ref={navBtnRef}
+                      onClick={openNavPicker}
+                      title="Odaberi klijenta"
+                      className={`h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] font-medium transition-colors ${isDark ? 'bg-white/8 hover:bg-white/15 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+                    >
+                      <span className="tabular-nums">{currentNavIdx + 1}/{navList.length}</span>
+                      <ChevronDown size={10} className={`transition-transform ${showNavPicker ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showNavPicker && navPickerRect && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowNavPicker(false)} />
+                        <div
+                          className={`fixed z-50 rounded-xl border shadow-xl overflow-hidden min-w-[220px] max-h-72 overflow-y-auto ${isDark ? 'bg-[oklch(0.14_0.018_264)] border-white/12' : 'bg-white border-gray-100'}`}
+                          style={{ top: navPickerRect.bottom + 6, right: window.innerWidth - navPickerRect.right }}
+                        >
+                          <div className={`px-3 py-2 border-b text-[10px] font-semibold uppercase tracking-wide ${isDark ? 'border-white/8 text-gray-500' : 'border-gray-100 text-gray-400'}`}>
+                            Klijenti ({navList.length})
+                          </div>
+                          {navList.map((c) => {
+                            const isCurrent = c.id === (id as string)
+                            const ini = c.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+                            const avatarBg = c.gender === 'F'
+                              ? isDark ? 'linear-gradient(135deg,rgba(244,63,94,0.3),rgba(190,18,60,0.2))' : 'linear-gradient(135deg,#f43f5e,#be123c)'
+                              : c.gender === 'M'
+                              ? isDark ? 'linear-gradient(135deg,rgba(59,130,246,0.3),rgba(29,78,216,0.2))' : 'linear-gradient(135deg,#3b82f6,#1d4ed8)'
+                              : isDark ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg,#6b7280,#4b5563)'
+                            const avatarText = isDark
+                              ? c.gender === 'F' ? '#fda4af' : c.gender === 'M' ? '#93c5fd' : '#9ca3af'
+                              : 'white'
+                            return (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => goTo(c.id)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${
+                                  isCurrent
+                                    ? isDark ? 'bg-white/10' : 'bg-teal-50'
+                                    : isDark ? 'hover:bg-white/6' : 'hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-bold"
+                                  style={{ background: avatarBg, color: avatarText }}>{ini}</div>
+                                <span className={`text-sm truncate flex-1 ${isCurrent ? isDark ? 'text-white font-semibold' : 'text-teal-700 font-semibold' : isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {c.full_name}
+                                </span>
+                                {isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => nextNavId && goTo(nextNavId)}
+                    title="Sljedeći klijent"
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isDark ? 'bg-white/8 hover:bg-white/15 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )
