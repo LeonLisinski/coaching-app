@@ -117,7 +117,9 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       if (insertErr || !inserted) { setError(insertErr?.message || 'Insert failed'); setLoading(false); return }
       targetExerciseId = inserted.id
       const { error: overrideErr } = await supabase.from('trainer_overrides').insert({
-        trainer_id: user.id, resource_type: 'exercise', default_id: exercise.id,
+        trainer_id: user.id, resource_type: 'exercise',
+        default_id: exercise.id,
+        replacement_id: inserted.id,  // allows client plans to resolve to the trainer's version
       })
       if (overrideErr) { setError(overrideErr.message); setLoading(false); return }
     } else {
