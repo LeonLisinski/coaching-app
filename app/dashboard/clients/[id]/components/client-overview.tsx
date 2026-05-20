@@ -235,7 +235,8 @@ export default function ClientOverview({ clientId }: Props) {
   const checkinOk = snapshotCheckinStatus === 'submitted'
 
   // Card base
-  const card = `rounded-2xl border p-4 transition-all ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`
+  const card = `rounded-2xl border p-4 transition-all ${isDark ? 'border-white/8' : 'border-gray-100 bg-white shadow-sm'}`
+  const cardStyle = isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined
   const cardClickable = `${card} cursor-pointer group ${isDark ? 'hover:bg-white/[0.07] hover:border-white/15' : 'hover:shadow-md hover:border-gray-200'}`
 
   // Icon container
@@ -246,7 +247,7 @@ export default function ClientOverview({ clientId }: Props) {
     <div className="space-y-3">
 
       {/* ── Status tjedna: horizontalni strip ── */}
-      <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`}>
+      <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/8' : 'border-gray-100 bg-white shadow-sm'}`} style={cardStyle}>
         <p className={`text-[11px] font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('snapshotSectionTitle')}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
 
@@ -329,7 +330,7 @@ export default function ClientOverview({ clientId }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
         {/* Check-in parametri */}
-        <div className={`${card} flex flex-col`}>
+        <div className={`${card} flex flex-col`} style={cardStyle}>
           <button type="button" className={`flex items-center gap-2 mb-3 text-left rounded-lg p-0.5 -m-0.5 transition-colors ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`} onClick={goCheckinTab}>
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-white/8' : 'bg-slate-50'}`}>
               <Scale size={14} className={isDark ? 'text-gray-300' : 'text-slate-600'} />
@@ -381,7 +382,7 @@ export default function ClientOverview({ clientId }: Props) {
         </div>
 
         {/* Zadnji check-in */}
-        <div className={cardClickable} onClick={() => router.push(`/dashboard/checkins/${clientId}`)}>
+        <div className={cardClickable} style={cardStyle} onClick={() => router.push(`/dashboard/checkins/${clientId}`)}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-teal-500/15' : 'bg-teal-50'}`}>
@@ -411,7 +412,7 @@ export default function ClientOverview({ clientId }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
         {/* Aktivni planovi */}
-        <div className={card}>
+        <div className={card} style={cardStyle}>
           <div className="flex items-center gap-2 mb-2">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center`} style={{ backgroundColor: `${accentHex}20` }}>
               <Dumbbell size={14} style={{ color: accentHex }} />
@@ -453,7 +454,7 @@ export default function ClientOverview({ clientId }: Props) {
         </div>
 
         {/* Zadnja poruka */}
-        <div className={cardClickable} onClick={goChat}>
+        <div className={cardClickable} style={cardStyle} onClick={goChat}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${isDark ? 'bg-sky-500/15' : 'bg-sky-50'}`}>

@@ -48,17 +48,24 @@ function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 }
 
-function StatCard({ icon: Icon, label, value, sub, color }: any) {
+function StatCard({ icon: Icon, label, value, sub, color, isDark }: any) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}18`, color }}>
+    <div
+      className="rounded-xl border p-4 relative overflow-hidden transition-all"
+      style={{
+        background: isDark ? `color-mix(in srgb, ${color} 10%, oklch(0.195 0.018 264))` : `color-mix(in srgb, ${color} 7%, white)`,
+        borderColor: isDark ? `color-mix(in srgb, ${color} 25%, transparent)` : `color-mix(in srgb, ${color} 20%, #e5e7eb)`,
+      }}
+    >
+      <div className="absolute -right-2 -top-2 w-14 h-14 rounded-full pointer-events-none" style={{ backgroundColor: `${color}0c` }} />
+      <div className="flex items-start justify-between mb-3 relative">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}22`, color }}>
           <Icon size={16} />
         </div>
       </div>
-      <p className="text-2xl font-black text-gray-900 leading-none">{value}</p>
-      <p className="text-sm font-medium text-gray-600 mt-1">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-2xl font-black leading-none relative" style={{ color }}>{value}</p>
+      <p className={`text-sm font-medium mt-1 relative ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
+      {sub && <p className={`text-xs mt-0.5 relative ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{sub}</p>}
     </div>
   )
 }
@@ -234,7 +241,7 @@ export default function CheckinStatsTab() {
 
   if (loading) return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {[1,2,3,4].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+      {[1,2,3,4].map(i => <div key={i} className={`h-24 rounded-xl animate-pulse ${isDark ? 'bg-white/8' : 'bg-gray-100'}`} />)}
     </div>
   )
 
@@ -244,24 +251,25 @@ export default function CheckinStatsTab() {
       {/* Summary stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={CheckCircle2} label={t('totalSubmitted')} value={stats.submitted}
-          sub={`${submissionRate}%`} color="#10b981" />
+          sub={`${submissionRate}%`} color="#10b981" isDark={isDark} />
         <StatCard icon={Clock} label={t('late')} value={stats.late}
-          sub={t('allClients')} color="#ef4444" />
+          sub={t('allClients')} color="#ef4444" isDark={isDark} />
         <StatCard icon={HelpCircle} label={t('noCheckins')} value={stats.neutral}
-          sub="" color="#6b7280" />
+          sub="" color="#6b7280" isDark={isDark} />
         <StatCard
           icon={submissionRate >= 80 ? TrendingUp : submissionRate >= 50 ? Minus : TrendingDown}
           label={t('submitted')} value={`${submissionRate}%`}
           sub=""
-          color={submissionRate >= 80 ? accentHex : submissionRate >= 50 ? '#d97706' : '#ef4444'} />
+          color={submissionRate >= 80 ? accentHex : submissionRate >= 50 ? '#d97706' : '#ef4444'}
+          isDark={isDark} />
       </div>
 
       {/* Charts row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* Pie status */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('clientStatusDist')}</h3>
+        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('clientStatusDist')}</h3>
           <div className="flex items-center gap-4">
             <ResponsiveContainer width={110} height={110}>
               <PieChart>
@@ -275,9 +283,9 @@ export default function CheckinStatsTab() {
                 <div key={d.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                    <span className="text-xs text-gray-600">{d.name}</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{d.name}</span>
                   </div>
-                  <span className="text-xs font-bold text-gray-800">{d.value}</span>
+                  <span className={`text-xs font-bold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{d.value}</span>
                 </div>
               ))}
             </div>
@@ -285,16 +293,16 @@ export default function CheckinStatsTab() {
         </div>
 
         {/* Day distribution */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('checkinsByDay')}</h3>
+        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('checkinsByDay')}</h3>
           {dayDist.length === 0 ? (
-            <p className="text-xs text-gray-400 py-8 text-center">{t('noCheckins')}</p>
+            <p className={`text-xs py-8 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noCheckins')}</p>
           ) : (
             <ResponsiveContainer width="100%" height={120}>
               <BarChart data={dayDist} barSize={20} margin={{ top: 0, right: 0, bottom: 0, left: -30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }} />
                 <Bar dataKey="count" name={t('count')} fill={accentHex} radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -303,8 +311,8 @@ export default function CheckinStatsTab() {
         </div>
 
         {/* Weekly compliance */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('submitted')} (8w)</h3>
+        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('submitted')} (8w)</h3>
           <ResponsiveContainer width="100%" height={120}>
             <AreaChart data={compRate} margin={{ top: 2, right: 4, bottom: 0, left: -30 }}>
               <defs>
@@ -314,8 +322,8 @@ export default function CheckinStatsTab() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
-              <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
+              <XAxis dataKey="week" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
               <Tooltip content={<CustomTooltip unit="%" />} />
               <Area type="monotone" dataKey="rate" name={t('submitted')} stroke={accentHex} strokeWidth={2} fill="url(#compGrad)" />
             </AreaChart>
@@ -324,8 +332,8 @@ export default function CheckinStatsTab() {
       </div>
 
       {/* Monthly trend */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('checkinsByMonth')}</h3>
+      <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+        <h3 className={`text-sm font-semibold mb-4 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('checkinsByMonth')}</h3>
         <ResponsiveContainer width="100%" height={140}>
           <BarChart data={trendData} barSize={28} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
             <defs>
@@ -335,8 +343,8 @@ export default function CheckinStatsTab() {
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }} />
             <Bar dataKey="count" name={t('totalSubmitted')} fill="url(#barGrad)" radius={[5, 5, 0, 0]} />
           </BarChart>
@@ -347,25 +355,25 @@ export default function CheckinStatsTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Top clients */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('allClients')}</h3>
+        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('allClients')}</h3>
           {topClients.length === 0 ? (
-            <p className="text-xs text-gray-400 py-4 text-center">{t('noCheckins')}</p>
+            <p className={`text-xs py-4 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noCheckins')}</p>
           ) : (
             <div className="space-y-2">
               {topClients.map((c, i) => (
                 <button key={c.id} onClick={() => router.push(`/dashboard/checkins/${c.id}`)}
-                  className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors text-left group">
-                  <span className="w-5 text-xs font-bold text-gray-300 shrink-0">{i + 1}.</span>
+                  className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors text-left group ${isDark ? 'hover:bg-white/8' : 'hover:bg-gray-50'}`}>
+                  <span className={`w-5 text-xs font-bold shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{i + 1}.</span>
                   <div className={`w-7 h-7 rounded-lg ${avatarStyle(c.gender)} flex items-center justify-center shrink-0`}>
                     <span className="text-white text-[10px] font-bold">{getInitials(c.name)}</span>
                   </div>
-                  <span className="flex-1 text-sm text-gray-700 font-medium truncate">{c.name}</span>
+                  <span className={`flex-1 text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{c.name}</span>
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
                     style={{ backgroundColor: `${accentHex}18`, color: accentHex }}>
                     {String(c.count) + ' ' + t2('checkinCountSuffix')}
                   </span>
-                  <ChevronRight size={13} className="text-gray-300 group-hover:text-gray-500" />
+                  <ChevronRight size={13} className={`${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-500'}`} />
                 </button>
               ))}
             </div>
@@ -373,29 +381,29 @@ export default function CheckinStatsTab() {
         </div>
 
         {/* Late clients */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('late')}</h3>
+        <div className={`rounded-xl border p-4 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-100' : 'text-gray-700'}`}>{t('late')}</h3>
           {lateClients.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6">
               <CheckCircle2 size={24} className="text-emerald-400 mb-2" />
-              <p className="text-xs text-gray-400">{t('onTime')}</p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('onTime')}</p>
             </div>
           ) : (
             <div className="space-y-2">
               {lateClients.map(c => (
                 <button key={c.id} onClick={() => router.push(`/dashboard/checkins/${c.id}`)}
-                  className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors text-left group ${isDark ? 'hover:bg-red-900/20' : 'hover:bg-red-50'}`}>
+                  className={`w-full flex items-center gap-3 p-2 rounded-xl transition-colors text-left group ${isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}>
                   <div className={`w-7 h-7 rounded-lg ${avatarStyle(c.gender)} flex items-center justify-center shrink-0`}>
                     <span className="text-white text-[10px] font-bold">{getInitials(c.name)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 font-medium truncate">{c.name}</p>
-                    <p className="text-[11px] text-gray-400">
+                    <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>{c.name}</p>
+                    <p className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                       {c.last ? new Date(c.last).toLocaleDateString() : '—'}
                     </p>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${isDark ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-50 text-red-600 border border-red-100'}`}>{t('late')}</span>
-                  <ChevronRight size={13} className="text-gray-300 group-hover:text-red-400" />
+                  <ChevronRight size={13} className={`${isDark ? 'text-gray-600 group-hover:text-red-400' : 'text-gray-300 group-hover:text-red-400'}`} />
                 </button>
               ))}
             </div>

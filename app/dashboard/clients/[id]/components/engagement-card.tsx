@@ -174,7 +174,7 @@ export default function EngagementCard({ clientId, startDate, isDark, accentHex 
     : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
 
   return (
-    <div className={`rounded-2xl border p-4 ${isDark ? 'border-white/8 bg-white/[0.04]' : 'border-gray-100 bg-white shadow-sm'}`}>
+    <div className={`rounded-2xl border p-4 ${isDark ? 'border-white/8' : 'border-gray-100 bg-white shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

@@ -80,30 +80,51 @@ function StatCard({ label, value, sub, icon: Icon, trend, color }: {
   label: string; value: string; sub?: string; icon: React.ElementType
   trend?: { dir: 'up' | 'down' | 'neutral'; pct: number }; color: string
 }) {
-  const cols: Record<string, { bg: string; ico: string; val: string }> = {
-    emerald: { bg: 'bg-emerald-50', ico: 'text-emerald-500', val: 'text-emerald-600' },
-    violet:  { bg: 'bg-violet-50',  ico: 'text-violet-500',  val: 'text-violet-600' },
-    amber:   { bg: 'bg-amber-50',   ico: 'text-amber-500',   val: 'text-amber-600' },
-    red:     { bg: 'bg-red-50',     ico: 'text-red-500',     val: 'text-red-600' },
-    sky:     { bg: 'bg-sky-50',     ico: 'text-sky-500',     val: 'text-sky-600' },
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
+  const accentHex = ACCENT_HEX[accent] || '#7c3aed'
+
+  const palette: Record<string, { hex: string; lightCard: string; lightBorder: string; darkCard: string; darkBorder: string }> = {
+    emerald: { hex: '#10b981', lightCard: 'rgba(16,185,129,0.07)', lightBorder: 'rgba(16,185,129,0.2)',  darkCard: 'rgba(16,185,129,0.11)', darkBorder: 'rgba(16,185,129,0.25)' },
+    violet:  { hex: '#7c3aed', lightCard: 'rgba(124,58,237,0.06)', lightBorder: 'rgba(124,58,237,0.18)', darkCard: 'rgba(124,58,237,0.11)', darkBorder: 'rgba(124,58,237,0.25)' },
+    amber:   { hex: '#f59e0b', lightCard: 'rgba(245,158,11,0.07)', lightBorder: 'rgba(245,158,11,0.22)', darkCard: 'rgba(245,158,11,0.11)', darkBorder: 'rgba(245,158,11,0.25)' },
+    red:     { hex: '#ef4444', lightCard: 'rgba(239,68,68,0.06)',  lightBorder: 'rgba(239,68,68,0.2)',   darkCard: 'rgba(239,68,68,0.11)', darkBorder: 'rgba(239,68,68,0.25)'  },
+    sky:     { hex: '#0ea5e9', lightCard: 'rgba(14,165,233,0.06)', lightBorder: 'rgba(14,165,233,0.2)',  darkCard: 'rgba(14,165,233,0.11)', darkBorder: 'rgba(14,165,233,0.25)' },
   }
-  const c = cols[color] || cols.violet
+  const isAccent = color === 'accent'
+  const p = palette[color]
+  const colorHex = isAccent ? accentHex : (p?.hex ?? accentHex)
+  const cardBg = isDark
+    ? (p?.darkCard ?? 'oklch(0.195 0.018 264)')
+    : (p?.lightCard ?? 'white')
+  const cardBorder = isDark
+    ? (p?.darkBorder ?? 'rgba(255,255,255,0.08)')
+    : (p?.lightBorder ?? '#e5e7eb')
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
-          <Icon size={18} className={c.ico} />
+    <div
+      className="rounded-2xl border p-5 transition-all relative overflow-hidden"
+      style={{ background: cardBg, borderColor: cardBorder }}
+    >
+      <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full pointer-events-none" style={{ backgroundColor: `${colorHex}0c` }} />
+      <div className="flex items-start justify-between mb-4 relative">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${colorHex}20` }}>
+          <Icon size={18} style={{ color: colorHex }} />
         </div>
         {trend && trend.dir !== 'neutral' && (
-          <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trend.dir === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+          <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+            trend.dir === 'up'
+              ? (isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-600')
+              : (isDark ? 'bg-red-500/15 text-red-400' : 'bg-red-50 text-red-500')
+          }`}>
             {trend.dir === 'up' ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
             {trend.pct}%
           </div>
         )}
       </div>
-      <p className={`text-2xl font-extrabold leading-none ${c.val}`}>{value}</p>
-      <p className="text-sm text-gray-500 mt-1.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-2xl font-extrabold leading-none relative" style={{ color: colorHex }}>{value}</p>
+      <p className={`text-sm mt-1.5 relative ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
+      {sub && <p className={`text-xs mt-0.5 relative ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{sub}</p>}
     </div>
   )
 }
@@ -558,9 +579,9 @@ function FinancijePageContent() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
         {/* Monthly bar chart */}
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-800 mb-1">{t('finance.chart.title')}</h2>
-          <p className="text-xs text-gray-400 mb-4">{t('dashboard.revenue.title')}</p>
+        <div className={`lg:col-span-3 rounded-2xl border p-5 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('finance.chart.title')}</h2>
+          <p className={`text-xs mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard.revenue.title')}</p>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={monthlyData} barCategoryGap="40%">
               <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'} vertical={false} />
@@ -593,13 +614,13 @@ function FinancijePageContent() {
         </div>
 
         {/* Package popularity */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-800 mb-1">{t('finance.popularity.title')}</h2>
-          <p className="text-xs text-gray-400 mb-4">{t('finance.package')}</p>
+        <div className={`rounded-2xl border p-5 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('finance.popularity.title')}</h2>
+          <p className={`text-xs mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('finance.package')}</p>
           {pkgPopularity.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center">
-              <Package size={28} className="text-gray-200 mb-2" />
-              <p className="text-sm text-gray-400">{t('finance.popularity.noPackages')}</p>
+              <Package size={28} className={`mb-2 ${isDark ? 'text-gray-700' : 'text-gray-200'}`} />
+              <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('finance.popularity.noPackages')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -610,11 +631,11 @@ function FinancijePageContent() {
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                        <span className="text-xs font-medium text-gray-700 truncate">{p.name}</span>
+                        <span className={`text-xs font-medium truncate ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{p.name}</span>
                       </div>
-                      <span className="text-xs text-gray-400 shrink-0 ml-2">{p.count}× · {fmtEur(p.revenue)}</span>
+                      <span className={`text-xs shrink-0 ml-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{p.count}× · {fmtEur(p.revenue)}</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
                       <div className="h-full rounded-full" style={{ width: `${(p.count / maxCount) * 100}%`, backgroundColor: p.color }} />
                     </div>
                   </div>
@@ -627,38 +648,38 @@ function FinancijePageContent() {
 
       {/* Pending / late */}
       {pendingList.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 flex items-center justify-between">
+        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <div className={`px-5 py-4 flex items-center justify-between border-b ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-amber-500" />
-              <h2 className="text-sm font-semibold text-gray-800">{t('finance.status.pending')}</h2>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">{pendingList.length}</span>
+              <h2 className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('finance.status.pending')}</h2>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{pendingList.length}</span>
             </div>
-            <p className="text-xs text-gray-400 font-medium">{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))}</p>
+            <p className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-400'}`}>{fmtEur(pendingList.reduce((s, cp) => s + cp.price, 0))}</p>
           </div>
           <div className={`divide-y ${isDark ? 'divide-white/[8%]' : 'divide-gray-50'} max-h-[448px] overflow-y-auto`}>
             {pendingList.map(cp => {
               const s = getPayStatus(cp)
               const left = daysLeft(cp.end_date)
               return (
-                <div key={cp.id} className="px-5 py-3 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
+                <div key={cp.id} className={`px-5 py-3 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50/60'}`}>
                   <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0 ${
                     cp.client_gender === 'F' ? 'bg-rose-400' : cp.client_gender === 'M' ? 'bg-sky-500' : 'bg-gray-400'
                   }`}>
                     {cp.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{cp.client_name}</p>
+                    <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{cp.client_name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cp.pkg_color }} />
-                      <p className="text-xs text-gray-400">{cp.pkg_name}</p>
-                      <span className="text-xs text-gray-300">·</span>
-                      <p className="text-xs text-gray-400">{fmtDate(cp.start_date)}</p>
+                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{cp.pkg_name}</p>
+                      <span className={`text-xs ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>·</span>
+                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{fmtDate(cp.start_date)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-800">{fmtEur(cp.price)}</p>
+                      <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{fmtEur(cp.price)}</p>
                       <StatusBadge status={s} daysLeftVal={left > 0 ? left : undefined} t={t} />
                     </div>
                     <button
@@ -671,7 +692,7 @@ function FinancijePageContent() {
                     <button
                       onClick={() => setConfirmDeleteId(cp.id)}
                       title={tF('deleteTooltip')}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${isDark ? 'text-gray-600 hover:bg-red-500/15 hover:text-red-400' : 'text-gray-400 hover:bg-red-50 hover:text-red-500'}`}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -684,21 +705,21 @@ function FinancijePageContent() {
       )}
 
       {/* Transaction history */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-800">{t('finance.table.title')}</h2>
-          <p className="text-xs text-gray-400">{allHistory.length}</p>
+        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
+          <div className={`px-5 py-4 flex items-center justify-between border-b ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+            <h2 className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('finance.table.title')}</h2>
+          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{allHistory.length}</p>
         </div>
 
           {allHistory.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <Banknote size={32} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-sm text-gray-400">{t('finance.table.noData')}</p>
+            <Banknote size={32} className={`mx-auto mb-3 ${isDark ? 'text-gray-700' : 'text-gray-200'}`} />
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('finance.table.noData')}</p>
           </div>
         ) : (
           <>
             {/* Header row */}
-            <div className="hidden md:grid grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] gap-x-2 px-5 py-2.5 text-xs font-medium text-gray-400 uppercase tracking-wide bg-gray-50/60">
+            <div className={`hidden md:grid grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] gap-x-2 px-5 py-2.5 text-xs font-medium uppercase tracking-wide ${isDark ? 'text-gray-600 bg-white/[0.03]' : 'text-gray-400 bg-gray-50/60'}`}>
               <span>{t('finance.table.client')}</span><span>{t('finance.table.package')}</span><span>{t('finance.table.amount')}</span>
               <span>{t('common.date')}</span><span>{t('finance.status.paid')}</span><span>{t('finance.table.status')}</span><span></span>
             </div>
@@ -708,24 +729,24 @@ function FinancijePageContent() {
                 const s = getPayStatus(cp)
                 const left = daysLeft(cp.end_date)
                 return (
-                  <div key={cp.id} className="px-5 py-3 grid md:grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] grid-cols-1 gap-x-2 items-center hover:bg-gray-50/40 transition-colors">
+                  <div key={cp.id} className={`px-5 py-3 grid md:grid-cols-[1fr_1fr_70px_88px_88px_108px_148px] grid-cols-1 gap-x-2 items-center transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50/40'}`}>
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
                         cp.client_gender === 'F' ? 'bg-rose-400' : cp.client_gender === 'M' ? 'bg-sky-500' : 'bg-gray-400'
                       }`}>
                         {cp.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-sm text-gray-800 font-medium truncate">{cp.client_name}</span>
+                      <span className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{cp.client_name}</span>
                     </div>
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cp.pkg_color }} />
-                      <span className="text-sm text-gray-600 truncate">{cp.pkg_name}</span>
+                      <span className={`text-sm truncate ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{cp.pkg_name}</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-800">
+                    <span className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>
                       {p?.status === 'paid' ? fmtEur(p.amount) : fmtEur(cp.price)}
                     </span>
-                    <span className="text-xs text-gray-500">{fmtDate(cp.start_date)}</span>
-                    <span className="text-xs text-gray-500">{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{fmtDate(cp.start_date)}</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{p?.paid_at ? fmtDate(p.paid_at) : '—'}</span>
                     {justMarkedId === cp.id ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
                         <Check size={10} /> {tF('paidLabel')}
@@ -751,14 +772,14 @@ function FinancijePageContent() {
                       ) : (
                         <button onClick={() => markUnpaid(cp)}
                           title={tF('markUnpaidTooltip')}
-                          className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50 transition-colors whitespace-nowrap">
+                          className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors whitespace-nowrap ${isDark ? 'border-white/10 text-gray-400 hover:border-amber-500/40 hover:text-amber-400 hover:bg-amber-500/10' : 'border-gray-200 text-gray-500 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50'}`}>
                           <RotateCcw size={11} /> {tF('unpaidLabel')}
                         </button>
                       )}
                       <button
                         onClick={() => setConfirmDeleteId(cp.id)}
                         title={tF('deleteTooltip')}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isDark ? 'text-gray-600 hover:bg-red-500/15 hover:text-red-400' : 'text-gray-300 hover:bg-red-50 hover:text-red-500'}`}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -769,17 +790,17 @@ function FinancijePageContent() {
 
             {/* Pagination */}
             {allHistory.length > HIST_PER_PAGE && (
-              <div className="px-5 py-3 border-t border-gray-50 flex items-center justify-between bg-gray-50/40">
-                <p className="text-xs text-gray-400">
+              <div className={`px-5 py-3 border-t flex items-center justify-between ${isDark ? 'border-white/8 bg-white/[0.02]' : 'border-gray-50 bg-gray-50/40'}`}>
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                   {histPage * HIST_PER_PAGE + 1}–{Math.min((histPage + 1) * HIST_PER_PAGE, allHistory.length)} {tF('paginationOf')} {allHistory.length}
                 </p>
                 <div className="flex gap-2">
                   <button disabled={histPage === 0} onClick={() => setHistPage(p => p - 1)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/8' : 'border-gray-200 text-gray-600 hover:bg-white'}`}>
                     {t('finance.table.prevPage')}
                   </button>
                   <button disabled={(histPage + 1) * HIST_PER_PAGE >= allHistory.length} onClick={() => setHistPage(p => p + 1)}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/8' : 'border-gray-200 text-gray-600 hover:bg-white'}`}>
                     {t('finance.table.nextPage')}
                   </button>
                 </div>
