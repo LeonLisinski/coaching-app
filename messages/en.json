@@ -999,6 +999,8 @@
       "dragTooltip": "Drag to training",
       "enduranceBadge": "Endurance",
       "warmupBadge": "Warmup",
+      "previewVideo": "Preview video",
+      "previewImage": "Preview image",
       "sortedChipZA": "Z→A sorted",
       "categories": {
         "Snaga": "Strength",
