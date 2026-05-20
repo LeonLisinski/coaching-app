@@ -34,19 +34,31 @@ function extForMime(mime: string): string {
   return VIDEO_EXTENSIONS[mime] || IMAGE_EXTENSIONS[mime] || 'bin'
 }
 
+/**
+ * Try to read the video duration from a File object.
+ * Returns the duration in seconds, or NaN if the browser cannot parse the
+ * metadata (e.g. unsupported codec, DRM, quirky encoding). Callers should
+ * treat NaN as "unknown duration" and skip the check rather than blocking upload.
+ */
 export async function readVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     const url = URL.createObjectURL(file)
     const video = document.createElement('video')
     video.preload = 'metadata'
-    video.onloadedmetadata = () => {
+    video.muted = true
+
+    const cleanup = (duration: number) => {
       URL.revokeObjectURL(url)
-      resolve(video.duration)
+      video.src = ''
+      resolve(duration)
     }
-    video.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('cannot_read_video'))
-    }
+
+    video.onloadedmetadata = () => cleanup(video.duration)
+    // Any error → resolve with NaN so the caller can skip the duration check
+    video.onerror = () => cleanup(NaN)
+    // Some browsers never fire either event for certain formats; time out after 4s
+    const timeout = setTimeout(() => cleanup(NaN), 4000)
+    video.onloadedmetadata = () => { clearTimeout(timeout); cleanup(video.duration) }
     video.src = url
   })
 }

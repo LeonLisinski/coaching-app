@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Send, Zap, ArrowLeft } from 'lucide-react'
+import { Send, Zap, ArrowLeft, ImagePlus, X, Loader2, PlayCircle } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import imageCompression from 'browser-image-compression'
 
 
 type Props = {
@@ -16,6 +17,10 @@ type Props = {
   onBack?: () => void
 }
 
+const CHAT_MEDIA_BUCKET = 'chat-media'
+const CHAT_MEDIA_MAX_IMAGE_MB = 10
+const CHAT_MEDIA_MAX_VIDEO_MB = 50
+
 type Message = {
   id: string
   content: string
@@ -24,6 +29,8 @@ type Message = {
   read: boolean
   trainer_id: string
   client_id: string
+  media_type?: 'image' | 'video' | null
+  media_path?: string | null
 }
 
 function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
@@ -68,6 +75,12 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [showTemplates, setShowTemplates] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  // Media attach
+  const [pendingMedia, setPendingMedia] = useState<{ file: File; mime: string; type: 'image' | 'video'; previewUrl: string } | null>(null)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
+  const mediaInputRef = useRef<HTMLInputElement>(null)
+  // Signed URL cache for received media messages
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
@@ -237,26 +250,96 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       .subscribe()
   }
 
+  // Revoke pending preview URL on unmount or change
+  useEffect(() => {
+    return () => { if (pendingMedia) URL.revokeObjectURL(pendingMedia.previewUrl) }
+  }, [pendingMedia])
+
+  // Resolve signed URLs for media messages that don't have one yet
+  useEffect(() => {
+    const needsSigning = messages.filter(m => m.media_path && !signedUrls[m.media_path])
+    if (!needsSigning.length) return
+    needsSigning.forEach(async m => {
+      const { data } = await supabase.storage.from(CHAT_MEDIA_BUCKET).createSignedUrl(m.media_path!, 3600)
+      if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [m.media_path!]: data.signedUrl }))
+    })
+  }, [messages, signedUrls])
+
+  const pickMedia = () => mediaInputRef.current?.click()
+
+  const handleMediaFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const isVideo = file.type.startsWith('video/')
+    const isImage = file.type.startsWith('image/')
+    if (!isVideo && !isImage) return
+    if (isVideo && file.size > CHAT_MEDIA_MAX_VIDEO_MB * 1024 * 1024) {
+      alert(`Max ${CHAT_MEDIA_MAX_VIDEO_MB} MB per video`)
+      return
+    }
+    if (pendingMedia) URL.revokeObjectURL(pendingMedia.previewUrl)
+    let finalFile = file
+    let mime = file.type
+    if (isImage) {
+      try {
+        finalFile = await imageCompression(file, { maxSizeMB: 2, maxWidthOrHeight: 2048, useWebWorker: true, fileType: 'image/webp', initialQuality: 0.85 })
+        mime = 'image/webp'
+      } catch { /* use original if compression fails */ }
+    }
+    setPendingMedia({ file: finalFile, mime, type: isImage ? 'image' : 'video', previewUrl: URL.createObjectURL(finalFile) })
+  }
+
+  const clearMedia = () => {
+    if (pendingMedia) URL.revokeObjectURL(pendingMedia.previewUrl)
+    setPendingMedia(null)
+  }
+
   const sendMessage = async () => {
-    if (!input.trim() || !userIdRef.current || sending) return
+    if ((!input.trim() && !pendingMedia) || !userIdRef.current || sending) return
     const content = input.trim()
     setInput('')
     setSending(true)
+    setUploadingMedia(!!pendingMedia)
     // Schedule focus BEFORE the first await — iOS PWA only allows programmatic
     // keyboard retention when triggered synchronously from a user interaction.
     // After an await, iOS blocks focus() calls and dismisses the keyboard.
     requestAnimationFrame(() => textareaRef.current?.focus())
+
+    // Upload media first if attached
+    let mediaPath: string | null = null
+    let mediaType: 'image' | 'video' | null = null
+    if (pendingMedia) {
+      const ext = pendingMedia.mime.split('/')[1] || 'bin'
+      const path = `${userIdRef.current}/${clientId}/${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from(CHAT_MEDIA_BUCKET).upload(path, pendingMedia.file, { contentType: pendingMedia.mime, cacheControl: '3600' })
+      if (uploadErr) {
+        console.error('Media upload error:', uploadErr.message)
+        setUploadingMedia(false)
+        setSending(false)
+        return
+      }
+      mediaPath = path
+      mediaType = pendingMedia.type
+      clearMedia()
+    }
+    setUploadingMedia(false)
 
     // Optimistic update — show message immediately without waiting for real-time subscription
     const tempId = `temp-${Date.now()}`
     const optimistic: Message = {
       id: tempId,
       content,
-      sender_id: userIdRef.current,
-      trainer_id: userIdRef.current,
+      sender_id: userIdRef.current!,
+      trainer_id: userIdRef.current!,
       client_id: clientId,
       created_at: new Date().toISOString(),
       read: false,
+      media_type: mediaType,
+      media_path: mediaPath,
+    }
+    if (mediaPath && pendingMedia) {
+      setSignedUrls(prev => ({ ...prev, [mediaPath!]: pendingMedia.previewUrl }))
     }
     setMessages(prev => [...prev, optimistic])
 
@@ -264,13 +347,15 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       trainer_id: userIdRef.current,
       client_id: clientId,
       sender_id: userIdRef.current,
-      content,
+      content: content || null,
       read: false,
+      media_type: mediaType,
+      media_path: mediaPath,
     }).select().single()
 
     if (error) {
       console.error('Send error:', error.message)
-      setInput(content)
+      if (content) setInput(content)
       setMessages(prev => prev.filter(m => m.id !== tempId))
     } else {
       setMessages(prev => prev.map(m => m.id === tempId ? inserted : m))
@@ -375,14 +460,35 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                   <div key={msg.id} className={`flex ${isTrainer ? 'justify-end' : 'justify-start'} ${isSameAuthorAsPrev ? 'mt-0.5' : 'mt-3'}`}>
                     <div className={`max-w-[72%] ${isTrainer ? 'items-end' : 'items-start'} flex flex-col`}>
                       <div
-                        className={`px-3.5 py-2 text-sm leading-relaxed shadow-sm ${
+                        className={`text-sm leading-relaxed shadow-sm overflow-hidden ${
                           isTrainer
                             ? 'text-white rounded-2xl rounded-br-sm'
                             : `${isDark ? 'bg-white/[0.07] border-white/10 text-gray-100' : 'bg-white border border-gray-100 text-gray-900'} rounded-2xl rounded-bl-sm`
                         }`}
                         style={isTrainer ? { background: `linear-gradient(135deg, ${accentHex}, ${accentHex}dd)` } : undefined}
                       >
-                        {msg.content}
+                        {/* Media attachment */}
+                        {msg.media_path && (() => {
+                          const url = signedUrls[msg.media_path]
+                          return (
+                            <div className="max-w-[260px]">
+                              {msg.media_type === 'image' ? (
+                                url
+                                  ? <a href={url} target="_blank" rel="noreferrer">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={url} alt="" className="rounded-xl w-full object-cover max-h-64" />
+                                    </a>
+                                  : <div className="flex items-center justify-center h-32 rounded-xl bg-black/20"><Loader2 className="animate-spin" size={16} /></div>
+                              ) : msg.media_type === 'video' ? (
+                                url
+                                  ? <video src={url} controls className="rounded-xl w-full max-h-64 bg-black" />
+                                  : <div className="flex items-center gap-2 h-20 rounded-xl bg-black/20 px-4"><Loader2 className="animate-spin" size={16} /><PlayCircle size={20} /></div>
+                              ) : null}
+                            </div>
+                          )
+                        })()}
+                        {/* Text content */}
+                        {msg.content && <p className="px-3.5 py-2">{msg.content}</p>}
                       </div>
                       <div className={`flex items-center gap-1 mt-0.5 px-1 ${isTrainer ? 'flex-row-reverse' : ''}`}>
                         <span className="text-[10px] text-gray-400">{fmtTime(msg.created_at)}</span>
@@ -425,7 +531,33 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             </div>
           </div>
         )}
-        <div className="flex items-end gap-2 bg-transparent border border-gray-200 rounded-2xl px-3 py-2.5 transition-colors focus-within:border-gray-300">
+
+        {/* Pending media preview */}
+        {pendingMedia && (
+          <div className={`mb-2 rounded-xl overflow-hidden border relative ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+            {pendingMedia.type === 'image'
+              ? <img src={pendingMedia.previewUrl} alt="" className="max-h-40 object-contain w-full bg-black" /> // eslint-disable-line @next/next/no-img-element
+              : <video src={pendingMedia.previewUrl} className="max-h-40 w-full bg-black" controls />}
+            <button
+              type="button"
+              onClick={clearMedia}
+              className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
+        {/* Hidden media file input */}
+        <input
+          ref={mediaInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+          className="hidden"
+          onChange={handleMediaFile}
+        />
+
+        <div className={`flex items-end gap-2 border rounded-2xl px-3 py-2.5 transition-colors focus-within:border-gray-300 ${isDark ? 'bg-white/[0.04] border-white/10' : 'bg-transparent border-gray-200'}`}>
           {/* Templates toggle */}
           <button
             onClick={() => setShowTemplates(v => !v)}
@@ -437,6 +569,17 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             title={tChat('quickTemplatesTitle')}
           >
             <Zap size={14} />
+          </button>
+          {/* Media attach */}
+          <button
+            type="button"
+            onClick={pickMedia}
+            disabled={sending}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors flex-shrink-0 mb-0.5 disabled:opacity-40"
+            style={pendingMedia ? { backgroundColor: `${accentHex}20`, color: accentHex } : { color: '#9ca3af' }}
+            title="Dodaj sliku / video"
+          >
+            <ImagePlus size={14} />
           </button>
           <textarea
             ref={textareaRef}
@@ -450,17 +593,17 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
             placeholder={t('window.messagePlaceholder')}
             // Never disable textarea — disabling blurs it and closes the iOS keyboard
             rows={1}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 resize-none max-h-24 overflow-y-auto leading-relaxed"
+            className={`flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 resize-none max-h-24 overflow-y-auto leading-relaxed ${isDark ? 'text-gray-100' : 'text-gray-900'}`}
             style={{ minHeight: '1.5rem' }}
           />
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && !pendingMedia) || sending}
             aria-label={t('window.send')}
             className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:scale-105 flex-shrink-0 mb-0.5"
             style={{ backgroundColor: accentHex }}
           >
-            <Send size={13} />
+            {uploadingMedia ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           </button>
         </div>
         <p className="hidden lg:block text-[10px] text-gray-400 text-center mt-1.5">{tChat('enterHint')}</p>

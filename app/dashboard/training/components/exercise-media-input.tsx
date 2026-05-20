@@ -143,13 +143,9 @@ export default function ExerciseMediaInput({ value, onChange, isDark = false }: 
         if (file.size > MAX_VIDEO_BYTES) {
           throw new Error(t('mediaVideoTooBig', { mb: 10 }))
         }
-        let duration = 0
-        try {
-          duration = await readVideoDuration(file)
-        } catch {
-          throw new Error(t('mediaVideoUnreadable'))
-        }
-        if (duration > MAX_VIDEO_DURATION_SEC + 0.5) {
+        const duration = await readVideoDuration(file)
+        // NaN means we couldn't read metadata — skip duration check, rely on file size
+        if (!isNaN(duration) && duration > MAX_VIDEO_DURATION_SEC + 0.5) {
           throw new Error(t('mediaVideoTooLong', { sec: MAX_VIDEO_DURATION_SEC }))
         }
         onChange({
