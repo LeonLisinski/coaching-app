@@ -50,75 +50,120 @@ type ActivityItem = {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, sub, color, onClick }: {
+type StatCardProps = {
   icon: React.ElementType; label: string; value: string | number
-  sub?: string; color: string; onClick?: () => void
-}) {
-  const { accent } = useAppTheme()
+  sub?: string; color: string; onClick?: () => void; featured?: boolean
+}
+
+function StatCard({ icon: Icon, label, value, sub, color, onClick, featured }: StatCardProps) {
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const isAccent = color === 'accent'
 
-  const colorMap: Record<string, { bg: string; icon: string; val: string }> = {
-    emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-500', val: 'text-emerald-600' },
-    rose:    { bg: 'bg-rose-50',    icon: 'text-rose-500',    val: 'text-rose-600' },
-    amber:   { bg: 'bg-amber-50',   icon: 'text-amber-500',   val: 'text-amber-600' },
-    sky:     { bg: 'bg-sky-50',     icon: 'text-sky-500',     val: 'text-sky-600' },
+  // Per-color palette: hex, light card tint, dark card tint, icon bg
+  const palette: Record<string, { hex: string; lightCard: string; lightBorder: string; darkCard: string; darkBorder: string }> = {
+    emerald: {
+      hex: '#10b981',
+      lightCard: 'rgba(16,185,129,0.06)', lightBorder: 'rgba(16,185,129,0.2)',
+      darkCard:  'rgba(16,185,129,0.10)', darkBorder: 'rgba(16,185,129,0.22)',
+    },
+    rose: {
+      hex: '#f43f5e',
+      lightCard: 'rgba(244,63,94,0.06)', lightBorder: 'rgba(244,63,94,0.2)',
+      darkCard:  'rgba(244,63,94,0.10)', darkBorder: 'rgba(244,63,94,0.22)',
+    },
+    amber: {
+      hex: '#f59e0b',
+      lightCard: 'rgba(245,158,11,0.07)', lightBorder: 'rgba(245,158,11,0.22)',
+      darkCard:  'rgba(245,158,11,0.10)', darkBorder: 'rgba(245,158,11,0.22)',
+    },
+    sky: {
+      hex: '#0ea5e9',
+      lightCard: 'rgba(14,165,233,0.06)', lightBorder: 'rgba(14,165,233,0.2)',
+      darkCard:  'rgba(14,165,233,0.10)', darkBorder: 'rgba(14,165,233,0.22)',
+    },
   }
-  const c = colorMap[color]
+
+  const p = palette[color]
+  const colorHex  = isAccent ? accentHex : (p?.hex ?? '#6b7280')
+  const cardBg    = isDark
+    ? (isAccent ? `${accentHex}12` : (p?.darkCard ?? 'oklch(0.195 0.018 264)'))
+    : (isAccent ? `${accentHex}08` : (p?.lightCard ?? 'white'))
+  const cardBorder = isDark
+    ? (isAccent ? `${accentHex}30` : (p?.darkBorder ?? 'rgba(255,255,255,0.08)'))
+    : (isAccent ? `${accentHex}25` : (p?.lightBorder ?? '#e5e7eb'))
+  const iconBg = isDark
+    ? (isAccent ? `${accentHex}30` : `${colorHex}28`)
+    : (isAccent ? `${accentHex}20` : `${colorHex}18`)
 
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm transition-shadow hover:shadow-md ${onClick ? 'cursor-pointer' : ''}`}
+      style={{ background: cardBg, borderColor: cardBorder }}
+      className={`rounded-2xl border p-5 transition-all group relative overflow-hidden
+        ${featured ? 'shadow-sm' : ''}
+        ${onClick ? 'cursor-pointer hover:brightness-[1.04] active:scale-[0.99]' : ''}`}
     >
-      <div className="flex items-start justify-between mb-3">
+      {/* Subtle decorative blob */}
+      <div
+        className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none opacity-40"
+        style={{ backgroundColor: `${colorHex}10` }}
+      />
+      <div className="flex items-start justify-between mb-4 relative">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center ${!isAccent && c ? c.bg : ''}`}
-          style={isAccent ? { backgroundColor: `${accentHex}18` } : undefined}
+          className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ backgroundColor: iconBg }}
         >
-          <Icon size={18}
-            className={!isAccent && c ? c.icon : ''}
-            style={isAccent ? { color: accentHex } : undefined}
-          />
+          <Icon size={18} style={{ color: colorHex }} />
         </div>
-        {onClick && <ArrowRight size={14} className="text-gray-300 mt-1" />}
+        {onClick && (
+          <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5 mt-0.5 opacity-30 group-hover:opacity-60" style={{ color: colorHex }} />
+        )}
       </div>
-      <p
-        className={`text-3xl font-extrabold leading-none ${!isAccent && c ? c.val : ''}`}
-        style={isAccent ? { color: accentHex } : undefined}
-      >{value}</p>
-      <p className="text-sm text-gray-500 mt-1.5 font-medium">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+      <p className="text-3xl font-extrabold leading-none tracking-tight relative" style={{ color: colorHex }}>{value}</p>
+      <p className={`text-sm mt-1.5 font-medium relative ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{label}</p>
+      {sub && <p className={`text-xs mt-0.5 relative ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{sub}</p>}
     </div>
   )
 }
 
 function CheckinRow({ client, onClick }: { client: ClientRow; onClick: () => void }) {
-  const { accent } = useAppTheme()
+  const { accent, mode } = useAppTheme()
+  const isDark = mode === 'dark'
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const t2 = useTranslations('dashboard2')
 
   const STATUS = {
-    submitted: { label: t2('statusSubmitted'), cls: 'bg-emerald-50 text-emerald-700' },
-    late:      { label: t2('statusLate'),      cls: 'bg-rose-50 text-rose-600' },
-    neutral:   { label: t2('statusNoSchedule'), cls: 'bg-gray-100 text-gray-500' },
+    submitted: {
+      label: t2('statusSubmitted'),
+      cls: isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700',
+    },
+    late: {
+      label: t2('statusLate'),
+      cls: isDark ? 'bg-rose-500/15 text-rose-400' : 'bg-rose-50 text-rose-600',
+    },
+    neutral: {
+      label: t2('statusNoSchedule'),
+      cls: isDark ? 'bg-white/8 text-gray-500' : 'bg-gray-100 text-gray-500',
+    },
   }
   const s = STATUS[client.status]
   const rateColor = client.checkin_rate >= 70 ? 'bg-emerald-400' : client.checkin_rate >= 40 ? 'bg-amber-400' : 'bg-rose-400'
   const initials = client.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
   return (
-    <div onClick={onClick} className="flex items-center gap-3 py-2.5 px-1 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
-      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accentHex}18` }}>
+    <div onClick={onClick} className={`flex items-center gap-3 py-2.5 px-2 rounded-xl cursor-pointer transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accentHex}${isDark ? '25' : '15'}` }}>
         <span className="text-xs font-semibold" style={{ color: accentHex }}>{initials}</span>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{client.full_name}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-          <div className="flex-1 max-w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden" title={t2('consistencyScoreLabel')}>
+        <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{client.full_name}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <div className={`flex-1 max-w-20 h-1 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
             <div className={`h-full rounded-full ${rateColor}`} style={{ width: `${client.checkin_rate}%` }} />
           </div>
-          <span className="text-xs text-gray-400 tabular-nums" title={t2('consistencyScoreLabel')}>{client.checkin_rate}%</span>
+          <span className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{client.checkin_rate}%</span>
         </div>
       </div>
       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${s.cls}`}>{s.label}</span>
@@ -624,118 +669,169 @@ function DashboardPageContent() {
         const todayDayName = (tDays as any)(String(new Date().getDay()))
         const submittedCount = todayCheckinClients.filter(c => c.submitted).length
         const waitingCount   = todayCheckinClients.filter(c => !c.submitted).length
+        const total          = todayCheckinClients.length
+        const progressPct    = total > 0 ? Math.round((submittedCount / total) * 100) : 0
 
-        // Dark-mode aware stat definitions
-        const miniStats = [
-          {
-            label: t2('miniStatCheckins'), value: todayCheckinClients.length,
-            icon: CalendarDays,
-            color: accentHex,
-            bg: isDark ? `${accentHex}28` : `${accentHex}12`,
-          },
-          {
-            label: t2('miniStatSubmitted'), value: submittedCount,
-            icon: Check,
-            color: isDark ? '#4ade80' : '#16a34a',
-            bg: isDark ? 'rgba(22,163,74,0.2)' : '#dcfce7',
-          },
-          {
-            label: t2('miniStatWaiting'), value: waitingCount,
-            icon: Clock,
-            color: isDark ? '#fbbf24' : '#d97706',
-            bg: isDark ? 'rgba(217,119,6,0.2)' : '#fef3c7',
-          },
-          {
-            label: t2('miniStatExpiring'), value: expiringPackages.length,
-            icon: AlertTriangle,
-            color: expiringPackages.length > 0
-              ? (isDark ? '#f87171' : '#dc2626')
-              : (isDark ? '#6b7280' : '#9ca3af'),
-            bg: expiringPackages.length > 0
-              ? (isDark ? 'rgba(220,38,38,0.2)' : '#fee2e2')
-              : (isDark ? 'rgba(255,255,255,0.06)' : '#f9fafb'),
-          },
-        ]
-
-        const cardCls = isDark
-          ? 'rounded-2xl border border-white/8 overflow-hidden'
-          : 'bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden'
-        const cardStyle = isDark ? { background: 'oklch(0.195 0.018 264)' } : {}
-        const headerBorderCls = isDark ? 'border-white/8' : 'border-gray-50'
+        const cardBg    = isDark ? 'oklch(0.195 0.018 264)' : 'white'
+        const cardCls   = `rounded-2xl border overflow-hidden ${isDark ? 'border-white/8' : 'border-gray-100 shadow-sm bg-white'}`
+        const divCls    = isDark ? 'divide-white/6' : 'divide-gray-50'
+        const hdrBorder = isDark ? 'border-white/8' : 'border-gray-50'
 
         return (
-          <div className="space-y-5">
+          <div className="space-y-4">
 
-            {/* Mini stat row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {miniStats.map(s => (
-                <div
-                  key={s.label}
-                  className={`px-4 py-3.5 flex items-center gap-3 rounded-2xl border ${isDark ? 'border-white/8' : 'border-gray-100 shadow-sm bg-white'}`}
-                  style={isDark ? { background: 'oklch(0.195 0.018 264)' } : {}}
-                >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: s.bg }}>
-                    <s.icon size={16} style={{ color: s.color }} />
-                  </div>
-                  <div>
-                    <p className={`text-xl font-bold leading-none ${isDark ? 'text-white' : 'text-gray-900'}`}>{s.value}</p>
-                    <p className={`text-[11px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{s.label}</p>
+            {/* ── Hero row ─────────────────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+              {/* Check-ins today — big hero card */}
+              <div
+                className="col-span-2 rounded-2xl p-5 flex items-center gap-5 relative overflow-hidden"
+                style={{
+                  background: isDark
+                    ? `linear-gradient(135deg, ${accentHex}22 0%, ${accentHex}0a 100%)`
+                    : `linear-gradient(135deg, ${accentHex}12 0%, ${accentHex}05 100%)`,
+                  border: `1px solid ${accentHex}${isDark ? '30' : '18'}`,
+                }}
+              >
+                {/* Progress ring */}
+                <div className="relative shrink-0">
+                  <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="30" fill="none" strokeWidth="6" stroke={`${accentHex}20`} />
+                    <circle
+                      cx="36" cy="36" r="30" fill="none" strokeWidth="6"
+                      stroke={accentHex}
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 30}`}
+                      strokeDashoffset={`${2 * Math.PI * 30 * (1 - progressPct / 100)}`}
+                      transform="rotate(-90 36 36)"
+                      style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-lg font-extrabold leading-none" style={{ color: accentHex }}>{progressPct}%</span>
                   </div>
                 </div>
-              ))}
+                <div>
+                  <p className={`text-3xl font-extrabold leading-none tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {submittedCount}<span className={`text-lg font-medium ml-1 ${isDark ? 'text-gray-400' : 'text-gray-400'}`}>/{total}</span>
+                  </p>
+                  <p className={`text-sm font-semibold mt-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t2('miniStatCheckins')}</p>
+                  <p className={`text-xs mt-0.5 capitalize ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{todayDayName}</p>
+                </div>
+                {/* decorative bg blob */}
+                <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full pointer-events-none" style={{ backgroundColor: `${accentHex}08` }} />
+              </div>
+
+              {/* Submitted */}
+              <div
+                className="rounded-2xl p-4 flex items-center gap-3"
+                style={{
+                  background: isDark ? 'rgba(16,185,129,0.12)' : '#ecfdf5',
+                  border: isDark ? '1px solid rgba(16,185,129,0.2)' : '1px solid #bbf7d0',
+                }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)' }}>
+                  <Check size={18} style={{ color: isDark ? '#4ade80' : '#10b981' }} />
+                </div>
+                <div>
+                  <p className="text-2xl font-extrabold leading-none" style={{ color: isDark ? '#4ade80' : '#059669' }}>{submittedCount}</p>
+                  <p className={`text-xs mt-0.5 font-medium ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>{t2('miniStatSubmitted')}</p>
+                </div>
+              </div>
+
+              {/* Waiting + Expiring */}
+              <div className="flex flex-col gap-2">
+                <div
+                  className="rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 flex-1"
+                  style={{
+                    background: isDark ? 'rgba(245,158,11,0.12)' : '#fffbeb',
+                    border: isDark ? '1px solid rgba(245,158,11,0.2)' : '1px solid #fde68a',
+                  }}
+                >
+                  <Clock size={15} style={{ color: isDark ? '#fbbf24' : '#d97706' }} />
+                  <div>
+                    <span className="text-lg font-bold leading-none" style={{ color: isDark ? '#fbbf24' : '#d97706' }}>{waitingCount}</span>
+                    <p className={`text-[10px] ${isDark ? 'text-amber-400/60' : 'text-amber-600/60'}`}>{t2('miniStatWaiting')}</p>
+                  </div>
+                </div>
+                <div
+                  className="rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 flex-1"
+                  style={{
+                    background: expiringPackages.length > 0
+                      ? (isDark ? 'rgba(239,68,68,0.12)' : '#fef2f2')
+                      : (isDark ? 'rgba(255,255,255,0.04)' : '#f9fafb'),
+                    border: expiringPackages.length > 0
+                      ? (isDark ? '1px solid rgba(239,68,68,0.2)' : '1px solid #fecaca')
+                      : (isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid #f3f4f6'),
+                  }}
+                >
+                  <AlertTriangle size={15} style={{
+                    color: expiringPackages.length > 0
+                      ? (isDark ? '#f87171' : '#ef4444')
+                      : (isDark ? '#4b5563' : '#9ca3af'),
+                  }} />
+                  <div>
+                    <span className="text-lg font-bold leading-none" style={{
+                      color: expiringPackages.length > 0
+                        ? (isDark ? '#f87171' : '#ef4444')
+                        : (isDark ? '#4b5563' : '#9ca3af'),
+                    }}>{expiringPackages.length}</span>
+                    <p className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t2('miniStatExpiring')}</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* ── Check-ins + Packages ─────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
               {/* Check-ins today */}
-              <div className={cardCls} style={cardStyle}>
-                <div className={`flex items-center gap-3 px-5 py-4 border-b ${headerBorderCls}`}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
-                    <CalendarDays size={15} style={{ color: accentHex }} />
+              <div className={cardCls} style={{ background: cardBg }}>
+                <div className={`flex items-center gap-3 px-5 py-3.5 border-b ${hdrBorder}`}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
+                    <CalendarDays size={13} style={{ color: accentHex }} />
                   </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('miniStatCheckins')}</p>
-                    <p className={`text-xs capitalize ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{todayDayName}</p>
-                  </div>
+                  <p className={`text-sm font-semibold flex-1 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('miniStatCheckins')}</p>
                   {todayCheckinClients.length > 0 && (
                     <button onClick={() => router.push('/dashboard/checkins')}
                       className="flex items-center gap-1 text-xs font-medium transition-colors"
                       style={{ color: accentHex }}>
-                      {t2('allLink')} <ChevronRight size={12} />
+                      {t2('allLink')} <ChevronRight size={11} />
                     </button>
                   )}
                 </div>
                 {todayCheckinClients.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center px-5">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}${isDark ? '20' : '10'}` }}>
-                      <CalendarDays size={22} style={{ color: accentHex, opacity: 0.5 }} />
+                  <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: `${accentHex}${isDark ? '18' : '0e'}` }}>
+                      <CalendarDays size={20} style={{ color: accentHex, opacity: 0.45 }} />
                     </div>
                     <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('noCheckinsToday')}</p>
-                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('clientsWithCheckinOn')} {todayDayName}</p>
+                    <p className={`text-xs mt-1 capitalize ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('clientsWithCheckinOn')} {todayDayName}</p>
                   </div>
                 ) : (
-                  <div className={`divide-y ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
+                  <div className={`divide-y ${divCls}`}>
                     {todayCheckinClients.map(c => (
                       <div
                         key={c.id}
                         onClick={() => router.push(`/dashboard/clients/${c.id}?tab=checkin`)}
-                        className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                        className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}
                       >
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}${isDark ? '25' : '12'}` }}>
                           <span className="text-xs font-bold" style={{ color: accentHex }}>
-                            {c.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                            {c.full_name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
                           </span>
                         </div>
                         <span className={`flex-1 text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.full_name}</span>
                         {c.submitted ? (
-                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                            <Check size={10} /> {t2('miniStatSubmitted')}
+                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full ${isDark ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>
+                            <Check size={9} /> {t2('miniStatSubmitted')}
                           </span>
                         ) : (
-                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
-                            <Clock size={10} /> {t2('miniStatWaiting')}
+                          <span className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full ${isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
+                            <Clock size={9} /> {t2('miniStatWaiting')}
                           </span>
                         )}
-                        <ChevronRight size={13} className={`ml-1 transition-colors ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                        <ChevronRight size={12} className={`ml-0.5 shrink-0 ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-500'}`} />
                       </div>
                     ))}
                   </div>
@@ -743,69 +839,55 @@ function DashboardPageContent() {
               </div>
 
               {/* Expiring packages */}
-              <div className={cardCls} style={cardStyle}>
-                <div className={`flex items-center gap-3 px-5 py-4 border-b ${headerBorderCls}`}>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDark ? '' : 'bg-amber-50'}`}
-                    style={isDark ? { backgroundColor: 'rgba(217,119,6,0.2)' } : {}}>
-                    <Package size={15} style={{ color: isDark ? '#fbbf24' : undefined }} className={!isDark ? 'text-amber-500' : ''} />
+              <div className={cardCls} style={{ background: cardBg }}>
+                <div className={`flex items-center gap-3 px-5 py-3.5 border-b ${hdrBorder}`}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.2)' : '#fef3c7' }}>
+                    <Package size={13} style={{ color: isDark ? '#fbbf24' : '#d97706' }} />
                   </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('packagesExpiringTitle')}</p>
-                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t2('expiresIn7Days')}</p>
-                  </div>
+                  <p className={`text-sm font-semibold flex-1 ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('packagesExpiringTitle')}</p>
                   {expiringPackages.length > 0 && (
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
                       {expiringPackages.length}
                     </span>
                   )}
                 </div>
                 {expiringPackages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center px-5">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 ${isDark ? '' : 'bg-amber-50'}`}
-                      style={isDark ? { backgroundColor: 'rgba(217,119,6,0.15)' } : {}}>
-                      <Package size={22} style={{ color: isDark ? '#d97706' : undefined, opacity: 0.5 }} className={!isDark ? 'text-amber-300' : ''} />
+                  <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: isDark ? 'rgba(245,158,11,0.12)' : '#fef3c7' }}>
+                      <Package size={20} style={{ color: isDark ? '#d97706' : '#f59e0b', opacity: 0.5 }} />
                     </div>
                     <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('noExpiringPackages')}</p>
                     <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('allPackagesActiveThisWeek')}</p>
                   </div>
                 ) : (
-                  <div className={`divide-y max-h-[416px] overflow-y-auto ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
+                  <div className={`divide-y max-h-[400px] overflow-y-auto ${divCls}`}>
                     {expiringPackages.map(pkg => {
                       const urgent = pkg.days_left <= 2
+                      const initials = pkg.client_name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
                       return (
                         <div
                           key={pkg.id}
                           onClick={() => router.push(`/dashboard/clients/${pkg.client_id}?tab=paketi`)}
-                          className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                          className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}
                         >
-                          <div
-                            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: urgent
-                              ? (isDark ? 'rgba(220,38,38,0.2)' : undefined)
-                              : (isDark ? 'rgba(217,119,6,0.2)' : undefined),
-                            }}
-                          >
-                            <span
-                              className={`text-xs font-bold ${!isDark ? (urgent ? 'text-red-500' : 'text-amber-600') : ''}`}
-                              style={isDark ? { color: urgent ? '#f87171' : '#fbbf24' } : {}}
-                            >
-                              {pkg.client_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: urgent ? (isDark ? 'rgba(239,68,68,0.2)' : '#fee2e2') : (isDark ? 'rgba(245,158,11,0.2)' : '#fef3c7') }}>
+                            <span className="text-xs font-bold" style={{ color: urgent ? (isDark ? '#f87171' : '#ef4444') : (isDark ? '#fbbf24' : '#d97706') }}>
+                              {initials}
                             </span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{pkg.client_name}</p>
                             <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{pkg.pkg_name}</p>
                           </div>
-                          <div className="flex flex-col items-end shrink-0 gap-0.5">
-                            <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${
-                              pkg.days_left <= 0 || urgent
-                                ? (isDark ? 'bg-red-500/15 text-red-400 border-red-500/25' : 'bg-red-50 text-red-600 border-red-100')
-                                : (isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-100')
-                            }`}>
-                              {pkg.days_left === 0 ? t2('expiresToday') : `${pkg.days_left}d`}
-                            </span>
-                          </div>
-                          <ChevronRight size={13} className={`transition-colors ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                            urgent
+                              ? (isDark ? 'bg-red-500/15 text-red-400' : 'bg-red-50 text-red-600')
+                              : (isDark ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-50 text-amber-700')
+                          }`}>
+                            {pkg.days_left === 0 ? t2('expiresToday') : `${pkg.days_left}d`}
+                          </span>
+                          <ChevronRight size={12} className={`shrink-0 ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-500'}`} />
                         </div>
                       )
                     })}
@@ -817,20 +899,28 @@ function DashboardPageContent() {
         )
       })()}
 
-      {/* Stat cards — 2 rows × 4 */}
-      <div className={`grid grid-cols-2 sm:grid-cols-4 gap-4 ${dashView === 'today' ? 'hidden' : ''}`}>
-        <StatCard icon={Users}         label={t2('statActiveClients')}         value={stats.activeClients}     color="accent"  onClick={() => router.push('/dashboard/clients')} />
-        <StatCard icon={CheckCircle2}  label={t2('statCheckinThisWeek')}       value={stats.submitted}         color="emerald" sub={t2('statLateCount', { count: stats.late })} onClick={() => router.push('/dashboard/checkins')} />
-        <StatCard icon={AlertCircle}   label={t2('statLateCheckin')}           value={stats.late}              color="rose"    onClick={() => router.push('/dashboard/checkins')} />
-        <StatCard icon={TrendingUp}    label={t2('statAvgRegularity')}         value={`${stats.avgCheckinRate}%`} color="sky"  sub={t2('statCheckinRate')} />
-        <StatCard icon={Banknote}      label={t2('statRevenueThisMonth')}      value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel} onClick={() => router.push('/dashboard/financije')} />
-        <StatCard icon={AlertCircle}   label={t2('statLatePayments')}          value={stats.latePayments}      color="amber"   onClick={() => router.push('/dashboard/financije')} />
-        <StatCard icon={MessageSquare} label={t2('statUnreadMessages')}        value={stats.unreadMessages}    color="accent"  onClick={() => router.push('/dashboard/chat')} />
-        <StatCard icon={TrendingUp}    label={t2('statRevenueThisYear')}       value={`${yearRevenue}€`}       color="emerald" sub={stats.totalMonth > 0 ? t2('revThisMonthSub', { paid: stats.paidByStart, total: stats.totalMonth }) : ''} onClick={() => router.push('/dashboard/financije')} />
-      </div>
+      {/* ── GLOBAL: KPI grid ─────────────────────────────────────────────────── */}
+      {dashView === 'global' && (
+        <div className="space-y-3">
+          {/* Row 1 — coaching metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard icon={Users}        label={t2('statActiveClients')}   value={stats.activeClients}        color="accent"  onClick={() => router.push('/dashboard/clients')} />
+            <StatCard icon={CheckCircle2} label={t2('statCheckinThisWeek')} value={stats.submitted}            color="emerald" sub={t2('statLateCount', { count: stats.late })} onClick={() => router.push('/dashboard/checkins')} />
+            <StatCard icon={AlertCircle}  label={t2('statLateCheckin')}     value={stats.late}                 color="rose"    onClick={() => router.push('/dashboard/checkins')} />
+            <StatCard icon={TrendingUp}   label={t2('statAvgRegularity')}   value={`${stats.avgCheckinRate}%`} color="sky"     sub={t2('statCheckinRate')} />
+          </div>
+          {/* Row 2 — financial metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard icon={Banknote}      label={t2('statRevenueThisMonth')} value={`${stats.collectedMonth}€`} color="emerald" sub={revTrendLabel}     onClick={() => router.push('/dashboard/financije')} featured />
+            <StatCard icon={TrendingUp}    label={t2('statRevenueThisYear')}  value={`${yearRevenue}€`}          color="emerald" sub={stats.totalMonth > 0 ? t2('revThisMonthSub', { paid: stats.paidByStart, total: stats.totalMonth }) : ''} onClick={() => router.push('/dashboard/financije')} />
+            <StatCard icon={AlertCircle}   label={t2('statLatePayments')}     value={stats.latePayments}         color="amber"   onClick={() => router.push('/dashboard/financije')} />
+            <StatCard icon={MessageSquare} label={t2('statUnreadMessages')}   value={stats.unreadMessages}       color="accent"  onClick={() => router.push('/dashboard/chat')} />
+          </div>
+        </div>
+      )}
 
       {/* Charts + checkin list */}
-      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-5 ${dashView === 'today' ? 'hidden' : ''}`}>
+      {dashView === 'global' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Revenue bar chart + Donut */}
         <DashboardRevenueCharts
@@ -842,46 +932,50 @@ function DashboardPageContent() {
           totalMonth={stats.totalMonth}
           latePayments={stats.latePayments}
         />
-      </div>
+      </div>}
 
       {/* Recent activity feed */}
       {dashView === 'global' && recentActivity.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}15` }}>
-                <Activity size={14} style={{ color: accentHex }} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{t2('activityFeedTitle')}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{t2('activityFeedSub')}</p>
-              </div>
+        <div
+          className={`rounded-2xl border p-5 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`}
+          style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '25' : '15'}` }}>
+              <Activity size={13} style={{ color: accentHex }} />
+            </div>
+            <div>
+              <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('activityFeedTitle')}</p>
+              <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t2('activityFeedSub')}</p>
             </div>
           </div>
-          <div className="space-y-1 max-h-[320px] overflow-y-auto pr-0.5">
-            {recentActivity.map((item, idx) => {
-              const icon = item.type === 'checkin'
-                ? <ClipboardCheck size={13} style={{ color: accentHex }} />
-                : item.type === 'message'
-                ? <MessageSquare size={13} style={{ color: isDark ? '#38bdf8' : '#0284c7' }} />
-                : <CreditCard size={13} style={{ color: isDark ? '#34d399' : '#059669' }} />
-              const dot = item.type === 'checkin'
-                ? { backgroundColor: isDark ? `${accentHex}35` : `${accentHex}20`, color: accentHex }
-                : item.type === 'message'
-                ? { backgroundColor: isDark ? 'rgba(2,132,199,0.22)' : '#e0f2fe', color: isDark ? '#38bdf8' : '#0284c7' }
-                : { backgroundColor: isDark ? 'rgba(5,150,105,0.22)' : '#d1fae5', color: isDark ? '#34d399' : '#059669' }
+          <div className="space-y-0.5 max-h-[300px] overflow-y-auto">
+            {recentActivity.map(item => {
+              const isCheckin = item.type === 'checkin'
+              const isMsg     = item.type === 'message'
+              const iconColor = isCheckin ? accentHex : isMsg ? (isDark ? '#38bdf8' : '#0284c7') : (isDark ? '#34d399' : '#059669')
+              const dotBg     = isCheckin
+                ? (isDark ? `${accentHex}30` : `${accentHex}18`)
+                : isMsg
+                ? (isDark ? 'rgba(2,132,199,0.2)' : '#e0f2fe')
+                : (isDark ? 'rgba(5,150,105,0.2)' : '#d1fae5')
+              const icon = isCheckin
+                ? <ClipboardCheck size={12} style={{ color: iconColor }} />
+                : isMsg
+                ? <MessageSquare size={12} style={{ color: iconColor }} />
+                : <CreditCard size={12} style={{ color: iconColor }} />
               return (
                 <div
                   key={item.id}
-                  className={`flex items-center gap-3 px-2.5 py-2 rounded-xl cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}
                   onClick={() => item.clientId && router.push(`/dashboard/clients/${item.clientId}`)}
                 >
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={dot}>
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: dotBg }}>
                     {icon}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-xs font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.title}</span>
-                    <span className={`text-xs ml-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{item.subtitle}</span>
+                  <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                    <span className={`text-xs font-semibold shrink-0 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{item.title}</span>
+                    <span className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{item.subtitle}</span>
                   </div>
                   <span className={`text-[11px] tabular-nums shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{item.time}</span>
                 </div>
@@ -892,31 +986,41 @@ function DashboardPageContent() {
       )}
 
       {/* Checkin status — all clients (global view only) */}
-      {dashView === 'global' && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{t2('checkinStatusTitle')}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{t2('checkinStatusSummary', { submitted: stats.submitted, late: stats.late, neutral: stats.neutral })}</p>
-          </div>
-          <button type="button" onClick={() => router.push('/dashboard/checkins')}
-            className="flex items-center gap-1 text-xs font-medium transition-colors"
-            style={{ color: accentHex }}>
-            {t2('allCheckinsLink')} <ArrowRight size={12} />
-          </button>
-        </div>
-
-        {clients.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">{t('noUpcomingCheckins')}</p>
-        ) : (
-          <div className="max-h-[240px] overflow-y-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 divide-y divide-gray-50 sm:divide-y-0">
-              {clients.map(c => (
-                <CheckinRow key={c.id} client={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
-              ))}
+      {dashView === 'global' && (
+        <div
+          className={`rounded-2xl border p-5 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`}
+          style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '25' : '15'}` }}>
+                <ClipboardCheck size={13} style={{ color: accentHex }} />
+              </div>
+              <div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('checkinStatusTitle')}</p>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t2('checkinStatusSummary', { submitted: stats.submitted, late: stats.late, neutral: stats.neutral })}</p>
+              </div>
             </div>
+            <button type="button" onClick={() => router.push('/dashboard/checkins')}
+              className="flex items-center gap-1 text-xs font-medium transition-colors"
+              style={{ color: accentHex }}>
+              {t2('allCheckinsLink')} <ArrowRight size={12} />
+            </button>
           </div>
-        )}
-      </div>}
+
+          {clients.length === 0 ? (
+            <p className={`text-sm text-center py-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noUpcomingCheckins')}</p>
+          ) : (
+            <div className="max-h-[240px] overflow-y-auto">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 divide-y sm:divide-y-0 ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
+                {clients.map(c => (
+                  <CheckinRow key={c.id} client={c} onClick={() => router.push(`/dashboard/clients/${c.id}`)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   )

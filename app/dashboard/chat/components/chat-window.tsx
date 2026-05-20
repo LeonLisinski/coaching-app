@@ -51,6 +51,33 @@ function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   )
 }
 
+function VideoMessage({ url }: { url: string }) {
+  const [errored, setErrored] = useState(false)
+  return (
+    <div className="flex flex-col gap-1">
+      {!errored ? (
+        <video
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          className="rounded-xl w-full max-h-64 bg-black"
+          onError={() => setErrored(true)}
+        />
+      ) : null}
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-1.5 px-1 py-0.5 text-xs text-white/60 hover:text-white/90 transition-colors"
+      >
+        <PlayCircle size={12} />
+        {errored ? 'Format nije podržan — preuzmi video' : 'Otvori / preuzmi'}
+      </a>
+    </div>
+  )
+}
+
 export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed', onMessageSent, onBack }: Props) {
   const t = useTranslations('chat')
   const tChat = useTranslations('chatPage')
@@ -83,6 +110,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [tempPreviews, setTempPreviews] = useState<Record<string, string>>({})
   // Signed URL cache for persisted media messages (keyed by media_path)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
+  // Image lightbox
+  const [viewingImage, setViewingImage] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
   const templatesRef = useRef<HTMLDivElement>(null)
@@ -240,7 +269,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                 body: JSON.stringify({
                   trainer_id: uid,
                   title: `💬 ${clientName}`,
-                  body: msg.content?.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content,
+                  body: msg.content ? (msg.content.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content) : (msg.media_type === 'image' ? '📷 Slika' : msg.media_type === 'video' ? '🎬 Video' : ''),
                   url: '/dashboard/chat',
                   tag: `message-${clientId}`,
                 }),
@@ -486,14 +515,14 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                             <div className="max-w-[260px]">
                               {msg.media_type === 'image' ? (
                                 url
-                                  ? <a href={url} target="_blank" rel="noreferrer">
+                                  ? <button type="button" onClick={() => setViewingImage(url)} className="block w-full cursor-zoom-in">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={url} alt="" className="rounded-xl w-full object-cover max-h-64" />
-                                    </a>
+                                    </button>
                                   : <div className="flex items-center justify-center h-32 rounded-xl bg-black/20"><Loader2 className="animate-spin" size={16} /></div>
                               ) : msg.media_type === 'video' ? (
                                 url
-                                  ? <video src={url} controls playsInline className="rounded-xl w-full max-h-64 bg-black" />
+                                  ? <VideoMessage url={url} />
                                   : <div className="flex items-center gap-2 h-20 rounded-xl bg-black/20 px-4"><Loader2 className="animate-spin" size={16} /><PlayCircle size={20} /></div>
                               ) : null}
                             </div>
@@ -620,6 +649,37 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
         </div>
         <p className="hidden lg:block text-[10px] text-gray-400 text-center mt-1.5">{tChat('enterHint')}</p>
       </div>
+
+      {/* Image lightbox */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center"
+          onClick={() => setViewingImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setViewingImage(null)}
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+          >
+            <X size={18} />
+          </button>
+          <a
+            href={viewingImage}
+            download
+            className="absolute bottom-4 right-4 flex items-center gap-1.5 text-xs text-white/60 hover:text-white px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            onClick={e => e.stopPropagation()}
+          >
+            ↓ Preuzmi
+          </a>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={viewingImage}
+            alt=""
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }
