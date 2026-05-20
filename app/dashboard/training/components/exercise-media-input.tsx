@@ -253,14 +253,21 @@ export default function ExerciseMediaInput({ value, onChange, isDark = false }: 
 
           {/* Pending (just picked) preview */}
           {hasPending && pendingPreviewUrl && (
-            <div className={`rounded-lg overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+            <div className={`rounded-lg border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {value.tab === 'video' ? (
-                <video src={pendingPreviewUrl} controls className="w-full max-h-64 bg-black" />
+                <video
+                  src={pendingPreviewUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full rounded-t-lg bg-black"
+                  style={{ maxHeight: '260px', display: 'block' }}
+                />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={pendingPreviewUrl} alt="preview" className="w-full max-h-64 object-contain bg-black" />
+                <img src={pendingPreviewUrl} alt="preview" className="w-full rounded-t-lg max-h-64 object-contain bg-black" />
               )}
-              <div className={`flex items-center justify-between px-2 py-1.5 text-[11px] ${isDark ? 'bg-white/[0.04] text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+              <div className={`flex items-center justify-between px-2 py-1.5 text-[11px] rounded-b-lg ${isDark ? 'bg-white/[0.04] text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
                 <span>{t('mediaPendingBadge')} · {humanBytes(value.pendingSize ?? 0)}</span>
                 <button type="button" onClick={clearPending} className="hover:text-red-500 transition-colors flex items-center gap-1">
                   <Trash2 size={11} /> {t('mediaUndoPick')}
@@ -271,21 +278,43 @@ export default function ExerciseMediaInput({ value, onChange, isDark = false }: 
 
           {/* Existing upload preview */}
           {showExistingPreview && (
-            <div className={`rounded-lg overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+            <div className={`rounded-lg border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               {signedUrl ? (
                 value.tab === 'video' ? (
-                  <video src={signedUrl} controls className="w-full max-h-64 bg-black" />
+                  <>
+                    <video
+                      src={signedUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full rounded-t-lg bg-black"
+                      style={{ maxHeight: '260px', display: 'block' }}
+                    />
+                  </>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={signedUrl} alt="current" className="w-full max-h-64 object-contain bg-black" />
+                  <img src={signedUrl} alt="current" className="w-full rounded-t-lg max-h-64 object-contain bg-black" />
                 )
               ) : (
-                <div className={`w-full h-32 flex items-center justify-center text-xs ${isDark ? 'bg-white/[0.03] text-gray-500' : 'bg-gray-50 text-gray-400'}`}>
+                <div className={`w-full h-32 flex items-center justify-center text-xs rounded-t-lg ${isDark ? 'bg-white/[0.03] text-gray-500' : 'bg-gray-50 text-gray-400'}`}>
                   <Loader2 className="animate-spin mr-1" size={14} /> {t('mediaLoading')}
                 </div>
               )}
-              <div className={`flex items-center justify-between px-2 py-1.5 text-[11px] ${isDark ? 'bg-white/[0.04] text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
-                <span>{t('mediaCurrentBadge')} · {humanBytes(value.existingSizeBytes ?? 0)}</span>
+              <div className={`flex items-center justify-between px-2 py-1.5 text-[11px] rounded-b-lg ${isDark ? 'bg-white/[0.04] text-gray-400' : 'bg-gray-50 text-gray-500'}`}>
+                <div className="flex items-center gap-3">
+                  <span>{t('mediaCurrentBadge')} · {humanBytes(value.existingSizeBytes ?? 0)}</span>
+                  {/* Fallback for formats browser can't play inline (e.g. MOV) */}
+                  {value.tab === 'video' && signedUrl && (
+                    <a
+                      href={signedUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`flex items-center gap-1 hover:underline ${isDark ? 'text-blue-400' : 'text-blue-600'}`}
+                    >
+                      <ExternalLink size={10} /> {t('mediaOpenExternal')}
+                    </a>
+                  )}
+                </div>
                 <button type="button" onClick={removeExisting} className="hover:text-red-500 transition-colors flex items-center gap-1">
                   <Trash2 size={11} /> {t('mediaRemove')}
                 </button>

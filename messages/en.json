@@ -1053,6 +1053,7 @@
         "mediaVideoTooLong": "Video is too long — max {sec}s.",
         "mediaVideoUnreadable": "Could not read the video file.",
         "mediaImageTooBig": "Image is too large — max {mb} MB.",
+        "mediaOpenExternal": "Open in new tab",
         "mediaPickFailed": "Could not load file.",
         "mediaUploading": "Uploading media...",
         "mediaUploadFailed": "Media upload failed.",

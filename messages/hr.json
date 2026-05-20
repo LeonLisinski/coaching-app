@@ -1053,6 +1053,7 @@
         "mediaVideoTooLong": "Video je predug — maks {sec}s.",
         "mediaVideoUnreadable": "Ne mogu pročitati video.",
         "mediaImageTooBig": "Slika je prevelika — maks {mb} MB.",
+        "mediaOpenExternal": "Otvori u novom tabu",
         "mediaPickFailed": "Učitavanje nije uspjelo.",
         "mediaUploading": "Uploadam media...",
         "mediaUploadFailed": "Upload medija nije uspio.",
