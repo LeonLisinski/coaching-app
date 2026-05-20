@@ -95,7 +95,6 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     const user = session?.user
     if (!user) return
 
-    // Base fields shared by fork-insert and in-place update
     const basePayload = {
       name: form.name, category: form.category,
       muscle_group: primaryMuscles[0] || null,
@@ -103,25 +102,7 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       description: form.description || null,
       exercise_type: form.exercise_type,
       section: form.section,
-    }
-
-    // Compute the desired video_url / media_type up front (excludes the path,
-    // which we only know after upload).
-    const wantsYoutube = media.tab === 'youtube'
-    const wantsUpload  = (media.tab === 'video' || media.tab === 'image') && !!media.pendingFile
-    const keepingUpload = (media.tab === 'video' || media.tab === 'image')
-      && !media.pendingFile && !media.removeExisting && !!media.existingPath
-
-    const initialMediaFields: Record<string, unknown> = {
-      video_url: wantsYoutube ? (media.videoUrl.trim() || null) : null,
-      media_type: wantsYoutube
-        ? (media.videoUrl.trim() ? 'youtube' : null)
-        : keepingUpload ? media.tab : null,
-      // Path/mime/size are only cleared here when removing or switching tabs;
-      // they'll be overwritten below if a new file is uploaded.
-      media_path: keepingUpload ? media.existingPath : null,
-      media_mime: keepingUpload ? media.existingMime : null,
-      media_size_bytes: keepingUpload ? media.existingSizeBytes : null,
+      video_url: media.videoUrl.trim() || null,
     }
 
     let targetExerciseId = exercise.id
@@ -129,10 +110,8 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
     if (isFork) {
       const { data: inserted, error: insertErr } = await supabase.from('exercises').insert({
         ...basePayload,
-        ...initialMediaFields,
-        // Fork can't reuse the original (default) exercise's media_path
-        media_type: wantsYoutube ? initialMediaFields.media_type : null,
-        media_path: null, media_mime: null, media_size_bytes: null,
+        media_type: null, media_path: null, media_mime: null, media_size_bytes: null,
+        image_path: null, image_mime: null, image_size_bytes: null,
         trainer_id: user.id, is_default: false,
       }).select('id').single()
       if (insertErr || !inserted) { setError(insertErr?.message || 'Insert failed'); setLoading(false); return }
@@ -142,43 +121,49 @@ export default function EditExerciseDialog({ exercise, open, onClose, onSuccess 
       })
       if (overrideErr) { setError(overrideErr.message); setLoading(false); return }
     } else {
+      // Keep existing video/image if not changed
+      const mediaPatch: Record<string, unknown> = {}
+      if (media.removeVideo) {
+        mediaPatch.media_type = null; mediaPatch.media_path = null; mediaPatch.media_mime = null; mediaPatch.media_size_bytes = null
+      } else if (!media.pendingVideoFile && media.existingVideoPath) {
+        // unchanged — don't touch
+      } else if (!media.existingVideoPath) {
+        mediaPatch.media_type = null; mediaPatch.media_path = null; mediaPatch.media_mime = null; mediaPatch.media_size_bytes = null
+      }
+      if (media.removeImage) {
+        mediaPatch.image_path = null; mediaPatch.image_mime = null; mediaPatch.image_size_bytes = null
+      }
       const { error: updateErr } = await supabase.from('exercises')
-        .update({ ...basePayload, ...initialMediaFields })
+        .update({ ...basePayload, ...mediaPatch })
         .eq('id', exercise.id)
       if (updateErr) { setError(updateErr.message); setLoading(false); return }
     }
 
-    // Upload pending file and patch path/mime/size
-    if (wantsUpload && media.pendingFile && media.pendingMime) {
-      try {
-        const uploaded = await uploadExerciseMedia(user.id, targetExerciseId, media.pendingFile, media.pendingMime)
-        const { error: patchErr } = await supabase.from('exercises').update({
-          media_type: media.tab,
-          media_path: uploaded.path,
-          media_mime: uploaded.mime,
-          media_size_bytes: uploaded.size,
-          video_url: null,
-        }).eq('id', targetExerciseId)
-        if (patchErr) throw patchErr
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Media upload failed')
-        setLoading(false)
-        return
+    // Upload new video if picked
+    const mediaPatch: Record<string, unknown> = {}
+    try {
+      if (media.pendingVideoFile && media.pendingVideoMime) {
+        const up = await uploadExerciseMedia(user.id, targetExerciseId, media.pendingVideoFile, media.pendingVideoMime)
+        mediaPatch.media_type = 'video'; mediaPatch.media_path = up.path; mediaPatch.media_mime = up.mime; mediaPatch.media_size_bytes = up.size
       }
+      if (media.pendingImageFile && media.pendingImageMime) {
+        const up = await uploadExerciseMedia(user.id, targetExerciseId + '_img', media.pendingImageFile, media.pendingImageMime)
+        mediaPatch.image_path = up.path; mediaPatch.image_mime = up.mime; mediaPatch.image_size_bytes = up.size
+      }
+      if (Object.keys(mediaPatch).length > 0) {
+        const { error: patchErr } = await supabase.from('exercises').update(mediaPatch).eq('id', targetExerciseId)
+        if (patchErr) throw patchErr
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Media upload failed')
+      setLoading(false)
+      return
     }
 
-    // Best-effort: remove orphaned storage file when:
-    // - user removed/replaced existing upload on their own exercise, or
-    // - user is forking and the existing path belonged to a default exercise (skip — defaults have no path)
-    if (!isFork && media.existingPath && (media.removeExisting || (wantsUpload && media.existingPath))) {
-      // If the new uploaded path is the same as existing (same id+ext), upsert already overwrote it.
-      // Only delete the old file when the new path differs OR we're removing entirely.
-      // For simplicity: the path key is {trainer_id}/{exercise_id}.{ext} — only the extension may differ.
-      // Comparing isn't trivial here; rely on the patch above keeping the bucket consistent.
-      // We DO need to delete on a pure removal:
-      if (media.removeExisting && !wantsUpload) {
-        await deleteExerciseMedia(media.existingPath)
-      }
+    // Cleanup orphaned files
+    if (!isFork) {
+      if (media.removeVideo && media.existingVideoPath) await deleteExerciseMedia(media.existingVideoPath)
+      if (media.removeImage && media.existingImagePath) await deleteExerciseMedia(media.existingImagePath)
     }
 
     setLoading(false); onSuccess(); onClose()

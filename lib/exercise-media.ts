@@ -10,8 +10,6 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024 // 5 MB original
 export const COMPRESSED_IMAGE_TARGET_MB = 0.5
 export const COMPRESSED_IMAGE_MAX_DIM = 1920
 
-export type ExerciseMediaType = 'youtube' | 'video' | 'image' | null
-
 export type UploadedExerciseMedia = {
   path: string
   mime: string

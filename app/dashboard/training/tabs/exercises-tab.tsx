@@ -31,6 +31,9 @@ export type Exercise = {
   media_path?: string | null
   media_mime?: string | null
   media_size_bytes?: number | null
+  image_path?: string | null
+  image_mime?: string | null
+  image_size_bytes?: number | null
 }
 
 export const EQUIPMENT_CATEGORIES = [
@@ -101,7 +104,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
     const [{ data: allEx }, { data: overrides }] = await Promise.all([
       supabase.from('exercises')
-        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section,media_type,media_path,media_mime,media_size_bytes')
+        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section,media_type,media_path,media_mime,media_size_bytes,image_path,image_mime,image_size_bytes')
         .or(`trainer_id.eq.${user.id},is_default.eq.true`)
         .order('name'),
       supabase.from('trainer_overrides')
@@ -379,23 +382,27 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
                       <div className="flex items-center gap-0.5 shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded border mr-1 ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>{ex.category}</span>
-                        {(() => {
-                          const hasUpload = ex.media_type === 'video' || ex.media_type === 'image'
-                          const hasYoutube = !hasUpload && !!ex.video_url
-                          if (!hasUpload && !hasYoutube) return null
-                          const Icon = ex.media_type === 'image' ? ImageIcon : ex.media_type === 'video' ? PlayCircle : ExternalLink
-                          const title = ex.media_type === 'image' ? t('previewImage') : ex.media_type === 'video' ? t('previewVideo') : 'YouTube'
-                          return (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setPreviewExercise(ex) }}
-                              className="text-gray-400 hover:text-emerald-500 transition-colors p-1"
-                              title={title}
-                            >
-                              <Icon size={12} />
-                            </button>
-                          )
-                        })()}
+                        {/* YouTube */}
+                        {ex.video_url && (
+                          <button type="button" onClick={e => { e.stopPropagation(); window.open(ex.video_url!, '_blank', 'noopener,noreferrer') }}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1" title="YouTube">
+                            <ExternalLink size={12} />
+                          </button>
+                        )}
+                        {/* Uploaded video */}
+                        {ex.media_path && (
+                          <button type="button" onClick={e => { e.stopPropagation(); setPreviewExercise(ex) }}
+                            className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title={t('previewVideo')}>
+                            <PlayCircle size={12} />
+                          </button>
+                        )}
+                        {/* Uploaded image */}
+                        {ex.image_path && (
+                          <button type="button" onClick={e => { e.stopPropagation(); setPreviewExercise({ ...ex, media_type: 'image', media_path: ex.image_path }) }}
+                            className="text-gray-400 hover:text-blue-500 transition-colors p-1" title={t('previewImage')}>
+                            <ImageIcon size={12} />
+                          </button>
+                        )}
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-gray-700"
                           onClick={() => setEditExercise(ex)}>
                           <Pencil size={12} />

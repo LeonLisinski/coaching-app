@@ -95,11 +95,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
 
     const cleanExtras = Object.fromEntries(Object.entries(extras).filter(([_, v]) => v !== ''))
 
-    // Initial insert without media columns; we fill them in after the upload
-    // succeeds because the storage path requires the exercise id.
-    const initialMediaType = media.tab === 'youtube' && media.videoUrl.trim() ? 'youtube' : null
-    const initialVideoUrl = media.tab === 'youtube' ? (media.videoUrl.trim() || null) : null
-
+    // Insert with youtube URL; upload media after (we need the exercise id for the path)
     const { data: inserted, error: insertErr } = await supabase.from('exercises').insert({
       trainer_id: user.id, is_default: false,
       name: form.name, category: form.category,
@@ -107,8 +103,8 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
       primary_muscles: primaryMuscles,
       secondary_muscles: secondaryMuscles,
       description: form.description || null,
-      video_url: initialVideoUrl,
-      media_type: initialMediaType,
+      video_url: media.videoUrl.trim() || null,
+      media_type: null,
       exercise_type: form.exercise_type,
       section: form.section,
       extras: Object.keys(cleanExtras).length > 0 ? cleanExtras : null,
@@ -116,27 +112,31 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
 
     if (insertErr || !inserted) { setError(insertErr?.message || 'Insert failed'); setLoading(false); return }
 
-    // If a video/image was picked, upload it and patch the row
-    if ((media.tab === 'video' || media.tab === 'image') && media.pendingFile && media.pendingMime) {
-      try {
-        const uploaded = await uploadExerciseMedia(user.id, inserted.id, media.pendingFile, media.pendingMime)
-        const { error: patchErr } = await supabase.from('exercises').update({
-          media_type: media.tab,
-          media_path: uploaded.path,
-          media_mime: uploaded.mime,
-          media_size_bytes: uploaded.size,
-          // Clear stale youtube url when switching to upload
-          video_url: null,
-        }).eq('id', inserted.id)
-        if (patchErr) throw patchErr
-      } catch (err) {
-        // Best-effort cleanup: remove the half-created exercise so the trainer
-        // doesn't end up with a broken card.
-        await supabase.from('exercises').delete().eq('id', inserted.id)
-        setError(err instanceof Error ? err.message : 'Media upload failed')
-        setLoading(false)
-        return
+    // Upload video + image if picked
+    const patch: Record<string, unknown> = {}
+    try {
+      if (media.pendingVideoFile && media.pendingVideoMime) {
+        const up = await uploadExerciseMedia(user.id, inserted.id, media.pendingVideoFile, media.pendingVideoMime)
+        patch.media_type = 'video'
+        patch.media_path = up.path
+        patch.media_mime = up.mime
+        patch.media_size_bytes = up.size
       }
+      if (media.pendingImageFile && media.pendingImageMime) {
+        const up = await uploadExerciseMedia(user.id, inserted.id + '_img', media.pendingImageFile, media.pendingImageMime)
+        patch.image_path = up.path
+        patch.image_mime = up.mime
+        patch.image_size_bytes = up.size
+      }
+      if (Object.keys(patch).length > 0) {
+        const { error: patchErr } = await supabase.from('exercises').update(patch).eq('id', inserted.id)
+        if (patchErr) throw patchErr
+      }
+    } catch (err) {
+      await supabase.from('exercises').delete().eq('id', inserted.id)
+      setError(err instanceof Error ? err.message : 'Media upload failed')
+      setLoading(false)
+      return
     }
 
     setLoading(false); onSuccess(inserted ?? undefined); onClose()
