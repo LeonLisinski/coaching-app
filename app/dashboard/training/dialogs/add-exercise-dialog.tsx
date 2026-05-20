@@ -11,6 +11,8 @@ import { EQUIPMENT_CATEGORIES, MUSCLE_GROUPS } from '../tabs/exercises-tab'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useTranslations } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import ExerciseMediaInput, { emptyMediaValue, type ExerciseMediaValue } from '../components/exercise-media-input'
+import { uploadExerciseMedia } from '@/lib/exercise-media'
 
 export type CreatedExercise = {
   id: string; name: string; category: string
@@ -64,13 +66,17 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
   const isDark = mode === 'dark'
   const [form, setForm] = useState({
     name: initialName, category: 'Slobodni utezi', muscle_group: 'Prsa',
-    description: '', video_url: '', exercise_type: 'strength' as 'strength' | 'endurance',
+    description: '', exercise_type: 'strength' as 'strength' | 'endurance',
     section: 'main' as 'main' | 'warmup',
   })
+  const [media, setMedia] = useState<ExerciseMediaValue>(emptyMediaValue())
 
   // Sync initialName when dialog opens
   useEffect(() => {
-    if (open) setForm(f => ({ ...f, name: initialName }))
+    if (open) {
+      setForm(f => ({ ...f, name: initialName }))
+      setMedia(emptyMediaValue())
+    }
   }, [open, initialName])
   const [primaryMuscles, setPrimaryMuscles] = useState<string[]>([])
   const [secondaryMuscles, setSecondaryMuscles] = useState<string[]>([])
@@ -89,22 +95,53 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
 
     const cleanExtras = Object.fromEntries(Object.entries(extras).filter(([_, v]) => v !== ''))
 
-    const { data: inserted, error } = await supabase.from('exercises').insert({
+    // Initial insert without media columns; we fill them in after the upload
+    // succeeds because the storage path requires the exercise id.
+    const initialMediaType = media.tab === 'youtube' && media.videoUrl.trim() ? 'youtube' : null
+    const initialVideoUrl = media.tab === 'youtube' ? (media.videoUrl.trim() || null) : null
+
+    const { data: inserted, error: insertErr } = await supabase.from('exercises').insert({
       trainer_id: user.id, is_default: false,
       name: form.name, category: form.category,
       muscle_group: primaryMuscles[0] || form.muscle_group || null,
       primary_muscles: primaryMuscles,
       secondary_muscles: secondaryMuscles,
       description: form.description || null,
-      video_url: form.video_url || null,
+      video_url: initialVideoUrl,
+      media_type: initialMediaType,
       exercise_type: form.exercise_type,
       section: form.section,
       extras: Object.keys(cleanExtras).length > 0 ? cleanExtras : null,
     }).select('id, name, category, muscle_group, video_url, primary_muscles, secondary_muscles').single()
 
-    if (error) { setError(error.message); setLoading(false); return }
+    if (insertErr || !inserted) { setError(insertErr?.message || 'Insert failed'); setLoading(false); return }
+
+    // If a video/image was picked, upload it and patch the row
+    if ((media.tab === 'video' || media.tab === 'image') && media.pendingFile && media.pendingMime) {
+      try {
+        const uploaded = await uploadExerciseMedia(user.id, inserted.id, media.pendingFile, media.pendingMime)
+        const { error: patchErr } = await supabase.from('exercises').update({
+          media_type: media.tab,
+          media_path: uploaded.path,
+          media_mime: uploaded.mime,
+          media_size_bytes: uploaded.size,
+          // Clear stale youtube url when switching to upload
+          video_url: null,
+        }).eq('id', inserted.id)
+        if (patchErr) throw patchErr
+      } catch (err) {
+        // Best-effort cleanup: remove the half-created exercise so the trainer
+        // doesn't end up with a broken card.
+        await supabase.from('exercises').delete().eq('id', inserted.id)
+        setError(err instanceof Error ? err.message : 'Media upload failed')
+        setLoading(false)
+        return
+      }
+    }
+
     setLoading(false); onSuccess(inserted ?? undefined); onClose()
-    setForm({ name: '', category: 'Slobodni utezi', muscle_group: 'Prsa', description: '', video_url: '', exercise_type: 'strength', section: 'main' })
+    setForm({ name: '', category: 'Slobodni utezi', muscle_group: 'Prsa', description: '', exercise_type: 'strength', section: 'main' })
+    setMedia(emptyMediaValue())
     setPrimaryMuscles([]); setSecondaryMuscles([]); setExtras({})
   }
 
@@ -222,13 +259,7 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
                 className={`w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-emerald-400 placeholder:text-gray-400 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''}`} />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {t('videoUrl')} <span className={`font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({tCommon('optional')})</span>
-              </Label>
-              <Input value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
-                placeholder="https://youtube.com/..." className={isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600' : ''} />
-            </div>
+            <ExerciseMediaInput value={media} onChange={setMedia} isDark={isDark} />
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
           </div>

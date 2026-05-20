@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp, PlayCircle, ImageIcon } from 'lucide-react'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
+import ExerciseMediaPreview from '../components/exercise-media-preview'
 import {
   DndContext, DragOverlay, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent, type DragStartEvent,
@@ -34,6 +35,8 @@ type ExerciseOption = {
   video_url?: string
   exercise_type?: string
   section?: 'main' | 'warmup'
+  media_type?: 'youtube' | 'video' | 'image' | null
+  media_path?: string | null
 }
 
 type TemplateExercise = {
@@ -46,11 +49,15 @@ type TemplateExercise = {
   extras?: Record<string, string>
   video_url?: string
   section?: 'main' | 'warmup'
+  // Snapshotted alongside video_url so the icon shows in the editor without
+  // a roundtrip to exercises. Mobile still re-fetches from exercises by id.
+  media_type?: 'youtube' | 'video' | 'image' | null
+  media_path?: string | null
 }
 
 // ─── Sortable exercise item ────────────────────────────────────────────────────
 function SortableItem({
-  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, isNew, isDark,
+  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, onPreview, isNew, isDark,
 }: {
   ex: TemplateExercise
   index: number
@@ -58,6 +65,7 @@ function SortableItem({
   onUpdate: (field: string, value: any) => void
   onUpdateExtra: (key: string, value: string) => void
   onRemove: () => void
+  onPreview: () => void
   isNew?: boolean
   isDark?: boolean
 }) {
@@ -110,12 +118,22 @@ function SortableItem({
             <span className={`text-[11px] ${palette.summary} font-medium shrink-0 pr-1`}>{summary}</span>
           )}
         </button>
-        {ex.video_url && (
-          <a href={ex.video_url} target="_blank" rel="noreferrer"
-            className={`text-gray-400 ${palette.iconHover} transition-colors shrink-0 p-1`} title="Video">
-            <ExternalLink size={12} />
-          </a>
-        )}
+        {(() => {
+          const hasUpload = ex.media_type === 'video' || ex.media_type === 'image'
+          const hasYoutube = !hasUpload && !!ex.video_url
+          if (!hasUpload && !hasYoutube) return null
+          const Icon = ex.media_type === 'image' ? ImageIcon : ex.media_type === 'video' ? PlayCircle : ExternalLink
+          return (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onPreview() }}
+              className={`text-gray-400 ${palette.iconHover} transition-colors shrink-0 p-1`}
+              title="Video"
+            >
+              <Icon size={12} />
+            </button>
+          )
+        })()}
         {expanded
           ? <ChevronUp size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(false)} />
           : <ChevronDown size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(true)} />}
@@ -202,6 +220,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
   const [error, setError] = useState('')
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  const [previewExercise, setPreviewExercise] = useState<TemplateExercise | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const exercisesEndRef = useRef<HTMLDivElement>(null)
@@ -222,7 +241,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
 
   const fetchExercises = async () => {
     setExercisesLoaded(false)
-    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id,section').order('name')
+    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id,section,media_type,media_path').order('name')
     setExercisesLoaded(true)
     if (data) setExercises(data)
   }
@@ -250,6 +269,8 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
       sets, reps, rest_seconds, notes: '', extras,
       video_url: exercise.video_url || '',
       section: (exercise.section as 'main' | 'warmup') || 'main',
+      media_type: exercise.media_type ?? null,
+      media_path: exercise.media_path ?? null,
     }])
     setFlashId(exercise.id)
     setTimeout(() => setFlashId(null), 1400)
@@ -351,6 +372,11 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
           onExerciseCreated?.()
           setTimeout(() => searchRef.current?.focus(), 100)
         }}
+      />
+      <ExerciseMediaPreview
+        exercise={previewExercise}
+        open={!!previewExercise}
+        onClose={() => setPreviewExercise(null)}
       />
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-2xl flex flex-col p-0 gap-0 overflow-hidden" style={{ height: '90vh', background: isDark ? 'oklch(0.195 0.018 264)' : 'white' }} showCloseButton={false}>
@@ -499,6 +525,7 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
                             onUpdate={(field, value) => updateExercise(ex.exercise_id, field, value)}
                             onUpdateExtra={(key, value) => updateExtra(ex.exercise_id, key, value)}
                             onRemove={() => setConfirmRemove(ex.exercise_id)}
+                            onPreview={() => setPreviewExercise(ex)}
                             isNew={flashId === ex.exercise_id}
                             isDark={isDark}
                           />

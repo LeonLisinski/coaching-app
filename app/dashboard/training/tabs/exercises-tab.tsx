@@ -5,9 +5,10 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown, ChevronRight, ExternalLink, GripVertical, Dumbbell } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, SlidersHorizontal, X, ChevronDown, ChevronRight, ExternalLink, GripVertical, Dumbbell, PlayCircle, ImageIcon } from 'lucide-react'
 import AddExerciseDialog from '../dialogs/add-exercise-dialog'
 import EditExerciseDialog from '../dialogs/edit-exercise-dialog'
+import ExerciseMediaPreview from '../components/exercise-media-preview'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable } from '@dnd-kit/core'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -26,6 +27,10 @@ export type Exercise = {
   extras?: Record<string, string> | null
   exercise_type?: 'strength' | 'endurance'
   section?: 'main' | 'warmup'
+  media_type?: 'youtube' | 'video' | 'image' | null
+  media_path?: string | null
+  media_mime?: string | null
+  media_size_bytes?: number | null
 }
 
 export const EQUIPMENT_CATEGORIES = [
@@ -83,6 +88,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [editExercise, setEditExercise] = useState<Exercise | null>(null)
+  const [previewExercise, setPreviewExercise] = useState<Exercise | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => { fetchExercises() }, [refreshKey])
@@ -95,7 +101,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
     const [{ data: allEx }, { data: overrides }] = await Promise.all([
       supabase.from('exercises')
-        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section')
+        .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section,media_type,media_path,media_mime,media_size_bytes')
         .or(`trainer_id.eq.${user.id},is_default.eq.true`)
         .order('name'),
       supabase.from('trainer_overrides')
@@ -373,13 +379,23 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
 
                       <div className="flex items-center gap-0.5 shrink-0">
                         <span className={`text-[10px] px-1.5 py-0.5 rounded border mr-1 ${isDark ? 'bg-white/[0.05] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>{ex.category}</span>
-                        {ex.video_url && (
-                          <a href={ex.video_url} target="_blank" rel="noreferrer"
-                            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
-                            onClick={e => e.stopPropagation()} title="Video">
-                            <ExternalLink size={12} />
-                          </a>
-                        )}
+                        {(() => {
+                          const hasUpload = ex.media_type === 'video' || ex.media_type === 'image'
+                          const hasYoutube = !hasUpload && !!ex.video_url
+                          if (!hasUpload && !hasYoutube) return null
+                          const Icon = ex.media_type === 'image' ? ImageIcon : ex.media_type === 'video' ? PlayCircle : ExternalLink
+                          const title = ex.media_type === 'image' ? t('previewImage') : ex.media_type === 'video' ? t('previewVideo') : 'YouTube'
+                          return (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setPreviewExercise(ex) }}
+                              className="text-gray-400 hover:text-emerald-500 transition-colors p-1"
+                              title={title}
+                            >
+                              <Icon size={12} />
+                            </button>
+                          )
+                        })()}
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-gray-700"
                           onClick={() => setEditExercise(ex)}>
                           <Pencil size={12} />
@@ -413,6 +429,11 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
           onSuccess={() => { setEditExercise(null); fetchExercises() }}
         />
       )}
+      <ExerciseMediaPreview
+        exercise={previewExercise}
+        open={!!previewExercise}
+        onClose={() => setPreviewExercise(null)}
+      />
       <ConfirmDialog
         open={confirmDelete !== null}
         title={tCommon('deleteExercise')}
