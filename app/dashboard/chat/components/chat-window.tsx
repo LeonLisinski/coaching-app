@@ -79,7 +79,9 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   const [pendingMedia, setPendingMedia] = useState<{ file: File; mime: string; type: 'image' | 'video'; previewUrl: string } | null>(null)
   const [uploadingMedia, setUploadingMedia] = useState(false)
   const mediaInputRef = useRef<HTMLInputElement>(null)
-  // Signed URL cache for received media messages
+  // Preview for in-flight optimistic messages (keyed by tempId, shown until real signed URL arrives)
+  const [tempPreviews, setTempPreviews] = useState<Record<string, string>>({})
+  // Signed URL cache for persisted media messages (keyed by media_path)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const userIdRef = useRef<string | null>(null)
@@ -306,6 +308,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     // After an await, iOS blocks focus() calls and dismisses the keyboard.
     requestAnimationFrame(() => textareaRef.current?.focus())
 
+    // Capture preview URL BEFORE clearMedia() revokes the blob
+    const capturedPreviewUrl = pendingMedia?.previewUrl ?? null
+    const capturedMediaType = pendingMedia?.type ?? null
+
     // Upload media first if attached
     let mediaPath: string | null = null
     let mediaType: 'image' | 'video' | null = null
@@ -320,7 +326,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
         return
       }
       mediaPath = path
-      mediaType = pendingMedia.type
+      mediaType = capturedMediaType
       clearMedia()
     }
     setUploadingMedia(false)
@@ -338,8 +344,10 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       media_type: mediaType,
       media_path: mediaPath,
     }
-    if (mediaPath && pendingMedia) {
-      setSignedUrls(prev => ({ ...prev, [mediaPath!]: pendingMedia.previewUrl }))
+    // Store blob preview keyed by tempId (NOT by mediaPath) so it doesn't
+    // pollute the signedUrls cache and block the real URL from being fetched.
+    if (capturedPreviewUrl) {
+      setTempPreviews(prev => ({ ...prev, [tempId]: capturedPreviewUrl }))
     }
     setMessages(prev => [...prev, optimistic])
 
@@ -357,8 +365,11 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
       console.error('Send error:', error.message)
       if (content) setInput(content)
       setMessages(prev => prev.filter(m => m.id !== tempId))
+      setTempPreviews(prev => { const n = { ...prev }; delete n[tempId]; return n })
     } else {
       setMessages(prev => prev.map(m => m.id === tempId ? inserted : m))
+      // Clean up temp preview — the signed URL effect will fetch the real URL
+      setTempPreviews(prev => { const n = { ...prev }; delete n[tempId]; return n })
       onMessageSent()
     }
     setSending(false)
@@ -469,7 +480,8 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                       >
                         {/* Media attachment */}
                         {msg.media_path && (() => {
-                          const url = signedUrls[msg.media_path]
+                          // For optimistic messages use blob preview; for real messages use signed URL
+                          const url = tempPreviews[msg.id] || signedUrls[msg.media_path] || null
                           return (
                             <div className="max-w-[260px]">
                               {msg.media_type === 'image' ? (
@@ -481,7 +493,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
                                   : <div className="flex items-center justify-center h-32 rounded-xl bg-black/20"><Loader2 className="animate-spin" size={16} /></div>
                               ) : msg.media_type === 'video' ? (
                                 url
-                                  ? <video src={url} controls className="rounded-xl w-full max-h-64 bg-black" />
+                                  ? <video src={url} controls playsInline className="rounded-xl w-full max-h-64 bg-black" />
                                   : <div className="flex items-center gap-2 h-20 rounded-xl bg-black/20 px-4"><Loader2 className="animate-spin" size={16} /><PlayCircle size={20} /></div>
                               ) : null}
                             </div>
