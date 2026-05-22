@@ -5,9 +5,10 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Dumbbell, Pencil, Trash2, GripVertical, PlusCircle, Search, SlidersHorizontal, ChevronDown, X } from 'lucide-react'
+import { Plus, Dumbbell, Pencil, Trash2, GripVertical, PlusCircle, Search, SlidersHorizontal, ChevronDown, X, Layers } from 'lucide-react'
 import AddTemplateDialog from '../dialogs/add-template-dialog'
 import EditTemplateDialog from '../dialogs/edit-template-dialog'
+import { flattenExercises, isBlock, type TemplateItem, type TemplateBlock } from '../lib/template-blocks'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { useAppTheme } from '@/app/contexts/app-theme'
@@ -48,7 +49,7 @@ function TemplateCard({
     data: {
       type: 'template',
       name: template.name,
-      subtitle: `${template.exercises?.length ?? 0} ${t('exercisesShort')}`,
+      subtitle: `${flattenExercises(template.exercises || []).length} ${t('exercisesShort')}`,
       payload: template,
     },
   })
@@ -104,7 +105,7 @@ function TemplateCard({
 
         <div className="flex items-center gap-1.5 shrink-0" onDoubleClick={e => e.stopPropagation()}>
           <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium border border-blue-100">
-            {template.exercises?.length ?? 0} {t('exercisesShort')}
+            {flattenExercises(template.exercises || []).length} {t('exercisesShort')}
           </span>
           <Button variant="ghost" size="sm" className={`h-7 w-7 p-0 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-700'}`}
             onClick={e => { e.stopPropagation(); onEdit() }}>
@@ -119,11 +120,24 @@ function TemplateCard({
 
       {template.exercises?.length > 0 && !isActive && (
         <div className="flex flex-wrap gap-1 mt-2 ml-8">
-          {template.exercises.slice(0, 5).map((ex: any) => (
-            <span key={ex.exercise_id} className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-              {ex.name}
-            </span>
-          ))}
+          {(template.exercises as TemplateItem[]).slice(0, 5).map((item: TemplateItem, idx: number) => {
+            if (isBlock(item)) {
+              const block = item as TemplateBlock
+              const names = block.exercises.slice(0, 2).map(e => e.name).join(' + ')
+              const more = block.exercises.length > 2 ? ` +${block.exercises.length - 2}` : ''
+              return (
+                <span key={block.block_id} className={`text-[10px] px-1.5 py-0.5 rounded border flex items-center gap-1 ${isDark ? 'bg-violet-900/30 text-violet-400 border-violet-800/40' : 'bg-violet-50 text-violet-600 border-violet-200'}`}>
+                  <Layers size={9} />
+                  {names}{more} ×{block.rounds}
+                </span>
+              )
+            }
+            return (
+              <span key={item.exercise_id} className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                {item.name}
+              </span>
+            )
+          })}
           {template.exercises.length > 5 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isDark ? 'bg-white/[0.04] text-gray-400 border-white/8' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
               +{template.exercises.length - 5}
@@ -177,14 +191,14 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
     return templates
       .filter(t =>
         t.name.toLowerCase().includes(searchLower) &&
-        (t.exercises?.length ?? 0) >= minExercises
+        (flattenExercises(t.exercises || []).length) >= minExercises
       )
       .sort((a, b) => {
         if (sort === 'date_desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         if (sort === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         if (sort === 'name_asc') return a.name.localeCompare(b.name, 'hr')
         if (sort === 'name_desc') return b.name.localeCompare(a.name, 'hr')
-        if (sort === 'exercises_desc') return (b.exercises?.length ?? 0) - (a.exercises?.length ?? 0)
+        if (sort === 'exercises_desc') return flattenExercises(b.exercises || []).length - flattenExercises(a.exercises || []).length
         return 0
       })
   }, [templates, search, sort, minExercises])

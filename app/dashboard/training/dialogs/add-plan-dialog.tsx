@@ -8,8 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { flattenExercises } from '../lib/template-blocks'
+import BlockCard from '../components/block-card'
+import {
+  type TemplateBlock, type TemplateExercise, type ExerciseOption,
+  isBlock, getItemDndId, createEmptyBlock, exerciseFromOption,
+} from '../lib/template-blocks'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
-import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil } from 'lucide-react'
+import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil, Layers } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -84,7 +90,7 @@ type Props = {
 }
 type Template = { id: string; name: string; exercises: any[] }
 type Exercise  = { id: string; name: string; category: string; exercise_type?: string; section?: 'main' | 'warmup' }
-type PlanDay   = { _id: string; day_number: number; name: string; template_id: string | null; exercises: PlanExercise[]; mode: 'template' | 'custom' }
+type PlanDay   = { _id: string; day_number: number; name: string; template_id: string | null; exercises: (PlanExercise | TemplateBlock)[]; mode: 'template' | 'custom' }
 
 export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithId, isTemplate = true }: Props) {
   const t         = useTranslations('training.dialogs.plan')
@@ -207,11 +213,14 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
       if (i !== index) return d
       if (field === 'template_id') {
         const tmpl = templates.find(t => t.id === value)
-        const normalized = (tmpl?.exercises || []).map((e: any) => ({
-          exercise_id: e.exercise_id ?? e.id, name: e.name ?? '',
-          sets: e.sets ?? 3, reps: e.reps ?? '10', rest_seconds: e.rest_seconds ?? 60, notes: e.notes ?? '',
-          exercise_type: e.exercise_type || 'strength',
-        }))
+        const normalized: (PlanExercise | TemplateBlock)[] = (tmpl?.exercises || []).map((item: any) => {
+          if (item.kind === 'block') return item  // preserve superset block as-is
+          return {
+            exercise_id: item.exercise_id ?? item.id, name: item.name ?? '',
+            sets: item.sets ?? 3, reps: item.reps ?? '10', rest_seconds: item.rest_seconds ?? 60, notes: item.notes ?? '',
+            exercise_type: item.exercise_type || 'strength',
+          }
+        })
         return { ...d, template_id: value || null, exercises: normalized }
       }
       if (field === 'mode') {
@@ -248,7 +257,6 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   }
 
   const addExerciseToDay = (dayIndex: number, exercise: Exercise) => {
-    console.log('[addExerciseToDay] using defaults:', trainerSettings.workoutDefaults)
     const { sets, reps, rest_seconds, ...optionalDefaults } = trainerSettings.workoutDefaults
     const optionalFields: Record<string, string> = {}
     trainerSettings.exerciseFields.forEach(key => {
@@ -256,7 +264,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
     })
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d
-      if (d.exercises.find(e => e.exercise_id === exercise.id)) return d
+      if (d.exercises.find(e => (e as PlanExercise).exercise_id === exercise.id)) return d
       return { ...d, exercises: [...d.exercises, {
         exercise_id: exercise.id, name: exercise.name,
         sets, reps: exercise.exercise_type === 'endurance' ? '5min' : reps,
@@ -267,17 +275,77 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
       }]}
     }))
     setExerciseSearch(prev => ({ ...prev, [dayIndex]: '' }))
-    // keep searchFocused=true so dropdown stays open for adding more exercises
     setTimeout(() => {
       searchRefs.current[dayIndex]?.focus()
-      // Scroll to show the search input (and the newly added exercise just above it)
       searchRefs.current[dayIndex]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }, 50)
   }
 
+  const addBlockToDay = (dayIndex: number) => {
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d
+      const blockCount = d.exercises.filter(e => isBlock(e as any)).length
+      return { ...d, exercises: [...d.exercises, createEmptyBlock(blockCount)] }
+    }))
+  }
+
+  const updateBlockInDay = (dayIndex: number, blockId: string, field: keyof TemplateBlock, value: any) =>
+    setDays(prev => prev.map((d, i) => i !== dayIndex ? d : {
+      ...d, exercises: d.exercises.map(e => isBlock(e as any) && (e as TemplateBlock).block_id === blockId ? { ...e, [field]: value } : e)
+    }))
+
+  const addExerciseToBlockInDay = (dayIndex: number, blockId: string, exercise: ExerciseOption) =>
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d
+      return { ...d, exercises: d.exercises.map(e => {
+        if (!isBlock(e as any) || (e as TemplateBlock).block_id !== blockId) return e
+        const block = e as TemplateBlock
+        return { ...block, exercises: [...block.exercises, exerciseFromOption(exercise, trainerSettings.workoutDefaults, true)] }
+      })}
+    }))
+
+  const updateExerciseInBlockInDay = (dayIndex: number, blockId: string, exerciseId: string, field: string, value: any) =>
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d
+      return { ...d, exercises: d.exercises.map(e => {
+        if (!isBlock(e as any) || (e as TemplateBlock).block_id !== blockId) return e
+        return { ...(e as TemplateBlock), exercises: (e as TemplateBlock).exercises.map(ex => ex.exercise_id === exerciseId ? { ...ex, [field]: value } : ex) }
+      })}
+    }))
+
+  const removeExerciseFromBlockInDay = (dayIndex: number, blockId: string, exerciseId: string) =>
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d
+      return { ...d, exercises: d.exercises.map(e => {
+        if (!isBlock(e as any) || (e as TemplateBlock).block_id !== blockId) return e
+        return { ...(e as TemplateBlock), exercises: (e as TemplateBlock).exercises.filter(ex => ex.exercise_id !== exerciseId) }
+      })}
+    }))
+
+  const moveExerciseOutOfBlockInDay = (dayIndex: number, blockId: string, exerciseId: string) =>
+    setDays(prev => prev.map((d, i) => {
+      if (i !== dayIndex) return d
+      const blockIdx = d.exercises.findIndex(e => isBlock(e as any) && (e as TemplateBlock).block_id === blockId)
+      if (blockIdx === -1) return d
+      const block = d.exercises[blockIdx] as TemplateBlock
+      const ex = block.exercises.find(e => e.exercise_id === exerciseId)
+      if (!ex) return d
+      const newBlock: TemplateBlock = { ...block, exercises: block.exercises.filter(e => e.exercise_id !== exerciseId) }
+      const restored: PlanExercise = {
+        exercise_id: ex.exercise_id, name: ex.name,
+        sets: trainerSettings.workoutDefaults.sets, reps: ex.reps,
+        rest_seconds: trainerSettings.workoutDefaults.rest_seconds, notes: ex.notes || '',
+        exercise_type: 'strength',
+      }
+      const newExercises = [...d.exercises]
+      newExercises[blockIdx] = newBlock
+      newExercises.splice(blockIdx + 1, 0, restored)
+      return { ...d, exercises: newExercises }
+    }))
+
   const updateExercise = (dayIndex: number, exerciseId: string, field: string, value: any) =>
     setDays(prev => prev.map((d, i) => i !== dayIndex ? d : {
-      ...d, exercises: d.exercises.map(e => e.exercise_id === exerciseId ? { ...e, [field]: value } : e)
+      ...d, exercises: d.exercises.map(e => (e as PlanExercise).exercise_id === exerciseId ? { ...e, [field]: value } : e)
     }))
 
   const handleExerciseCreated = (dayIndex: number, exercise: CreatedExercise) => {
@@ -288,9 +356,12 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
     setCreateExerciseName('')
   }
 
-  const removeExercise = (dayIndex: number, exerciseId: string) => {
+  const removeItem = (dayIndex: number, itemId: string) => {
     setDays(prev => prev.map((d, i) => i !== dayIndex ? d : {
-      ...d, exercises: d.exercises.filter(e => e.exercise_id !== exerciseId)
+      ...d, exercises: d.exercises.filter(e =>
+        (e as PlanExercise).exercise_id !== itemId &&
+        (e as TemplateBlock).block_id !== itemId
+      )
     }))
     setConfirmEx(null)
   }
@@ -300,8 +371,9 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
     if (!over || active.id === over.id) return
     setDays(prev => prev.map((d, i) => {
       if (i !== dayIndex) return d
-      const oldIdx = d.exercises.findIndex(e => e.exercise_id === active.id)
-      const newIdx = d.exercises.findIndex(e => e.exercise_id === over.id)
+      const oldIdx = d.exercises.findIndex(e => getItemDndId(e as any) === active.id)
+      const newIdx = d.exercises.findIndex(e => getItemDndId(e as any) === over.id)
+      if (oldIdx === -1 || newIdx === -1) return d
       return { ...d, exercises: arrayMove(d.exercises, oldIdx, newIdx) }
     }))
   }
@@ -388,7 +460,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         <span className="text-xs text-gray-400 truncate">{day.name !== `${t('form.dayLabel')} ${day.day_number}` ? `· ${day.name}` : ''}</span>
                         {!isDayExpanded(index) && (
                           <span className="text-xs text-gray-400 ml-auto shrink-0">
-                            {t('form.exercisesCollapsed', { count: day.exercises.length })}
+                            {t('form.exercisesCollapsed', { count: flattenExercises(day.exercises as any[]).length })}
                           </span>
                         )}
                       </button>
@@ -435,13 +507,14 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                             isDark={isDark}
                             options={[
                               { value: '', label: t('form.noTemplate') },
-                              ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${tmpl.exercises?.length || 0} ${t('form.exerciseCountSuffix')})` }))
+                              ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${flattenExercises(tmpl.exercises || []).length} ${t('form.exerciseCountSuffix')})` }))
                             ]}
                           />
                         )}
 
-                        {/* Search */}
-                        <div className="relative">
+                        {/* Search + Dodaj superset */}
+                        <div className="flex gap-1.5 items-start">
+                        <div className="relative flex-1">
                           <div className="relative">
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                               <Plus size={12} />
@@ -521,21 +594,65 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                             </div>
                           )}
                         </div>
+                        {/* Dodaj superset button */}
+                        <button
+                          type="button"
+                          onClick={() => addBlockToDay(index)}
+                          className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border font-medium transition-colors shrink-0 h-9 ${
+                            isDark
+                              ? 'border-violet-800/50 text-violet-400 hover:bg-violet-900/30'
+                              : 'border-violet-200 text-violet-600 hover:bg-violet-50'
+                          }`}
+                          title={tTemplate('addBlock')}
+                        >
+                          <Layers size={12} />
+                          SS
+                        </button>
+                        </div>
 
                         {/* Exercises with DnD */}
                         <DndContext sensors={sensors} collisionDetection={closestCenter}
                           onDragEnd={ev => reorderExercises(index, ev)}>
-                          <SortableContext items={day.exercises.map(e => e.exercise_id)} strategy={verticalListSortingStrategy}>
+                          <SortableContext items={day.exercises.map(e => getItemDndId(e as any))} strategy={verticalListSortingStrategy}>
                             <div className="space-y-2">
-                              {day.exercises.map((ex, exIndex) => (
-                                <SortableExerciseCard
-                                  key={ex.exercise_id} ex={ex} index={exIndex}
-                                  onUpdate={(field, val) => updateExercise(index, ex.exercise_id, field, val)}
-                                  onRemove={() => setConfirmEx({ day: index, id: ex.exercise_id })}
-                                  labelSets={tTemplate('sets')} labelRest={tTemplate('rest')} labelNotes={tTemplate('notes')}
+                              {day.exercises.map((item, exIndex) => {
+                                if (isBlock(item as any)) {
+                                  const block = item as TemplateBlock
+                                  const blockIdx = day.exercises.slice(0, exIndex + 1).filter(e => isBlock(e as any)).length - 1
+                                  const usedIds = new Set<string>()
+                                  day.exercises.forEach(e => {
+                                    if (isBlock(e as any)) (e as TemplateBlock).exercises.forEach(ex => usedIds.add(ex.exercise_id))
+                                    else usedIds.add((e as PlanExercise).exercise_id)
+                                  })
+                                  return (
+                                    <BlockCard
+                                      key={block.block_id}
+                                      block={block}
+                                      blockIndex={blockIdx}
+                                      isDark={isDark}
+                                      exerciseOptions={exercises as ExerciseOption[]}
+                                      usedExerciseIds={usedIds}
+                                      onUpdateBlock={(blockId, field, value) => updateBlockInDay(index, blockId, field, value)}
+                                      onAddExerciseToBlock={(blockId, exercise) => addExerciseToBlockInDay(index, blockId, exercise)}
+                                      onUpdateExerciseInBlock={(blockId, exerciseId, field, value) => updateExerciseInBlockInDay(index, blockId, exerciseId, field, value)}
+                                      onRemoveExerciseFromBlock={(blockId, exerciseId) => removeExerciseFromBlockInDay(index, blockId, exerciseId)}
+                                      onRemoveBlock={blockId => setConfirmEx({ day: index, id: blockId })}
+                                      onMoveExerciseOut={(blockId, exerciseId) => moveExerciseOutOfBlockInDay(index, blockId, exerciseId)}
+                                    />
+                                  )
+                                }
+                                const ex = item as PlanExercise
+                                const exVisualIdx = day.exercises.slice(0, exIndex + 1).filter(e => !isBlock(e as any)).length - 1
+                                return (
+                                  <SortableExerciseCard
+                                    key={ex.exercise_id} ex={ex} index={exVisualIdx}
+                                    onUpdate={(field, val) => updateExercise(index, ex.exercise_id, field, val)}
+                                    onRemove={() => setConfirmEx({ day: index, id: ex.exercise_id })}
+                                    labelSets={tTemplate('sets')} labelRest={tTemplate('rest')} labelNotes={tTemplate('notes')}
                                   activeExerciseFields={trainerSettings.exerciseFields}
                                 />
-                              ))}
+                                )
+                              })}
                             </div>
                           </SortableContext>
                         </DndContext>
@@ -581,7 +698,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
 
       <ConfirmDialog open={confirmEx !== null} title={t('form.removeExerciseDayTitle')}
         description={t('form.removeExerciseDayConfirm')}
-        onConfirm={() => confirmEx && removeExercise(confirmEx.day, confirmEx.id)} onCancel={() => setConfirmEx(null)}
+        onConfirm={() => confirmEx && removeItem(confirmEx.day, confirmEx.id)} onCancel={() => setConfirmEx(null)}
         confirmLabel={tCommon('remove')} destructive />
 
       <AddExerciseDialog

@@ -1,18 +1,19 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp, PlayCircle, ImageIcon } from 'lucide-react'
+import { X, GripVertical, Search, ExternalLink, LayoutList, Plus, ChevronDown, ChevronUp, PlayCircle, ImageIcon, Layers } from 'lucide-react'
 import { useTrainerSettings, EXERCISE_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 import ExerciseMediaPreview from '../components/exercise-media-preview'
+import BlockCard from '../components/block-card'
 import {
   DndContext, DragOverlay, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent, type DragStartEvent,
@@ -23,58 +24,48 @@ import {
   sortableKeyboardCoordinates, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
-type ExerciseOption = {
-  id: string
-  name: string
-  category: string
-  primary_muscles?: string[]
-  muscle_group?: string
-  video_url?: string
-  exercise_type?: string
-  section?: 'main' | 'warmup'
-  media_type?: 'youtube' | 'video' | 'image' | null
-  media_path?: string | null
-}
-
-type TemplateExercise = {
-  exercise_id: string
-  name: string
-  sets: number
-  reps: string
-  rest_seconds: number
-  notes: string
-  extras?: Record<string, string>
-  video_url?: string
-  section?: 'main' | 'warmup'
-  media_type?: 'youtube' | 'video' | 'image' | null
-  media_path?: string | null
-}
+import {
+  type TemplateItem, type TemplateExercise, type TemplateBlock, type ExerciseOption,
+  isBlock, getAllUsedExerciseIds, getItemDndId, createEmptyBlock, exerciseFromOption, migrateLegacy,
+} from '../lib/template-blocks'
 
 type Template = {
-  id: string; name: string; description: string; exercises: TemplateExercise[]
+  id: string; name: string; description: string; exercises: any[]
 }
 
 type Props = { template: Template; open: boolean; onClose: () => void; onSuccess: () => void; onExerciseCreated?: () => void }
 
-// ─── Sortable exercise item ────────────────────────────────────────────────────
+// ─── Sortable standalone exercise item ────────────────────────────────────────
 function SortableItem({
-  ex, index, extraFields, onUpdate, onUpdateExtra, onRemove, onPreview, isNew, isDark,
+  ex, index, extraFields, blocks, onUpdate, onUpdateExtra, onRemove, onPreview, onMoveToBlock, isNew, isDark,
 }: {
   ex: TemplateExercise
   index: number
   extraFields: typeof EXERCISE_FIELD_OPTIONS
+  blocks: TemplateBlock[]
   onUpdate: (field: string, value: any) => void
   onUpdateExtra: (key: string, value: string) => void
   onRemove: () => void
   onPreview: () => void
+  onMoveToBlock: (targetId: string | 'new') => void
   isNew?: boolean
   isDark?: boolean
 }) {
   const t = useTranslations('training.dialogs.template')
   const [expanded, setExpanded] = useState(true)
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
+  const moveMenuRef = useRef<HTMLDivElement>(null)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: ex.exercise_id })
+
+  useEffect(() => {
+    if (!showMoveMenu) return
+    const handle = (e: MouseEvent) => {
+      if (moveMenuRef.current && !moveMenuRef.current.contains(e.target as Node)) setShowMoveMenu(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [showMoveMenu])
 
   const summary = [
     ex.sets ? `${ex.sets}×${ex.reps || '—'}` : null,
@@ -92,7 +83,6 @@ function SortableItem({
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       className={`border ${palette.border} rounded-lg ${palette.bg} overflow-hidden ${isNew ? 'item-added' : ''}`}
     >
-      {/* Collapsed header — always visible */}
       <div className="flex items-center gap-1.5 px-2 py-2">
         <button
           type="button" {...listeners} {...attributes}
@@ -120,22 +110,63 @@ function SortableItem({
             <span className={`text-[11px] ${palette.summary} font-medium shrink-0 pr-1`}>{summary}</span>
           )}
         </button>
+
+        {/* Media preview */}
         {(() => {
           const hasUpload = ex.media_type === 'video' || ex.media_type === 'image'
           const hasYoutube = !hasUpload && !!ex.video_url
           if (!hasUpload && !hasYoutube) return null
           const Icon = ex.media_type === 'image' ? ImageIcon : ex.media_type === 'video' ? PlayCircle : ExternalLink
           return (
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); onPreview() }}
-              className={`text-gray-400 ${palette.iconHover} transition-colors shrink-0 p-1`}
-              title="Video"
-            >
+            <button type="button" onClick={e => { e.stopPropagation(); onPreview() }}
+              className={`text-gray-400 ${palette.iconHover} transition-colors shrink-0 p-1`} title="Video">
               <Icon size={12} />
             </button>
           )
         })()}
+
+        {/* Move to block */}
+        <div className="relative shrink-0" ref={moveMenuRef}>
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setShowMoveMenu(v => !v) }}
+            className={`p-1 rounded transition-colors ${isDark ? 'text-gray-600 hover:text-violet-400 hover:bg-violet-900/20' : 'text-gray-300 hover:text-violet-500 hover:bg-violet-50'}`}
+            title={t('moveToBlock')}
+          >
+            <Layers size={12} />
+          </button>
+          {showMoveMenu && (
+            <div className={`absolute right-0 top-full mt-1 z-50 min-w-[10rem] border rounded-xl shadow-xl overflow-hidden ${
+              isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-gray-100 bg-white'
+            }`}>
+              <p className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide border-b ${isDark ? 'text-gray-500 border-white/8' : 'text-gray-400 border-gray-100'}`}>
+                {t('moveToBlockMenu')}
+              </p>
+              {blocks.map((b, bi) => (
+                <button key={b.block_id} type="button"
+                  onMouseDown={ev => ev.preventDefault()}
+                  onClick={() => { onMoveToBlock(b.block_id); setShowMoveMenu(false) }}
+                  className={`w-full text-left px-3 py-2 text-xs transition-colors ${isDark ? 'text-gray-300 hover:bg-white/[0.06]' : 'text-gray-700 hover:bg-violet-50'}`}
+                >
+                  {b.label || t('blockLabel', { index: bi + 1 })}
+                  <span className={`ml-1 text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                    ({b.exercises.length} {t('exercisesShort')})
+                  </span>
+                </button>
+              ))}
+              <div className={`border-t ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+                <button type="button"
+                  onMouseDown={ev => ev.preventDefault()}
+                  onClick={() => { onMoveToBlock('new'); setShowMoveMenu(false) }}
+                  className={`w-full text-left px-3 py-2 text-xs flex items-center gap-1.5 font-medium transition-colors ${isDark ? 'text-violet-400 hover:bg-violet-900/20' : 'text-violet-600 hover:bg-violet-50'}`}
+                >
+                  <Plus size={11} /> {t('newBlock')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {expanded
           ? <ChevronUp size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(false)} />
           : <ChevronDown size={13} className={`${palette.chevron} shrink-0 cursor-pointer`} onClick={() => setExpanded(true)} />}
@@ -146,7 +177,6 @@ function SortableItem({
         </button>
       </div>
 
-      {/* Expanded inputs */}
       {expanded && (
         <div className={`px-2 pb-2 pt-1.5 border-t ${palette.divider} space-y-1.5`}>
           <div className="flex flex-wrap gap-2">
@@ -188,7 +218,6 @@ function SortableItem({
               </div>
             ))}
           </div>
-
           <input
             value={ex.notes}
             onChange={e => onUpdate('notes', e.target.value)}
@@ -211,9 +240,9 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
 
   const [name, setName] = useState(template.name)
   const [description, setDescription] = useState(template.description || '')
-  const [exercises, setExercises] = useState<ExerciseOption[]>([])
-  const [selected, setSelected] = useState<TemplateExercise[]>(
-    (template.exercises || []).map(e => ({ ...e, extras: e.extras || {} }))
+  const [exerciseOptions, setExerciseOptions] = useState<ExerciseOption[]>([])
+  const [selected, setSelected] = useState<TemplateItem[]>(() =>
+    migrateLegacy((template.exercises || []).map((e: any) => ({ ...e, extras: e.extras || {} })))
   )
   const [search, setSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -243,7 +272,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
     if (open) {
       setName(template.name)
       setDescription(template.description || '')
-      setSelected((template.exercises || []).map(e => ({ ...e, extras: e.extras || {} })))
+      setSelected(migrateLegacy((template.exercises || []).map((e: any) => ({ ...e, extras: e.extras || {} }))))
       setSearch(''); setError('')
       fetchExercises()
     }
@@ -260,48 +289,128 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
       ? await query.or(`trainer_id.eq.${uid},is_default.eq.true`)
       : await query.eq('is_default', true)
     setExercisesLoaded(true)
-    if (data) setExercises(data)
+    if (data) setExerciseOptions(data)
   }
 
-  const filteredExercises = exercises.filter(e =>
+  const allUsedIds = useMemo(() => getAllUsedExerciseIds(selected), [selected])
+  const blocks = useMemo(() => selected.filter(isBlock) as TemplateBlock[], [selected])
+
+  const filteredExercises = exerciseOptions.filter(e =>
     e.name.toLowerCase().includes(search.toLowerCase()) &&
-    !selected.find(s => s.exercise_id === e.id)
+    !allUsedIds.has(e.id)
   )
 
-  // Dropdown shows when focused OR when there's text — in-flow (not absolute), so no overflow clipping
   const showDropdown = searchFocused || search.length > 0
-
   const [flashId, setFlashId] = useState<string | null>(null)
 
+  // ── Root exercise management ──
   const addExercise = useCallback((exercise: ExerciseOption) => {
-    if (selected.find(s => s.exercise_id === exercise.id)) return
-    setSelected(prev => [...prev, {
-      exercise_id: exercise.id,
-      name: exercise.name,
-      sets: 3, reps: '10', rest_seconds: 60, notes: '', extras: {},
-      video_url: exercise.video_url || '',
-      section: (exercise.section as 'main' | 'warmup') || 'main',
-      media_type: exercise.media_type ?? null,
-      media_path: exercise.media_path ?? null,
-    }])
+    if (allUsedIds.has(exercise.id)) return
+    const { sets, reps, rest_seconds, ...optionalDefaults } = settings.workoutDefaults
+    const extras: Record<string, string> = {}
+    settings.exerciseFields.forEach(key => {
+      if (optionalDefaults[key as keyof typeof optionalDefaults]) extras[key] = String(optionalDefaults[key as keyof typeof optionalDefaults])
+    })
+    setSelected(prev => [...prev, exerciseFromOption(exercise, { sets, reps, rest_seconds })])
     setFlashId(exercise.id)
     setTimeout(() => setFlashId(null), 1400)
     setSearch('')
     setDropdownIndex(-1)
     searchRef.current?.focus()
     setTimeout(() => exercisesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
+  }, [allUsedIds, settings])
+
+  const addBlock = useCallback(() => {
+    const blockCount = selected.filter(isBlock).length
+    setSelected(prev => [...prev, createEmptyBlock(blockCount)])
+    setTimeout(() => exercisesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
   }, [selected])
 
-  const removeExercise = (exercise_id: string) =>
-    setSelected(prev => prev.filter(s => s.exercise_id !== exercise_id))
+  const removeItem = (id: string) =>
+    setSelected(prev => prev.filter(item => getItemDndId(item) !== id))
 
   const updateExercise = (exercise_id: string, field: string, value: any) =>
-    setSelected(prev => prev.map(s => s.exercise_id === exercise_id ? { ...s, [field]: value } : s))
+    setSelected(prev => prev.map(item =>
+      !isBlock(item) && item.exercise_id === exercise_id ? { ...item, [field]: value } : item
+    ))
 
   const updateExtra = (exercise_id: string, key: string, value: string) =>
-    setSelected(prev => prev.map(s => s.exercise_id === exercise_id
-      ? { ...s, extras: { ...s.extras, [key]: value } } : s))
+    setSelected(prev => prev.map(item =>
+      !isBlock(item) && item.exercise_id === exercise_id
+        ? { ...item, extras: { ...item.extras, [key]: value } } : item
+    ))
 
+  // ── Block management ──
+  const updateBlock = useCallback((blockId: string, field: keyof TemplateBlock, value: any) => {
+    setSelected(prev => prev.map(item =>
+      isBlock(item) && item.block_id === blockId ? { ...item, [field]: value } : item
+    ))
+  }, [])
+
+  const addExerciseToBlock = useCallback((blockId: string, exercise: ExerciseOption) => {
+    setSelected(prev => prev.map(item => {
+      if (!isBlock(item) || item.block_id !== blockId) return item
+      return { ...item, exercises: [...item.exercises, exerciseFromOption(exercise, settings.workoutDefaults, true)] }
+    }))
+  }, [settings])
+
+  const updateExerciseInBlock = useCallback((blockId: string, exerciseId: string, field: string, value: any) => {
+    setSelected(prev => prev.map(item => {
+      if (!isBlock(item) || item.block_id !== blockId) return item
+      return { ...item, exercises: item.exercises.map(e => e.exercise_id === exerciseId ? { ...e, [field]: value } : e) }
+    }))
+  }, [])
+
+  const removeExerciseFromBlock = useCallback((blockId: string, exerciseId: string) => {
+    setSelected(prev => prev.map(item => {
+      if (!isBlock(item) || item.block_id !== blockId) return item
+      return { ...item, exercises: item.exercises.filter(e => e.exercise_id !== exerciseId) }
+    }))
+  }, [])
+
+  const removeBlock = useCallback((blockId: string) => {
+    setSelected(prev => prev.filter(item => !(isBlock(item) && item.block_id === blockId)))
+  }, [])
+
+  const moveExerciseOut = useCallback((blockId: string, exerciseId: string) => {
+    setSelected(prev => {
+      const blockIdx = prev.findIndex(item => isBlock(item) && (item as TemplateBlock).block_id === blockId)
+      if (blockIdx === -1) return prev
+      const block = prev[blockIdx] as TemplateBlock
+      const ex = block.exercises.find(e => e.exercise_id === exerciseId)
+      if (!ex) return prev
+      const newBlock: TemplateBlock = { ...block, exercises: block.exercises.filter(e => e.exercise_id !== exerciseId) }
+      const restored: TemplateExercise = { ...ex, sets: settings.workoutDefaults.sets, rest_seconds: settings.workoutDefaults.rest_seconds }
+      const next = [...prev]
+      next[blockIdx] = newBlock
+      next.splice(blockIdx + 1, 0, restored)
+      return next
+    })
+  }, [settings])
+
+  const moveExerciseToBlock = useCallback((exerciseId: string, targetBlockId: string | 'new') => {
+    setSelected(prev => {
+      const exIdx = prev.findIndex(item => !isBlock(item) && (item as TemplateExercise).exercise_id === exerciseId)
+      if (exIdx === -1) return prev
+      const ex = prev[exIdx] as TemplateExercise
+      let next = prev.filter((_, i) => i !== exIdx)
+
+      if (targetBlockId === 'new') {
+        const blockCount = next.filter(isBlock).length
+        const newBlock = createEmptyBlock(blockCount)
+        newBlock.exercises = [{ ...ex, sets: 0, rest_seconds: 0 }]
+        next = [...next.slice(0, exIdx), newBlock, ...next.slice(exIdx)]
+      } else {
+        next = next.map(item => {
+          if (!isBlock(item) || item.block_id !== targetBlockId) return item
+          return { ...item, exercises: [...item.exercises, { ...ex, sets: 0, rest_seconds: 0 }] }
+        })
+      }
+      return next
+    })
+  }, [])
+
+  // ── DnD ──
   const handleDragStart = (event: DragStartEvent) => setActiveDragId(event.active.id as string)
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -309,8 +418,9 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
     const { active, over } = event
     if (active.id !== over?.id) {
       setSelected(items => {
-        const oldIndex = items.findIndex(i => i.exercise_id === active.id)
-        const newIndex = items.findIndex(i => i.exercise_id === over!.id)
+        const oldIndex = items.findIndex(i => getItemDndId(i) === active.id)
+        const newIndex = items.findIndex(i => getItemDndId(i) === over!.id)
+        if (oldIndex === -1 || newIndex === -1) return items
         return arrayMove(items, oldIndex, newIndex)
       })
     }
@@ -351,13 +461,23 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
     e.preventDefault()
     setLoading(true); setError('')
 
-    const { error } = await supabase.from('workout_templates').update({
+    // Validate blocks have ≥ 2 exercises
+    const invalidBlocks = selected.filter(item => isBlock(item) && (item as TemplateBlock).exercises.length < 2)
+    if (invalidBlocks.length > 0) {
+      setError(t('blockNeedsExercises'))
+      setLoading(false)
+      return
+    }
+
+    const { error: saveError } = await supabase.from('workout_templates').update({
       name, description: description || null, exercises: selected,
     }).eq('id', template.id)
 
-    if (error) { setError(error.message); setLoading(false); return }
+    if (saveError) { setError(saveError.message); setLoading(false); return }
     setLoading(false); onSuccess(); onClose()
   }
+
+  const leafCount = useMemo(() => allUsedIds.size, [allUsedIds])
 
   return (
     <>
@@ -365,7 +485,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
         open={confirmRemove !== null}
         title={t('removeExerciseTitle')}
         description={t('removeExerciseConfirm')}
-        onConfirm={() => { if (confirmRemove) removeExercise(confirmRemove); setConfirmRemove(null) }}
+        onConfirm={() => { if (confirmRemove) removeItem(confirmRemove); setConfirmRemove(null) }}
         onCancel={() => setConfirmRemove(null)}
         confirmLabel={tCommon('remove')}
         destructive
@@ -421,10 +541,24 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
               </div>
             </div>
 
-            {/* Fixed: search — always visible, never scrolls away */}
+            {/* Fixed: search + add block button */}
             <div className={`px-6 py-3 border-b shrink-0 ${isDark ? 'bg-white/[0.02] border-white/8' : 'bg-white'}`}>
-              <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('addExercise')}</Label>
-              <div className="relative mt-1.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('addExercise')}</Label>
+                <button
+                  type="button"
+                  onClick={addBlock}
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${
+                    isDark
+                      ? 'border-violet-800/50 text-violet-400 hover:bg-violet-900/30 hover:border-violet-700'
+                      : 'border-violet-200 text-violet-600 hover:bg-violet-50 hover:border-violet-300'
+                  }`}
+                >
+                  <Layers size={12} />
+                  {t('addBlock')}
+                </button>
+              </div>
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
                 <Input
                   ref={searchRef}
@@ -452,7 +586,6 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                   </button>
                 )}
 
-                {/* Overlay dropdown */}
                 {showDropdown && (
                   <div className={`absolute top-full left-0 right-0 z-50 mt-1 border rounded-xl shadow-lg overflow-hidden ${isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-blue-100 bg-white'}`}>
                     {!exercisesLoaded ? (
@@ -505,48 +638,79 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
               </div>
             </div>
 
-            {/* Scrollable: exercises only */}
+            {/* Scrollable: exercises + blocks */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
-
-              {/* Sortable exercise list */}
               {selected.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {t('exerciseCount', { count: selected.length })}
+                      {t('exerciseCount', { count: leafCount })}
                     </span>
                     <span className="text-[11px] text-gray-400 flex items-center gap-1">
                       <GripVertical size={11} /> {t('dragHint')}
                     </span>
                   </div>
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                    <SortableContext items={selected.map(s => s.exercise_id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={selected.map(getItemDndId)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
-                        {selected.map((ex, index) => (
-                          <SortableItem
-                            key={ex.exercise_id}
-                            ex={ex}
-                            index={index}
-                            extraFields={extraFields}
-                            onUpdate={(field, value) => updateExercise(ex.exercise_id, field, value)}
-                            onUpdateExtra={(key, value) => updateExtra(ex.exercise_id, key, value)}
-                            onRemove={() => setConfirmRemove(ex.exercise_id)}
-                            onPreview={() => setPreviewExercise(ex)}
-                            isNew={flashId === ex.exercise_id}
-                            isDark={isDark}
-                          />
-                        ))}
+                        {selected.map((item, index) => {
+                          if (isBlock(item)) {
+                            const blockIdx = selected.slice(0, index + 1).filter(isBlock).length - 1
+                            return (
+                              <BlockCard
+                                key={item.block_id}
+                                block={item}
+                                blockIndex={blockIdx}
+                                isDark={isDark}
+                                exerciseOptions={exerciseOptions}
+                                usedExerciseIds={allUsedIds}
+                                onUpdateBlock={updateBlock}
+                                onAddExerciseToBlock={addExerciseToBlock}
+                                onUpdateExerciseInBlock={updateExerciseInBlock}
+                                onRemoveExerciseFromBlock={removeExerciseFromBlock}
+                                onRemoveBlock={removeBlock}
+                                onMoveExerciseOut={moveExerciseOut}
+                              />
+                            )
+                          }
+                          const exVisualIdx = selected.slice(0, index + 1).filter(i => !isBlock(i)).length - 1
+                          return (
+                            <SortableItem
+                              key={item.exercise_id}
+                              ex={item}
+                              index={exVisualIdx}
+                              extraFields={extraFields}
+                              blocks={blocks}
+                              onUpdate={(field, value) => updateExercise(item.exercise_id, field, value)}
+                              onUpdateExtra={(key, value) => updateExtra(item.exercise_id, key, value)}
+                              onRemove={() => setConfirmRemove(item.exercise_id)}
+                              onPreview={() => setPreviewExercise(item)}
+                              onMoveToBlock={targetId => moveExerciseToBlock(item.exercise_id, targetId)}
+                              isNew={flashId === item.exercise_id}
+                              isDark={isDark}
+                            />
+                          )
+                        })}
                       </div>
                     </SortableContext>
                     <div ref={exercisesEndRef} />
                     <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
                       {activeDragId && (() => {
-                        const ex = selected.find(s => s.exercise_id === activeDragId)
-                        if (!ex) return null
+                        const item = selected.find(i => getItemDndId(i) === activeDragId)
+                        if (!item) return null
+                        if (isBlock(item)) {
+                          return (
+                            <div className={`border-2 border-violet-400 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 rotate-1 ${isDark ? 'bg-[oklch(0.22_0.018_264)] text-violet-300' : 'bg-white text-violet-700'}`}>
+                              <Layers size={14} className="text-violet-400" />
+                              {item.label || t('blockLabel', { index: 1 })}
+                              <span className="text-xs font-normal opacity-60">{item.exercises.length} {t('exercisesShort')}</span>
+                            </div>
+                          )
+                        }
                         return (
                           <div className={`border-2 border-blue-400 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 rotate-1 ${isDark ? 'bg-[oklch(0.22_0.018_264)] text-gray-200' : 'bg-white text-gray-800'}`}>
                             <GripVertical size={14} className="text-blue-400" />
-                            {ex.name}
+                            {item.name}
                           </div>
                         )
                       })()}
@@ -584,5 +748,3 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
     </>
   )
 }
-
-

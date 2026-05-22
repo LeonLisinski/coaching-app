@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2, BookMarked, Zap, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, Dumbbell, X, ChevronDown, ChevronUp, BarChart2, BookMarked, Zap, Check, Layers } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
 } from 'recharts'
@@ -43,6 +43,11 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import SortableExerciseCard from '@/app/dashboard/training/components/sortable-exercise-card'
+import BlockCard from '@/app/dashboard/training/components/block-card'
+import {
+  type TemplateBlock, type ExerciseOption,
+  isBlock, createEmptyBlock, exerciseFromOption, flattenExercises,
+} from '@/app/dashboard/training/lib/template-blocks'
 
 type Props = { clientId: string }
 
@@ -102,6 +107,13 @@ function DayAccordion({
   onUpdateEx,
   onRemoveEx,
   onAddEx,
+  onAddBlock,
+  onUpdateBlock,
+  onAddExToBlock,
+  onUpdateExInBlock,
+  onRemoveExFromBlock,
+  onRemoveBlock,
+  onMoveExOutOfBlock,
   allExercises = [],
 }: {
   days: any[]
@@ -113,6 +125,13 @@ function DayAccordion({
   onUpdateEx?: (dayIdx: number, exId: string, field: string, val: any) => void
   onRemoveEx?: (dayIdx: number, exId: string) => void
   onAddEx?: (dayIdx: number, ex: Exercise) => void
+  onAddBlock?: (dayIdx: number) => void
+  onUpdateBlock?: (dayIdx: number, blockId: string, field: string, val: any) => void
+  onAddExToBlock?: (dayIdx: number, blockId: string, ex: ExerciseOption) => void
+  onUpdateExInBlock?: (dayIdx: number, blockId: string, exId: string, field: string, val: any) => void
+  onRemoveExFromBlock?: (dayIdx: number, blockId: string, exId: string) => void
+  onRemoveBlock?: (dayIdx: number, blockId: string) => void
+  onMoveExOutOfBlock?: (dayIdx: number, blockId: string, exId: string) => void
   allExercises?: Exercise[]
 }) {
   const t = useTranslations('clients.workoutPlans')
@@ -142,11 +161,77 @@ function DayAccordion({
               ? <ChevronUp size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
               : <ChevronDown size={12} className={`shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />}
             <span className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{day.name}</span>
-            <span className={`text-xs ml-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('exerciseCountBadge', { count: day.exercises?.length || 0 })}</span>
+            <span className={`text-xs ml-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t('exerciseCountBadge', { count: flattenExercises(day.exercises || []).length })}</span>
           </button>
           {openDays[dayIdx] && (
             <div className="px-4 pb-2">
-              {(day.exercises || []).map((ex: any, exIdx: number) => {
+              {(day.exercises || []).map((item: any, exIdx: number) => {
+                // ── Block / superset ─────────────────────────────────────────
+                if (isBlock(item)) {
+                  const block = item as TemplateBlock
+                  if (isEditing) {
+                    const usedIds = new Set<string>()
+                    ;(day.exercises || []).forEach((e: any) => {
+                      if (isBlock(e)) e.exercises.forEach((ex: any) => usedIds.add(ex.exercise_id))
+                      else usedIds.add(e.exercise_id)
+                    })
+                    return (
+                      <div key={block.block_id} className="mt-2">
+                        <BlockCard
+                          block={block}
+                          blockIndex={exIdx}
+                          isDark={isDark}
+                          exerciseOptions={allExercises as ExerciseOption[]}
+                          usedExerciseIds={usedIds}
+                          onUpdateBlock={(blockId, field, value) => onUpdateBlock?.(dayIdx, blockId, field as any, value)}
+                          onAddExerciseToBlock={(blockId, ex) => onAddExToBlock?.(dayIdx, blockId, ex)}
+                          onUpdateExerciseInBlock={(blockId, exId, field, value) => onUpdateExInBlock?.(dayIdx, blockId, exId, field, value)}
+                          onRemoveExerciseFromBlock={(blockId, exId) => onRemoveExFromBlock?.(dayIdx, blockId, exId)}
+                          onRemoveBlock={blockId => onRemoveBlock?.(dayIdx, blockId)}
+                          onMoveExerciseOut={(blockId, exId) => onMoveExOutOfBlock?.(dayIdx, blockId, exId)}
+                        />
+                      </div>
+                    )
+                  }
+                  // Read-only block display
+                  const LETTERS = 'ABCDEFGHIJ'
+                  return (
+                    <div key={block.block_id} className={`mt-2 mb-1 rounded-xl border overflow-hidden ${isDark ? 'border-violet-800/30 bg-violet-950/20' : 'border-violet-200 bg-violet-50/40'}`}>
+                      <div className={`flex items-center gap-2 px-3 py-1.5 ${isDark ? 'bg-violet-900/20' : 'bg-violet-100/60'}`}>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${isDark ? 'bg-violet-700 text-white' : 'bg-violet-600 text-white'}`}>SS</span>
+                        <span className={`text-xs font-semibold ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>
+                          {block.label || 'Superset'} · {block.rounds} rundi
+                        </span>
+                      </div>
+                      {block.exercises.map((ex: any, i: number) => {
+                        const isOn = tracked.has(ex.exercise_id)
+                        const disabled = !isOn && atLimit
+                        return (
+                          <div key={ex.exercise_id} className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: isDark ? '1px solid rgba(139,92,246,0.08)' : '1px solid rgba(139,92,246,0.1)' }}>
+                            <span className={`text-[10px] font-bold w-4 text-center shrink-0 ${isDark ? 'text-violet-500' : 'text-violet-600'}`}>{LETTERS[i]}</span>
+                            <span className={`text-sm flex-1 min-w-0 truncate ${isDark ? 'text-gray-300' : 'text-gray-800'}`}>{ex.name}</span>
+                            <span className={`text-xs tabular-nums shrink-0 hidden sm:inline ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                              {block.rounds}×{ex.reps}
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button" role="switch" aria-checked={isOn}
+                                disabled={disabled || togglingId === ex.exercise_id}
+                                onClick={e => { e.stopPropagation(); onToggleTracked(ex.exercise_id) }}
+                                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${isOn ? 'bg-violet-600' : isDark ? 'bg-white/15' : 'bg-gray-200'} ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-4' : 'translate-x-0'}`} />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                }
+
+                // ── Standalone exercise ──────────────────────────────────────
+                const ex = item
                 const isOn = tracked.has(ex.exercise_id)
                 const disabled = !isOn && atLimit
                 return (
@@ -210,9 +295,10 @@ function DayAccordion({
                 )
               })}
 
-              {/* Add exercise search — only in edit mode */}
+              {/* Add exercise search + Add superset — only in edit mode */}
               {isEditing && (
-                <div className="relative mt-2">
+                <div className="flex gap-1.5 mt-2">
+                <div className="relative flex-1">
                   <input
                     value={exSearch[dayIdx] || ''}
                     onChange={e => setExSearch(prev => ({ ...prev, [dayIdx]: e.target.value }))}
@@ -260,6 +346,20 @@ function DayAccordion({
                       </div>
                     </div>
                   )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onAddBlock?.(dayIdx)}
+                  title="Dodaj superset"
+                  className={`flex items-center gap-1 px-2 h-7 text-xs rounded-lg border font-medium transition-colors shrink-0 ${
+                    isDark
+                      ? 'border-violet-800/50 text-violet-400 hover:bg-violet-900/30'
+                      : 'border-violet-200 text-violet-600 hover:bg-violet-50'
+                  }`}
+                >
+                  <Layers size={11} />
+                  SS
+                </button>
                 </div>
               )}
             </div>
@@ -853,6 +953,73 @@ export default function ClientWorkoutPlans({ clientId }: Props) {
                               exercise_type: ex.exercise_type || 'strength',
                               section: ex.section || 'main',
                             }],
+                          }))
+                        }}
+                        onAddBlock={(dayIdx) => {
+                          setQuickEditDays(prev => prev.map((d, i) => {
+                            if (i !== dayIdx) return d
+                            const blockCount = (d.exercises || []).filter((e: any) => isBlock(e)).length
+                            return { ...d, exercises: [...(d.exercises || []), createEmptyBlock(blockCount)] }
+                          }))
+                        }}
+                        onUpdateBlock={(dayIdx, blockId, field, val) => {
+                          setQuickEditDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
+                            ...d,
+                            exercises: (d.exercises || []).map((e: any) =>
+                              isBlock(e) && e.block_id === blockId ? { ...e, [field]: val } : e
+                            ),
+                          }))
+                        }}
+                        onAddExToBlock={(dayIdx, blockId, ex) => {
+                          const defaults = trainerSettings.workoutDefaults
+                          setQuickEditDays(prev => prev.map((d, i) => {
+                            if (i !== dayIdx) return d
+                            return { ...d, exercises: (d.exercises || []).map((e: any) => {
+                              if (!isBlock(e) || e.block_id !== blockId) return e
+                              return { ...e, exercises: [...e.exercises, exerciseFromOption(ex as ExerciseOption, defaults, true)] }
+                            })}
+                          }))
+                        }}
+                        onUpdateExInBlock={(dayIdx, blockId, exId, field, val) => {
+                          setQuickEditDays(prev => prev.map((d, i) => {
+                            if (i !== dayIdx) return d
+                            return { ...d, exercises: (d.exercises || []).map((e: any) => {
+                              if (!isBlock(e) || e.block_id !== blockId) return e
+                              return { ...e, exercises: e.exercises.map((ex: any) => ex.exercise_id === exId ? { ...ex, [field]: val } : ex) }
+                            })}
+                          }))
+                        }}
+                        onRemoveExFromBlock={(dayIdx, blockId, exId) => {
+                          setQuickEditDays(prev => prev.map((d, i) => {
+                            if (i !== dayIdx) return d
+                            return { ...d, exercises: (d.exercises || []).map((e: any) => {
+                              if (!isBlock(e) || e.block_id !== blockId) return e
+                              return { ...e, exercises: e.exercises.filter((ex: any) => ex.exercise_id !== exId) }
+                            })}
+                          }))
+                        }}
+                        onRemoveBlock={(dayIdx, blockId) => {
+                          setQuickEditDays(prev => prev.map((d, i) => i !== dayIdx ? d : {
+                            ...d,
+                            exercises: (d.exercises || []).filter((e: any) => !(isBlock(e) && e.block_id === blockId)),
+                          }))
+                        }}
+                        onMoveExOutOfBlock={(dayIdx, blockId, exId) => {
+                          setQuickEditDays(prev => prev.map((d, i) => {
+                            if (i !== dayIdx) return d
+                            const exercises = d.exercises || []
+                            const blockIdx = exercises.findIndex((e: any) => isBlock(e) && e.block_id === blockId)
+                            if (blockIdx === -1) return d
+                            const block = exercises[blockIdx] as TemplateBlock
+                            const ex = block.exercises.find(e => e.exercise_id === exId)
+                            if (!ex) return d
+                            const defaults = trainerSettings.workoutDefaults
+                            const newBlock = { ...block, exercises: block.exercises.filter(e => e.exercise_id !== exId) }
+                            const restored = { exercise_id: ex.exercise_id, name: ex.name, sets: defaults.sets || 3, reps: ex.reps, rest_seconds: defaults.rest_seconds || 90, notes: ex.notes || '', exercise_type: 'strength' as const }
+                            const newExercises = [...exercises]
+                            newExercises[blockIdx] = newBlock
+                            newExercises.splice(blockIdx + 1, 0, restored)
+                            return { ...d, exercises: newExercises }
                           }))
                         }}
                         allExercises={allExercises}
