@@ -241,7 +241,14 @@ export default function AddTemplateDialog({ open, onClose, onSuccess, onExercise
 
   const fetchExercises = async () => {
     setExercisesLoaded(false)
-    const { data } = await supabase.from('exercises').select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id,section,media_type,media_path').order('name')
+    const { data: { session } } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    const query = supabase.from('exercises')
+      .select('id,name,category,muscle_group,primary_muscles,video_url,exercise_type,is_default,trainer_id,section,media_type,media_path')
+      .order('name')
+    const { data } = uid
+      ? await query.or(`trainer_id.eq.${uid},is_default.eq.true`)
+      : await query.eq('is_default', true)
     setExercisesLoaded(true)
     if (data) setExercises(data)
   }
