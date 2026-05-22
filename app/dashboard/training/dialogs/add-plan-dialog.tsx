@@ -234,7 +234,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const getFilteredExercisesForDay = (dayIndex: number) =>
     exercises
       .filter(e => e.name.toLowerCase().includes((exerciseSearch[dayIndex] || '').toLowerCase())
-        && !days[dayIndex]?.exercises.find(de => de.exercise_id === e.id))
+        && !days[dayIndex]?.exercises.find(de => (de as PlanExercise).exercise_id === e.id))
       .slice(0, 20)
 
   const handleExerciseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, dayIndex: number) => {
