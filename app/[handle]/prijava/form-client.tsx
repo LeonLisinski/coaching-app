@@ -69,12 +69,12 @@ export default function LeadFormClient({
   const accentLight = accent + '18'
   const accentMed   = accent + '33'
 
-  const displayTitle = (lang === 'en' && titleEn) ? titleEn : title
-  const displayDesc  = (lang === 'en' && descriptionEn) ? descriptionEn : description
+  // Fallback both ways: EN picks EN or falls back to HR; HR picks HR or falls back to EN
+  const displayTitle = lang === 'en' ? (titleEn || title) : (title || titleEn || '')
+  const displayDesc  = lang === 'en' ? (descriptionEn || description) : (description || descriptionEn || null)
 
-  // qLabel returns the display label in the current language
   const qLabel = (q: Question) =>
-    (lang === 'en' && q.label_en) ? q.label_en : q.label
+    lang === 'en' ? (q.label_en || q.label) : (q.label || q.label_en || '')
 
   // Answers are always keyed by the Croatian label for consistent storage
   const setValue = (key: string, value: string | string[]) => {

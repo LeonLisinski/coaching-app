@@ -22,17 +22,87 @@ const ACCENT_HEX: Record<string, string> = {
   orange: '#ea580c', red: '#dc2626', rose: '#ec4899', slate: '#475569',
 }
 
-const QUESTION_TYPES = [
-  { value: 'short_text',    label: 'Kratki tekst' },
-  { value: 'long_text',     label: 'Dugi tekst' },
-  { value: 'number',        label: 'Broj' },
-  { value: 'email',         label: 'Email' },
-  { value: 'phone',         label: 'Telefon' },
-  { value: 'single_choice', label: 'Jedan izbor' },
-  { value: 'multi_choice',  label: 'Više izbora' },
-  { value: 'date',          label: 'Datum' },
-  { value: 'yes_no',        label: 'Da / Ne' },
-]
+const QUESTION_TYPES = {
+  hr: [
+    { value: 'short_text',    label: 'Kratki tekst' },
+    { value: 'long_text',     label: 'Dugi tekst' },
+    { value: 'number',        label: 'Broj' },
+    { value: 'email',         label: 'Email' },
+    { value: 'phone',         label: 'Telefon' },
+    { value: 'single_choice', label: 'Jedan izbor' },
+    { value: 'multi_choice',  label: 'Više izbora' },
+    { value: 'date',          label: 'Datum' },
+    { value: 'yes_no',        label: 'Da / Ne' },
+  ],
+  en: [
+    { value: 'short_text',    label: 'Short text' },
+    { value: 'long_text',     label: 'Long text' },
+    { value: 'number',        label: 'Number' },
+    { value: 'email',         label: 'Email' },
+    { value: 'phone',         label: 'Phone' },
+    { value: 'single_choice', label: 'Single choice' },
+    { value: 'multi_choice',  label: 'Multiple choice' },
+    { value: 'date',          label: 'Date' },
+    { value: 'yes_no',        label: 'Yes / No' },
+  ],
+}
+
+const BUILDER_UI = {
+  hr: {
+    publicLink:      'Javni link',
+    handleHint:      'Samo mala slova, brojevi i crtice.',
+    sectionBasic:    'Osnovno',
+    titleLabel:      'Naslov forme (HR)',
+    titlePlaceholder:'npr. Prijava za trening s Petrom',
+    descLabel:       'Uvodni tekst (HR)',
+    descPlaceholder: 'Pozdrav! Molim te da popuniš ovu formu kako bih saznao više o tebi...',
+    photoLabel:      'Tvoja fotografija na formi',
+    photoSelect:     'Odaberi sliku',
+    photoChange:     'Promijeni sliku',
+    photoUploading:  'Učitavanje…',
+    colorLabel:      'Boja forme',
+    activeLabel:     'Forma je aktivna',
+    questionsTitle:  (n: number) => `Pitanja (${n})`,
+    addQuestion:     'Dodaj pitanje',
+    noQuestions:     'Nema pitanja. Dodaj prvo pitanje gore.',
+    qLabelText:      'Tekst pitanja (HR)',
+    qLabelPlaceholder:'npr. Ime i prezime',
+    qType:           'Vrsta pitanja',
+    qRequired:       'Obavezno',
+    qRequiredYes:    'Da',
+    optionsLabel:    'Opcije (jedna po retku)',
+    saveBtn:         'Spremi formu',
+    savingBtn:       'Spremanje...',
+    savedBtn:        'Forma je spremljena!',
+  },
+  en: {
+    publicLink:      'Public link',
+    handleHint:      'Lowercase letters, numbers, and dashes only.',
+    sectionBasic:    'Basic info',
+    titleLabel:      'Form title (EN)',
+    titlePlaceholder:'e.g. Training application with Peter',
+    descLabel:       'Intro text (EN)',
+    descPlaceholder: 'Hi! Please fill out this form so I can learn more about you...',
+    photoLabel:      'Your photo on the form',
+    photoSelect:     'Choose photo',
+    photoChange:     'Change photo',
+    photoUploading:  'Uploading…',
+    colorLabel:      'Form color',
+    activeLabel:     'Form is active',
+    questionsTitle:  (n: number) => `Questions (${n})`,
+    addQuestion:     'Add question',
+    noQuestions:     'No questions yet. Add the first one above.',
+    qLabelText:      'Question text (EN)',
+    qLabelPlaceholder:'e.g. Full name',
+    qType:           'Question type',
+    qRequired:       'Required',
+    qRequiredYes:    'Yes',
+    optionsLabel:    'Options (one per line)',
+    saveBtn:         'Save form',
+    savingBtn:       'Saving...',
+    savedBtn:        'Form saved!',
+  },
+}
 
 const FORM_COLORS = [
   '#7c3aed', '#6d28d9', '#2563eb', '#4f46e5', '#0284c7',
@@ -313,6 +383,8 @@ export default function LeadsPage() {
   const border  = isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'
   const textMain = isDark ? '#f9fafb' : '#111827'
   const textMuted = isDark ? '#9ca3af' : '#6b7280'
+  const b = BUILDER_UI[builderLang]
+  const qTypes = QUESTION_TYPES[builderLang]
 
   // ── Auth + data load ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -714,7 +786,7 @@ export default function LeadsPage() {
         <div className="space-y-5">
           {/* Handle */}
           <div className="rounded-2xl p-5 border space-y-3" style={{ background: cardBg, borderColor: border }}>
-            <h3 className="text-sm font-bold" style={{ color: textMain }}>Javni link</h3>
+            <h3 className="text-sm font-bold" style={{ color: textMain }}>{b.publicLink}</h3>
             <div className="flex items-center gap-0 rounded-xl border-2 overflow-hidden" style={{ borderColor: handleError ? '#ef4444' : border }}>
               <span className="px-3 py-2.5 text-xs shrink-0" style={{ color: textMuted, background: isDark ? '#1a1a2e' : '#f9fafb' }}>
                 {typeof window !== 'undefined' ? window.location.origin : 'https://app.unitlift.com'}/
@@ -729,13 +801,13 @@ export default function LeadsPage() {
               <span className="px-3 py-2.5 text-xs shrink-0" style={{ color: textMuted, background: isDark ? '#1a1a2e' : '#f9fafb' }}>/prijava</span>
             </div>
             {handleError && <p className="text-xs text-red-500">{handleError}</p>}
-            <p className="text-xs" style={{ color: textMuted }}>Samo mala slova, brojevi i crtice.</p>
+            <p className="text-xs" style={{ color: textMuted }}>{b.handleHint}</p>
           </div>
 
           {/* Basic info */}
           <div className="rounded-2xl p-5 border space-y-4" style={{ background: cardBg, borderColor: border }}>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold" style={{ color: textMain }}>Osnovno</h3>
+              <h3 className="text-sm font-bold" style={{ color: textMain }}>{b.sectionBasic}</h3>
               {/* Language toggle for builder */}
               <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: border }}>
                 {(['hr', 'en'] as const).map(l => (
@@ -755,61 +827,33 @@ export default function LeadsPage() {
               </div>
             </div>
 
-            {builderLang === 'hr' ? (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Naslov forme (HR)</label>
-                  <input
-                    type="text"
-                    value={draftTitle}
-                    onChange={e => setDraftTitle(e.target.value)}
-                    placeholder="npr. Prijava za trening s Petrom"
-                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Uvodni tekst (HR)</label>
-                  <textarea
-                    value={draftDesc}
-                    onChange={e => setDraftDesc(e.target.value)}
-                    rows={3}
-                    placeholder="Pozdrav! Molim te da popuniš ovu formu kako bih saznao više o tebi..."
-                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
-                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Form title (EN)</label>
-                  <input
-                    type="text"
-                    value={draftTitleEn}
-                    onChange={e => setDraftTitleEn(e.target.value)}
-                    placeholder="e.g. Training application with Peter"
-                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Intro text (EN)</label>
-                  <textarea
-                    value={draftDescEn}
-                    onChange={e => setDraftDescEn(e.target.value)}
-                    rows={3}
-                    placeholder="Hi! Please fill out this form so I can learn more about you..."
-                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
-                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-                  />
-                </div>
-              </>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold" style={{ color: textMuted }}>{b.titleLabel}</label>
+              <input
+                type="text"
+                value={builderLang === 'hr' ? draftTitle : draftTitleEn}
+                onChange={e => builderLang === 'hr' ? setDraftTitle(e.target.value) : setDraftTitleEn(e.target.value)}
+                placeholder={b.titlePlaceholder}
+                className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
+                style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold" style={{ color: textMuted }}>{b.descLabel}</label>
+              <textarea
+                value={builderLang === 'hr' ? draftDesc : draftDescEn}
+                onChange={e => builderLang === 'hr' ? setDraftDesc(e.target.value) : setDraftDescEn(e.target.value)}
+                rows={3}
+                placeholder={b.descPlaceholder}
+                className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
+                style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+              />
+            </div>
 
             {/* Photo */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold" style={{ color: textMuted }}>Tvoja fotografija na formi</label>
+              <label className="text-xs font-semibold" style={{ color: textMuted }}>{b.photoLabel}</label>
               <div className="flex items-center gap-3">
                 {draftPhoto && (
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden border" style={{ borderColor: border }}>
@@ -830,7 +874,7 @@ export default function LeadsPage() {
                   className="px-3 py-2 rounded-xl border text-xs font-semibold transition-all"
                   style={{ borderColor: border, color: textMain }}
                 >
-                  {photoUploading ? 'Učitavanje…' : draftPhoto ? 'Promijeni sliku' : 'Odaberi sliku'}
+                  {photoUploading ? b.photoUploading : draftPhoto ? b.photoChange : b.photoSelect}
                 </button>
                 <input
                   ref={photoInputRef}
@@ -844,7 +888,7 @@ export default function LeadsPage() {
 
             {/* Color */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold" style={{ color: textMuted }}>Boja forme</label>
+              <label className="text-xs font-semibold" style={{ color: textMuted }}>{b.colorLabel}</label>
               <div className="flex gap-2 flex-wrap">
                 {FORM_COLORS.map(c => (
                   <button
@@ -871,14 +915,14 @@ export default function LeadsPage() {
               >
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draftActive ? 'left-5' : 'left-0.5'}`} />
               </div>
-              <span className="text-sm font-medium" style={{ color: textMain }}>Forma je aktivna</span>
+              <span className="text-sm font-medium" style={{ color: textMain }}>{b.activeLabel}</span>
             </label>
           </div>
 
           {/* Questions */}
           <div className="rounded-2xl p-5 border space-y-4" style={{ background: cardBg, borderColor: border }}>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold" style={{ color: textMain }}>Pitanja ({questions.length})</h3>
+              <h3 className="text-sm font-bold" style={{ color: textMain }}>{b.questionsTitle(questions.length)}</h3>
               <button
                 type="button"
                 onClick={addQuestion}
@@ -886,12 +930,12 @@ export default function LeadsPage() {
                 style={{ backgroundColor: accentHex }}
               >
                 <Plus size={12} />
-                Dodaj pitanje
+                {b.addQuestion}
               </button>
             </div>
 
             {questions.length === 0 && (
-              <p className="text-sm text-center py-4" style={{ color: textMuted }}>Nema pitanja. Dodaj prvo pitanje gore.</p>
+              <p className="text-sm text-center py-4" style={{ color: textMuted }}>{b.noQuestions}</p>
             )}
 
             <div className="space-y-3">
@@ -901,7 +945,6 @@ export default function LeadsPage() {
                     <GripVertical size={15} style={{ color: textMuted }} className="cursor-grab shrink-0" />
                     <span className="text-xs font-bold" style={{ color: accentHex }}>#{idx + 1}</span>
                     <div className="flex-1" />
-                    {/* Move up/down */}
                     <button type="button" disabled={idx === 0} onClick={() => setQuestions(prev => { const a = [...prev]; [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; return a })}
                       className="w-6 h-6 rounded flex items-center justify-center disabled:opacity-30" style={{ color: textMuted }}>
                       <ChevronUp size={13} />
@@ -918,47 +961,35 @@ export default function LeadsPage() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="col-span-2 space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
-                        {builderLang === 'hr' ? 'Tekst pitanja (HR)' : 'Question text (EN)'}
-                      </label>
-                      {builderLang === 'hr' ? (
-                        <input
-                          type="text"
-                          value={q.label}
-                          onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
-                          placeholder="npr. Ime i prezime"
-                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                          autoFocus={idx === questions.length - 1 && q.label === ''}
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={q.label_en}
-                          onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label_en: e.target.value } : x))}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
-                          placeholder="e.g. Full name"
-                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                        />
-                      )}
+                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{b.qLabelText}</label>
+                      <input
+                        type="text"
+                        value={builderLang === 'hr' ? q.label : q.label_en}
+                        onChange={e => setQuestions(prev => prev.map((x, i) => i === idx
+                          ? { ...x, [builderLang === 'hr' ? 'label' : 'label_en']: e.target.value }
+                          : x))}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
+                        placeholder={b.qLabelPlaceholder}
+                        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                        style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+                        autoFocus={builderLang === 'hr' && idx === questions.length - 1 && q.label === ''}
+                      />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>Vrsta pitanja</label>
+                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{b.qType}</label>
                       <select
                         value={q.type}
                         onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: e.target.value } : x))}
                         className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
                         style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
                       >
-                        {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        {qTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>Obavezno</label>
+                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{b.qRequired}</label>
                       <label className="flex items-center gap-2 cursor-pointer h-9">
                         <input
                           type="checkbox"
@@ -967,19 +998,19 @@ export default function LeadsPage() {
                           className="w-4 h-4 rounded"
                           style={{ accentColor: accentHex }}
                         />
-                        <span className="text-sm" style={{ color: textMain }}>Da</span>
+                        <span className="text-sm" style={{ color: textMain }}>{b.qRequiredYes}</span>
                       </label>
                     </div>
                   </div>
 
                   {(q.type === 'single_choice' || q.type === 'multi_choice') && (
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>Opcije (jedna po retku)</label>
+                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{b.optionsLabel}</label>
                       <textarea
                         value={q.options}
                         onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, options: e.target.value } : x))}
                         rows={3}
-                        placeholder={'Opcija 1\nOpcija 2\nOpcija 3'}
+                        placeholder={builderLang === 'hr' ? 'Opcija 1\nOpcija 2\nOpcija 3' : 'Option 1\nOption 2\nOption 3'}
                         className="w-full px-3 py-2 rounded-lg border text-sm outline-none resize-none"
                         style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
                       />
@@ -991,7 +1022,7 @@ export default function LeadsPage() {
               <div ref={questionsEndRef} />
             </div>
 
-            {/* Bottom add button — always visible without scrolling to top */}
+            {/* Bottom add button */}
             <button
               type="button"
               onClick={addQuestion}
@@ -999,7 +1030,7 @@ export default function LeadsPage() {
               style={{ borderColor: accentHex + '55', color: accentHex }}
             >
               <Plus size={14} />
-              Dodaj pitanje
+              {b.addQuestion}
             </button>
           </div>
 
@@ -1011,9 +1042,9 @@ export default function LeadsPage() {
             className="w-full py-3.5 rounded-2xl text-white text-sm font-bold transition-all disabled:opacity-70 flex items-center justify-center gap-2"
             style={{ backgroundColor: accentHex }}
           >
-            {formSaving ? <><Loader2 size={15} className="animate-spin" />Spremanje...</>
-              : formSaved ? <><CheckCircle2 size={15} />Forma je spremljena!</>
-              : <><Save size={15} />Spremi formu</>}
+            {formSaving ? <><Loader2 size={15} className="animate-spin" />{b.savingBtn}</>
+              : formSaved ? <><CheckCircle2 size={15} />{b.savedBtn}</>
+              : <><Save size={15} />{b.saveBtn}</>}
           </button>
         </div>
       )}
