@@ -9,6 +9,7 @@ type Question = {
   order_index: number
   type: string
   label: string
+  label_en: string | null
   required: boolean
   options: string[] | null
 }
@@ -17,33 +18,72 @@ type Props = {
   formId: string
   trainerId: string
   title: string
+  titleEn: string | null
   description: string | null
+  descriptionEn: string | null
   accentColor: string
   photoUrl: string | null
   trainerName: string
   questions: Question[]
 }
 
+const UI_STRINGS = {
+  hr: {
+    submit: 'Pošalji prijavu',
+    submitting: 'Slanje…',
+    thankYou: 'Hvala na prijavi!',
+    thankYouSub: 'Trener će te kontaktirati u najkraćem mogućem roku.',
+    requiredError: (label: string) => `Molimo odgovori na obavezno pitanje: "${label}"`,
+    networkError: 'Nešto je pošlo po krivu. Pokušaj ponovo.',
+    emailPlaceholder: 'tvoj@email.com',
+    phonePlaceholder: '+385 99 123 4567',
+    yes: 'Da',
+    no: 'Ne',
+  },
+  en: {
+    submit: 'Submit',
+    submitting: 'Sending…',
+    thankYou: 'Thank you!',
+    thankYouSub: 'Your trainer will get back to you as soon as possible.',
+    requiredError: (label: string) => `Please answer the required question: "${label}"`,
+    networkError: 'Something went wrong. Please try again.',
+    emailPlaceholder: 'your@email.com',
+    phonePlaceholder: '+1 555 123 4567',
+    yes: 'Yes',
+    no: 'No',
+  },
+}
+
 export default function LeadFormClient({
-  formId, trainerId, title, description, accentColor, photoUrl, trainerName, questions,
+  formId, trainerId, title, titleEn, description, descriptionEn, accentColor, photoUrl, trainerName, questions,
 }: Props) {
+  const [lang, setLang] = useState<'hr' | 'en'>('hr')
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({})
   const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
+  const t = UI_STRINGS[lang]
   const accent = accentColor || '#7c3aed'
   const accentLight = accent + '18'
   const accentMed   = accent + '33'
 
-  const setValue = (label: string, value: string | string[]) => {
-    setAnswers(prev => ({ ...prev, [label]: value }))
+  const displayTitle = (lang === 'en' && titleEn) ? titleEn : title
+  const displayDesc  = (lang === 'en' && descriptionEn) ? descriptionEn : description
+
+  // qLabel returns the display label in the current language
+  const qLabel = (q: Question) =>
+    (lang === 'en' && q.label_en) ? q.label_en : q.label
+
+  // Answers are always keyed by the Croatian label for consistent storage
+  const setValue = (key: string, value: string | string[]) => {
+    setAnswers(prev => ({ ...prev, [key]: value }))
   }
 
-  const toggleMulti = (label: string, option: string) => {
-    const current = (answers[label] as string[]) || []
-    setValue(label, current.includes(option) ? current.filter(x => x !== option) : [...current, option])
+  const toggleMulti = (key: string, option: string) => {
+    const current = (answers[key] as string[]) || []
+    setValue(key, current.includes(option) ? current.filter(x => x !== option) : [...current, option])
   }
 
   const validate = () => {
@@ -51,7 +91,7 @@ export default function LeadFormClient({
       if (!q.required) continue
       const val = answers[q.label]
       if (!val || (Array.isArray(val) ? val.length === 0 : val.trim() === '')) {
-        return `Molimo odgovori na obavezno pitanje: "${q.label}"`
+        return t.requiredError(qLabel(q))
       }
     }
     return null
@@ -64,6 +104,7 @@ export default function LeadFormClient({
     setError('')
     setSubmitting(true)
     try {
+      // Build answers keyed by question id for storage
       const res = await fetch('/api/leads/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,14 +113,15 @@ export default function LeadFormClient({
       if (!res.ok) throw new Error('Submit failed')
       setSubmitted(true)
     } catch {
-      setError('Nešto je pošlo po krivu. Pokušaj ponovo.')
+      setError(t.networkError)
     } finally {
       setSubmitting(false)
     }
   }
 
   const renderQuestion = (q: Question) => {
-    const val = answers[q.label]
+    const key = q.label
+    const val = answers[key]
     const inputBase = `w-full px-4 py-3 rounded-xl border-2 text-gray-900 text-sm outline-none transition-all bg-white`
     const inputStyle = { borderColor: '#e5e7eb' }
     const focusStyle = { borderColor: accent, boxShadow: `0 0 0 3px ${accentLight}` }
@@ -93,12 +135,12 @@ export default function LeadFormClient({
           <input
             type={q.type === 'email' ? 'email' : q.type === 'phone' ? 'tel' : q.type === 'number' ? 'number' : 'text'}
             value={(val as string) || ''}
-            onChange={e => setValue(q.label, e.target.value)}
+            onChange={e => setValue(key, e.target.value)}
             className={inputBase}
             style={inputStyle}
             onFocus={e => Object.assign(e.currentTarget.style, focusStyle)}
             onBlur={e => Object.assign(e.currentTarget.style, inputStyle)}
-            placeholder={q.type === 'email' ? 'tvoj@email.com' : q.type === 'phone' ? '+385 99 123 4567' : ''}
+            placeholder={q.type === 'email' ? t.emailPlaceholder : q.type === 'phone' ? t.phonePlaceholder : ''}
           />
         )
 
@@ -106,7 +148,7 @@ export default function LeadFormClient({
         return (
           <textarea
             value={(val as string) || ''}
-            onChange={e => setValue(q.label, e.target.value)}
+            onChange={e => setValue(key, e.target.value)}
             rows={4}
             className={`${inputBase} resize-none`}
             style={inputStyle}
@@ -120,7 +162,7 @@ export default function LeadFormClient({
           <input
             type="date"
             value={(val as string) || ''}
-            onChange={e => setValue(q.label, e.target.value)}
+            onChange={e => setValue(key, e.target.value)}
             className={inputBase}
             style={inputStyle}
             onFocus={e => Object.assign(e.currentTarget.style, focusStyle)}
@@ -131,11 +173,11 @@ export default function LeadFormClient({
       case 'yes_no':
         return (
           <div className="flex gap-3">
-            {['Da', 'Ne'].map(opt => (
+            {[t.yes, t.no].map(opt => (
               <button
                 key={opt}
                 type="button"
-                onClick={() => setValue(q.label, opt)}
+                onClick={() => setValue(key, opt)}
                 className="flex-1 py-3 rounded-xl border-2 text-sm font-semibold transition-all"
                 style={{
                   borderColor: val === opt ? accent : '#e5e7eb',
@@ -156,7 +198,7 @@ export default function LeadFormClient({
               <button
                 key={opt}
                 type="button"
-                onClick={() => setValue(q.label, opt)}
+                onClick={() => setValue(key, opt)}
                 className="w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-3"
                 style={{
                   borderColor: val === opt ? accent : '#e5e7eb',
@@ -185,7 +227,7 @@ export default function LeadFormClient({
                 <button
                   key={opt}
                   type="button"
-                  onClick={() => toggleMulti(q.label, opt)}
+                  onClick={() => toggleMulti(key, opt)}
                   className="w-full text-left px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-3"
                   style={{
                     borderColor: selected ? accent : '#e5e7eb',
@@ -218,8 +260,8 @@ export default function LeadFormClient({
           <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: accentLight }}>
             <CheckCircle2 size={32} style={{ color: accent }} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Hvala na prijavi!</h2>
-          <p className="text-gray-500 text-sm">Trener će te kontaktirati u najkraćem mogućem roku.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.thankYou}</h2>
+          <p className="text-gray-500 text-sm">{t.thankYouSub}</p>
           <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-center gap-2">
             <span className="text-xs text-gray-400">Powered by</span>
             <span className="text-xs font-black text-gray-600 tracking-tight">UnitLift</span>
@@ -231,23 +273,40 @@ export default function LeadFormClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      {/* Top bar */}
       <div className="h-1.5 w-full" style={{ backgroundColor: accent }} />
 
       <div className="max-w-xl mx-auto px-4 py-10">
         {/* Header card */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-          {/* Accent gradient header */}
           <div className="h-24 relative" style={{ background: `linear-gradient(135deg, ${accent}dd, ${accent}88)` }}>
-            {/* Logo watermark */}
-            <div className="absolute top-3 right-4 flex items-center gap-1.5">
-              <div className="w-5 h-5 rounded-md flex items-center justify-center bg-white/20">
-                <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            {/* UnitLift logo + language toggle */}
+            <div className="absolute top-3 right-4 flex items-center gap-2">
+              {/* Language toggle */}
+              <div className="flex rounded-lg overflow-hidden bg-white/20 border border-white/30">
+                {(['hr', 'en'] as const).map(l => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setLang(l)}
+                    className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors"
+                    style={{
+                      backgroundColor: lang === l ? 'rgba(255,255,255,0.9)' : 'transparent',
+                      color: lang === l ? accent : 'rgba(255,255,255,0.8)',
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
               </div>
-              <span className="text-white/80 text-[11px] font-bold tracking-tight">UnitLift</span>
+
+              <div className="flex items-center gap-1.5">
+                <div className="w-5 h-5 rounded-md flex items-center justify-center bg-white/20">
+                  <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <span className="text-white/80 text-[11px] font-bold tracking-tight">UnitLift</span>
+              </div>
             </div>
 
-            {/* Trainer photo (overlaps bottom of header) */}
             {photoUrl && (
               <div className="absolute -bottom-10 left-6">
                 <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-md overflow-hidden bg-gray-100">
@@ -258,18 +317,17 @@ export default function LeadFormClient({
           </div>
 
           <div className={`px-6 pb-6 ${photoUrl ? 'pt-12' : 'pt-6'}`}>
-            <h1 className="text-xl font-bold text-gray-900 leading-tight">{title || 'Prijavna forma'}</h1>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">{displayTitle || 'Prijavna forma'}</h1>
             {!photoUrl && <p className="text-sm text-gray-500 mt-0.5">{trainerName}</p>}
             {photoUrl && <p className="text-xs text-gray-400 mt-1">{trainerName}</p>}
-            {description && (
-              <p className="mt-3 text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{description}</p>
+            {displayDesc && (
+              <p className="mt-3 text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{displayDesc}</p>
             )}
           </div>
         </div>
 
         {/* Questions form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Honeypot — hidden from humans */}
           <input
             type="text"
             name="website_url"
@@ -283,7 +341,7 @@ export default function LeadFormClient({
           {questions.map(q => (
             <div key={q.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <label className="block text-sm font-semibold text-gray-800 mb-3">
-                {q.label}
+                {qLabel(q)}
                 {q.required && <span className="ml-1" style={{ color: accent }}>*</span>}
               </label>
               {renderQuestion(q)}
@@ -301,12 +359,9 @@ export default function LeadFormClient({
             type="submit"
             disabled={submitting}
             className="w-full py-4 rounded-2xl text-white text-base font-bold transition-all shadow-md disabled:opacity-70"
-            style={{
-              backgroundColor: accent,
-              boxShadow: `0 4px 14px ${accentMed}`,
-            }}
+            style={{ backgroundColor: accent, boxShadow: `0 4px 14px ${accentMed}` }}
           >
-            {submitting ? 'Slanje…' : 'Pošalji prijavu'}
+            {submitting ? t.submitting : t.submit}
           </button>
 
           <p className="text-center text-xs text-gray-400 pb-4">

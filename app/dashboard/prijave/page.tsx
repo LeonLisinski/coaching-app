@@ -58,6 +58,7 @@ type Question = {
   order_index: number
   type: string
   label: string
+  label_en: string | null
   required: boolean
   options: string[] | null
 }
@@ -65,7 +66,9 @@ type Question = {
 type FormConfig = {
   id: string
   title: string
+  title_en: string | null
   description: string | null
+  description_en: string | null
   accent_color: string
   photo_url: string | null
   is_active: boolean
@@ -87,6 +90,7 @@ type DraftQuestion = {
   id?: string
   type: string
   label: string
+  label_en: string
   required: boolean
   options: string
 }
@@ -279,8 +283,11 @@ export default function LeadsPage() {
 
   // Form builder state
   const [formConfig, setFormConfig]       = useState<FormConfig | null>(null)
+  const [builderLang, setBuilderLang]     = useState<'hr' | 'en'>('hr')
   const [draftTitle, setDraftTitle]       = useState('')
+  const [draftTitleEn, setDraftTitleEn]   = useState('')
   const [draftDesc, setDraftDesc]         = useState('')
+  const [draftDescEn, setDraftDescEn]     = useState('')
   const [draftColor, setDraftColor]       = useState('#7c3aed')
   const [draftActive, setDraftActive]     = useState(true)
   const [draftHandle, setDraftHandle]     = useState('')
@@ -344,7 +351,9 @@ export default function LeadsPage() {
       const f = formRes.data as FormConfig
       setFormConfig(f)
       setDraftTitle(f.title)
+      setDraftTitleEn(f.title_en || '')
       setDraftDesc(f.description || '')
+      setDraftDescEn(f.description_en || '')
       setDraftColor(f.accent_color)
       setDraftActive(f.is_active)
       setDraftPhoto(f.photo_url)
@@ -360,6 +369,7 @@ export default function LeadsPage() {
           id: q.id,
           type: q.type,
           label: q.label,
+          label_en: q.label_en || '',
           required: q.required,
           options: (q.options || []).join('\n'),
         })),
@@ -442,13 +452,16 @@ export default function LeadsPage() {
     let formId = formConfig?.id
     if (formId) {
       await supabase.from('lead_forms').update({
-        title: draftTitle, description: draftDesc || null,
+        title: draftTitle, title_en: draftTitleEn || null,
+        description: draftDesc || null, description_en: draftDescEn || null,
         accent_color: draftColor, is_active: draftActive, photo_url: draftPhoto,
         updated_at: new Date().toISOString(),
       }).eq('id', formId)
     } else {
       const { data: newForm } = await supabase.from('lead_forms').insert({
-        trainer_id: userId, title: draftTitle, description: draftDesc || null,
+        trainer_id: userId,
+        title: draftTitle, title_en: draftTitleEn || null,
+        description: draftDesc || null, description_en: draftDescEn || null,
         accent_color: draftColor, is_active: draftActive, photo_url: draftPhoto,
       }).select('id').single()
       formId = newForm?.id
@@ -469,6 +482,7 @@ export default function LeadsPage() {
           order_index: i,
           type: q.type,
           label: q.label.trim(),
+          label_en: q.label_en.trim() || null,
           required: q.required,
           options: q.type === 'single_choice' || q.type === 'multi_choice'
             ? q.options.split('\n').map(s => s.trim()).filter(Boolean)
@@ -477,7 +491,12 @@ export default function LeadsPage() {
       )
     }
 
-    setFormConfig(prev => prev ? { ...prev, title: draftTitle, description: draftDesc || null, accent_color: draftColor, is_active: draftActive, photo_url: draftPhoto } : null)
+    setFormConfig(prev => prev ? {
+      ...prev,
+      title: draftTitle, title_en: draftTitleEn || null,
+      description: draftDesc || null, description_en: draftDescEn || null,
+      accent_color: draftColor, is_active: draftActive, photo_url: draftPhoto,
+    } : null)
     setFormSaving(false)
     setFormSaved(true)
     setTimeout(() => setFormSaved(false), 2500)
@@ -488,7 +507,7 @@ export default function LeadsPage() {
   const questionsEndRef = useRef<HTMLDivElement>(null)
 
   const addQuestion = () => {
-    setQuestions(prev => [...prev, { _key: makeKey(), type: 'short_text', label: '', required: false, options: '' }])
+    setQuestions(prev => [...prev, { _key: makeKey(), type: 'short_text', label: '', label_en: '', required: false, options: '' }])
     // Scroll to new question after render
     requestAnimationFrame(() => {
       setTimeout(() => questionsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
@@ -499,8 +518,8 @@ export default function LeadsPage() {
     if (!userId) return
     setPhotoUploading(true)
     const ext = file.name.split('.').pop() || 'jpg'
-    // Use the public `avatars` bucket so the URL is publicly accessible
-    const path = `lead-forms/${userId}.${ext}`
+    // Path must start with userId to satisfy "Users upload own avatar" RLS policy
+    const path = `${userId}/lead-form-photo.${ext}`
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
     if (!error) {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
@@ -715,31 +734,78 @@ export default function LeadsPage() {
 
           {/* Basic info */}
           <div className="rounded-2xl p-5 border space-y-4" style={{ background: cardBg, borderColor: border }}>
-            <h3 className="text-sm font-bold" style={{ color: textMain }}>Osnovno</h3>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold" style={{ color: textMuted }}>Naslov forme</label>
-              <input
-                type="text"
-                value={draftTitle}
-                onChange={e => setDraftTitle(e.target.value)}
-                placeholder="npr. Prijava za trening s Petrom"
-                className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
-                style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-              />
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold" style={{ color: textMain }}>Osnovno</h3>
+              {/* Language toggle for builder */}
+              <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: border }}>
+                {(['hr', 'en'] as const).map(l => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setBuilderLang(l)}
+                    className="px-3 py-1 text-xs font-bold uppercase transition-colors"
+                    style={{
+                      background: builderLang === l ? accentHex : (isDark ? '#1a1a2e' : '#f9fafb'),
+                      color: builderLang === l ? 'white' : textMuted,
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold" style={{ color: textMuted }}>Uvodni tekst</label>
-              <textarea
-                value={draftDesc}
-                onChange={e => setDraftDesc(e.target.value)}
-                rows={3}
-                placeholder="Pozdrav! Molim te da popuniš ovu formu kako bih saznao više o tebi..."
-                className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
-                style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
-              />
-            </div>
+            {builderLang === 'hr' ? (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Naslov forme (HR)</label>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={e => setDraftTitle(e.target.value)}
+                    placeholder="npr. Prijava za trening s Petrom"
+                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
+                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Uvodni tekst (HR)</label>
+                  <textarea
+                    value={draftDesc}
+                    onChange={e => setDraftDesc(e.target.value)}
+                    rows={3}
+                    placeholder="Pozdrav! Molim te da popuniš ovu formu kako bih saznao više o tebi..."
+                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
+                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Form title (EN)</label>
+                  <input
+                    type="text"
+                    value={draftTitleEn}
+                    onChange={e => setDraftTitleEn(e.target.value)}
+                    placeholder="e.g. Training application with Peter"
+                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none"
+                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold" style={{ color: textMuted }}>Intro text (EN)</label>
+                  <textarea
+                    value={draftDescEn}
+                    onChange={e => setDraftDescEn(e.target.value)}
+                    rows={3}
+                    placeholder="Hi! Please fill out this form so I can learn more about you..."
+                    className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none"
+                    style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: textMain }}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Photo */}
             <div className="space-y-2">
@@ -852,17 +918,31 @@ export default function LeadsPage() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="col-span-2 space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>Tekst pitanja</label>
-                      <input
-                        type="text"
-                        value={q.label}
-                        onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
-                        placeholder="npr. Koje su tvoje godine?"
-                        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                        style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                        autoFocus={idx === questions.length - 1 && q.label === ''}
-                      />
+                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
+                        {builderLang === 'hr' ? 'Tekst pitanja (HR)' : 'Question text (EN)'}
+                      </label>
+                      {builderLang === 'hr' ? (
+                        <input
+                          type="text"
+                          value={q.label}
+                          onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
+                          placeholder="npr. Ime i prezime"
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+                          autoFocus={idx === questions.length - 1 && q.label === ''}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={q.label_en}
+                          onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label_en: e.target.value } : x))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
+                          placeholder="e.g. Full name"
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+                        />
+                      )}
                     </div>
 
                     <div className="space-y-1">

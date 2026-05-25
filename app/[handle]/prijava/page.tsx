@@ -8,6 +8,7 @@ type Question = {
   order_index: number
   type: string
   label: string
+  label_en: string | null
   required: boolean
   options: string[] | null
 }
@@ -16,7 +17,9 @@ type FormData = {
   id: string
   trainer_id: string
   title: string
+  title_en: string | null
   description: string | null
+  description_en: string | null
   accent_color: string
   photo_url: string | null
   questions: Question[]
@@ -41,7 +44,7 @@ async function getFormData(handle: string): Promise<FormData | null> {
 
   const { data: form } = await db
     .from('lead_forms')
-    .select('id, trainer_id, title, description, accent_color, photo_url, is_active')
+    .select('id, trainer_id, title, title_en, description, description_en, accent_color, photo_url, is_active')
     .eq('trainer_id', profile.id)
     .eq('is_active', true)
     .single()
@@ -50,7 +53,7 @@ async function getFormData(handle: string): Promise<FormData | null> {
 
   const { data: questions } = await db
     .from('lead_form_questions')
-    .select('id, order_index, type, label, required, options')
+    .select('id, order_index, type, label, label_en, required, options')
     .eq('form_id', form.id)
     .order('order_index')
 
@@ -82,7 +85,9 @@ export default async function LeadFormPage({ params }: { params: Promise<{ handl
       formId={form.id}
       trainerId={form.trainer_id}
       title={form.title}
+      titleEn={form.title_en}
       description={form.description}
+      descriptionEn={form.description_en}
       accentColor={form.accent_color}
       photoUrl={form.photo_url}
       trainerName={form.trainer_name}
