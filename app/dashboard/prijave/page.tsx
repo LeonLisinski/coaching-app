@@ -362,6 +362,8 @@ export default function LeadsPage() {
   const [linkCopied, setLinkCopied]       = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
+  const [dragIdx, setDragIdx]             = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx]     = useState<number | null>(null)
 
   // Handle setup state
   const [handleSetup, setHandleSetup]     = useState('')
@@ -994,19 +996,37 @@ export default function LeadsPage() {
 
             <div className="space-y-3">
               {questions.map((q, idx) => (
-                <div key={q._key} className="rounded-xl border p-4 space-y-3" style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb' }}>
+                <div
+                  key={q._key}
+                  draggable
+                  onDragStart={() => setDragIdx(idx)}
+                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx) }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    if (dragIdx === null || dragIdx === idx) return
+                    setQuestions(prev => {
+                      const next = [...prev]
+                      const [moved] = next.splice(dragIdx, 1)
+                      next.splice(idx, 0, moved)
+                      return next
+                    })
+                    setDragIdx(null)
+                    setDragOverIdx(null)
+                  }}
+                  className="rounded-xl border p-4 space-y-3 transition-all"
+                  style={{
+                    borderColor: dragOverIdx === idx && dragIdx !== idx ? accentHex : border,
+                    background: isDark ? '#1a1a2e' : '#f9fafb',
+                    opacity: dragIdx === idx ? 0.4 : 1,
+                    boxShadow: dragOverIdx === idx && dragIdx !== idx ? `0 0 0 2px ${accentHex}44` : 'none',
+                    cursor: dragIdx !== null ? 'grabbing' : 'default',
+                  }}
+                >
                   <div className="flex items-center gap-2">
                     <GripVertical size={15} style={{ color: textMuted }} className="cursor-grab shrink-0" />
                     <span className="text-xs font-bold" style={{ color: accentHex }}>#{idx + 1}</span>
                     <div className="flex-1" />
-                    <button type="button" disabled={idx === 0} onClick={() => setQuestions(prev => { const a = [...prev]; [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; return a })}
-                      className="w-6 h-6 rounded flex items-center justify-center disabled:opacity-30" style={{ color: textMuted }}>
-                      <ChevronUp size={13} />
-                    </button>
-                    <button type="button" disabled={idx === questions.length - 1} onClick={() => setQuestions(prev => { const a = [...prev]; [a[idx], a[idx+1]] = [a[idx+1], a[idx]]; return a })}
-                      className="w-6 h-6 rounded flex items-center justify-center disabled:opacity-30" style={{ color: textMuted }}>
-                      <ChevronDown size={13} />
-                    </button>
                     <button type="button" onClick={() => setQuestions(prev => prev.filter((_, i) => i !== idx))}
                       className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-600">
                       <X size={13} />

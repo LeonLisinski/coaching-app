@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyPrefetch: 'strict',
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: supabaseHostname,
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
   async headers() {
     const csp = [
       "default-src 'self'",
