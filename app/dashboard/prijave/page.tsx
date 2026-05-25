@@ -361,6 +361,7 @@ export default function LeadsPage() {
   const [formSaved, setFormSaved]         = useState(false)
   const [linkCopied, setLinkCopied]       = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
 
   // Handle setup state
   const [handleSetup, setHandleSetup]     = useState('')
@@ -416,19 +417,20 @@ export default function LeadsPage() {
       const uid = session.user.id
       setUserId(uid)
 
-      // Get handle
-      const { data: profile } = await supabase.from('profiles').select('handle').eq('id', uid).single()
+      // Get handle + profile avatar
+      const { data: profile } = await supabase.from('profiles').select('handle, avatar_url').eq('id', uid).single()
       setHandle(profile?.handle ?? null)
+      if (profile?.avatar_url) setProfileAvatarUrl(profile.avatar_url)
 
       if (profile?.handle) {
-        await loadAll(uid)
+        await loadAll(uid, profile?.avatar_url ?? null)
       }
       setLoading(false)
     }
     init()
   }, [])
 
-  const loadAll = useCallback(async (uid: string) => {
+  const loadAll = useCallback(async (uid: string, avatarUrl?: string | null) => {
     const [subsRes, formRes] = await Promise.all([
       supabase.from('lead_submissions').select('*').eq('trainer_id', uid).order('created_at', { ascending: false }),
       supabase.from('lead_forms').select('*').eq('trainer_id', uid).single(),
@@ -450,7 +452,8 @@ export default function LeadsPage() {
       setDraftDescEn(f.description_en || '')
       setDraftColor(f.accent_color)
       setDraftActive(f.is_active)
-      setDraftPhoto(f.photo_url)
+      // If no custom form photo is set, default to the trainer's profile avatar
+      setDraftPhoto(f.photo_url ?? avatarUrl ?? null)
 
       const { data: qs } = await supabase
         .from('lead_form_questions')
@@ -888,9 +891,9 @@ export default function LeadsPage() {
             {/* Photo */}
             <div className="space-y-2">
               <label className="text-xs font-semibold" style={{ color: textMuted }}>{tL('formPhoto')}</label>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 {draftPhoto && (
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden border" style={{ borderColor: border }}>
+                  <div className="relative w-14 h-14 rounded-xl overflow-hidden border shrink-0" style={{ borderColor: border }}>
                     <img src={draftPhoto} alt="Photo" className="w-full h-full object-cover" />
                     <button
                       type="button"
@@ -901,15 +904,32 @@ export default function LeadsPage() {
                     </button>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={photoUploading}
-                  className="px-3 py-2 rounded-xl border text-xs font-semibold transition-all"
-                  style={{ borderColor: border, color: textMain }}
-                >
-                  {photoUploading ? tL('formPhotoUploading') : draftPhoto ? tL('formPhotoChange') : tL('formPhotoSelect')}
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  {/* Use profile photo shortcut */}
+                  {profileAvatarUrl && draftPhoto !== profileAvatarUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setDraftPhoto(profileAvatarUrl)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                      style={{ borderColor: accentHex + '55', color: accentHex, background: accentHex + '0d' }}
+                    >
+                      <User size={11} />
+                      {contentLang === 'en' ? 'Use profile photo' : 'Koristi sliku s profila'}
+                    </button>
+                  )}
+                  {/* Custom upload */}
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={photoUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                    style={{ borderColor: border, color: textMain }}
+                  >
+                    {photoUploading
+                      ? <><Loader2 size={11} className="animate-spin" />{tL('formPhotoUploading')}</>
+                      : tL('formPhotoSelect')}
+                  </button>
+                </div>
                 <input
                   ref={photoInputRef}
                   type="file"
