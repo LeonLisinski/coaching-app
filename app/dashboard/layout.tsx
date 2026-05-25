@@ -452,6 +452,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: 'INSERT', schema: 'public', table: 'checkins', filter: `trainer_id=eq.${uid}` },
         () => { fetchNotificationsRef.current(uid) },
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'lead_submissions', filter: `trainer_id=eq.${uid}` },
+        () => { fetchNotificationsRef.current(uid) },
+      )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [userId])

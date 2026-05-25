@@ -806,11 +806,11 @@ export default function LeadsPage() {
               <button
                 type="button"
                 onClick={copyLink}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                style={{ backgroundColor: accentHex }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{ backgroundColor: linkCopied ? '#16a34a' : accentHex }}
               >
-                <Copy size={14} />
-                {tL('copyFormLink')}
+                {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+                {linkCopied ? tL('linkCopied') : tL('copyFormLink')}
               </button>
             </div>
           ) : (
