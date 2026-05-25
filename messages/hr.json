@@ -122,6 +122,7 @@
     "edit": "Uredi",
     "delete": "Obriši",
     "add": "Dodaj",
+    "more": "Više",
     "close": "Zatvori",
     "theme_switch_to_dark": "Tamna tema",
     "theme_switch_to_light": "Svijetla tema",
@@ -168,7 +169,8 @@
     "finance": "Financije",
     "chat": "Chat",
     "profile": "Profil",
-    "leads": "Prijave"
+    "leads": "Prijave",
+    "calendar": "Kalendar"
   },
   "locale": {
     "hr": "Hrvatski",
@@ -2599,6 +2601,40 @@
     "save": "Spremi",
     "saved": "Spremljeno",
     "setupHandleSaving": "Spremanje…",
-    "setupHandleContinue": "Postavi handle i nastavi"
+    "setupHandleContinue": "Postavi handle i nastavi",
+    "pickDatePlaceholder": "Odaberi datum i vrijeme"
+  },
+  "calendar": {
+    "pageTitle": "Kalendar",
+    "pageSubtitle": "Pozivi, check-ini i termini",
+    "today": "Danas",
+    "week": "Tjedan",
+    "month": "Mjesec",
+    "newEvent": "Novi događaj",
+    "noEvents": "Nema događaja ovaj dan.",
+    "eventTitle": "Naslov",
+    "eventTitlePlaceholder": "Npr. Uvodni poziv",
+    "eventType": "Vrsta",
+    "typeCall": "Poziv",
+    "typeCheckin": "Check-in",
+    "typeCustom": "Ostalo",
+    "eventDate": "Datum i vrijeme",
+    "eventEnd": "Kraj (opcionalno)",
+    "eventNotes": "Bilješka",
+    "eventNotesPlaceholder": "Bilješke o terminu…",
+    "linkedLead": "Prijava (opcionalno)",
+    "linkedClient": "Klijent (opcionalno)",
+    "noLinkedLead": "Nema vezane prijave",
+    "noLinkedClient": "Nema vezanog klijenta",
+    "save": "Spremi",
+    "saved": "Spremljeno",
+    "cancel": "Odustani",
+    "delete": "Obriši događaj",
+    "deleteConfirm": "Da, obriši",
+    "editEvent": "Uredi događaj",
+    "createEvent": "Stvori događaj",
+    "mon": "Pon", "tue": "Uto", "wed": "Sri", "thu": "Čet",
+    "fri": "Pet", "sat": "Sub", "sun": "Ned",
+    "allDay": "Cijeli dan"
   }
 }

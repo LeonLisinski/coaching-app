@@ -193,7 +193,7 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
     setMessages([])
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
     userIdRef.current = user.id
     await fetchMessages(user.id)
     await markAsRead(user.id)

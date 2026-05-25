@@ -299,7 +299,7 @@ export default function ParametersTab() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
-    const { data } = await supabase.from('checkin_parameters').select('*').eq('trainer_id', user.id).order('frequency').order('order_index')
+    const { data } = await supabase.from('checkin_parameters').select('id, name, type, unit, options, required, frequency, order_index, is_photo, trainer_id').eq('trainer_id', user.id).order('frequency').order('order_index')
     if (data) setParameters(data)
     setLoading(false)
   }

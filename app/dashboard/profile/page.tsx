@@ -102,6 +102,7 @@ export default function ProfilePage() {
   const [editPkg, setEditPkg]             = useState<Pkg | null>(null)
   const [pkgForm, setPkgForm]             = useState({ name: '', description: '', price: '', duration_months: '1', color: '#3b82f6' })
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [savingPkg, setSavingPkg]         = useState(false)
 
   const [nutritionFields, setNutritionFields] = useState<string[]>([])
   const [exerciseFields, setExerciseFields]   = useState<string[]>([])
@@ -119,7 +120,7 @@ export default function ProfilePage() {
   const fetchData = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
     const [{ data: pd }, { data: pkgs }, { data: tp }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('packages').select('*').eq('trainer_id', user.id).order('created_at'),
@@ -195,14 +196,20 @@ export default function ProfilePage() {
   const openEditPkg = (pkg: Pkg) => { setEditPkg(pkg); setPkgForm({ name: pkg.name, description: pkg.description || '', price: pkg.price.toString(), duration_months: String(Math.round(pkg.duration_days / 30)), color: pkg.color }); setShowPkgForm(true) }
 
   const savePkg = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
-    if (!user) return
-    const months = parseInt(pkgForm.duration_months) || 1
-    const payload = { trainer_id: user.id, name: pkgForm.name, description: pkgForm.description || null, price: parseFloat(pkgForm.price), duration_days: months * 30, color: pkgForm.color }
-    if (editPkg) await supabase.from('packages').update(payload).eq('id', editPkg.id)
-    else await supabase.from('packages').insert(payload)
-    setShowPkgForm(false); fetchData()
+    if (savingPkg) return
+    setSavingPkg(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
+      if (!user) { setSavingPkg(false); return }
+      const months = parseInt(pkgForm.duration_months) || 1
+      const payload = { trainer_id: user.id, name: pkgForm.name, description: pkgForm.description || null, price: parseFloat(pkgForm.price), duration_days: months * 30, color: pkgForm.color }
+      if (editPkg) await supabase.from('packages').update(payload).eq('id', editPkg.id)
+      else await supabase.from('packages').insert(payload)
+      setShowPkgForm(false); fetchData()
+    } finally {
+      setSavingPkg(false)
+    }
   }
 
   const deletePkg       = async (id: string) => { await supabase.from('packages').delete().eq('id', id); setPackages(p => p.filter(x => x.id !== id)); setConfirmDelete(null) }
@@ -503,10 +510,10 @@ export default function ProfilePage() {
                 className={`w-full border rounded-lg px-3 py-2 text-sm min-h-14 resize-none focus:outline-none ${isDark ? 'bg-white/[0.05] border-white/12 text-gray-200 placeholder:text-gray-600' : 'border-input'}`} />
             </div>
             <div className="flex gap-2">
-              <button onClick={savePkg} disabled={!pkgForm.name || !pkgForm.price}
+              <button onClick={savePkg} disabled={savingPkg || !pkgForm.name || !pkgForm.price}
                 className="h-8 px-4 rounded-lg text-white text-xs font-semibold disabled:opacity-50"
                 style={{ backgroundColor: accentHex }}>
-                {editPkg ? tPkg('save') : tPkg('add')}
+                {savingPkg ? <span className="flex items-center gap-1"><svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"/><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" className="opacity-75"/></svg></span> : editPkg ? tPkg('save') : tPkg('add')}
               </button>
               <button onClick={() => setShowPkgForm(false)}
                 className={`h-8 px-4 rounded-lg border text-xs transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>

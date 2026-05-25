@@ -4,17 +4,18 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import {
   ClipboardList, Settings2, PhoneCall, UserPlus, Trash2, ChevronDown,
-  ChevronUp, Copy, Check, ExternalLink, Plus, Calendar, GripVertical,
+  ChevronUp, Copy, Check, ExternalLink, Plus, GripVertical,
   X, ArrowLeft, Save, Loader2, AlertCircle, CheckCircle2,
   Mail, Phone, User, Eye, EyeOff,
 } from 'lucide-react'
 import nextDynamic from 'next/dynamic'
 
 const AddClientDialog = nextDynamic(() => import('@/app/dashboard/clients/add-client-dialog'), { ssr: false })
+const DateTimePicker  = nextDynamic(() => import('@/app/components/date-time-picker'), { ssr: false })
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -177,6 +178,8 @@ type LeadRowLabels = {
   convertToClient: string
   deleteSubmission: string
   anonymous: string
+  locale: string
+  pickDatePlaceholder: string
 }
 
 // ─── Lead row ───────────────────────────────────────────────────────────────
@@ -210,16 +213,46 @@ function LeadRow({
 
   const saveDetails = async () => {
     setSaving(true)
+    const isoCall = callDate ? new Date(callDate).toISOString() : null
     await supabase.from('lead_submissions').update({
       trainer_notes: notes || null,
-      scheduled_call_at: callDate ? new Date(callDate).toISOString() : null,
+      scheduled_call_at: isoCall,
     }).eq('id', sub.id)
+
+    // Sync to trainer_events so the call appears on the calendar
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session && isoCall) {
+      // Upsert: one event per lead_submission_id (match by lead_submission_id)
+      const { data: existing } = await supabase
+        .from('trainer_events')
+        .select('id')
+        .eq('lead_submission_id', sub.id)
+        .maybeSingle()
+      const payload = {
+        trainer_id: session.user.id,
+        title: `${previewName} – ${labels.scheduledCall}`,
+        type: 'call' as const,
+        starts_at: isoCall,
+        lead_submission_id: sub.id,
+      }
+      if (existing?.id) {
+        await supabase.from('trainer_events').update(payload).eq('id', existing.id)
+      } else {
+        await supabase.from('trainer_events').insert(payload)
+      }
+    } else if (session && !isoCall) {
+      // Call was cleared → remove the linked event from calendar
+      await supabase.from('trainer_events').delete().eq('lead_submission_id', sub.id)
+    }
+
     setSaving(false)
     setSavedState(true)
     setTimeout(() => setSavedState(false), 2000)
   }
 
-  const formattedDate = new Date(sub.created_at).toLocaleDateString(undefined, {
+  const dateLocale = labels.locale === 'en' ? 'en-GB' : 'hr-HR'
+
+  const formattedDate = new Date(sub.created_at).toLocaleString(dateLocale, {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 
@@ -230,10 +263,10 @@ function LeadRow({
     >
       <button
         type="button"
-        className="w-full px-5 py-4 flex items-center gap-3 text-left"
+        className="w-full px-4 py-3.5 flex items-center gap-3 text-left"
         onClick={onClick}
       >
-        <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_COLORS[sub.status]}`}>
+        <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[sub.status]}`}>
           {labels.statusLabels[sub.status] || sub.status}
         </span>
 
@@ -246,19 +279,20 @@ function LeadRow({
               {emailEntry ? String(emailEntry[1]) : ''}{emailEntry && phoneEntry ? ' · ' : ''}{phoneEntry ? String(phoneEntry[1]) : ''}
             </p>
           )}
+          <p className="text-[11px] mt-0.5 sm:hidden" style={{ color: textMuted }}>{formattedDate}</p>
         </div>
 
-        <span className="text-xs shrink-0" style={{ color: textMuted }}>{formattedDate}</span>
+        <span className="text-xs shrink-0 hidden sm:block" style={{ color: textMuted }}>{formattedDate}</span>
         {isOpen ? <ChevronUp size={15} style={{ color: textMuted }} className="shrink-0" /> : <ChevronDown size={15} style={{ color: textMuted }} className="shrink-0" />}
       </button>
 
       {isOpen && (
-        <div className="border-t px-5 pb-5 space-y-5" style={{ borderColor: border }}>
-          <div className="pt-4 space-y-3">
+        <div className="border-t px-4 sm:px-5 pb-5 space-y-4 sm:space-y-5" style={{ borderColor: border }}>
+          <div className="pt-4 space-y-2.5">
             {answerEntries.map(([label, value]) => (
-              <div key={label} className="flex gap-3 text-sm">
-                <span className="font-medium shrink-0 w-36 truncate" style={{ color: textMuted }}>{label}</span>
-                <span style={{ color: isDark ? '#e5e7eb' : '#1f2937' }}>
+              <div key={label} className="flex flex-col sm:flex-row sm:gap-3 text-sm">
+                <span className="font-medium text-xs sm:text-sm sm:shrink-0 sm:w-36 sm:truncate" style={{ color: textMuted }}>{label}</span>
+                <span className="text-sm mt-0.5 sm:mt-0" style={{ color: isDark ? '#e5e7eb' : '#1f2937' }}>
                   {Array.isArray(value) ? value.join(', ') : String(value ?? '')}
                 </span>
               </div>
@@ -284,12 +318,16 @@ function LeadRow({
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>{labels.scheduledCall}</p>
-            <input
-              type="datetime-local"
+            <DateTimePicker
               value={callDate}
-              onChange={e => setCallDate(e.target.value)}
-              className="px-3 py-2 rounded-xl border text-sm outline-none"
-              style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: isDark ? '#e5e7eb' : '#111827' }}
+              onChange={setCallDate}
+              locale={labels.locale}
+              isDark={isDark}
+              accentHex={accentHex}
+              textMain={isDark ? '#e5e7eb' : '#111827'}
+              textMuted={textMuted}
+              border={border}
+              placeholder={labels.pickDatePlaceholder}
             />
           </div>
 
@@ -305,12 +343,12 @@ function LeadRow({
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
             <button
               type="button"
               onClick={saveDetails}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-70"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-70"
               style={{ backgroundColor: accentHex }}
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : savedState ? <CheckCircle2 size={13} /> : <Save size={13} />}
@@ -319,7 +357,7 @@ function LeadRow({
             <button
               type="button"
               onClick={() => onConvert(sub)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-semibold transition-all"
               style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6', color: isDark ? '#e5e7eb' : '#374151' }}
             >
               <UserPlus size={13} />
@@ -328,7 +366,8 @@ function LeadRow({
             <button
               type="button"
               onClick={() => onDelete(sub.id)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-all ml-auto"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-semibold text-red-500 transition-all sm:ml-auto"
+              style={{ backgroundColor: isDark ? 'rgba(239,68,68,0.08)' : '#fef2f2' }}
             >
               <Trash2 size={13} />
               {labels.deleteSubmission}
@@ -346,6 +385,7 @@ export default function LeadsPage() {
   const accentHex = ACCENT_HEX[accent] || '#7c3aed'
   const isDark = mode === 'dark'
   const router = useRouter()
+  const locale = useLocale()
 
   const [userId, setUserId]               = useState<string | null>(null)
   const [handle, setHandle]               = useState<string | null | undefined>(undefined)
@@ -354,6 +394,7 @@ export default function LeadsPage() {
   const [openId, setOpenId]               = useState<string | null>(null)
   const [statusFilter, setStatusFilter]   = useState<string>('all')
   const [loading, setLoading]             = useState(true)
+  const [pageError, setPageError]         = useState<string | null>(null)
 
   // Form builder state
   const [formConfig, setFormConfig]       = useState<FormConfig | null>(null)
@@ -406,6 +447,8 @@ export default function LeadsPage() {
     notesPlaceholder:tL('notesPlaceholder'),
     save:            tL('save'),
     saved:           tL('saved'),
+    locale,
+    pickDatePlaceholder: tL('pickDatePlaceholder'),
     convertToClient: tL('convertToClient'),
     deleteSubmission:tL('deleteSubmission'),
     anonymous:       tL('anonymous'),
@@ -424,16 +467,21 @@ export default function LeadsPage() {
 
   // ── Auth + data load + real-time ─────────────────────────────────────────
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
+    // Use a ref so cleanup can always access the channel even if init() is still async
+    const channelRef: { current: ReturnType<typeof supabase.channel> | null } = { current: null }
+    let cancelled = false
 
     const init = async () => {
+      try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (cancelled) return
       if (!session) { router.push('/login'); return }
       const uid = session.user.id
       setUserId(uid)
 
       // Get handle + profile avatar + full_name for slug suggestion
       const { data: profile } = await supabase.from('profiles').select('handle, avatar_url, full_name').eq('id', uid).single()
+      if (cancelled) return
       setHandle(profile?.handle ?? null)
       if (profile?.avatar_url) setProfileAvatarUrl(profile.avatar_url)
 
@@ -445,34 +493,51 @@ export default function LeadsPage() {
       if (profile?.handle) {
         await loadAll(uid, profile?.avatar_url ?? null)
       }
-      setLoading(false)
+      if (cancelled) return
 
-      // Real-time: automatically add new submissions as they arrive
-      channel = supabase
-        .channel('lead-submissions-rt')
+      // Real-time: unique channel per trainer to avoid cross-session conflicts
+      channelRef.current = supabase
+        .channel(`lead-submissions-rt-${uid}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'lead_submissions', filter: `trainer_id=eq.${uid}` },
           (payload) => {
+            if (cancelled) return
             const newSub = payload.new as Submission
-            setSubmissions(prev => [newSub, ...prev])
-            // Mark as seen immediately since we're watching
+            setSubmissions(prev => prev.length >= 200 ? prev : [newSub, ...prev])
             supabase.from('lead_submissions').update({ seen: true }).eq('id', newSub.id)
           },
         )
         .subscribe()
+
+      setLoading(false)
+      } catch (err) {
+        console.error('Prijave init error:', err)
+        if (!cancelled) {
+          setPageError('Greška pri učitavanju prijava. Pokušajte osvježiti stranicu.')
+          setLoading(false)
+        }
+      }
     }
     init()
 
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      cancelled = true
+      if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
   }, [])
 
   const loadAll = useCallback(async (uid: string, avatarUrl?: string | null) => {
     const [subsRes, formRes] = await Promise.all([
-      supabase.from('lead_submissions').select('*').eq('trainer_id', uid).order('created_at', { ascending: false }),
-      supabase.from('lead_forms').select('*').eq('trainer_id', uid).single(),
+      supabase.from('lead_submissions')
+        .select('id, trainer_id, answers, status, seen, notes, scheduled_call_at, trainer_notes, created_at')
+        .eq('trainer_id', uid)
+        .order('created_at', { ascending: false })
+        .limit(200),
+      supabase.from('lead_forms')
+        .select('id, trainer_id, title, title_en, description, description_en, accent_color, is_active, photo_url')
+        .eq('trainer_id', uid)
+        .single(),
     ])
     setSubmissions((subsRes.data || []) as Submission[])
 
@@ -496,7 +561,7 @@ export default function LeadsPage() {
 
       const { data: qs } = await supabase
         .from('lead_form_questions')
-        .select('*')
+        .select('id, form_id, type, label, label_en, required, options, order_index')
         .eq('form_id', f.id)
         .order('order_index')
       setQuestions(
@@ -688,6 +753,21 @@ export default function LeadsPage() {
     )
   }
 
+  if (pageError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-center px-4">
+        <p className="text-red-500 text-sm font-medium">{pageError}</p>
+        <button
+          onClick={() => { setPageError(null); setLoading(true); window.location.reload() }}
+          className="text-sm px-4 py-2 rounded-lg font-semibold text-white"
+          style={{ backgroundColor: accentHex }}
+        >
+          Pokušaj ponovo
+        </button>
+      </div>
+    )
+  }
+
   // ── Render: handle setup ──────────────────────────────────────────────────
   if (handle === null) {
     return (
@@ -739,37 +819,37 @@ export default function LeadsPage() {
 
   // ── Render: main ──────────────────────────────────────────────────────────
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+    <div className="max-w-3xl mx-auto px-2 sm:px-4 py-4 sm:py-6 pb-24 sm:pb-6 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: accentHex + '20' }}>
-            <ClipboardList size={20} style={{ color: accentHex }} />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: accentHex + '20' }}>
+            <ClipboardList size={18} style={{ color: accentHex }} />
           </div>
-          <div>
-            <h1 className="text-xl font-bold leading-tight" style={{ color: textMain }}>{tL('pageTitle')}</h1>
-            <p className="text-xs" style={{ color: textMuted }}>{handle}/prijava</p>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-xl font-bold leading-tight truncate" style={{ color: textMain }}>{tL('pageTitle')}</h1>
+            <p className="text-xs truncate" style={{ color: textMuted }}>{handle}/prijava</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={copyLink}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all"
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all"
             style={{ borderColor: border, color: textMain, background: cardBg }}
           >
             {linkCopied ? <Check size={13} style={{ color: accentHex }} /> : <Copy size={13} />}
-            {linkCopied ? tL('linkCopied') : tL('copyLink')}
+            <span className="hidden sm:inline">{linkCopied ? tL('linkCopied') : tL('copyLink')}</span>
           </button>
           <a
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all"
+            className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold border transition-all"
             style={{ borderColor: border, color: textMain, background: cardBg }}
           >
             <ExternalLink size={13} />
-            {tL('preview')}
+            <span className="hidden sm:inline">{tL('preview')}</span>
           </a>
         </div>
       </div>
@@ -798,25 +878,32 @@ export default function LeadsPage() {
       {/* ── Submissions tab ── */}
       {tab === 'submissions' && (
         <div className="space-y-4">
-          {/* Status filter */}
-          <div className="flex gap-2 flex-wrap">
-            {['all', 'new', 'contacted', 'converted', 'rejected'].map(s => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatusFilter(s)}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all border"
-                style={{
-                  borderColor: statusFilter === s ? accentHex : border,
-                  background: statusFilter === s ? accentHex + '18' : 'transparent',
-                  color: statusFilter === s ? accentHex : textMuted,
-                }}
-              >
-                {s === 'all'
-                  ? `${tL('filterAll')} (${submissions.length})`
-                  : `${statusLabels[s]} (${submissions.filter(x => x.status === s).length})`}
-              </button>
-            ))}
+          {/* Status filter — scrollable on mobile */}
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar -mx-2 px-2 sm:mx-0 sm:px-0 sm:flex-wrap">
+            {['all', 'new', 'contacted', 'converted', 'rejected'].map(s => {
+              const count = s === 'all' ? submissions.length : submissions.filter(x => x.status === s).length
+              const shortLabels: Record<string, string> = {
+                all: tL('filterAll'), new: statusLabels.new,
+                contacted: statusLabels.contacted,
+                converted: locale === 'en' ? 'Converted' : 'Pretvoreni',
+                rejected:  statusLabels.rejected,
+              }
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border whitespace-nowrap shrink-0"
+                  style={{
+                    borderColor: statusFilter === s ? accentHex : border,
+                    background: statusFilter === s ? accentHex + '18' : 'transparent',
+                    color: statusFilter === s ? accentHex : textMuted,
+                  }}
+                >
+                  {shortLabels[s]} ({count})
+                </button>
+              )
+            })}
           </div>
 
           {filtered.length === 0 ? (
@@ -859,7 +946,17 @@ export default function LeadsPage() {
 
       {/* ── Form builder tab ── */}
       {tab === 'form' && (
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
+          {/* Mobile hint */}
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border sm:hidden"
+            style={{ borderColor: accentHex + '40', background: accentHex + '0d' }}>
+            <AlertCircle size={15} style={{ color: accentHex }} className="shrink-0 mt-0.5" />
+            <p className="text-xs leading-relaxed" style={{ color: accentHex }}>
+              {locale === 'en'
+                ? 'The form builder is easier to use on a desktop. You can still edit here.'
+                : 'Graditelj forme je pregledaniji na računalu. Možeš uređivati i ovdje.'}
+            </p>
+          </div>
           {/* Handle */}
           <div className="rounded-2xl p-5 border space-y-3" style={{ background: cardBg, borderColor: border }}>
             <h3 className="text-sm font-bold" style={{ color: textMain }}>{tL('publicLink')}</h3>
@@ -1077,8 +1174,9 @@ export default function LeadsPage() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2 space-y-1">
+                  <div className="space-y-2">
+                    {/* Label input - full width */}
+                    <div className="space-y-1">
                       <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
                         {tL('questionLabel')} ({contentLang.toUpperCase()})
                       </label>
@@ -1096,31 +1194,34 @@ export default function LeadsPage() {
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionType')}</label>
-                      <TypeSelect
-                        value={q.type}
-                        options={qTypes}
-                        isDark={isDark}
-                        border={border}
-                        textMain={textMain}
-                        accentHex={accentHex}
-                        onChange={val => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: val } : x))}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionRequired')}</label>
-                      <label className="flex items-center gap-2 cursor-pointer h-9">
-                        <input
-                          type="checkbox"
-                          checked={q.required}
-                          onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, required: e.target.checked } : x))}
-                          className="w-4 h-4 rounded"
-                          style={{ accentColor: accentHex }}
+                    {/* Type + Required — side by side on all screens */}
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionType')}</label>
+                        <TypeSelect
+                          value={q.type}
+                          options={qTypes}
+                          isDark={isDark}
+                          border={border}
+                          textMain={textMain}
+                          accentHex={accentHex}
+                          onChange={val => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: val } : x))}
                         />
-                        <span className="text-sm" style={{ color: textMain }}>{tL('yes')}</span>
-                      </label>
+                      </div>
+                      <div className="space-y-1 shrink-0">
+                        <label className="text-[11px] font-semibold block" style={{ color: textMuted }}>{tL('questionRequired')}</label>
+                        <label className="flex items-center gap-2 cursor-pointer h-9 px-3 rounded-lg border"
+                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white' }}>
+                          <input
+                            type="checkbox"
+                            checked={q.required}
+                            onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, required: e.target.checked } : x))}
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: accentHex }}
+                          />
+                          <span className="text-sm" style={{ color: textMain }}>{tL('yes')}</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
 

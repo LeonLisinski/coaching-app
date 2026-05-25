@@ -49,7 +49,7 @@ export default function CheckinConfig({ clientId }: Props) {
   const fetchConfig = async () => {
     const { data } = await supabase
       .from('checkin_config')
-      .select('*')
+      .select('id, client_id, trainer_id, checkin_day, photo_frequency, photo_positions, notes')
       .eq('client_id', clientId)
       .maybeSingle()
 

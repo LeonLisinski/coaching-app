@@ -3,10 +3,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ListChecks, MessageSquare,
-  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut, Settings, ClipboardList,
+  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut, Settings, ClipboardList, CalendarDays,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
@@ -15,6 +15,7 @@ type Props = {
   lastCheckinHref: string
   lastChatHref:    string
   notifCount?:     number
+  leadsBadge?:     number
   userName?:       string
   userInitials?:   string
   onLogout:        () => void
@@ -23,11 +24,12 @@ type Props = {
 
 export default function MobileBottomNav({
   lastClientHref, lastCheckinHref, lastChatHref,
-  notifCount = 0, userName = '', userInitials = '?', onLogout, onSettings,
+  notifCount = 0, leadsBadge = 0, userName = '', userInitials = '?', onLogout, onSettings,
 }: Props) {
   const pathname   = usePathname()
   const tNav       = useTranslations('nav')
   const tCommon    = useTranslations('common')
+  const locale     = useLocale()
   const [showMore, setShowMore] = useState(false)
   const { mode } = useAppTheme()
   const isDark = mode === 'dark'
@@ -44,17 +46,18 @@ export default function MobileBottomNav({
       : pathname.startsWith(href)
 
   const primaryItems = [
-    { href: '/dashboard',          effectiveHref: '/dashboard',        labelKey: 'overview',  icon: LayoutDashboard },
-    { href: '/dashboard/clients',  effectiveHref: lastClientHref,      labelKey: 'clients',   icon: Users           },
-    { href: '/dashboard/checkins', effectiveHref: lastCheckinHref,     labelKey: 'checkins',  icon: ListChecks      },
-    { href: '/dashboard/chat',     effectiveHref: lastChatHref,        labelKey: 'chat',      icon: MessageSquare   },
+    { href: '/dashboard',          effectiveHref: '/dashboard',        labelKey: 'overview',  icon: LayoutDashboard, badge: 0           },
+    { href: '/dashboard/clients',  effectiveHref: lastClientHref,      labelKey: 'clients',   icon: Users,           badge: 0           },
+    { href: '/dashboard/prijave',  effectiveHref: '/dashboard/prijave',labelKey: 'leads',     icon: ClipboardList,   badge: leadsBadge  },
+    { href: '/dashboard/kalendar', effectiveHref: '/dashboard/kalendar',labelKey: 'calendar', icon: CalendarDays,    badge: 0           },
+    { href: '/dashboard/chat',     effectiveHref: lastChatHref,        labelKey: 'chat',      icon: MessageSquare,   badge: notifCount  },
   ] as const
 
   const moreItems = [
+    { href: '/dashboard/checkins', labelKey: 'checkins', icon: ListChecks      },
     { href: '/dashboard/training',  labelKey: 'training',  icon: Dumbbell        },
     { href: '/dashboard/nutrition', labelKey: 'nutrition', icon: UtensilsCrossed },
     { href: '/dashboard/financije', labelKey: 'finance',   icon: Banknote        },
-    { href: '/dashboard/prijave',   labelKey: 'leads',     icon: ClipboardList   },
     { href: '/dashboard/profile',   labelKey: 'profile',   icon: User            },
   ] as const
 
@@ -68,24 +71,25 @@ export default function MobileBottomNav({
         style={{ backgroundColor: navBg, borderColor: navBorder }}
       >
         <div className="flex items-center justify-around h-14">
-          {primaryItems.map(({ href, effectiveHref, labelKey, icon: Icon }) => {
+          {primaryItems.map(({ href, effectiveHref, labelKey, icon: Icon, badge }) => {
             const active = isActive(href)
-            const hasBadge = labelKey === 'chat' && notifCount > 0
             return (
               <Link
                 key={href}
                 href={effectiveHref}
-                className="flex items-center justify-center flex-1 h-full transition-colors"
+                className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors"
                 style={{ color: active ? 'var(--app-accent)' : inactiveIconColor }}
               >
                 <div className="relative">
-                  <Icon size={24} strokeWidth={active ? 2.2 : 1.7} />
-                  {hasBadge && (
-                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center px-0.5 leading-none">
-                      {notifCount > 9 ? '9+' : notifCount}
+                  <Icon size={22} strokeWidth={active ? 2.2 : 1.7} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full text-white text-[8px] font-bold flex items-center justify-center px-0.5 leading-none"
+                      style={{ backgroundColor: 'var(--app-accent)' }}>
+                      {badge > 9 ? '9+' : badge}
                     </span>
                   )}
                 </div>
+                <span className="text-[9px] font-semibold leading-none">{tNav(labelKey as any)}</span>
               </Link>
             )
           })}
@@ -93,10 +97,11 @@ export default function MobileBottomNav({
           {/* More button */}
           <button
             onClick={() => setShowMore(true)}
-            className="flex items-center justify-center flex-1 h-full transition-colors"
+            className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors"
             style={{ color: isMoreActive ? 'var(--app-accent)' : inactiveIconColor }}
           >
-            <MoreHorizontal size={24} strokeWidth={1.7} />
+            <MoreHorizontal size={22} strokeWidth={1.7} />
+            <span className="text-[9px] font-semibold leading-none">{locale === 'en' ? 'More' : 'Više'}</span>
           </button>
         </div>
       </nav>

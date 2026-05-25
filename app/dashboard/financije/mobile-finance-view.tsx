@@ -55,7 +55,7 @@ export default function MobileFinanceView() {
 
     const [{ data: cpData }, { data: pkgData }, { data: clientsData }] = await Promise.all([
       supabase.from('client_packages')
-        .select('id, client_id, package_id, start_date, end_date, price, payments(*)')
+        .select('id, client_id, package_id, start_date, end_date, price, status, payments(id, amount, paid_at, method, notes)')
         .eq('trainer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(60),

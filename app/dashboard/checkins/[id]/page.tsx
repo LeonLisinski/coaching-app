@@ -69,6 +69,10 @@ export default function ClientCheckinPage() {
   }, [id])
 
   const fetchClient = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.push('/login'); return }
+    const uid = session.user.id
+
     const { data } = await supabase
       .from('clients')
       .select(`
@@ -77,6 +81,7 @@ export default function ClientCheckinPage() {
         profiles!clients_user_id_fkey (full_name, email)
       `)
       .eq('id', id)
+      .eq('trainer_id', uid)
       .single()
 
     if (data) {

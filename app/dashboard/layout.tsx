@@ -24,6 +24,7 @@ import {
   UserPlus,
   Package,
   ClipboardList,
+  CalendarDays,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -54,6 +55,7 @@ const navItems = [
   { href: '/dashboard/financije',   labelKey: 'finance',   icon: Banknote,        color: 'text-emerald-400'},
   { href: '/dashboard/chat',        labelKey: 'chat',      icon: MessageSquare,   color: 'text-amber-400'  },
   { href: '/dashboard/prijave',     labelKey: 'leads',     icon: ClipboardList,   color: 'text-fuchsia-400'},
+  { href: '/dashboard/kalendar',    labelKey: 'calendar',  icon: CalendarDays,    color: 'text-cyan-400'   },
   { href: '/dashboard/profile',     labelKey: 'profile',   icon: User,            color: 'text-rose-400'   },
 ]
 
@@ -358,67 +360,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
     // getSession() reads from localStorage — zero network latency
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      const user = session?.user
-      if (!user) { router.replace('/login'); return }
+    const run = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (cancelled) return
+        const user = session?.user
+        if (!user) { router.replace('/login'); return }
 
-      // Show children immediately — RLS policies enforce security server-side.
-      // Subscription redirect happens in parallel (below) and redirects if needed.
-      setAuthChecked(true)
+        // Show children immediately — RLS policies enforce security server-side.
+        // Subscription redirect happens in parallel (below) and redirects if needed.
+        setAuthChecked(true)
 
-      const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null } | null) => {
-        if (!sub) return false
-        const now = new Date()
-        if (sub.status === 'active') return true
-        if (sub.status === 'trialing') {
-          // No trial_end = bad data; deny until sync sets it
-          if (!sub.trial_end) return false
-          return new Date(sub.trial_end) > now
+        const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null } | null) => {
+          if (!sub) return false
+          const now = new Date()
+          if (sub.status === 'active') return true
+          if (sub.status === 'trialing') {
+            if (!sub.trial_end) return false
+            return new Date(sub.trial_end) > now
+          }
+          if (sub.status === 'past_due') {
+            if (!sub.locked_at) return true
+            return new Date(sub.locked_at) > now
+          }
+          return false
         }
-        if (sub.status === 'past_due') {
-          if (!sub.locked_at) return true
-          return new Date(sub.locked_at) > now
-        }
-        return false
-      }
 
-      // If coming back from Stripe checkout, sync billing BEFORE checking access
-      // so the subscription row exists before we decide to redirect.
-      const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
-      if (isPending && session.access_token) {
+        // If coming back from Stripe checkout, sync billing BEFORE checking access
+        // so the subscription row exists before we decide to redirect.
+        const isPending = typeof window !== 'undefined' && window.location.search.includes('setup=pending')
+        if (isPending && session.access_token) {
+          try {
+            await fetch('/api/billing/sync', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+          } catch (err) {
+            console.error('[layout] billing/sync failed:', err)
+          }
+          window.history.replaceState({}, '', '/dashboard')
+        }
+
+        // Run subscription check + profile fetch IN PARALLEL (one RTT instead of two serial)
+        const [{ data: sub }, { data: profileData }] = await Promise.all([
+          supabase.from('subscriptions').select('status, trial_end, locked_at').eq('trainer_id', user.id).maybeSingle(),
+          supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
+        ])
+
+        if (cancelled) return
+        if (!checkAccess(sub)) {
+          router.replace('/choose-plan')
+          return
+        }
+
+        if (profileData) {
+          const name = profileData.full_name || user.email || ''
+          setUserName(name)
+          setUserInitials(name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?')
+          setUserAvatarUrl(profileData.avatar_url || null)
+        }
+
+        if (cancelled) return
+        setUserId(user.id)
         try {
-          await fetch('/api/billing/sync', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          })
+          await fetchNotifications(user.id)
         } catch (err) {
-          console.error('[layout] billing/sync failed:', err)
+          console.error('[layout] fetchNotifications failed:', err)
         }
-        window.history.replaceState({}, '', '/dashboard')
+      } catch (err) {
+        if (!cancelled) console.error('[layout] auth init failed:', err)
       }
-
-      // Run subscription check + profile fetch IN PARALLEL (one RTT instead of two serial)
-      const [{ data: sub }, { data: profileData }] = await Promise.all([
-        supabase.from('subscriptions').select('status, trial_end, locked_at').eq('trainer_id', user.id).maybeSingle(),
-        supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
-      ])
-
-      if (!checkAccess(sub)) {
-        router.replace('/choose-plan')
-        return
-      }
-
-      if (profileData) {
-        const name = profileData.full_name || user.email || ''
-        setUserName(name)
-        setUserInitials(name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2) || '?')
-        setUserAvatarUrl(profileData.avatar_url || null)
-      }
-
-      setUserId(user.id)
-      fetchNotifications(user.id)
-    })
+    }
+    run()
+    return () => { cancelled = true }
   }, [fetchNotifications])
 
   // Keep a stable ref to fetchNotifications so the subscription effect never needs to
@@ -553,7 +570,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="relative z-10 flex-1 px-2 py-3 space-y-0.5 overflow-y-auto" data-tour="sidebar-nav">
           {navItems.map(({ href, labelKey, icon: Icon, color }) => {
             const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
-            const label = tNav(labelKey as 'overview' | 'clients' | 'training' | 'nutrition' | 'checkins' | 'finance' | 'chat' | 'leads' | 'profile')
+            const label = tNav(labelKey as 'overview' | 'clients' | 'training' | 'nutrition' | 'checkins' | 'finance' | 'chat' | 'leads' | 'calendar' | 'profile')
             // If on a DETAIL page of this section (e.g. /dashboard/checkins/[id]) → reset to root
             // If on the section ROOT or a different section → restore last visited detail (if any)
             const isOnSectionDetailPage = href !== '/dashboard' && pathname.startsWith(href + '/')
@@ -812,7 +829,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Global FAB — hidden on mobile when in active chat */}
         <div
           className={`fixed lg:bottom-6 right-4 lg:right-6 z-40 ${inActiveChat ? 'hidden lg:flex' : ''}`}
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 52px)' }}
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 72px)' }}
         >
           <button
             type="button"
@@ -844,6 +861,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           lastCheckinHref={lastCheckinHref}
           lastChatHref={lastChatHref}
           notifCount={notifCount}
+          leadsBadge={leadsBadge}
           userName={userName}
           userInitials={userInitials}
           onLogout={handleLogout}

@@ -100,7 +100,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const [{ data: allEx }, { data: overrides }] = await Promise.all([
       supabase.from('exercises')

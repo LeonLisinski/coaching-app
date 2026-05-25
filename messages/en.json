@@ -122,6 +122,7 @@
     "edit": "Edit",
     "delete": "Delete",
     "add": "Add",
+    "more": "More",
     "close": "Close",
     "theme_switch_to_dark": "Dark theme",
     "theme_switch_to_light": "Light theme",
@@ -168,7 +169,8 @@
     "finance": "Finance",
     "chat": "Chat",
     "profile": "Profile",
-    "leads": "Leads"
+    "leads": "Leads",
+    "calendar": "Calendar"
   },
   "locale": {
     "hr": "Hrvatski",
@@ -2600,6 +2602,40 @@
     "save": "Save",
     "saved": "Saved",
     "setupHandleSaving": "Saving…",
-    "setupHandleContinue": "Set handle and continue"
+    "setupHandleContinue": "Set handle and continue",
+    "pickDatePlaceholder": "Pick date and time"
+  },
+  "calendar": {
+    "pageTitle": "Calendar",
+    "pageSubtitle": "Calls, check-ins and appointments",
+    "today": "Today",
+    "week": "Week",
+    "month": "Month",
+    "newEvent": "New event",
+    "noEvents": "No events this day.",
+    "eventTitle": "Title",
+    "eventTitlePlaceholder": "E.g. Intro call",
+    "eventType": "Type",
+    "typeCall": "Call",
+    "typeCheckin": "Check-in",
+    "typeCustom": "Other",
+    "eventDate": "Date & time",
+    "eventEnd": "End (optional)",
+    "eventNotes": "Notes",
+    "eventNotesPlaceholder": "Notes about the event…",
+    "linkedLead": "Lead (optional)",
+    "linkedClient": "Client (optional)",
+    "noLinkedLead": "No linked lead",
+    "noLinkedClient": "No linked client",
+    "save": "Save",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "delete": "Delete event",
+    "deleteConfirm": "Yes, delete",
+    "editEvent": "Edit event",
+    "createEvent": "Create event",
+    "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu",
+    "fri": "Fri", "sat": "Sat", "sun": "Sun",
+    "allDay": "All day"
   }
 }

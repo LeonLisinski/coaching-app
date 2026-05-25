@@ -115,7 +115,7 @@ export default function CheckinStatsTab() {
   const fetchStats = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     // Phase 1: get clients (need IDs before filtering checkins)
     const { data: clientsData } = await supabase.from('clients')

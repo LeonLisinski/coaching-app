@@ -171,7 +171,7 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
   const fetchTemplates = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
-    if (!user) return
+    if (!user) { setLoading(false); return }
     const { data } = await supabase
       .from('workout_templates')
       .select('id, name, description, exercises, created_at')
