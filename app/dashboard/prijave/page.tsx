@@ -80,6 +80,17 @@ type DraftQuestion = {
 
 function makeKey() { return Math.random().toString(36).slice(2) }
 
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip diacritics: š→s, č→c, ž→z, đ→d…
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+}
+
 // ─── Custom question-type selector ──────────────────────────────────────────
 function TypeSelect({
   value, options, isDark, border, textMain, accentHex, onChange,
@@ -421,10 +432,15 @@ export default function LeadsPage() {
       const uid = session.user.id
       setUserId(uid)
 
-      // Get handle + profile avatar
-      const { data: profile } = await supabase.from('profiles').select('handle, avatar_url').eq('id', uid).single()
+      // Get handle + profile avatar + full_name for slug suggestion
+      const { data: profile } = await supabase.from('profiles').select('handle, avatar_url, full_name').eq('id', uid).single()
       setHandle(profile?.handle ?? null)
       if (profile?.avatar_url) setProfileAvatarUrl(profile.avatar_url)
+
+      // Pre-fill handle setup with slugified name if no handle yet
+      if (!profile?.handle && profile?.full_name) {
+        setHandleSetup(slugify(profile.full_name))
+      }
 
       if (profile?.handle) {
         await loadAll(uid, profile?.avatar_url ?? null)
@@ -685,20 +701,27 @@ export default function LeadsPage() {
             <p className="text-sm mt-1" style={{ color: textMuted }}>{tL('setupHandleDesc')}</p>
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textMuted }}>Handle</label>
-            <div className="flex items-center gap-0 rounded-xl border-2 overflow-hidden" style={{ borderColor: handleSetupErr ? '#ef4444' : border }}>
-              <span className="px-3 py-3 text-sm" style={{ color: textMuted, background: isDark ? '#1a1a2e' : '#f9fafb' }}>app.unitlift.com/</span>
+            <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textMuted }}>
+              {tL('publicLink')}
+            </label>
+            <div className="flex items-center rounded-xl border-2 overflow-hidden" style={{ borderColor: handleSetupErr ? '#ef4444' : border }}>
+              <span className="px-3 py-3 text-xs shrink-0" style={{ color: textMuted, background: isDark ? '#1a1a2e' : '#f9fafb' }}>app.unitlift.com/</span>
               <input
                 type="text"
                 value={handleSetup}
                 onChange={e => { setHandleSetup(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setHandleSetupErr('') }}
-                placeholder="petar-petrovic"
-                className="flex-1 px-3 py-3 text-sm outline-none"
+                className="flex-1 px-3 py-3 text-sm outline-none font-medium"
                 style={{ background: isDark ? '#0f0f1a' : 'white', color: textMain }}
               />
+              <span className="px-3 py-3 text-xs shrink-0" style={{ color: textMuted, background: isDark ? '#1a1a2e' : '#f9fafb' }}>/prijava</span>
             </div>
-            {handleSetupErr && <p className="text-xs text-red-500 mt-1">{handleSetupErr}</p>}
-            <p className="text-xs mt-1.5" style={{ color: textMuted }}>/prijava</p>
+            {handleSetupErr
+              ? <p className="text-xs text-red-500 mt-1.5">{handleSetupErr}</p>
+              : <p className="text-xs mt-1.5" style={{ color: textMuted }}>
+                  {tL('handleHintShort')}
+                  {handleSetup && <span className="ml-1" style={{ color: accentHex }}>→ app.unitlift.com/{handleSetup}/prijava</span>}
+                </p>
+            }
           </div>
           <button
             type="button"
