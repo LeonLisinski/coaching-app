@@ -110,6 +110,7 @@ function ClientsPageContent() {
   const [editClient, setEditClient] = useState<Client | null>(null)
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [copyClient, setCopyClient] = useState<Client | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [checkinTodayOnly, setCheckinTodayOnly] = useState(false)
@@ -232,25 +233,34 @@ function ClientsPageContent() {
   }
 
   const toggleStatus = async (client: Client) => {
-    await supabase.from('clients').update({ active: !client.active }).eq('id', client.id)
+    setDeleting(true)
+    const { error } = await supabase.from('clients').update({ active: !client.active }).eq('id', client.id)
+    setDeleting(false)
+    if (error) { console.error('[toggleStatus]', error.message); return }
     setClients(prev => prev.map(c => c.id === client.id ? { ...c, active: !c.active } : c))
     setConfirmToggle(null)
   }
 
   const deleteClient = async (client: Client) => {
-    // Delete related data first (safety net in case cascades aren't fully set up)
+    setDeleting(true)
+    // Call the API first (while the clients row still exists for the ownership check)
+    // This deletes the auth user, which cascades through profiles → clients → all related rows
+    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
+
+    // Safety-net manual cleanup for any tables not fully covered by cascades
+    await supabase.from('workout_logs').delete().eq('client_id', client.id)
+    await supabase.from('nutrition_logs').delete().eq('client_id', client.id)
+    await supabase.from('daily_logs').delete().eq('client_id', client.id)
     await supabase.from('checkins').delete().eq('client_id', client.id)
     await supabase.from('payments').delete().eq('client_id', client.id)
     await supabase.from('client_packages').delete().eq('client_id', client.id)
     await supabase.from('client_meal_plans').delete().eq('client_id', client.id)
     await supabase.from('client_workout_plans').delete().eq('client_id', client.id)
     await supabase.from('checkin_config').delete().eq('client_id', client.id)
-    await supabase.from('messages').delete().eq('receiver_id', client.id)
+    await supabase.from('messages').delete().eq('client_id', client.id)
     await supabase.from('clients').delete().eq('id', client.id)
 
-    // Hard-delete the client's auth user (removes orphaned Supabase account)
-    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
-
+    setDeleting(false)
     setClients(prev => prev.filter(c => c.id !== client.id))
     setConfirmDelete(null)
   }
@@ -820,6 +830,7 @@ function ClientsPageContent() {
         onCancel={() => setConfirmToggle(null)}
         confirmLabel={tCommon(confirmToggle?.active ? 'inactive' : 'active')}
         destructive={confirmToggle?.active}
+        loading={deleting}
       />
 
       <ConfirmDialog
@@ -860,6 +871,7 @@ function ClientsPageContent() {
         confirmLabel={tDetail('deleteDialogConfirm')}
         cancelLabel={tDetail('deleteDialogCancel')}
         destructive
+        loading={deleting}
       />
     </div>
   )

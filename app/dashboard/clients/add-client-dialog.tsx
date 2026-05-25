@@ -20,7 +20,12 @@ const ACCENT_HEX: Record<string, string> = {
 
 type ActivityLevel = '' | 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 
-type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
+type Props = {
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+  initialValues?: { full_name?: string; email?: string; phone?: string; gender?: 'M' | 'F' | '' }
+}
 
 type Step = 'account' | 'profile' | 'plans'
 
@@ -35,7 +40,7 @@ function dobToIso(display: string): string {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
 }
 
-export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
+export default function AddClientDialog({ open, onClose, onSuccess, initialValues }: Props) {
   const t = useTranslations('clients.dialogs.add')
   const tCommon = useTranslations('common')
   const tAdd = useTranslations('addClient')
@@ -126,7 +131,7 @@ export default function AddClientDialog({ open, onClose, onSuccess }: Props) {
   useEffect(() => {
     if (open) {
       setStep('account'); setError(''); setLimitInfo(null)
-      setFullName(''); setEmail(''); setGender('')
+      setFullName(initialValues?.full_name || ''); setEmail(initialValues?.email || ''); setGender(initialValues?.gender || '')
       setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
       setSelectedWorkout(''); setSelectedMeal(''); setSelectedMealRest(''); setMealPlanMode('default'); setSelectedPackage(''); setCheckinDay(null)
       void checkLimit()

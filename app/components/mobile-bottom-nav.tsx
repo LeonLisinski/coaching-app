@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, ListChecks, MessageSquare,
-  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut, Settings,
+  MoreHorizontal, Dumbbell, UtensilsCrossed, Banknote, User, X, LogOut, Settings, ClipboardList,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
@@ -54,6 +54,7 @@ export default function MobileBottomNav({
     { href: '/dashboard/training',  labelKey: 'training',  icon: Dumbbell        },
     { href: '/dashboard/nutrition', labelKey: 'nutrition', icon: UtensilsCrossed },
     { href: '/dashboard/financije', labelKey: 'finance',   icon: Banknote        },
+    { href: '/dashboard/prijave',   labelKey: 'leads',     icon: ClipboardList   },
     { href: '/dashboard/profile',   labelKey: 'profile',   icon: User            },
   ] as const
 

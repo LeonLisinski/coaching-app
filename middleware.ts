@@ -13,8 +13,13 @@ const PUBLIC_UNAUTH_PATHS = ['/login', '/register', '/client-auth', '/reset-pass
 const SUB_CACHE_COOKIE = 'x-sub-cache'
 const SUB_CACHE_TTL_MS = 5 * 60 * 1000
 
+/** Public trainer intake form: /{handle}/prijava */
+function isLeadFormPath(pathname: string): boolean {
+  return /^\/[a-z0-9][a-z0-9-]{0,48}\/prijava$/.test(pathname)
+}
+
 function allowsUnauthenticated(pathname: string): boolean {
-  return PUBLIC_UNAUTH_PATHS.some((p) => pathname.startsWith(p))
+  return PUBLIC_UNAUTH_PATHS.some((p) => pathname.startsWith(p)) || isLeadFormPath(pathname)
 }
 
 /** Logged-in users hitting these get sent to the dashboard (not client-auth / reset-password — different roles). */

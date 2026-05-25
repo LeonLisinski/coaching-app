@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 type Props = {
   open: boolean
@@ -20,6 +20,7 @@ type Props = {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  loading?: boolean
 }
 
 export default function ConfirmDialog({
@@ -31,9 +32,10 @@ export default function ConfirmDialog({
   confirmLabel = 'Potvrdi',
   cancelLabel = 'Odustani',
   destructive = false,
+  loading = false,
 }: Props) {
   return (
-    <AlertDialog open={open} onOpenChange={onCancel}>
+    <AlertDialog open={open} onOpenChange={loading ? undefined : onCancel}>
       <AlertDialogContent className="max-w-md w-full">
         <AlertDialogHeader>
           {destructive && (
@@ -52,14 +54,15 @@ export default function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">
-          <AlertDialogCancel onClick={onCancel} className="flex-1">
+          <AlertDialogCancel onClick={onCancel} disabled={loading} className="flex-1">
             {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={loading}
             className={`flex-1 ${destructive ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : ''}`}
           >
-            {confirmLabel}
+            {loading ? <Loader2 size={14} className="animate-spin" /> : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

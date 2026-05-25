@@ -172,6 +172,7 @@ function ClientDetailPageContent() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [activePackage, setActivePackage] = useState<ActivePackage | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [mealPlansRefreshKey, setMealPlansRefreshKey] = useState(0)
   const [showStats, setShowStats] = useState(false)
 
@@ -277,18 +278,23 @@ function ClientDetailPageContent() {
 
   const deleteClient = async () => {
     if (!client) return
-    // Delete related data first (safety net in case cascades aren't fully set up)
+    setDeleting(true)
+    // Call the API first (while the clients row still exists for the ownership check)
+    // This deletes the auth user, which cascades through profiles → clients → all related rows
+    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
+
+    // Safety-net manual cleanup for any tables not fully covered by cascades
+    await supabase.from('workout_logs').delete().eq('client_id', client.id)
+    await supabase.from('nutrition_logs').delete().eq('client_id', client.id)
+    await supabase.from('daily_logs').delete().eq('client_id', client.id)
     await supabase.from('checkins').delete().eq('client_id', client.id)
     await supabase.from('payments').delete().eq('client_id', client.id)
     await supabase.from('client_packages').delete().eq('client_id', client.id)
     await supabase.from('client_meal_plans').delete().eq('client_id', client.id)
     await supabase.from('client_workout_plans').delete().eq('client_id', client.id)
     await supabase.from('checkin_config').delete().eq('client_id', client.id)
-    await supabase.from('messages').delete().eq('receiver_id', client.id)
+    await supabase.from('messages').delete().eq('client_id', client.id)
     await supabase.from('clients').delete().eq('id', client.id)
-
-    // Hard-delete the client's auth user (removes orphaned Supabase account)
-    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
 
     router.push('/dashboard/clients')
   }
@@ -809,6 +815,7 @@ function ClientDetailPageContent() {
         confirmLabel={tDetail('deleteDialogConfirm')}
         cancelLabel={tDetail('deleteDialogCancel')}
         destructive
+        loading={deleting}
       />
     </div>
   )

@@ -23,6 +23,7 @@ import {
   CreditCard,
   UserPlus,
   Package,
+  ClipboardList,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -52,6 +53,7 @@ const navItems = [
   { href: '/dashboard/checkins',    labelKey: 'checkins',  icon: ListChecks,      color: 'text-teal-400'   },
   { href: '/dashboard/financije',   labelKey: 'finance',   icon: Banknote,        color: 'text-emerald-400'},
   { href: '/dashboard/chat',        labelKey: 'chat',      icon: MessageSquare,   color: 'text-amber-400'  },
+  { href: '/dashboard/prijave',     labelKey: 'leads',     icon: ClipboardList,   color: 'text-fuchsia-400'},
   { href: '/dashboard/profile',     labelKey: 'profile',   icon: User,            color: 'text-rose-400'   },
 ]
 
@@ -85,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showNotifs, setShowNotifs]     = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
   const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
-  const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package'; href?: string; isNew?: boolean }[]>([])
+  const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package' | 'lead'; href?: string; isNew?: boolean }[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [tourFarewell, setTourFarewell] = useState(false)
   const [helpMobileHint, setHelpMobileHint] = useState(false)
@@ -152,7 +154,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // Use explicit FK hints to resolve PGRST201 ambiguity:
     // clients has both user_id → profiles and trainer_id → profiles
-    const [msgsRes, checkinsRes, pkgRes] = await Promise.all([
+    const [msgsRes, checkinsRes, pkgRes, leadsRes] = await Promise.all([
       supabase.from('messages')
         .select('id, content, created_at, client_id, clients!messages_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
         .eq('trainer_id', userId).neq('sender_id', userId).eq('read', false)
@@ -169,11 +171,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .gte('end_date', oneDayAgo)
         .lte('end_date', sevenDaysAhead)
         .order('end_date', { ascending: true }),
+      supabase.from('lead_submissions')
+        .select('id, answers, created_at, seen')
+        .eq('trainer_id', userId)
+        .eq('seen', false)
+        .order('created_at', { ascending: false })
+        .limit(20),
     ])
 
     const msgs = msgsRes.data
     const checkins = checkinsRes.data
     const pkgAlerts = pkgRes.data
+    const newLeads = leadsRes.data
 
     const formatTime = (dateStr: string) => {
       const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'))
@@ -258,6 +267,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         type: 'package',
         href: `/dashboard/clients/${cp.client_id}?tab=paketi`,
         isNew: !storedSeen.has(id),
+      })
+    })
+
+    // New leads — always isNew (same logic as unread messages)
+    type LeadN = { id: string; answers: Record<string, unknown>; created_at: string; seen: boolean }
+    ;((newLeads ?? []) as LeadN[]).forEach((lead) => {
+      const entries = Object.entries(lead.answers || {})
+      const nameVal = entries.find(([k]) => /ime|name/i.test(k))?.[1]
+      const emailVal = entries.find(([k]) => /email/i.test(k))?.[1]
+      const displayName = nameVal ? String(nameVal) : emailVal ? String(emailVal) : 'Nepoznat'
+      notifs.push({
+        id: `lead-${lead.id}`,
+        title: 'Nova prijava',
+        subtitle: displayName,
+        time: formatTime(lead.created_at),
+        type: 'lead',
+        href: '/dashboard/prijave',
+        isNew: true,
       })
     })
 
@@ -485,6 +512,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const unseenNotifications = useMemo(() => notifications.filter(n => n.isNew), [notifications])
   const chatBadge    = useMemo(() => unseenNotifications.filter(n => n.type === 'message').length, [unseenNotifications])
   const checkinBadge = useMemo(() => unseenNotifications.filter(n => n.type === 'checkin').length, [unseenNotifications])
+  const leadsBadge   = useMemo(() => unseenNotifications.filter(n => n.type === 'lead').length, [unseenNotifications])
 
   return (
     <TrainerSettingsProvider>
@@ -520,7 +548,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="relative z-10 flex-1 px-2 py-3 space-y-0.5 overflow-y-auto" data-tour="sidebar-nav">
           {navItems.map(({ href, labelKey, icon: Icon, color }) => {
             const isActive = pathname.startsWith(href) && (href !== '/dashboard' || pathname === '/dashboard')
-            const label = tNav(labelKey as 'overview' | 'clients' | 'training' | 'nutrition' | 'checkins' | 'finance' | 'chat' | 'profile')
+            const label = tNav(labelKey as 'overview' | 'clients' | 'training' | 'nutrition' | 'checkins' | 'finance' | 'chat' | 'leads' | 'profile')
             // If on a DETAIL page of this section (e.g. /dashboard/checkins/[id]) → reset to root
             // If on the section ROOT or a different section → restore last visited detail (if any)
             const isOnSectionDetailPage = href !== '/dashboard' && pathname.startsWith(href + '/')
@@ -552,9 +580,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {label}
                   </span>
                 )}
-                {/* Badge (chat / checkins) or active dot */}
+                {/* Badge (chat / checkins / leads) or active dot */}
                 {!collapsed && (() => {
-                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : 0
+                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : labelKey === 'leads' ? leadsBadge : 0
                   if (badge > 0) return (
                     <span className="ml-auto min-w-[18px] h-[18px] rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1 shrink-0"
                       style={{ backgroundColor: 'var(--app-accent)' }}>
@@ -566,7 +594,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 })()}
                 {/* Collapsed-mode badge (icon-only sidebar) */}
                 {collapsed && (() => {
-                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : 0
+                  const badge = labelKey === 'chat' ? chatBadge : labelKey === 'checkins' ? checkinBadge : labelKey === 'leads' ? leadsBadge : 0
                   if (badge === 0) return null
                   return (
                     <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full text-[9px] font-bold text-white flex items-center justify-center px-0.5"
@@ -691,17 +719,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <p className="text-xs text-gray-400 text-center py-8">{tLayout('noNotifications')}</p>
                       ) : (
                         unseenNotifications.map(n => {
-                          const isMsg = n.type === 'message'
-                          const isCi  = n.type === 'checkin'
-                          const isPkg = n.type === 'package'
+                          const isMsg  = n.type === 'message'
+                          const isCi   = n.type === 'checkin'
+                          const isPkg  = n.type === 'package'
+                          const isLead = n.type === 'lead'
                           const iconEl = isMsg
                             ? <MessageSquare size={12} className="text-sky-500" />
                             : isCi
                             ? <ClipboardCheck size={12} style={{ color: 'var(--app-accent)' }} />
                             : isPkg
                             ? <Package size={12} className="text-amber-500" />
+                            : isLead
+                            ? <ClipboardList size={12} className="text-fuchsia-500" />
                             : <CreditCard size={12} className="text-emerald-500" />
-                          const iconBg = isMsg ? '#e0f2fe' : isCi ? 'var(--app-accent-muted)' : isPkg ? '#fef3c7' : '#d1fae5'
+                          const iconBg = isMsg ? '#e0f2fe' : isCi ? 'var(--app-accent-muted)' : isPkg ? '#fef3c7' : isLead ? '#fdf4ff' : '#d1fae5'
                           return (
                             <button key={n.id}
                               className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${n.isNew ? 'bg-blue-50/40 hover:bg-blue-50/60' : 'hover:bg-gray-50'}`}
