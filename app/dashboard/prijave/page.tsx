@@ -456,15 +456,19 @@ export default function LeadsPage() {
 
     if (!formId) { setFormSaving(false); return }
 
+    // Strip empty questions before saving
+    const validQuestions = questions.filter(q => q.label.trim() !== '')
+    setQuestions(validQuestions)
+
     // Sync questions: delete all + re-insert in order
     await supabase.from('lead_form_questions').delete().eq('form_id', formId)
-    if (questions.length) {
+    if (validQuestions.length) {
       await supabase.from('lead_form_questions').insert(
-        questions.map((q, i) => ({
+        validQuestions.map((q, i) => ({
           form_id: formId,
           order_index: i,
           type: q.type,
-          label: q.label,
+          label: q.label.trim(),
           required: q.required,
           options: q.type === 'single_choice' || q.type === 'multi_choice'
             ? q.options.split('\n').map(s => s.trim()).filter(Boolean)
@@ -481,15 +485,28 @@ export default function LeadsPage() {
 
   // ── Photo upload ──────────────────────────────────────────────────────────
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const questionsEndRef = useRef<HTMLDivElement>(null)
+
+  const addQuestion = () => {
+    setQuestions(prev => [...prev, { _key: makeKey(), type: 'short_text', label: '', required: false, options: '' }])
+    // Scroll to new question after render
+    requestAnimationFrame(() => {
+      setTimeout(() => questionsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 50)
+    })
+  }
+
   const uploadPhoto = async (file: File) => {
     if (!userId) return
     setPhotoUploading(true)
     const ext = file.name.split('.').pop() || 'jpg'
-    const path = `lead-forms/${userId}/photo.${ext}`
-    const { error } = await supabase.storage.from('exercise-media').upload(path, file, { upsert: true, contentType: file.type })
+    // Use the public `avatars` bucket so the URL is publicly accessible
+    const path = `lead-forms/${userId}.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
     if (!error) {
-      const { data: urlData } = supabase.storage.from('exercise-media').getPublicUrl(path)
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
       setDraftPhoto(urlData.publicUrl)
+    } else {
+      console.error('[uploadPhoto]', error.message)
     }
     setPhotoUploading(false)
   }
@@ -798,7 +815,7 @@ export default function LeadsPage() {
               <h3 className="text-sm font-bold" style={{ color: textMain }}>Pitanja ({questions.length})</h3>
               <button
                 type="button"
-                onClick={() => setQuestions(prev => [...prev, { _key: makeKey(), type: 'short_text', label: '', required: false, options: '' }])}
+                onClick={addQuestion}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
                 style={{ backgroundColor: accentHex }}
               >
@@ -840,9 +857,11 @@ export default function LeadsPage() {
                         type="text"
                         value={q.label}
                         onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, label: e.target.value } : x))}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
                         placeholder="npr. Koje su tvoje godine?"
                         className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
                         style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+                        autoFocus={idx === questions.length - 1 && q.label === ''}
                       />
                     </div>
 
@@ -888,7 +907,20 @@ export default function LeadsPage() {
                   )}
                 </div>
               ))}
+              {/* Scroll anchor + bottom "Add question" button */}
+              <div ref={questionsEndRef} />
             </div>
+
+            {/* Bottom add button — always visible without scrolling to top */}
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="w-full py-2.5 rounded-xl border-2 border-dashed text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              style={{ borderColor: accentHex + '55', color: accentHex }}
+            >
+              <Plus size={14} />
+              Dodaj pitanje
+            </button>
           </div>
 
           {/* Save button */}
