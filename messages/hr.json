@@ -145,6 +145,9 @@
     "optional": "opcionalno",
     "clearFilters": "Očisti filtere",
     "deleteExercise": "Obriši vježbu",
+    "errorTitle": "Nešto je pošlo po krivu",
+    "errorDesc": "Greška je zabilježena. Pokušaj ponovo ili osvježi stranicu.",
+    "tryAgain": "Pokušaj ponovo",
     "deleteExerciseConfirm": "Jesi li siguran da želiš obrisati ovu vježbu?",
     "months": {
       "0": "Sij", "1": "Velj", "2": "Ožu", "3": "Tra", "4": "Svi", "5": "Lip",

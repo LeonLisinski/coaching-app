@@ -2,6 +2,7 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
 
@@ -12,6 +13,8 @@ export default function DashboardError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const t = useTranslations('common')
+
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])
@@ -22,16 +25,14 @@ export default function DashboardError({
         <AlertTriangle size={22} className="text-red-500" />
       </div>
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-gray-900">Nešto je pošlo po krivu</p>
-        <p className="text-xs text-gray-500">
-          Greška je zabilježena. Pokušaj ponovo ili osvježi stranicu.
-        </p>
+        <p className="text-sm font-semibold text-gray-900">{t('errorTitle')}</p>
+        <p className="text-xs text-gray-500">{t('errorDesc')}</p>
         {error.digest && (
           <p className="text-[10px] text-gray-400 font-mono mt-1">ref: {error.digest}</p>
         )}
       </div>
       <Button size="sm" variant="outline" onClick={reset}>
-        Pokušaj ponovo
+        {t('tryAgain')}
       </Button>
     </div>
   )

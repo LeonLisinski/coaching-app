@@ -145,6 +145,9 @@
     "optional": "optional",
     "clearFilters": "Clear filters",
     "deleteExercise": "Delete exercise",
+    "errorTitle": "Something went wrong",
+    "errorDesc": "The error has been logged. Please try again or refresh the page.",
+    "tryAgain": "Try again",
     "deleteExerciseConfirm": "Are you sure you want to delete this exercise?",
     "months": {
       "0": "Jan", "1": "Feb", "2": "Mar", "3": "Apr", "4": "May", "5": "Jun",
