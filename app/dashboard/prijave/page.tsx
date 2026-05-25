@@ -29,12 +29,6 @@ const FORM_COLORS = [
   '#ec4899', '#475569',
 ]
 
-const STATUS_LABELS: Record<string, string> = {
-  new: 'Nova',
-  contacted: 'Kontaktirana',
-  converted: 'Pretvorena u klijenta',
-  rejected: 'Odbijena',
-}
 const STATUS_COLORS: Record<string, string> = {
   new:       'bg-violet-100 text-violet-700',
   contacted: 'bg-sky-100 text-sky-700',
@@ -86,13 +80,26 @@ type DraftQuestion = {
 
 function makeKey() { return Math.random().toString(36).slice(2) }
 
+type LeadRowLabels = {
+  statusLabels: Record<string, string>
+  scheduledCall: string
+  notes: string
+  notesPlaceholder: string
+  save: string
+  saved: string
+  convertToClient: string
+  deleteSubmission: string
+  anonymous: string
+}
+
 // ─── Lead row ───────────────────────────────────────────────────────────────
 function LeadRow({
-  sub, accentHex, isDark, onStatusChange, onDelete, onConvert, onClick, isOpen,
+  sub, accentHex, isDark, labels, onStatusChange, onDelete, onConvert, onClick, isOpen,
 }: {
   sub: Submission
   accentHex: string
   isDark: boolean
+  labels: LeadRowLabels
   onStatusChange: (id: string, status: string) => void
   onDelete: (id: string) => void
   onConvert: (sub: Submission) => void
@@ -102,18 +109,17 @@ function LeadRow({
   const [notes, setNotes] = useState(sub.trainer_notes || '')
   const [callDate, setCallDate] = useState(sub.scheduled_call_at ? sub.scheduled_call_at.slice(0, 16) : '')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [savedState, setSavedState] = useState(false)
 
   const cardBg = isDark ? 'oklch(0.195 0.018 264)' : 'white'
   const border = isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'
   const textMuted = isDark ? '#9ca3af' : '#6b7280'
 
-  // Extract readable info from answers
   const answerEntries = Object.entries(sub.answers || {})
   const emailEntry = answerEntries.find(([k]) => /email/i.test(k))
   const phoneEntry = answerEntries.find(([k]) => /tel|mob|phone/i.test(k))
   const nameEntry  = answerEntries.find(([k]) => /ime|name/i.test(k))
-  const previewName = nameEntry ? String(nameEntry[1]) : emailEntry ? String(emailEntry[1]) : 'Anonimno'
+  const previewName = nameEntry ? String(nameEntry[1]) : emailEntry ? String(emailEntry[1]) : labels.anonymous
 
   const saveDetails = async () => {
     setSaving(true)
@@ -122,11 +128,11 @@ function LeadRow({
       scheduled_call_at: callDate ? new Date(callDate).toISOString() : null,
     }).eq('id', sub.id)
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setSavedState(true)
+    setTimeout(() => setSavedState(false), 2000)
   }
 
-  const formattedDate = new Date(sub.created_at).toLocaleDateString('hr-HR', {
+  const formattedDate = new Date(sub.created_at).toLocaleDateString(undefined, {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 
@@ -135,15 +141,13 @@ function LeadRow({
       className="rounded-2xl border overflow-hidden transition-all"
       style={{ borderColor: isOpen ? accentHex + '55' : border, background: cardBg }}
     >
-      {/* Header row */}
       <button
         type="button"
         className="w-full px-5 py-4 flex items-center gap-3 text-left"
         onClick={onClick}
       >
-        {/* Status dot */}
         <span className={`shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${STATUS_COLORS[sub.status]}`}>
-          {STATUS_LABELS[sub.status] || sub.status}
+          {labels.statusLabels[sub.status] || sub.status}
         </span>
 
         <div className="flex-1 min-w-0">
@@ -161,10 +165,8 @@ function LeadRow({
         {isOpen ? <ChevronUp size={15} style={{ color: textMuted }} className="shrink-0" /> : <ChevronDown size={15} style={{ color: textMuted }} className="shrink-0" />}
       </button>
 
-      {/* Expanded */}
       {isOpen && (
         <div className="border-t px-5 pb-5 space-y-5" style={{ borderColor: border }}>
-          {/* Answers */}
           <div className="pt-4 space-y-3">
             {answerEntries.map(([label, value]) => (
               <div key={label} className="flex gap-3 text-sm">
@@ -176,11 +178,10 @@ function LeadRow({
             ))}
           </div>
 
-          {/* Status change */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>Status</p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(STATUS_LABELS).map(([key, label]) => (
+              {Object.entries(labels.statusLabels).map(([key, label]) => (
                 <button
                   key={key}
                   type="button"
@@ -194,9 +195,8 @@ function LeadRow({
             </div>
           </div>
 
-          {/* Scheduled call */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>Zakazani razgovor</p>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>{labels.scheduledCall}</p>
             <input
               type="datetime-local"
               value={callDate}
@@ -206,20 +206,18 @@ function LeadRow({
             />
           </div>
 
-          {/* Notes */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>Bilješke</p>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>{labels.notes}</p>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
-              placeholder="Dodaj bilješku o ovom leadu..."
+              placeholder={labels.notesPlaceholder}
               className="w-full px-3 py-2 rounded-xl border text-sm outline-none resize-none"
               style={{ borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb', color: isDark ? '#e5e7eb' : '#111827' }}
             />
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -228,8 +226,8 @@ function LeadRow({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-70"
               style={{ backgroundColor: accentHex }}
             >
-              {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
-              {saved ? 'Spremljeno' : 'Spremi'}
+              {saving ? <Loader2 size={13} className="animate-spin" /> : savedState ? <CheckCircle2 size={13} /> : <Save size={13} />}
+              {savedState ? labels.saved : labels.save}
             </button>
             <button
               type="button"
@@ -238,7 +236,7 @@ function LeadRow({
               style={{ backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6', color: isDark ? '#e5e7eb' : '#374151' }}
             >
               <UserPlus size={13} />
-              Pretvori u klijenta
+              {labels.convertToClient}
             </button>
             <button
               type="button"
@@ -246,7 +244,7 @@ function LeadRow({
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 transition-all ml-auto"
             >
               <Trash2 size={13} />
-              Obriši
+              {labels.deleteSubmission}
             </button>
           </div>
         </div>
@@ -303,6 +301,25 @@ export default function LeadsPage() {
   const textMain = isDark ? '#f9fafb' : '#111827'
   const textMuted = isDark ? '#9ca3af' : '#6b7280'
   const tL = useTranslations('leads')
+
+  const statusLabels: Record<string, string> = {
+    new:       tL('statusNew'),
+    contacted: tL('statusContacted'),
+    converted: tL('statusConverted'),
+    rejected:  tL('statusRejected'),
+  }
+
+  const rowLabels: LeadRowLabels = {
+    statusLabels,
+    scheduledCall:   tL('scheduledCall'),
+    notes:           tL('notes'),
+    notesPlaceholder:tL('notesPlaceholder'),
+    save:            tL('save'),
+    saved:           tL('saved'),
+    convertToClient: tL('convertToClient'),
+    deleteSubmission:tL('deleteSubmission'),
+    anonymous:       tL('anonymous'),
+  }
   const qTypes = [
     { value: 'short_text',    label: tL('typeShortText') },
     { value: 'long_text',     label: tL('typeLongText') },
@@ -562,8 +579,8 @@ export default function LeadsPage() {
             <ClipboardList size={22} style={{ color: accentHex }} />
           </div>
           <div>
-            <h2 className="text-xl font-bold" style={{ color: textMain }}>Postavi javni link</h2>
-            <p className="text-sm mt-1" style={{ color: textMuted }}>Odaberi jedinstveni handle koji će biti dio javnog URL-a tvoje prijavne forme.</p>
+            <h2 className="text-xl font-bold" style={{ color: textMain }}>{tL('setupHandleTitle')}</h2>
+            <p className="text-sm mt-1" style={{ color: textMuted }}>{tL('setupHandleDesc')}</p>
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide block mb-1.5" style={{ color: textMuted }}>Handle</label>
@@ -588,7 +605,7 @@ export default function LeadsPage() {
             className="w-full py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-50"
             style={{ backgroundColor: accentHex }}
           >
-            {handleSetupSaving ? 'Spremanje…' : 'Postavi handle i nastavi'}
+            {handleSetupSaving ? tL('setupHandleSaving') : tL('setupHandleContinue')}
           </button>
         </div>
       </div>
@@ -605,7 +622,7 @@ export default function LeadsPage() {
             <ClipboardList size={20} style={{ color: accentHex }} />
           </div>
           <div>
-            <h1 className="text-xl font-bold leading-tight" style={{ color: textMain }}>Prijave</h1>
+            <h1 className="text-xl font-bold leading-tight" style={{ color: textMain }}>{tL('pageTitle')}</h1>
             <p className="text-xs" style={{ color: textMuted }}>{handle}/prijava</p>
           </div>
         </div>
@@ -617,7 +634,7 @@ export default function LeadsPage() {
             style={{ borderColor: border, color: textMain, background: cardBg }}
           >
             {linkCopied ? <Check size={13} style={{ color: accentHex }} /> : <Copy size={13} />}
-            {linkCopied ? 'Kopirano!' : 'Kopiraj link'}
+            {linkCopied ? tL('linkCopied') : tL('copyLink')}
           </button>
           <a
             href={publicUrl}
@@ -627,7 +644,7 @@ export default function LeadsPage() {
             style={{ borderColor: border, color: textMain, background: cardBg }}
           >
             <ExternalLink size={13} />
-            Pregledaj
+            {tL('preview')}
           </a>
         </div>
       </div>
@@ -646,7 +663,9 @@ export default function LeadsPage() {
               boxShadow: tab === t ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
             }}
           >
-            {t === 'submissions' ? `Prijave${submissions.length ? ` (${submissions.length})` : ''}` : 'Uredi formu'}
+            {t === 'submissions'
+              ? `${tL('tabSubmissions')}${submissions.length ? ` (${submissions.length})` : ''}`
+              : tL('tabForm')}
           </button>
         ))}
       </div>
@@ -668,7 +687,9 @@ export default function LeadsPage() {
                   color: statusFilter === s ? accentHex : textMuted,
                 }}
               >
-                {s === 'all' ? `Sve (${submissions.length})` : `${STATUS_LABELS[s]} (${submissions.filter(x => x.status === s).length})`}
+                {s === 'all'
+                  ? `${tL('filterAll')} (${submissions.length})`
+                  : `${statusLabels[s]} (${submissions.filter(x => x.status === s).length})`}
               </button>
             ))}
           </div>
@@ -676,9 +697,9 @@ export default function LeadsPage() {
           {filtered.length === 0 ? (
             <div className="text-center py-16 space-y-3">
               <ClipboardList size={36} className="mx-auto" style={{ color: accentHex + '60' }} />
-              <p className="font-semibold" style={{ color: textMain }}>Nema prijava.</p>
+              <p className="font-semibold" style={{ color: textMain }}>{tL('noSubmissions')}</p>
               <p className="text-sm" style={{ color: textMuted }}>
-                {statusFilter !== 'all' ? 'Nema prijava s ovim statusom.' : 'Kad netko popuni tvoju formu, prikazat će se ovdje.'}
+                {statusFilter !== 'all' ? tL('noSubmissionsFilter') : tL('noSubmissionsHint')}
               </p>
               <button
                 type="button"
@@ -687,7 +708,7 @@ export default function LeadsPage() {
                 style={{ backgroundColor: accentHex }}
               >
                 <Copy size={14} />
-                Kopiraj link forme
+                {tL('copyFormLink')}
               </button>
             </div>
           ) : (
@@ -698,6 +719,7 @@ export default function LeadsPage() {
                   sub={sub}
                   accentHex={accentHex}
                   isDark={isDark}
+                  labels={rowLabels}
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
                   onConvert={handleConvert}

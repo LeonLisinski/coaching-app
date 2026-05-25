@@ -2586,6 +2586,17 @@
     "questionsCount": "Questions ({count})",
     "noQuestions": "No questions yet. Add the first one above.",
     "contentLanguage": "Content language",
-    "yes": "Yes"
+    "yes": "Yes",
+    "filterAll": "All",
+    "preview": "Preview",
+    "copyLink": "Copy link",
+    "linkCopied": "Copied!",
+    "copyFormLink": "Copy form link",
+    "noSubmissionsFilter": "No submissions with this status.",
+    "anonymous": "Anonymous",
+    "save": "Save",
+    "saved": "Saved",
+    "setupHandleSaving": "Saving…",
+    "setupHandleContinue": "Set handle and continue"
   }
 }

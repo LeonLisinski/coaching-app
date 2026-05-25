@@ -2585,6 +2585,17 @@
     "questionsCount": "Pitanja ({count})",
     "noQuestions": "Nema pitanja. Dodaj prvo pitanje gore.",
     "contentLanguage": "Jezik sadržaja",
-    "yes": "Da"
+    "yes": "Da",
+    "filterAll": "Sve",
+    "preview": "Pregledaj",
+    "copyLink": "Kopiraj link",
+    "linkCopied": "Kopirano!",
+    "copyFormLink": "Kopiraj link forme",
+    "noSubmissionsFilter": "Nema prijava s ovim statusom.",
+    "anonymous": "Anonimno",
+    "save": "Spremi",
+    "saved": "Spremljeno",
+    "setupHandleSaving": "Spremanje…",
+    "setupHandleContinue": "Postavi handle i nastavi"
   }
 }
