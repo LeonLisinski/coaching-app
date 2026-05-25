@@ -2576,6 +2576,16 @@
     "setupHandleTitle": "Set up your public link",
     "setupHandleDesc": "Before you can use intake forms, set a unique handle that will be part of the public URL.",
     "setupHandleBtn": "Set handle and continue",
-    "newLeadBell": "New submission from {name}"
+    "newLeadBell": "New submission from {name}",
+    "publicLink": "Public link",
+    "basicInfo": "Basic info",
+    "handleHintShort": "Lowercase letters, numbers, and dashes only.",
+    "formPhotoSelect": "Choose photo",
+    "formPhotoChange": "Change photo",
+    "formPhotoUploading": "Uploading…",
+    "questionsCount": "Questions ({count})",
+    "noQuestions": "No questions yet. Add the first one above.",
+    "contentLanguage": "Content language",
+    "yes": "Yes"
   }
 }

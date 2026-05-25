@@ -2575,6 +2575,16 @@
     "setupHandleTitle": "Postavi javni link",
     "setupHandleDesc": "Prije nego što možeš koristiti prijavne forme, postavi jedinstveni handle koji će biti dio javnog URL-a.",
     "setupHandleBtn": "Postavi handle i nastavi",
-    "newLeadBell": "Nova prijava od {name}"
+    "newLeadBell": "Nova prijava od {name}",
+    "publicLink": "Javni link",
+    "basicInfo": "Osnovno",
+    "handleHintShort": "Samo mala slova, brojevi i crtice.",
+    "formPhotoSelect": "Odaberi sliku",
+    "formPhotoChange": "Promijeni sliku",
+    "formPhotoUploading": "Učitavanje…",
+    "questionsCount": "Pitanja ({count})",
+    "noQuestions": "Nema pitanja. Dodaj prvo pitanje gore.",
+    "contentLanguage": "Jezik sadržaja",
+    "yes": "Da"
   }
 }
