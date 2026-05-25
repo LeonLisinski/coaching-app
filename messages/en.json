@@ -2566,7 +2566,7 @@
     "typeNumber": "Number",
     "typeEmail": "Email",
     "typePhone": "Phone",
-    "typeSingleChoice": "Single choice",
+    "typeSingleChoice": "Choice",
     "typeMultiChoice": "Multiple choice",
     "typeDate": "Date",
     "typeYesNo": "Yes / No",
