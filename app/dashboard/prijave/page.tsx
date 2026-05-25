@@ -80,6 +80,82 @@ type DraftQuestion = {
 
 function makeKey() { return Math.random().toString(36).slice(2) }
 
+// ─── Custom question-type selector ──────────────────────────────────────────
+function TypeSelect({
+  value, options, isDark, border, textMain, accentHex, onChange,
+}: {
+  value: string
+  options: { value: string; label: string }[]
+  isDark: boolean
+  border: string
+  textMain: string
+  accentHex: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = options.find(o => o.value === value)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all"
+        style={{
+          borderColor: open ? accentHex : border,
+          background: isDark ? '#0f0f1a' : 'white',
+          color: textMain,
+          boxShadow: open ? `0 0 0 2px ${accentHex}22` : 'none',
+        }}
+      >
+        <span>{selected?.label ?? value}</span>
+        <ChevronDown
+          size={13}
+          className="shrink-0 transition-transform"
+          style={{ color: accentHex, transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        />
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-50 mt-1 left-0 right-0 rounded-xl border overflow-hidden shadow-lg"
+          style={{ background: isDark ? '#1a1a2e' : 'white', borderColor: border }}
+        >
+          {options.map(opt => {
+            const isSelected = opt.value === value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onMouseDown={e => { e.preventDefault(); onChange(opt.value); setOpen(false) }}
+                className="w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2"
+                style={{
+                  background: isSelected ? accentHex + '18' : 'transparent',
+                  color: isSelected ? accentHex : textMain,
+                  fontWeight: isSelected ? 600 : 400,
+                }}
+              >
+                {isSelected && <Check size={11} style={{ color: accentHex }} className="shrink-0" />}
+                {!isSelected && <span className="w-[11px] shrink-0" />}
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 type LeadRowLabels = {
   statusLabels: Record<string, string>
   scheduledCall: string
@@ -938,14 +1014,15 @@ export default function LeadsPage() {
 
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionType')}</label>
-                      <select
+                      <TypeSelect
                         value={q.type}
-                        onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: e.target.value } : x))}
-                        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                        style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                      >
-                        {qTypes.map(qt => <option key={qt.value} value={qt.value}>{qt.label}</option>)}
-                      </select>
+                        options={qTypes}
+                        isDark={isDark}
+                        border={border}
+                        textMain={textMain}
+                        accentHex={accentHex}
+                        onChange={val => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: val } : x))}
+                      />
                     </div>
 
                     <div className="space-y-1">
