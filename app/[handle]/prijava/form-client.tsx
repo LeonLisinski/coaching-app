@@ -58,6 +58,19 @@ export default function LeadFormClient({
   formId, trainerId, title, titleEn, description, descriptionEn, accentColor, photoUrl, trainerName, questions,
 }: Props) {
   const [lang, setLang] = useState<'hr' | 'en'>('hr')
+
+  // globals.css sets overflow:hidden on html/body for the PWA dashboard —
+  // override it here so this public page can scroll normally
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    html.style.overflow = 'auto'
+    body.style.overflow = 'auto'
+    return () => {
+      html.style.overflow = ''
+      body.style.overflow = ''
+    }
+  }, [])
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({})
   const [honeypot, setHoneypot] = useState('')
   const [submitting, setSubmitting] = useState(false)
