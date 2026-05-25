@@ -411,8 +411,10 @@ export default function LeadsPage() {
     { value: 'yes_no',        label: tL('typeYesNo') },
   ]
 
-  // ── Auth + data load ──────────────────────────────────────────────────────
+  // ── Auth + data load + real-time ─────────────────────────────────────────
   useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null
+
     const init = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
@@ -428,8 +430,27 @@ export default function LeadsPage() {
         await loadAll(uid, profile?.avatar_url ?? null)
       }
       setLoading(false)
+
+      // Real-time: automatically add new submissions as they arrive
+      channel = supabase
+        .channel('lead-submissions-rt')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'lead_submissions', filter: `trainer_id=eq.${uid}` },
+          (payload) => {
+            const newSub = payload.new as Submission
+            setSubmissions(prev => [newSub, ...prev])
+            // Mark as seen immediately since we're watching
+            supabase.from('lead_submissions').update({ seen: true }).eq('id', newSub.id)
+          },
+        )
+        .subscribe()
     }
     init()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [])
 
   const loadAll = useCallback(async (uid: string, avatarUrl?: string | null) => {
