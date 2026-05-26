@@ -728,11 +728,10 @@ export default function LeadsPage() {
   const uploadPhoto = async (file: File) => {
     if (!userId) return
     setPhotoUploading(true)
-    const ext = file.name.split('.').pop() || 'jpg'
-    // Flat path (no subdirectory) — matches the profile avatar upload pattern
-    // that satisfies the avatars bucket RLS: name LIKE auth.uid() || '%'
-    const path = `${userId}-lead-form-photo.${ext}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    // Unique timestamp path → always a clean INSERT, never hits upsert/conflict RLS
+    const path = `${userId}-lead-form-photo-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { contentType: file.type })
     if (!error) {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
       setDraftPhoto(urlData.publicUrl)
