@@ -1071,23 +1071,23 @@ export default function LeadsPage() {
                     </button>
                   )}
                   {/* Custom upload */}
-                  <button
-                    type="button"
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={photoUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                  <label
+                    htmlFor="lead-form-photo-input"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${photoUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
                     style={{ borderColor: border, color: textMain }}
                   >
                     {photoUploading
                       ? <><Loader2 size={11} className="animate-spin" />{tL('formPhotoUploading')}</>
                       : tL('formPhotoSelect')}
-                  </button>
+                  </label>
                 </div>
                 <input
+                  id="lead-form-photo-input"
                   ref={photoInputRef}
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  disabled={photoUploading}
+                  className="sr-only"
                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f) }}
                 />
               </div>
