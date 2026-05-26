@@ -715,6 +715,16 @@ export default function LeadsPage() {
     })
   }
 
+  const moveQuestion = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir
+    if (target < 0 || target >= questions.length) return
+    setQuestions(prev => {
+      const next = [...prev]
+      ;[next[idx], next[target]] = [next[target], next[idx]]
+      return next
+    })
+  }
+
   const uploadPhoto = async (file: File) => {
     if (!userId) return
     setPhotoUploading(true)
@@ -1165,8 +1175,31 @@ export default function LeadsPage() {
                   }}
                 >
                   <div className="flex items-center gap-2">
-                    <GripVertical size={15} style={{ color: textMuted }} className="cursor-grab shrink-0" />
+                    <GripVertical size={15} style={{ color: textMuted }} className="cursor-grab shrink-0 hidden sm:block" />
                     <span className="text-xs font-bold" style={{ color: accentHex }}>#{idx + 1}</span>
+                    {/* Up / down — primary on mobile, also handy on desktop */}
+                    <div className="flex items-center gap-0.5 ml-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveQuestion(idx, -1)}
+                        disabled={idx === 0}
+                        className="w-6 h-6 rounded flex items-center justify-center transition-colors disabled:opacity-25"
+                        style={{ color: textMuted }}
+                        title="Pomakni gore"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveQuestion(idx, 1)}
+                        disabled={idx === questions.length - 1}
+                        className="w-6 h-6 rounded flex items-center justify-center transition-colors disabled:opacity-25"
+                        style={{ color: textMuted }}
+                        title="Pomakni dolje"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
                     <div className="flex-1" />
                     <button type="button" onClick={() => setQuestions(prev => prev.filter((_, i) => i !== idx))}
                       className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-600">
