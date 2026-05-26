@@ -957,6 +957,26 @@ export default function LeadsPage() {
       {/* ── Form builder tab ── */}
       {tab === 'form' && (
         <div className="space-y-4 sm:space-y-5">
+          {/* Sticky save bar */}
+          <div
+            className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl border"
+            style={{ background: isDark ? 'oklch(0.195 0.018 264)' : 'white', borderColor: border, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}
+          >
+            <p className="text-xs font-medium hidden sm:block" style={{ color: textMuted }}>
+              {locale === 'en' ? 'Form builder' : 'Uredi formu'}
+            </p>
+            <button
+              type="button"
+              onClick={saveForm}
+              disabled={formSaving}
+              className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-70"
+              style={{ backgroundColor: accentHex }}
+            >
+              {formSaving ? <><Loader2 size={13} className="animate-spin" />{tL('formSaving')}</>
+                : formSaved ? <><CheckCircle2 size={13} />{tL('formSaved')}</>
+                : <><Save size={13} />{tL('formSave')}</>}
+            </button>
+          </div>
           {/* Mobile hint */}
           <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border sm:hidden"
             style={{ borderColor: accentHex + '40', background: accentHex + '0d' }}>
