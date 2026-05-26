@@ -25,6 +25,7 @@ type Parameter = {
   order_index: number
   frequency: 'daily' | 'weekly'
   show_in_overview?: boolean | null
+  archived?: boolean
 }
 
 type FormState = {
@@ -299,7 +300,7 @@ export default function ParametersTab() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
-    const { data } = await supabase.from('checkin_parameters').select('id, name, type, unit, options, required, frequency, order_index, is_photo, trainer_id').eq('trainer_id', user.id).order('frequency').order('order_index')
+    const { data } = await supabase.from('checkin_parameters').select('id, name, type, unit, options, required, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).eq('archived', false).order('frequency').order('order_index')
     if (data) setParameters(data)
     setLoading(false)
   }
@@ -362,7 +363,9 @@ export default function ParametersTab() {
   }
 
   const deleteParameter = async (id: string) => {
-    await supabase.from('checkin_parameters').delete().eq('id', id)
+    // Always soft-delete (archive) so historical check-in values retain their labels.
+    // The parameter disappears from the active list immediately.
+    await supabase.from('checkin_parameters').update({ archived: true }).eq('id', id)
     setParameters(parameters.filter(p => p.id !== id))
     setConfirmDelete(null)
   }

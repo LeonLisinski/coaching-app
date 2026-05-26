@@ -165,7 +165,7 @@
     "clients": "Clients",
     "training": "Training",
     "nutrition": "Nutrition",
-    "checkins": "Check-ins",
+    "checkins": "Check-in",
     "finance": "Finance",
     "chat": "Chat",
     "profile": "Profile",
@@ -1385,7 +1385,7 @@
   },
   "checkins": {
     "page": {
-      "title": "Check-ins",
+      "title": "Check-in",
       "subtitle": "Client check-in overview",
       "clientSubtitle": "Check-ins & progress",
       "tabs": {
@@ -1478,7 +1478,7 @@
       "back": "Back to check-ins",
       "tabs": {
         "checkin": "Check-in",
-        "history": "History",
+        "history": "Photos",
         "graphs": "Graphs",
         "config": "Settings"
       },
@@ -2063,6 +2063,7 @@
     "quickNutrition": "Nutrition",
     "quickCheckin": "Check-in",
     "quickPackages": "Packages",
+    "quickChat": "Messages",
     "openProfile": "Open profile",
     "copyPlanTooltip": "Copy plan",
     "clientCount": "{filtered} / {total} clients",

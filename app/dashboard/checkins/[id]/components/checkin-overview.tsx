@@ -13,7 +13,7 @@ import {
 } from '@/lib/client-tracking-week'
 
 type Props = { clientId: string }
-type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
+type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string; archived?: boolean }
 type DailyLog = { id: string; date: string; values: Record<string, any> }
 type Checkin = { id: string; date: string; values: Record<string, any>; trainer_note: string | null; trainer_comment: string | null }
 
@@ -77,9 +77,9 @@ export default function CheckinOverview({ clientId }: Props) {
     const endDate = isoDate(days[6])
 
     const [{ data: params }, { data: logsData }, { data: checkinData }] = await Promise.all([
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, is_photo, trainer_id').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('daily_logs').select('id, client_id, date, values, calories, protein, carbs, fat, steps, sleep_hours, notes').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date'),
-      supabase.from('checkins').select('id, client_id, trainer_id, date, status, answers, values, photo_urls, notes, trainer_note, trainer_comment').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(1),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
+      supabase.from('daily_logs').select('id, client_id, date, values').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date'),
+      supabase.from('checkins').select('id, client_id, trainer_id, date, values, photo_urls, trainer_note, trainer_comment').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(1),
     ])
 
     if (params) {

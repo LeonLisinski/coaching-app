@@ -15,6 +15,7 @@ type Parameter = {
   type: string
   unit: string | null
   frequency: string
+  archived?: boolean
 }
 
 type Checkin = {
@@ -108,7 +109,7 @@ export default function CheckinHistory({ clientId }: Props) {
     const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().slice(0, 10)
 
     const [{ data: paramsData }, { data: checkinsData }, { data: configData }, { data: dailyData }] = await Promise.all([
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, is_photo, trainer_id').eq('trainer_id', user.id).order('order_index'),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
       supabase.from('checkins').select('id, date, values, photo_urls, trainer_comment').eq('client_id', clientId).order('date', { ascending: false }).limit(100),
       supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date').gte('date', ninetyDaysAgoStr),
@@ -364,15 +365,15 @@ export default function CheckinHistory({ clientId }: Props) {
         return sorted.map(c => {
           const weekNum = weekNumberMap[c.date]
           const { start: weekStart, end: weekEnd } = getWeekBounds(c.date, checkinDay)
-          const isOpen = expanded === weekEnd
+          const isOpen = expanded === c.id
           const photos = (c.photo_urls as any[]) || []
           const dailyAvgs = getDailyAvgs(weekStart, weekEnd)
 
           return (
-            <div key={weekEnd} className={`rounded-xl border overflow-hidden transition-all ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
+            <div key={c.id} className={`rounded-xl border overflow-hidden transition-all ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`}>
               {/* Card header */}
               <button className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'}`}
-                onClick={() => setExpanded(isOpen ? null : weekEnd)}>
+                onClick={() => setExpanded(isOpen ? null : c.id)}>
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
                   <div>

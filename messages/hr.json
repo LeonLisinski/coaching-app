@@ -1385,7 +1385,7 @@
   },
   "checkins": {
     "page": {
-      "title": "Check-ini",
+      "title": "Check-in",
       "subtitle": "Pregled check-ina klijenata",
       "clientSubtitle": "Checkini i napredak",
       "tabs": {
@@ -1478,7 +1478,7 @@
       "back": "Natrag na check-ine",
       "tabs": {
         "checkin": "Check-in",
-        "history": "Povijest",
+        "history": "Slike",
         "graphs": "Grafovi",
         "config": "Postavke"
       },
@@ -2063,6 +2063,7 @@
     "quickNutrition": "Prehrana",
     "quickCheckin": "Check-in",
     "quickPackages": "Paketi",
+    "quickChat": "Poruke",
     "openProfile": "Otvori profil",
     "copyPlanTooltip": "Kopiraj plan",
     "clientCount": "{filtered} / {total} klijenata",

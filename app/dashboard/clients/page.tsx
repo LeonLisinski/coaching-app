@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useIsLg } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp, TrendingUp } from 'lucide-react'
+import { Plus, Search, Pencil, UserX, UserCheck, SlidersHorizontal, X, Trash2, ChevronRight, ChevronDown, Users, Copy, Dumbbell, UtensilsCrossed, ClipboardList, Package, LayoutDashboard, AlertTriangle, ChevronUp, TrendingUp, MessageSquare } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useTranslations, useLocale } from 'next-intl'
@@ -77,6 +77,16 @@ function avatarStyle(gender: string | null, isDark: boolean): { bg: string; text
   return { bg: 'linear-gradient(135deg, #6b7280, #4b5563)', text: 'white' }
 }
 
+// ─── In-session cache (avoids 2 round-trips on soft navigation back to page) ─
+const CLIENTS_STALE_MS = 90_000
+let _clientsLastFetch = 0
+type ClientsSnap = {
+  clients:      Client[]
+  packages:     Package[]
+  subscription: { plan: string; client_limit: number } | null
+}
+let _clientsSnap: ClientsSnap | null = null
+
 function ClientsPageContent() {
   const t = useTranslations('clients.page')
   const tCommon = useTranslations('common')
@@ -93,10 +103,10 @@ function ClientsPageContent() {
     ? { backgroundColor: 'rgba(255,255,255,0.06)', color: '#9ca3af', borderColor: 'rgba(255,255,255,0.12)' }
     : { backgroundColor: 'white', color: '#4b5563', borderColor: '#e5e7eb' }
 
-  const [clients, setClients] = useState<Client[]>([])
-  const [packages, setPackages] = useState<Package[]>([])
-  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number } | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [clients, setClients] = useState<Client[]>(() => _clientsSnap?.clients ?? [])
+  const [packages, setPackages] = useState<Package[]>(() => _clientsSnap?.packages ?? [])
+  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number } | null>(() => _clientsSnap?.subscription ?? null)
+  const [loading, setLoading] = useState(() => !(_clientsSnap && Date.now() - _clientsLastFetch < CLIENTS_STALE_MS))
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
   const [genderFilter, setGenderFilter] = useState<'' | 'M' | 'F'>('')
@@ -121,9 +131,9 @@ function ClientsPageContent() {
 
   const noName = tDetail('noName')
 
-  // Refetch when status filter changes so we push the filter to the DB
-  // instead of loading all clients and filtering client-side.
-  useEffect(() => { fetchData(statusFilter) }, [statusFilter])
+  // All clients are fetched once; status/search/etc are filtered client-side.
+  // fetchData is re-called after mutations (add/edit/delete) to bust the cache.
+  useEffect(() => { fetchData() }, [])
 
   // Auto-open add dialog when ?action=add is in URL
   useEffect(() => {
@@ -133,24 +143,37 @@ function ClientsPageContent() {
     }
   }, [searchParams])
 
-  const fetchData = async (currentStatusFilter: 'all' | 'active' | 'inactive' = statusFilter) => {
+  const fetchData = async (bust = false) => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { setLoading(false); return }
 
-    let clientQuery = supabase
-      .from('clients')
-      .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes,
-        profiles!clients_user_id_fkey (full_name, email)`)
-      .eq('trainer_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1000)
+    // Serve from cache on soft navigation — client-side filters re-apply instantly
+    if (!bust && _clientsSnap && Date.now() - _clientsLastFetch < CLIENTS_STALE_MS) {
+      setClients(_clientsSnap.clients)
+      setPackages(_clientsSnap.packages)
+      setSubscription(_clientsSnap.subscription)
+      setLoading(false)
+      return
+    }
 
-    if (currentStatusFilter === 'active') clientQuery = clientQuery.eq('active', true)
-    else if (currentStatusFilter === 'inactive') clientQuery = clientQuery.eq('active', false)
-
-    const [{ data: clientData }, { data: pkgData }, { data: subData }] = await Promise.all([
-      clientQuery,
+    // Single parallel round: embed checkin_config + client_packages directly into the
+    // clients query so we avoid a second sequential round-trip.
+    const [
+      { data: clientData },
+      { data: pkgData },
+      { data: subData },
+      { data: countsData },
+    ] = await Promise.all([
+      supabase
+        .from('clients')
+        .select(`id, goal, weight, height, date_of_birth, start_date, active, gender, notes,
+          profiles!clients_user_id_fkey(full_name, email),
+          checkin_config(checkin_day),
+          client_packages(client_id, end_date, status, packages(name, color))`)
+        .eq('trainer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1000),
       supabase
         .from('packages')
         .select('id, name, color')
@@ -161,74 +184,60 @@ function ClientsPageContent() {
         .select('plan, client_limit')
         .eq('trainer_id', user.id)
         .single(),
-    ])
-
-    setSubscription(subData ? { plan: subData.plan, client_limit: subData.client_limit } : null)
-
-    const rawClients: Client[] = (clientData || []).map((c: any) => ({
-      id: c.id,
-      full_name: c.profiles?.full_name || noName,
-      email: c.profiles?.email || '',
-      goal: c.goal, weight: c.weight, height: c.height,
-      date_of_birth: c.date_of_birth, start_date: c.start_date,
-      active: c.active, gender: c.gender, notes: c.notes,
-      checkin_day: null,
-    }))
-
-    setPackages(pkgData || [])
-
-    if (rawClients.length === 0) {
-      setClients([])
-      setLoading(false)
-      return
-    }
-
-    const clientIds = rawClients.map(c => c.id)
-
-    // Fetch active packages, checkin config, and per-client checkin counts in parallel.
-    // Counts are fetched via RPC (server-side aggregate) rather than loading all rows.
-    const [{ data: cpData }, { data: ccData }, { data: countsData }] = await Promise.all([
-      supabase
-        .from('client_packages')
-        .select('client_id, end_date, packages(name, color)')
-        .eq('status', 'active')
-        .in('client_id', clientIds),
-      supabase
-        .from('checkin_config')
-        .select('client_id, checkin_day')
-        .in('client_id', clientIds),
       supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
     ])
+
+    const sub = subData ? { plan: subData.plan, client_limit: subData.client_limit } : null
+    const pkgs = pkgData || []
 
     const checkinCountMap: Record<string, number> = {}
     for (const row of (countsData || [])) {
       checkinCountMap[row.client_id] = Number(row.checkin_count)
     }
 
-    const pkgMap: Record<string, { name: string; color: string; end_date: string }> = {}
-    for (const cp of (cpData || [])) {
-      if (!pkgMap[cp.client_id]) pkgMap[cp.client_id] = { ...(cp.packages as any), end_date: cp.end_date }
-    }
+    const finalClients: Client[] = (clientData || []).map((c: any) => {
+      // checkin_config can come back as object or single-item array depending on DB constraints
+      const ccRaw = c.checkin_config
+      const checkinDay: number | null = Array.isArray(ccRaw)
+        ? (ccRaw[0]?.checkin_day ?? null)
+        : (ccRaw?.checkin_day ?? null)
 
-    const checkinDayMap: Record<string, number | null> = {}
-    for (const cc of (ccData || [])) {
-      checkinDayMap[cc.client_id] = cc.checkin_day
-    }
+      // Find the active package from the embedded array
+      const activePkg = (c.client_packages as any[] | null)?.find((p: any) => p.status === 'active')
+      const pkgName    = (activePkg?.packages as any)?.name  || null
+      const pkgColor   = (activePkg?.packages as any)?.color || null
+      const pkgEndDate = activePkg?.end_date || null
+      const daysLeft   = pkgEndDate ? calcPackageDaysLeft(pkgEndDate) : null
+      const totalCi    = checkinCountMap[c.id] || 0
 
-    setClients(rawClients.map(c => {
-      const pkg = pkgMap[c.id]
-      const daysLeft = pkg?.end_date ? calcPackageDaysLeft(pkg.end_date) : null
-      const totalCi = checkinCountMap[c.id] || 0
       return {
-        ...c,
-        activePackageName: pkg?.name || null,
-        activePackageColor: pkg?.color || null,
-        packageEndDate: pkg?.end_date || null,
-        packageDaysLeft: daysLeft,
-        checkin_day: checkinDayMap[c.id] ?? null,
-        consistency_score: consistencyScore(totalCi, c.start_date),
+        id:                 c.id,
+        full_name:          c.profiles?.full_name || noName,
+        email:              c.profiles?.email     || '',
+        goal:               c.goal,
+        weight:             c.weight,
+        height:             c.height,
+        date_of_birth:      c.date_of_birth,
+        start_date:         c.start_date,
+        active:             c.active,
+        gender:             c.gender,
+        notes:              c.notes,
+        checkin_day:        checkinDay,
+        activePackageName:  pkgName,
+        activePackageColor: pkgColor,
+        packageEndDate:     pkgEndDate,
+        packageDaysLeft:    daysLeft,
+        consistency_score:  consistencyScore(totalCi, c.start_date),
       }
-    }))
+    })
+
+    // Persist to module-level cache
+    _clientsLastFetch = Date.now()
+    _clientsSnap = { clients: finalClients, packages: pkgs, subscription: sub }
+
+    setSubscription(sub)
+    setPackages(pkgs)
+    setClients(finalClients)
     setLoading(false)
   }
 
@@ -735,11 +744,15 @@ function ClientsPageContent() {
                   </div>
                 </div>
 
-                {/* Quick actions panel */}
-                {isExpanded && (
-                  <div className={`border-t px-4 py-3 rounded-b-xl ${isDark ? 'border-white/8 bg-white/[0.02]' : 'border-gray-100 bg-gray-50/60'}`}>
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      {/* Tab shortcuts */}
+                {/* Quick-access panel — animated with grid-rows trick */}
+                <div
+                  className="grid transition-all duration-150 ease-out"
+                  style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
+                >
+                  <div className="overflow-hidden">
+                    <div className={`border-t px-4 py-2.5 space-y-2 ${isDark ? 'border-white/8 bg-white/[0.02]' : 'border-gray-100 bg-gray-50/50'}`}>
+
+                      {/* Row 1 — tab shortcuts + chat */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {([
                           { label: tCP('quickOverview'),   tab: 'pregled',   icon: LayoutDashboard,  color: '#7c3aed' },
@@ -758,28 +771,54 @@ function ClientsPageContent() {
                             {label}
                           </button>
                         ))}
+                        {/* Chat shortcut */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/chat?clientId=${client.id}`) }}
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all ${isDark ? 'border-white/10 bg-white/[0.03] text-gray-300 hover:bg-white/8 hover:border-white/20' : 'border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:border-gray-300 hover:shadow-sm'}`}
+                        >
+                          <MessageSquare size={12} style={{ color: '#f59e0b' }} />
+                          {tCP('quickChat')}
+                        </button>
                       </div>
 
-                      {/* Package status */}
-                      <div className="flex items-center gap-2">
-                        {client.activePackageName && client.packageEndDate && (
-                          <span className={`text-[11px] px-2.5 py-1 rounded-lg font-medium border ${
-                            expiryExpired
-                              ? isDark ? 'bg-red-500/15 text-red-400 border-red-500/25' : 'bg-red-50 text-red-600 border-red-200'
-                              : expiryUrgent
-                                ? isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200'
-                                : isDark ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }`}>
-                            {expiryExpired
-                              ? `${tCP('packageExpired')} ${Math.abs(daysLeft!)}d`
-                              : `${tCP('packageExpiresFull')} ${new Date(client.packageEndDate).toLocaleDateString(locale)}`
-                            }
-                          </span>
-                        )}
+                      {/* Row 2 — status strip + open profile */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {/* Consistency score */}
+                          {client.consistency_score != null && (
+                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-lg border ${
+                              client.consistency_score >= 70
+                                ? isDark ? 'bg-emerald-500/12 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : client.consistency_score >= 40
+                                ? isDark ? 'bg-amber-500/12 text-amber-400 border-amber-500/20' : 'bg-amber-50 text-amber-700 border-amber-200'
+                                : isDark ? 'bg-red-500/12 text-red-400 border-red-500/20' : 'bg-red-50 text-red-600 border-red-200'
+                            }`}>
+                              <TrendingUp size={10} />
+                              {client.consistency_score}% konzist.
+                            </span>
+                          )}
+                          {/* Package expiry */}
+                          {client.activePackageName && client.packageEndDate && (
+                            <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium border ${
+                              expiryExpired
+                                ? isDark ? 'bg-red-500/15 text-red-400 border-red-500/25' : 'bg-red-50 text-red-600 border-red-200'
+                                : expiryUrgent
+                                  ? isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : isDark ? 'bg-white/5 text-gray-400 border-white/10' : 'bg-white text-gray-500 border-gray-200'
+                            }`}>
+                              {expiryExpired
+                                ? `${tCP('packageExpired')} ${Math.abs(daysLeft!)}d`
+                                : `${tCP('packageExpiresFull')} ${new Date(client.packageEndDate).toLocaleDateString(locale)}`
+                              }
+                            </span>
+                          )}
+                        </div>
+                        {/* Open profile */}
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${client.id}`) }}
-                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-colors"
+                          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold text-white transition-colors shrink-0"
                           style={{ backgroundColor: accentHex }}
                           onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--app-accent-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.backgroundColor = accentHex)}
@@ -788,9 +827,10 @@ function ClientsPageContent() {
                           <ChevronRight size={12} />
                         </button>
                       </div>
+
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )
           })}
@@ -800,14 +840,14 @@ function ClientsPageContent() {
       <AddClientDialog
         open={showAdd}
         onClose={() => setShowAdd(false)}
-        onSuccess={fetchData}
+        onSuccess={() => fetchData(true)}
       />
 
       {copyClient && (
         <CopyClientDialog
           open={!!copyClient}
           onClose={() => setCopyClient(null)}
-          onSuccess={() => { setCopyClient(null); fetchData() }}
+          onSuccess={() => { setCopyClient(null); fetchData(true) }}
           sourceClientId={copyClient.id}
           sourceClientName={copyClient.full_name}
         />
@@ -818,7 +858,7 @@ function ClientsPageContent() {
           client={editClient}
           open={!!editClient}
           onClose={() => setEditClient(null)}
-          onSuccess={() => { setEditClient(null); fetchData() }}
+          onSuccess={() => { setEditClient(null); fetchData(true) }}
         />
       )}
 

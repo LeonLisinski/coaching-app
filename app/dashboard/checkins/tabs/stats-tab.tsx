@@ -105,7 +105,7 @@ export default function CheckinStatsTab() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ submitted: 0, late: 0, neutral: 0, total: 0 })
   const [trendData, setTrendData] = useState<{ month: string; count: number }[]>([])
-  const [dayDist, setDayDist] = useState<{ day: string; count: number }[]>([])
+  const [dayDist, setDayDist] = useState<{ day: number; count: number }[]>([])
   const [topClients, setTopClients] = useState<{ id: string; name: string; gender: string | null; count: number }[]>([])
   const [lateClients, setLateClients] = useState<{ id: string; name: string; gender: string | null; last: string | null }[]>([])
   const [compRate, setCompRate] = useState<{ week: string; rate: number }[]>([])
@@ -189,7 +189,7 @@ export default function CheckinStatsTab() {
       if (c.checkin_day != null) dayCount[c.checkin_day] = (dayCount[c.checkin_day] || 0) + 1
     })
     setDayDist(
-      [0,1,2,3,4,5,6].map(i => ({ day: tDays(String(i) as any), count: dayCount[i] || 0 })).filter(d => d.count > 0)
+      [0,1,2,3,4,5,6].map(i => ({ day: i, count: dayCount[i] || 0 })).filter(d => d.count > 0)
     )
 
     // Top clients by checkin count
@@ -299,9 +299,9 @@ export default function CheckinStatsTab() {
             <p className={`text-xs py-8 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('noCheckins')}</p>
           ) : (
             <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={dayDist} barSize={20} margin={{ top: 0, right: 0, bottom: 0, left: -30 }}>
+              <BarChart data={dayDist.map(d => ({ ...d, label: tDays(String(d.day) as any) }))} barSize={20} margin={{ top: 0, right: 0, bottom: 0, left: -30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.07)' : '#f3f4f6'} vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: isDark ? '#6b7280' : '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb' }} />
                 <Bar dataKey="count" name={t('count')} fill={accentHex} radius={[4, 4, 0, 0]} />

@@ -12,7 +12,7 @@ import {
 type Grouping = 'daily' | 'weekly' | 'monthly'
 
 type Props = { clientId: string }
-type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string }
+type Parameter = { id: string; name: string; type: string; unit: string | null; frequency: string; archived?: boolean }
 type DataPoint = { date: string; values: Record<string, any> }
 type Range = '7d' | '30d' | '90d' | 'all'
 
@@ -45,7 +45,7 @@ export default function CheckinGraphs({ clientId }: Props) {
     const user = session?.user
     if (!user) return
     const [{ data: paramsData }, { data: checkinsData }, { data: dailyData }] = await Promise.all([
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, is_photo, trainer_id').eq('trainer_id', user.id).order('order_index'),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
       supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date').limit(400),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date').limit(400),
     ])
