@@ -1000,15 +1000,11 @@ export default function LeadsPage() {
             </button>
           </div>
           {/* Mobile hint */}
-          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border sm:hidden"
-            style={{ borderColor: accentHex + '40', background: accentHex + '0d' }}>
-            <AlertCircle size={15} style={{ color: accentHex }} className="shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed" style={{ color: accentHex }}>
-              {locale === 'en'
-                ? 'The form builder is easier to use on a desktop. You can still edit here.'
-                : 'Graditelj forme je pregledaniji na računalu. Možeš uređivati i ovdje.'}
-            </p>
-          </div>
+          <p className="text-xs sm:hidden" style={{ color: textMuted }}>
+            {locale === 'en'
+              ? 'The form builder is easier to use on a desktop. You can still edit here.'
+              : 'Graditelj forme je pregledaniji na računalu. Možeš uređivati i ovdje.'}
+          </p>
           {/* Handle */}
           <div className="rounded-2xl p-5 border space-y-3" style={{ background: cardBg, borderColor: border }}>
             <h3 className="text-sm font-bold" style={{ color: textMain }}>{tL('publicLink')}</h3>
