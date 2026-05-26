@@ -729,8 +729,9 @@ export default function LeadsPage() {
     if (!userId) return
     setPhotoUploading(true)
     const ext = file.name.split('.').pop() || 'jpg'
-    // Path must start with userId to satisfy "Users upload own avatar" RLS policy
-    const path = `${userId}/lead-form-photo.${ext}`
+    // Flat path (no subdirectory) — matches the profile avatar upload pattern
+    // that satisfies the avatars bucket RLS: name LIKE auth.uid() || '%'
+    const path = `${userId}-lead-form-photo.${ext}`
     const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type })
     if (!error) {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
