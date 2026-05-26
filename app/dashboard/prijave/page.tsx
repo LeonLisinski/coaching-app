@@ -956,25 +956,47 @@ export default function LeadsPage() {
 
       {/* ── Form builder tab ── */}
       {tab === 'form' && (
-        <div className="space-y-4 sm:space-y-5">
-          {/* Sticky save bar */}
+        <div className="space-y-4 sm:space-y-5 pb-28 sm:pb-0">
+          {/* Save bar — sticky on desktop, fixed bottom on mobile */}
           <div
-            className="sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl border"
+            className="hidden sm:sticky sm:top-0 sm:z-20 sm:flex sm:rounded-2xl sm:border items-center justify-between gap-3 px-4 py-2.5"
             style={{ background: isDark ? 'oklch(0.195 0.018 264)' : 'white', borderColor: border, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}
           >
-            <p className="text-xs font-medium hidden sm:block" style={{ color: textMuted }}>
+            <p className="text-xs font-medium" style={{ color: textMuted }}>
               {locale === 'en' ? 'Form builder' : 'Uredi formu'}
             </p>
             <button
               type="button"
               onClick={saveForm}
               disabled={formSaving}
-              className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-70"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-70"
               style={{ backgroundColor: accentHex }}
             >
               {formSaving ? <><Loader2 size={13} className="animate-spin" />{tL('formSaving')}</>
                 : formSaved ? <><CheckCircle2 size={13} />{tL('formSaved')}</>
                 : <><Save size={13} />{tL('formSave')}</>}
+            </button>
+          </div>
+          {/* Mobile: fixed save button above bottom nav */}
+          <div
+            className="sm:hidden fixed left-0 right-0 z-30 px-4 py-3 border-t flex items-center gap-3"
+            style={{
+              bottom: 'calc(env(safe-area-inset-bottom) + 56px)',
+              background: isDark ? 'oklch(0.195 0.018 264)' : 'white',
+              borderColor: border,
+              boxShadow: '0 -2px 12px rgba(0,0,0,0.08)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={saveForm}
+              disabled={formSaving}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-70"
+              style={{ backgroundColor: accentHex }}
+            >
+              {formSaving ? <><Loader2 size={14} className="animate-spin" />{tL('formSaving')}</>
+                : formSaved ? <><CheckCircle2 size={14} />{tL('formSaved')}</>
+                : <><Save size={14} />{tL('formSave')}</>}
             </button>
           </div>
           {/* Mobile hint */}
@@ -1308,12 +1330,12 @@ export default function LeadsPage() {
             </button>
           </div>
 
-          {/* Save button */}
+          {/* Save button — desktop only (mobile uses fixed bottom bar) */}
           <button
             type="button"
             onClick={saveForm}
             disabled={formSaving}
-            className="w-full py-3.5 rounded-2xl text-white text-sm font-bold transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+            className="hidden sm:flex w-full py-3.5 rounded-2xl text-white text-sm font-bold transition-all disabled:opacity-70 items-center justify-center gap-2"
             style={{ backgroundColor: accentHex }}
           >
             {formSaving ? <><Loader2 size={15} className="animate-spin" />{tL('formSaving')}</>
