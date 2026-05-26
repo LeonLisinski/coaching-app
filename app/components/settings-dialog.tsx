@@ -253,7 +253,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[90vh] sm:h-[560px]" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[90vh] sm:h-[560px] border-0" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 

@@ -163,11 +163,11 @@
   "nav": {
     "overview": "Pregled",
     "clients": "Klijenti",
-    "training": "Treninzi",
+    "training": "Trening",
     "nutrition": "Prehrana",
-    "checkins": "Check-ini",
+    "checkins": "Check-in",
     "finance": "Financije",
-    "chat": "Chat",
+    "chat": "Poruke",
     "profile": "Profil",
     "leads": "Prijave",
     "calendar": "Kalendar"
@@ -340,7 +340,7 @@
         "history": "Povijest",
         "graphs": "Grafovi",
         "checkinSettings": "Check-in postavke",
-        "training": "Treninzi",
+        "training": "Trening",
         "nutrition": "Prehrana",
         "packages": "Paketi i plaćanja"
       },
@@ -2521,7 +2521,7 @@
     "pageTitle": "Prijave",
     "tabSubmissions": "Prijave",
     "tabForm": "Uredi formu",
-    "noSubmissions": "Nema prijava još.",
+    "noSubmissions": "Nema prijava.",
     "noSubmissionsHint": "Kada netko popuni tvoju prijavnu formu, prikazat će se ovdje.",
     "statusNew": "Nova",
     "statusContacted": "Kontaktirana",

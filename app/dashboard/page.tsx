@@ -700,7 +700,34 @@ function DashboardPageContent() {
       id: e.id, title: e.title, starts_at: e.starts_at,
       type: e.type, color: e.color, completed: e.completed,
     }))
-    setWeekEvents(parsedWeekEvents)
+
+    // Generate virtual check-in events from checkin_config (same as the full calendar page)
+    // These are NOT in trainer_events — the calendar renders them from config
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      return d
+    })
+    const virtualCheckins: WeekEvent[] = []
+    clientsData?.forEach((c: any) => {
+      const checkinDay = c.checkin_config?.checkin_day
+      if (checkinDay == null) return
+      const clientName = (c.profiles?.full_name as string | null) || 'Klijent'
+      const dayInWeek = weekDays.find(d => d.getDay() === checkinDay)
+      if (!dayInWeek) return
+      virtualCheckins.push({
+        id: `checkin-virtual-${c.id}`,
+        title: `${clientName} – Check-in`,
+        starts_at: new Date(dayInWeek.getFullYear(), dayInWeek.getMonth(), dayInWeek.getDate(), 8, 0, 0).toISOString(),
+        type: 'checkin',
+        color: '#0d9488',
+        completed: false,
+      })
+    })
+
+    const allWeekEvents = [...parsedWeekEvents, ...virtualCheckins]
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+    setWeekEvents(allWeekEvents)
 
     const todayIso = isoDate(todayStart)
     const leadsThisWeek  = weekLeadsData?.length ?? 0
@@ -717,7 +744,7 @@ function DashboardPageContent() {
       monthlyRevenue: Object.entries(monthly).map(([month, v]) => ({ month, ...v })),
       progressPercent: progress,
       yearRevenue: ytdRevenue,
-      weekEvents: parsedWeekEvents,
+      weekEvents: allWeekEvents,
       newLeadsWeek: leadsThisWeek,
       newLeadsToday: leadsThisToday,
     }
