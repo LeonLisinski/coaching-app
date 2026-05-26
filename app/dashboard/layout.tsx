@@ -46,6 +46,14 @@ const TrainerOnboardingWizard = nextDynamic(
 import { runTrainerTour, type TourStrings } from '@/lib/trainer-tour'
 import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboarding-storage'
 
+// 60-second in-memory cache for notifications — avoids 4 parallel queries on every nav
+const NOTIF_CACHE_MS = 60_000
+let _notifCacheTs    = 0
+let _notifCacheData: {
+  notifications: { id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package' | 'lead'; href?: string; isNew?: boolean }[]
+  count: number
+} | null = null
+
 const navItems = [
   { href: '/dashboard',             labelKey: 'overview',  icon: LayoutDashboard, color: 'text-violet-400' },
   { href: '/dashboard/clients',     labelKey: 'clients',   icon: Users,           color: 'text-sky-400'    },
@@ -138,6 +146,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [startProductTour])
 
   const fetchNotifications = useCallback(async (userId: string) => {
+    // Serve from cache for 60 s to avoid 4 queries on every soft navigation
+    const nowMs = Date.now()
+    if (_notifCacheData && nowMs - _notifCacheTs < NOTIF_CACHE_MS) {
+      setNotifications(_notifCacheData.notifications)
+      setNotifCount(_notifCacheData.count)
+      return
+    }
+
     const now = new Date()
     const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7)
     const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0]
@@ -296,8 +312,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return 0
     })
 
+    const newCount = notifs.filter(n => n.isNew).length
+    // Write to module-level cache
+    _notifCacheTs   = nowMs
+    _notifCacheData = { notifications: notifs, count: newCount }
+
     setNotifications(notifs)
-    setNotifCount(notifs.filter(n => n.isNew).length)
+    setNotifCount(newCount)
   }, [tLayout])
 
   // Update last-visited client / chat / checkin whenever the pathname changes

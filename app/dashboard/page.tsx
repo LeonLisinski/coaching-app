@@ -497,27 +497,18 @@ function DashboardPageContent() {
     const user = session?.user
     if (!user) { setLoading(false); return }
 
-    // Fetch profile + clients in parallel
-    const [{ data: profileData }, { data: clientsData }] = await Promise.all([
-      supabase.from('profiles').select('full_name').eq('id', user.id).single(),
-      supabase.from('clients').select(`id, start_date, profiles!clients_user_id_fkey(full_name)`).eq('trainer_id', user.id).eq('active', true).limit(2000),
-    ])
-    const name = profileData?.full_name?.split(' ')[0] || ''
-    if (profileData) setTrainerName(name)
-
-    const clientIds = clientsData?.map(c => c.id) || []
-
-    // All client-id-dependent and user-id-dependent queries in parallel
-
-    // Calculate current week bounds (Mon 00:00 → Sun+1 00:00)
-    const nowRef    = new Date()
+    // Calculate current week bounds BEFORE firing queries
+    const nowRef      = new Date()
     const daysFromMon = (nowRef.getDay() + 6) % 7
-    const weekStart = new Date(nowRef); weekStart.setDate(nowRef.getDate() - daysFromMon); weekStart.setHours(0, 0, 0, 0)
-    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7)
-    const todayStart = new Date(nowRef); todayStart.setHours(0, 0, 0, 0)
+    const weekStart   = new Date(nowRef); weekStart.setDate(nowRef.getDate() - daysFromMon); weekStart.setHours(0, 0, 0, 0)
+    const weekEnd     = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7)
+    const todayStart  = new Date(nowRef); todayStart.setHours(0, 0, 0, 0)
 
+    // Single parallel round — checkin_config embedded in clients via PostgREST relationship,
+    // eliminating the separate checkin_config query and one full network RTT.
     const [
-      { data: checkinConfigs },
+      { data: profileData },
+      { data: clientsData },
       { data: allCheckins },
       { data: checkinCounts },
       { count: unread },
@@ -525,24 +516,26 @@ function DashboardPageContent() {
       { data: weekEventsData },
       { data: weekLeadsData },
     ] = await Promise.all([
-      supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
+      supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+      supabase.from('clients')
+        .select(`id, start_date, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
+        .eq('trainer_id', user.id).eq('active', true).limit(2000),
       supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
       supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
-      supabase.from('messages').select('id', { count: 'exact', head: true }).eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
+      supabase.from('messages').select('id', { count: 'exact', head: true })
+        .eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
       supabase
         .from('client_packages')
         .select(`id, client_id, price, status, start_date, end_date, payments(id,status,amount,paid_at), packages(name)`)
         .eq('trainer_id', user.id)
         .or(`status.eq.active,start_date.gte.${new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)}`)
         .limit(2000),
-      // Calendar events for this week
       supabase.from('trainer_events')
         .select('id, title, starts_at, type, color, completed')
         .eq('trainer_id', user.id)
         .gte('starts_at', weekStart.toISOString())
         .lt('starts_at', weekEnd.toISOString())
         .order('starts_at'),
-      // Lead submissions this week (for count)
       supabase.from('lead_submissions')
         .select('id, created_at')
         .eq('trainer_id', user.id)
@@ -550,15 +543,23 @@ function DashboardPageContent() {
         .lt('created_at', weekEnd.toISOString()),
     ])
 
+    const name = profileData?.full_name?.split(' ')[0] || ''
+    if (profileData) setTrainerName(name)
+
+    // Build checkinDayMap from embedded checkin_config (no separate query needed)
+    const checkinDayMap: Record<string, number> = {}
+    clientsData?.forEach((c: any) => {
+      if (c.checkin_config?.checkin_day != null) {
+        checkinDayMap[c.id] = c.checkin_config.checkin_day
+      }
+    })
+
     // PostgREST returns payments as a single object (not array) when client_package_id has a
     // UNIQUE constraint. Normalise to array here so all downstream code stays the same.
     const normalizedPackages = (packagesData || []).map((cp: any) => ({
       ...cp,
       payments: cp.payments == null ? [] : Array.isArray(cp.payments) ? cp.payments : [cp.payments],
     }))
-
-    const checkinDayMap: Record<string, number> = {}
-    checkinConfigs?.forEach(cfg => { checkinDayMap[cfg.client_id] = cfg.checkin_day })
 
     const lastCheckinMap: Record<string, string> = {}
     allCheckins?.forEach((c: any) => { lastCheckinMap[c.client_id] = c.last_date })
