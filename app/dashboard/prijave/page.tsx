@@ -530,7 +530,7 @@ export default function LeadsPage() {
   const loadAll = useCallback(async (uid: string, avatarUrl?: string | null) => {
     const [subsRes, formRes] = await Promise.all([
       supabase.from('lead_submissions')
-        .select('id, trainer_id, answers, status, seen, notes, scheduled_call_at, trainer_notes, created_at')
+        .select('id, trainer_id, answers, status, seen, scheduled_call_at, trainer_notes, created_at')
         .eq('trainer_id', uid)
         .order('created_at', { ascending: false })
         .limit(200),
