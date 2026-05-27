@@ -7,9 +7,16 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Daily cron: sync Scale plan overage quantities to Stripe.
+ * Daily cron: report current Scale overage usage to Stripe.
+ *
  * Extra blocks = ceil(max(0, activeClients - 75) / 25)
- * Each block = €10/mo on the metered overage price item.
+ * Each block = €10/mo.
+ *
+ * Uses stripe.subscriptionItems.createUsageRecord with action='set' and
+ * aggregate_usage='max' on the price — Stripe keeps the highest value reported
+ * during the billing period and charges that at the end of the month.
+ * This means a trainer is billed for the peak they reached, not the current
+ * count at the moment of invoicing.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
@@ -54,15 +61,21 @@ export async function GET(req: NextRequest) {
 
       const count = activeClients ?? 0
       const limit = PLAN_META['scale'].clientLimit ?? 75
-      const extraBlocks = Math.max(0, Math.ceil((count - limit) / (PLAN_META['scale'].overageBlockSize ?? 25)))
+      const blockSize = PLAN_META['scale'].overageBlockSize ?? 25
+      const extraBlocks = Math.max(0, Math.ceil((count - limit) / blockSize))
 
+      // Find the overage subscription item
       const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
       const overageItem = stripeSub.items.data.find(i => i.price.id === overagePriceId)
 
       if (overageItem) {
-        await stripe.subscriptions.update(sub.stripe_subscription_id, {
-          items: [{ id: overageItem.id, quantity: extraBlocks }],
-          proration_behavior: 'none',
+        // Report current usage — Stripe aggregates as MAX over the billing period.
+        // action='set' means "this is the current quantity right now".
+        // The price must be created with aggregate_usage='max' in Stripe Dashboard.
+        await stripe.subscriptionItems.createUsageRecord(overageItem.id, {
+          quantity:  extraBlocks,
+          action:    'set',
+          timestamp: Math.floor(Date.now() / 1000),
         })
         updated++
       }

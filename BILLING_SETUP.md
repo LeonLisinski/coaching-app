@@ -38,8 +38,8 @@ Create one Product per plan, each with a **monthly recurring price** in EUR:
 
 For the **Scale Overage** price:
 - Billing model: `Metered`
-- Metered usage: `Maximum during billing period` (not sum)
-- Aggregation: `Maximum` (so reducing clients below threshold resets the charge)
+- Aggregation mode: **`Maximum`** (`aggregate_usage: 'max'`) — Stripe keeps the highest usage record reported during the billing period and charges that at invoice time. If a trainer spikes to 4 overage blocks mid-month then drops back to 0, they are billed for 4 blocks.
+- The daily cron reports the current overage count with `action: 'set'`. Stripe then takes the max across all reported values in the period.
 
 Copy each price ID (`price_...`) and set it in `.env.local`:
 ```
