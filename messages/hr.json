@@ -1897,9 +1897,13 @@
     "statusCanceledDesc": "Tvoja pretplata je istekla. Aktiviraj novi plan da nastaviš s radom.",
     "statusLockedTitle": "Račun je privremeno zaključan",
     "statusLockedDesc": "Pretplata nije plaćena. Aktiviraj plan za povratak pristupa.",
-    "clientLimitStarter": "Do 15 klijenata",
-    "clientLimitPro": "Do 50 klijenata",
-    "clientLimitScale": "Do 150 klijenata",
+    "clientLimitStarter": "Do 10 aktivnih klijenata",
+    "clientLimitPro": "Do 30 aktivnih klijenata",
+    "clientLimitScale": "Do 75 aktivnih klijenata",
+    "foundingBannerTitle": "Founding ponuda",
+    "foundingBannerDesc": "50% popusta zauvijek — vrijedi dok je pretplata neprekinuto aktivna.",
+    "foundingBannerEnds": "Ponuda završava {date}.",
+    "foundingLabel": "founding cijena",
     "featOwnBranding": "Vlastiti logo i boje u klijentskoj aplikaciji"
   },
   "clientDetail": {

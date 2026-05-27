@@ -101,10 +101,11 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
     const user = session?.user
     if (!user) { setLimitChecking(false); return }
     const [{ data: sub }, { count }] = await Promise.all([
-      supabase.from('subscriptions').select('plan, client_limit').eq('trainer_id', user.id).single(),
-      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('trainer_id', user.id),
+      supabase.from('subscriptions').select('plan, client_limit, is_ambassador').eq('trainer_id', user.id).single(),
+      // Count active clients only — deactivated don't consume a slot
+      supabase.from('clients').select('id', { count: 'exact', head: true }).eq('trainer_id', user.id).eq('active', true),
     ])
-    if (sub && count !== null && count >= sub.client_limit) {
+    if (sub && !sub.is_ambassador && sub.client_limit !== null && count !== null && count >= sub.client_limit) {
       setLimitInfo({ current: count, limit: sub.client_limit, plan: sub.plan })
     }
     setLimitChecking(false)

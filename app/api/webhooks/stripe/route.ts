@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendResendEmail } from '@/lib/resend-server'
+import { PLAN_META, type Plan } from '@/lib/plans'
 
 function supabaseAdmin() {
   return createClient(
@@ -11,7 +12,9 @@ function supabaseAdmin() {
   )
 }
 
-const CLIENT_LIMITS: Record<string, number> = { starter: 15, pro: 50, scale: 150 }
+function clientLimitForPlan(plan: string): number | null {
+  return PLAN_META[plan as Plan]?.clientLimit ?? 10
+}
 
 // Grace period before locking: 3 days in ms
 const GRACE_MS = 3 * 24 * 60 * 60 * 1000
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
         stripe_subscription_id: subId,
         plan,
         status,
-        client_limit:           CLIENT_LIMITS[plan] ?? 15,
+        client_limit:           clientLimitForPlan(plan),
         trial_start:            subA.trial_start != null          ? new Date(subA.trial_start          * 1000).toISOString() : null,
         trial_end:              subA.trial_end != null            ? new Date(subA.trial_end            * 1000).toISOString() : null,
         current_period_start:   subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,
@@ -122,7 +125,7 @@ export async function POST(req: NextRequest) {
       const updatePayload = {
         status:               newStatus,
         plan,
-        client_limit:         CLIENT_LIMITS[plan] ?? 15,
+        client_limit:         clientLimitForPlan(plan),
         current_period_start: subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,
         current_period_end:   subA.current_period_end   != null ? new Date(subA.current_period_end   * 1000).toISOString() : null,
         cancel_at_period_end: sub.cancel_at_period_end,
@@ -192,7 +195,7 @@ export async function POST(req: NextRequest) {
         const { error } = await db.from('subscriptions').update({
           status,
           plan,
-          client_limit:         CLIENT_LIMITS[plan] ?? 15,
+          client_limit:         clientLimitForPlan(plan),
           cancel_at_period_end: sub.cancel_at_period_end,
           current_period_start: subB.current_period_start ? new Date(subB.current_period_start * 1000).toISOString() : null,
           current_period_end:   subB.current_period_end   ? new Date(subB.current_period_end   * 1000).toISOString() : null,

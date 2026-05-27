@@ -60,6 +60,7 @@ export async function GET(req: NextRequest) {
   let checkinSent = 0
   let pkgSent = 0
   let paySent = 0
+  let trialReminderSent = 0
   let checkinDueCount = 0
   const errors: string[] = []
 
@@ -280,11 +281,104 @@ export async function GET(req: NextRequest) {
     errors.push(`payment block: ${e?.message || e}`)
   }
 
+  // ── Trial ending reminders (7 and 3 days before charge) ───────────────────
+  try {
+    const now7d = new Date(); now7d.setDate(now7d.getDate() + 7)
+    const now3d = new Date(); now3d.setDate(now3d.getDate() + 3)
+
+    // Fetch trialing subs whose trial ends in the 7d or 3d window (±12 hours)
+    const windowStart7 = new Date(now7d); windowStart7.setHours(windowStart7.getHours() - 12)
+    const windowEnd7   = new Date(now7d); windowEnd7.setHours(windowEnd7.getHours() + 12)
+    const windowStart3 = new Date(now3d); windowStart3.setHours(windowStart3.getHours() - 12)
+    const windowEnd3   = new Date(now3d); windowEnd3.setHours(windowEnd3.getHours() + 12)
+
+    const { data: trialSubs } = await supabase
+      .from('subscriptions')
+      .select('trainer_id, trial_end, plan')
+      .eq('status', 'trialing')
+      .not('is_ambassador', 'eq', true)
+      .not('trial_end', 'is', null)
+
+    for (const ts of trialSubs ?? []) {
+      const trialEndDate = new Date(ts.trial_end)
+      const in7d = trialEndDate >= windowStart7 && trialEndDate <= windowEnd7
+      const in3d = trialEndDate >= windowStart3 && trialEndDate <= windowEnd3
+      if (!in7d && !in3d) continue
+
+      const reminderType = in3d ? 'trial_3d' : 'trial_7d'
+      const daysLeft = in3d ? 3 : 7
+      const dedupeKey = `trial-${reminderType}-${ts.trainer_id}-${todayStr}`
+      const inserted = await tryInsertDedupe(supabase, reminderType, dedupeKey)
+      if (!inserted) continue
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', ts.trainer_id)
+        .maybeSingle()
+
+      if (!profile?.email) continue
+
+      const firstName = profile.full_name?.split(' ')[0] || 'Trener'
+      const planLabel = (ts.plan as string).charAt(0).toUpperCase() + (ts.plan as string).slice(1)
+      const endStr = trialEndDate.toLocaleDateString('hr-HR', { day: 'numeric', month: 'long', year: 'numeric' })
+
+      const html = `<!DOCTYPE html>
+<html lang="hr">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;background:#0b0a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0a12;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" style="max-width:520px;background:linear-gradient(180deg,#15131f 0%,#0e0c16 100%);border-radius:20px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
+        <tr><td style="padding:28px 28px 8px 28px;text-align:center;">
+          <div style="display:inline-block;padding:10px 14px;border-radius:14px;background:#5b21b6;margin-bottom:16px;">
+            <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;">UnitLift</span>
+          </div>
+          <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#f4f4f5;line-height:1.25;">
+            Tvoj trial istječe za ${daysLeft} dana
+          </h1>
+          <p style="margin:0;font-size:14px;color:#a1a1aa;">Plan: <strong style="color:#a78bfa;">${planLabel}</strong></p>
+        </td></tr>
+        <tr><td style="padding:8px 28px 28px 28px;">
+          <p style="margin:0 0 16px 0;font-size:15px;color:#d4d4d8;line-height:1.6;">
+            Bok <strong style="color:#fff;">${firstName}</strong>,<br/><br/>
+            Tvoj 14-dnevni besplatni trial istječe <strong style="color:#e4e4e7;">${endStr}</strong>.
+            Nakon toga počinje redovita naplata za plan <strong style="color:#a78bfa;">${planLabel}</strong>.<br/><br/>
+            Ako želiš prilagoditi ili otkazati pretplatu, to možeš napraviti u postavkama naplate.
+          </p>
+          <div style="text-align:center;margin:24px 0;">
+            <a href="${url}/dashboard/billing" style="display:inline-block;padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#ffffff !important;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 8px 24px rgba(91,33,182,0.35);">
+              Upravljaj pretplatom
+            </a>
+          </div>
+          <p style="margin:0;font-size:12px;color:#71717a;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;line-height:1.5;">
+            Hvala što koristiš UnitLift.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
+
+      const r = await sendResendEmail({
+        to: profile.email,
+        subject: `UnitLift: tvoj trial istječe za ${daysLeft} dana`,
+        html,
+      })
+      if (r.ok) trialReminderSent++
+      else errors.push(`trial reminder ${ts.trainer_id}: ${r.errorKey}`)
+    }
+  } catch (e: any) {
+    errors.push(`trial reminder block: ${e?.message || e}`)
+  }
+
   return NextResponse.json({
     ok: true,
     checkinSent,
     pkgSent,
     paySent,
+    trialReminderSent,
     meta: {
       timeZone: tz,
       todayStr,

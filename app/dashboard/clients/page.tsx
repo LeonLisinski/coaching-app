@@ -83,7 +83,7 @@ let _clientsLastFetch = 0
 type ClientsSnap = {
   clients:      Client[]
   packages:     Package[]
-  subscription: { plan: string; client_limit: number } | null
+  subscription: { plan: string; client_limit: number | null; is_ambassador?: boolean } | null
 }
 let _clientsSnap: ClientsSnap | null = null
 
@@ -105,7 +105,7 @@ function ClientsPageContent() {
 
   const [clients, setClients] = useState<Client[]>(() => _clientsSnap?.clients ?? [])
   const [packages, setPackages] = useState<Package[]>(() => _clientsSnap?.packages ?? [])
-  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number } | null>(() => _clientsSnap?.subscription ?? null)
+  const [subscription, setSubscription] = useState<{ plan: string; client_limit: number | null; is_ambassador?: boolean } | null>(() => _clientsSnap?.subscription ?? null)
   const [loading, setLoading] = useState(() => !(_clientsSnap && Date.now() - _clientsLastFetch < CLIENTS_STALE_MS))
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('active')
@@ -181,13 +181,13 @@ function ClientsPageContent() {
         .order('name'),
       supabase
         .from('subscriptions')
-        .select('plan, client_limit')
+        .select('plan, client_limit, is_ambassador')
         .eq('trainer_id', user.id)
         .single(),
       supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
     ])
 
-    const sub = subData ? { plan: subData.plan, client_limit: subData.client_limit } : null
+    const sub = subData ? { plan: subData.plan, client_limit: subData.client_limit, is_ambassador: subData.is_ambassador } : null
     const pkgs = pkgData || []
 
     const checkinCountMap: Record<string, number> = {}
@@ -337,7 +337,12 @@ function ClientsPageContent() {
     } catch {}
   }, [filtered])
 
-  const isAtLimit = subscription !== null && clients.length >= subscription.client_limit
+  // Count only active clients against the limit; ambassador accounts have no limit
+  const activeClientCount = clients.filter(c => c.active !== false).length
+  const isAtLimit = subscription !== null
+    && !subscription.is_ambassador
+    && subscription.client_limit !== null
+    && activeClientCount >= subscription.client_limit
 
   const PLAN_LABELS: Record<string, string> = { starter: 'Starter', pro: 'Pro', scale: 'Scale' }
 
@@ -375,7 +380,7 @@ function ClientsPageContent() {
           >
             {isAtLimit && <AlertTriangle size={11} className="text-amber-500" />}
             <span>
-              {clients.length}/{subscription.client_limit}{' '}
+              {subscription.is_ambassador ? '∞' : `${activeClientCount}/${subscription.client_limit}`}{' '}
               <span className="font-normal opacity-70">{PLAN_LABELS[subscription.plan] ?? subscription.plan}</span>
             </span>
           </div>

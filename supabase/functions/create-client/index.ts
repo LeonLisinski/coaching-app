@@ -72,32 +72,39 @@ Deno.serve(async (req) => {
     // ── Subscription gate ────────────────────────────────────────────────────
     const { data: subscription } = await supabaseAdmin
       .from('subscriptions')
-      .select('client_limit, plan, status')
+      .select('client_limit, plan, status, is_ambassador')
       .eq('trainer_id', trainer_id)
       .maybeSingle()
 
-    const activeStatuses = ['active', 'trialing', 'past_due']
-    if (!subscription || !activeStatuses.includes(subscription.status)) {
-      return json(403, {
-        error: 'CLIENT_LIMIT_REACHED',
-        current: 0,
-        limit: 0,
-        plan: subscription?.plan ?? null,
-      })
-    }
+    // Ambassador accounts have unlimited clients and always have access
+    if (!subscription?.is_ambassador) {
+      const activeStatuses = ['active', 'trialing', 'past_due']
+      if (!subscription || !activeStatuses.includes(subscription.status)) {
+        return json(403, {
+          error: 'CLIENT_LIMIT_REACHED',
+          current: 0,
+          limit: 0,
+          plan: subscription?.plan ?? null,
+        })
+      }
 
-    const { count: clientCount } = await supabaseAdmin
-      .from('clients')
-      .select('id', { count: 'exact', head: true })
-      .eq('trainer_id', trainer_id)
+      if (subscription.client_limit !== null) {
+        // Count only ACTIVE clients — deactivated clients do not consume a slot
+        const { count: activeClientCount } = await supabaseAdmin
+          .from('clients')
+          .select('id', { count: 'exact', head: true })
+          .eq('trainer_id', trainer_id)
+          .eq('active', true)
 
-    if (clientCount !== null && clientCount >= subscription.client_limit) {
-      return json(403, {
-        error: 'CLIENT_LIMIT_REACHED',
-        current: clientCount,
-        limit: subscription.client_limit,
-        plan: subscription.plan,
-      })
+        if (activeClientCount !== null && activeClientCount >= subscription.client_limit) {
+          return json(403, {
+            error: 'CLIENT_LIMIT_REACHED',
+            current: activeClientCount,
+            limit: subscription.client_limit,
+            plan: subscription.plan,
+          })
+        }
+      }
     }
 
     // ── Trainer name (used in both invite and notification emails) ───────────

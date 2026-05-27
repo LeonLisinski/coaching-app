@@ -1897,9 +1897,13 @@
     "statusCanceledDesc": "Your subscription has expired. Activate a new plan to continue.",
     "statusLockedTitle": "Account temporarily locked",
     "statusLockedDesc": "Subscription unpaid. Activate a plan to restore access.",
-    "clientLimitStarter": "Up to 15 clients",
-    "clientLimitPro": "Up to 50 clients",
-    "clientLimitScale": "Up to 150 clients",
+    "clientLimitStarter": "Up to 10 active clients",
+    "clientLimitPro": "Up to 30 active clients",
+    "clientLimitScale": "Up to 75 active clients",
+    "foundingBannerTitle": "Founding offer",
+    "foundingBannerDesc": "50% off forever — valid while subscription stays active.",
+    "foundingBannerEnds": "Offer ends {date}.",
+    "foundingLabel": "founding price",
     "featOwnBranding": "Custom logo and colors in client app"
   },
   "clientDetail": {

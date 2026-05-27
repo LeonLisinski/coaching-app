@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { PLAN_PRICES, Plan } from '@/lib/plans'
+import { PLAN_META, PUBLIC_PLANS, type Plan } from '@/lib/plans'
+import { isFoundingPromoActive } from '@/lib/founding'
 import { sendResendEmail } from '@/lib/resend-server'
 
 // Simple per-instance sliding window rate limiter.
@@ -44,8 +45,8 @@ export async function POST(req: NextRequest) {
   // case to keep case-insensitive lookups (e.g. find-or-invite) working.
   const email = rawEmail.trim().toLowerCase()
 
-  const resolvedPlan = (['starter', 'pro', 'scale'].includes(plan) ? plan : 'starter') as Plan
-  const priceId = PLAN_PRICES[resolvedPlan]
+  const resolvedPlan = (PUBLIC_PLANS.includes(plan as Plan) ? plan : 'starter') as Plan
+  const priceId = PLAN_META[resolvedPlan].stripePriceId
   if (!priceId) {
     return NextResponse.json({ error: 'Plan nije konfiguriran.' }, { status: 500 })
   }
@@ -179,18 +180,30 @@ export async function POST(req: NextRequest) {
       metadata: { supabase_user_id: user.id },
     })
 
+    const planMeta = PLAN_META[resolvedPlan]
+    const useFoundingPromo = isFoundingPromoActive() && !!process.env.STRIPE_COUPON_FOUNDING
+
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }]
+    if (resolvedPlan === 'scale' && planMeta.stripeOveragePriceId) {
+      lineItems.push({ price: planMeta.stripeOveragePriceId, quantity: 0 })
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer:                  customer.id,
       mode:                      'subscription',
       payment_method_types:      ['card'],
       payment_method_collection: 'always',
-      line_items:                [{ price: priceId, quantity: 1 }],
+      line_items:                lineItems,
       subscription_data: {
         trial_period_days: 14,
         metadata: { plan: resolvedPlan, supabase_user_id: user.id },
       },
+      ...(useFoundingPromo ? {
+        discounts: [{ coupon: process.env.STRIPE_COUPON_FOUNDING! }],
+      } : {
+        allow_promotion_codes: true,
+      }),
       metadata: { plan: resolvedPlan, supabase_user_id: user.id },
-      allow_promotion_codes: true,
       success_url: `${appUrl}/dashboard?setup=pending`,
       cancel_url:  `${appUrl}/register?plan=${resolvedPlan}`,
     })

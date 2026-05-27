@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { CLIENT_LIMITS, type Plan } from '@/lib/plans'
+import { PLAN_META, type Plan } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -16,12 +16,16 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await adminDb.auth.getUser(authHeader.replace('Bearer ', ''))
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Get existing subscription row
   const { data: existingSub } = await adminDb
     .from('subscriptions')
-    .select('stripe_customer_id, stripe_subscription_id, status, locked_at')
+    .select('stripe_customer_id, stripe_subscription_id, status, locked_at, is_ambassador')
     .eq('trainer_id', user.id)
     .maybeSingle()
+
+  // Ambassador accounts always have access — no Stripe sync needed
+  if (existingSub?.is_ambassador) {
+    return NextResponse.json({ hasAccess: true, status: 'active' })
+  }
 
   if (!existingSub?.stripe_subscription_id) {
     return NextResponse.json({ hasAccess: false, status: null })
@@ -29,7 +33,6 @@ export async function POST(req: NextRequest) {
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
 
-  // Pull fresh data directly from Stripe
   let sub: Stripe.Subscription
   try {
     sub = await stripe.subscriptions.retrieve(existingSub.stripe_subscription_id)
@@ -40,17 +43,15 @@ export async function POST(req: NextRequest) {
   const subA = sub as any
 
   const plan = (sub.metadata?.plan ?? 'starter') as Plan
-  const status = sub.status // 'active' | 'trialing' | 'past_due' | 'canceled' | etc.
+  const planMeta = PLAN_META[plan] ?? PLAN_META['starter']
+  const status = sub.status
 
-  // Only clear locked_at when subscription is healthy (active/trialing).
-  // For past_due/canceled/etc, preserve existing locked_at so the grace-period
-  // locking model in middleware and checkAccess continues to work correctly.
   const isHealthy = status === 'active' || status === 'trialing'
 
   const { error: syncErr } = await adminDb.from('subscriptions').update({
     status,
     plan,
-    client_limit:         CLIENT_LIMITS[plan] ?? 15,
+    client_limit:         planMeta.clientLimit,
     trial_start:          subA.trial_start != null          ? new Date(subA.trial_start          * 1000).toISOString() : null,
     trial_end:            subA.trial_end != null            ? new Date(subA.trial_end            * 1000).toISOString() : null,
     current_period_start: subA.current_period_start != null ? new Date(subA.current_period_start * 1000).toISOString() : null,

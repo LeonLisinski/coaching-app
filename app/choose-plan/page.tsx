@@ -4,8 +4,9 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Loader2, AlertTriangle, Clock, CreditCard, XCircle } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { Loader2, AlertTriangle, Clock, CreditCard, XCircle, Sparkles } from 'lucide-react'
+import { useTranslations, useLocale } from 'next-intl'
+import { isFoundingPromoActive, foundingPromoEndDate } from '@/lib/founding'
 
 function GradientLogo({ height = 32 }: { height?: number }) {
   return (
@@ -44,10 +45,14 @@ type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked' | nu
 export default function ChoosePlanPage() {
   const router = useRouter()
   const t = useTranslations('choosePlan')
+  const locale = useLocale()
   const [loading, setLoading]   = useState<string | null>(null)
   const [error, setError]       = useState('')
   const [subStatus, setSubStatus] = useState<SubStatus>(null)
   const [subLoading, setSubLoading] = useState(true)
+
+  const promoActive = isFoundingPromoActive()
+  const promoEndDate = foundingPromoEndDate(locale)
 
   const FEATURES_COMMON = [
     t('featureTrainingMeal'),
@@ -58,33 +63,9 @@ export default function ChoosePlanPage() {
   ]
 
   const PLANS = [
-    {
-      key:     'starter',
-      label:   'STARTER',
-      price:   29,
-      clients: t('clientLimitStarter'),
-      popular: false,
-      feats:   [t('clientLimitStarter')],
-      note:    null,
-    },
-    {
-      key:     'pro',
-      label:   'PRO',
-      price:   59,
-      clients: t('clientLimitPro'),
-      popular: true,
-      feats:   [t('clientLimitPro'), t('featOwnBranding')],
-      note:    null,
-    },
-    {
-      key:     'scale',
-      label:   'SCALE',
-      price:   99,
-      clients: t('clientLimitScale'),
-      popular: false,
-      feats:   [t('clientLimitScale'), t('featOwnBranding')],
-      note:    t('scalePlus'),
-    },
+    { key: 'starter', label: 'STARTER', price: 29, clients: t('clientLimitStarter'), popular: false },
+    { key: 'pro',     label: 'PRO',     price: 59, clients: t('clientLimitPro'),     popular: true  },
+    { key: 'scale',   label: 'SCALE',   price: 99, clients: t('clientLimitScale'),   popular: false },
   ]
 
   const STATUS_BANNER: Record<NonNullable<SubStatus>, { icon: React.ReactNode; bg: string; border: string; text: string; label: string; sub: string }> = {
@@ -195,6 +176,28 @@ export default function ChoosePlanPage() {
             </div>
           )}
 
+          {/* Founding promo banner */}
+          {promoActive && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              background: 'linear-gradient(135deg,rgba(0,102,255,.07),rgba(0,85,238,.04))',
+              border: '1px solid rgba(0,102,255,.25)',
+              borderRadius: 14, padding: '14px 18px',
+              maxWidth: 560, margin: '0 auto 20px', width: '100%',
+            }}>
+              <Sparkles size={16} color={BLUE} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: NAVY }}>
+                  {t('foundingBannerTitle')}
+                </p>
+                <p style={{ margin: '3px 0 0', fontSize: '.8rem', color: '#4b5a7a', lineHeight: 1.5 }}>
+                  {t('foundingBannerDesc')}
+                  {promoEndDate && <> {t('foundingBannerEnds', { date: promoEndDate })}</>}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Headline */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 900, color: NAVY, lineHeight: 1.1, margin: '0 0 10px' }}>
@@ -253,9 +256,26 @@ export default function ChoosePlanPage() {
                   </div>
 
                   {/* Price */}
-                  <div style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY, marginBottom: 4 }}>
-                    €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>{t('monthSuffix')}</span>
-                  </div>
+                  {promoActive ? (
+                    <div style={{ marginBottom: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                        <span style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY }}>
+                          €{(plan.price / 2).toFixed(2).replace('.00', '')}
+                        </span>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55 }}>{t('monthSuffix')}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                        <span style={{ fontSize: '.8rem', color: '#9ca3af', textDecoration: 'line-through' }}>€{plan.price}</span>
+                        <span style={{ fontSize: '.72rem', fontWeight: 700, color: BLUE, background: 'rgba(0,102,255,.09)', borderRadius: 6, padding: '2px 7px' }}>
+                          {t('foundingLabel')}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY, marginBottom: 4 }}>
+                      €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>{t('monthSuffix')}</span>
+                    </div>
+                  )}
 
                   {/* Clients */}
                   <div style={{ fontSize: '.8rem', color: '#6b7a99', marginBottom: 22 }}>{plan.clients}</div>
@@ -265,19 +285,13 @@ export default function ChoosePlanPage() {
 
                   {/* Features */}
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
-                    {[...plan.feats, ...FEATURES_COMMON].map(f => (
+                    {FEATURES_COMMON.map(f => (
                       <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: '.86rem', color: NAVY, lineHeight: 1.4 }}>
                         <Chk />
                         {f}
                       </li>
                     ))}
                   </ul>
-
-                  {plan.note && (
-                    <p style={{ fontSize: '.75rem', color: '#6b7a99', textAlign: 'center', lineHeight: 1.5, marginBottom: 12 }}>
-                      {plan.note}
-                    </p>
-                  )}
 
                   {/* CTA */}
                   <button onClick={() => handleSelectPlan(plan.key)} disabled={!!loading}
@@ -302,8 +316,10 @@ export default function ChoosePlanPage() {
 
           {/* Footer note */}
           <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: 16, paddingBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <p style={{ color: '#6b7a99', fontSize: '0.9rem', margin: 0 }}>
-              {t('footer')}
+            <p style={{ color: '#6b7a99', fontSize: '0.85rem', margin: 0 }}>
+              {locale === 'en'
+                ? '14 days free. Billing starts after the trial. Cancel anytime.'
+                : '14 dana besplatno. Naplata počinje tek nakon probnog razdoblja. Otkazivanje u svako doba.'}
             </p>
             <p style={{ fontSize: '0.9rem', color: '#9ca3af', margin: 0 }}>
               {t('wrongAccount')}{' '}

@@ -395,8 +395,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         // Subscription redirect happens in parallel (below) and redirects if needed.
         setAuthChecked(true)
 
-        const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null } | null) => {
+        const checkAccess = (sub: { status: string; trial_end?: string | null; locked_at?: string | null; is_ambassador?: boolean } | null) => {
           if (!sub) return false
+          // Ambassador accounts always have full access
+          if (sub.is_ambassador) return true
           const now = new Date()
           if (sub.status === 'active') return true
           if (sub.status === 'trialing') {
@@ -427,7 +429,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         // Run subscription check + profile fetch IN PARALLEL (one RTT instead of two serial)
         const [{ data: sub }, { data: profileData }] = await Promise.all([
-          supabase.from('subscriptions').select('status, trial_end, locked_at').eq('trainer_id', user.id).maybeSingle(),
+          supabase.from('subscriptions').select('status, trial_end, locked_at, is_ambassador').eq('trainer_id', user.id).maybeSingle(),
           supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).single(),
         ])
 

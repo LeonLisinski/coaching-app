@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useTranslations, useLocale } from 'next-intl'
 import {
   AlertTriangle, CreditCard, CheckCircle2, Loader2,
-  Zap, Crown, Rocket, ArrowUpRight, ArrowDownRight,
+  Zap, Crown, Rocket, ArrowUpRight, ArrowDownRight, Star, TrendingDown,
 } from 'lucide-react'
 
 type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked'
@@ -13,7 +13,8 @@ type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked'
 type Subscription = {
   plan: string
   status: SubStatus
-  client_limit: number
+  client_limit: number | null
+  is_ambassador: boolean
   trial_end: string | null
   current_period_end: string | null
   cancel_at_period_end: boolean
@@ -21,10 +22,33 @@ type Subscription = {
 }
 
 const PLANS = [
-  { key: 'starter', label: 'Starter', price: 29, clients: 15, icon: Zap,    color: '#3b82f6' },
-  { key: 'pro',     label: 'Pro',     price: 59, clients: 50, icon: Crown,  color: '#7c3aed' },
-  { key: 'scale',   label: 'Scale',   price: 99, clients: 150, icon: Rocket, color: '#059669' },
+  { key: 'starter', label: 'Starter', price: 29, clients: 10,  icon: Zap,    color: '#3b82f6' },
+  { key: 'pro',     label: 'Pro',     price: 59, clients: 30,  icon: Crown,  color: '#7c3aed' },
+  { key: 'scale',   label: 'Scale',   price: 99, clients: 75,  icon: Rocket, color: '#059669' },
 ]
+
+function UpdatePaymentButton({ label }: { label: string }) {
+  const [loading, setLoading] = useState(false)
+  const handleClick = async () => {
+    setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch('/api/billing/portal', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}` },
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+    else setLoading(false)
+  }
+  return (
+    <button onClick={handleClick} disabled={loading}
+      className="w-full h-11 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-70"
+      style={{ backgroundColor: 'var(--app-accent)' }}>
+      {loading ? <Loader2 size={15} className="animate-spin" /> : <CreditCard size={15} />}
+      {label}
+    </button>
+  )
+}
 
 export default function BillingPage() {
   const t      = useTranslations('billingPage')
@@ -45,9 +69,10 @@ export default function BillingPage() {
     if (!user) return
     const [subRes, clientsRes] = await Promise.all([
       supabase.from('subscriptions')
-        .select('plan,status,client_limit,trial_end,current_period_end,cancel_at_period_end,locked_at')
+        .select('plan,status,client_limit,is_ambassador,trial_end,current_period_end,cancel_at_period_end,locked_at')
         .eq('trainer_id', user.id).maybeSingle(),
-      supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id),
+      // Count only active clients (deactivated don't consume a slot)
+      supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id).eq('active', true),
     ])
     setSub(subRes.data ?? null)
     setClientCount(clientsRes.count ?? 0)
@@ -120,14 +145,20 @@ export default function BillingPage() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 size={24} className="animate-spin text-gray-300" /></div>
   }
 
-  const meta        = sub ? PLANS.find(p => p.key === sub.plan) : null
-  const Icon        = meta?.icon ?? CreditCard
-  const isLocked    = sub?.status === 'locked'
-  const isCanceled  = sub?.status === 'canceled'
-  const isPastDue   = sub?.status === 'past_due'
-  const isTrialing  = sub?.status === 'trialing'
-  const isActive    = sub?.status === 'active'
-  const canManage   = isActive || isTrialing
+  const isAmbassador = sub?.is_ambassador === true
+  const meta         = sub ? PLANS.find(p => p.key === sub.plan) : null
+  const Icon         = isAmbassador ? Star : (meta?.icon ?? CreditCard)
+  const isLocked     = sub?.status === 'locked'
+  const isCanceled   = sub?.status === 'canceled'
+  const isPastDue    = sub?.status === 'past_due'
+  const isTrialing   = sub?.status === 'trialing'
+  const isActive     = sub?.status === 'active'
+  const canManage    = !isAmbassador && (isActive || isTrialing)
+
+  // Downgrade suggestion: if trainer is on pro/scale and has room to go lower
+  const lowerPlan = sub && !isAmbassador && sub.plan !== 'starter'
+    ? PLANS.find(p => p.clients >= clientCount && p.price < (meta?.price ?? 999))
+    : null
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
@@ -164,8 +195,30 @@ export default function BillingPage() {
           </div>
         )}
 
+        {/* Ambassador card */}
+        {isAmbassador && (
+          <div className="bg-gradient-to-br from-violet-50 to-blue-50 rounded-2xl border border-violet-200 p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-violet-100">
+                <Star size={18} className="text-violet-600" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Ambassador plan</p>
+                <p className="text-xs text-gray-500">Besplatan pristup · neograničeni klijenti</p>
+              </div>
+              <span className="ml-auto px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">Aktivan</span>
+            </div>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Hvala što testiraš i podržavaš UnitLift. Imaš trajni besplatni pristup svim funkcijama.
+            </p>
+            <a href="/dashboard" className="w-full h-10 rounded-xl border border-violet-200 text-violet-700 text-sm font-medium flex items-center justify-center hover:bg-violet-50 transition-colors">
+              {t('backToDashboard')}
+            </a>
+          </div>
+        )}
+
         {/* Current plan card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        {!isAmbassador && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: (meta?.color ?? '#6b7280') + '15' }}>
@@ -215,17 +268,34 @@ export default function BillingPage() {
             </div>
           )}
 
+          {/* Downgrade suggestion */}
+          {lowerPlan && (
+            <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100">
+              <TrendingDown size={14} className="text-blue-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  {locale === 'en'
+                    ? `You're using ${clientCount} active clients — the ${lowerPlan.label} plan (€${lowerPlan.price}/mo) covers your current needs and saves you €${(meta?.price ?? 0) - lowerPlan.price}/mo.`
+                    : `Koristiš ${clientCount} aktivnih klijenata — ${lowerPlan.label} plan (€${lowerPlan.price}/mj) je dovoljan i uštedio bi ti €${(meta?.price ?? 0) - lowerPlan.price}/mj.`
+                  }
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowChangePlan(true); setError(''); setSuccess('') }}
+                className="text-xs font-semibold text-blue-600 shrink-0 hover:underline"
+              >
+                {t('downgrade')}
+              </button>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="space-y-2 pt-2">
             {(isLocked || isPastDue) && (
-              <a href="https://billing.stripe.com" target="_blank" rel="noopener noreferrer"
-                className="w-full h-11 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2"
-                style={{ backgroundColor: 'var(--app-accent)' }}>
-                <CreditCard size={15} /> {t('updatePayment')}
-              </a>
+              <UpdatePaymentButton label={t('updatePayment')} />
             )}
             {isCanceled && (
-              <a href="https://unitlift.com/#cijene"
+              <a href="/choose-plan"
                 className="w-full h-11 rounded-xl text-white font-semibold text-sm flex items-center justify-center"
                 style={{ backgroundColor: 'var(--app-accent)' }}>
                 {t('resubscribe')}
@@ -255,7 +325,7 @@ export default function BillingPage() {
               </a>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Change plan section */}
         {showChangePlan && sub && (
