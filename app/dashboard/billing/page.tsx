@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useTranslations, useLocale } from 'next-intl'
 import {
   AlertTriangle, CreditCard, CheckCircle2, Loader2,
-  Zap, Crown, Rocket, ArrowUpRight, ArrowDownRight, Star, TrendingDown,
+  Zap, Crown, Rocket, ArrowUpRight, ArrowDownRight, Star, TrendingDown, Sparkles,
 } from 'lucide-react'
 
 type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked'
@@ -21,6 +21,8 @@ type Subscription = {
   locked_at: string | null
   scheduled_plan_change: string | null
   scheduled_plan_change_at: string | null
+  promo_ends_at: string | null
+  promo_lost_at: string | null
 }
 
 const PLANS = [
@@ -71,7 +73,7 @@ export default function BillingPage() {
     if (!user) return
     const [subRes, clientsRes] = await Promise.all([
       supabase.from('subscriptions')
-        .select('plan,status,client_limit,is_ambassador,trial_end,current_period_end,cancel_at_period_end,locked_at,scheduled_plan_change,scheduled_plan_change_at')
+        .select('plan,status,client_limit,is_ambassador,trial_end,current_period_end,cancel_at_period_end,locked_at,scheduled_plan_change,scheduled_plan_change_at,promo_ends_at,promo_lost_at')
         .eq('trainer_id', user.id).maybeSingle(),
       // Count only active clients (deactivated don't consume a slot)
       supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id).eq('active', true),
@@ -257,6 +259,18 @@ export default function BillingPage() {
 
           {sub && (
             <div className="space-y-2 pt-1 border-t border-gray-50">
+              {/* Founding promo banner */}
+              {sub.promo_ends_at && !sub.promo_lost_at && Date.now() < new Date(sub.promo_ends_at).getTime() && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+                  <Sparkles size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-blue-800">{t('promoTitle')}</p>
+                    <p className="text-[11px] text-blue-600 mt-0.5">
+                      {t('promoDesc', { date: new Date(sub.promo_ends_at).toLocaleDateString(locale) })}
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">{t('activeClients')}</span>
                 <span className={`font-medium ${clientCount >= (sub.client_limit ?? 0) ? 'text-red-600' : 'text-gray-800'}`}>

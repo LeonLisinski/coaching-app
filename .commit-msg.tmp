@@ -1,12 +1,11 @@
-fix(ts): resolve all TypeScript build errors before deploy
+fix(ui): correct plan limits and add founding promo display across billing UI
 
-- lib/stripe.ts: new shared factory (createStripeClient) with single
-  apiVersion cast to any — all routes import from here instead of
-  instantiating Stripe directly
-- app/api routes: replaced 13x new Stripe(...) with createStripeClient()
-- webhooks/stripe: cast stripe.subscriptions.update params to any for
-  legacy coupon field removed from newer SDK types
-- add-client-dialog: wrap handleSubmit in arrow fn for MouseEventHandler type
-- lib/trial.ts: replace .then().catch() (PromiseLike has no .catch) with
-  try/catch
-- scripts: add as any cast to apiVersion
+- settings-dialog.tsx: fix PLANS_SETTINGS clients 15/50/150 -> 10/30/75;
+  fetch promo_ends_at/promo_lost_at; show founding promo banner in billing tab
+- billing/page.tsx: add promo fields to subscription type and select query;
+  show founding promo banner with expiry date
+- register/page.tsx: fix PLAN_META clients 15/50/150 -> 10/30/75;
+  add isFoundingPromoActive() helper; show discounted price with strikethrough
+  on both desktop and mobile plan summary cards
+- messages/hr.json + en.json: add billingPromoTitle/billingPromoDesc keys
+  for settings billing tab; add promoTitle/promoDesc keys for billing page

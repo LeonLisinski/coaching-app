@@ -13,10 +13,24 @@ import UnitLiftLogo from '@/app/components/unitlift-logo'
 const FEATURE_ICONS = [Dumbbell, CheckCircle2, MessageSquare, TrendingUp] as const
 const FEATURE_KEYS  = ['training', 'checkin', 'chat', 'finance'] as const
 
-const PLAN_META: Record<string, { label: string; price: string; clients: string; icon: typeof Crown; color: string }> = {
-  starter: { label: 'Starter', price: '€29/mj', clients: '15 klijenata', icon: Zap,    color: '#3b82f6' },
-  pro:     { label: 'Pro',     price: '€59/mj', clients: '50 klijenata', icon: Crown,  color: '#7c3aed' },
-  scale:   { label: 'Scale',   price: '€99/mj', clients: '150 klijenata', icon: Rocket, color: '#059669' },
+const PLAN_META: Record<string, { label: string; price: string; basePrice: number; clients: string; icon: typeof Crown; color: string }> = {
+  starter: { label: 'Starter', price: '€29/mj', basePrice: 29, clients: '10 klijenata', icon: Zap,    color: '#3b82f6' },
+  pro:     { label: 'Pro',     price: '€59/mj', basePrice: 59, clients: '30 klijenata', icon: Crown,  color: '#7c3aed' },
+  scale:   { label: 'Scale',   price: '€99/mj', basePrice: 99, clients: '75 klijenata', icon: Rocket, color: '#059669' },
+}
+
+function isFoundingPromoActive(): boolean {
+  const end = process.env.NEXT_PUBLIC_FOUNDING_PROMO_END
+  if (!end) return false
+  return Date.now() < new Date(end).getTime()
+}
+
+function foundingPromoEndDate(): string | null {
+  const end = process.env.NEXT_PUBLIC_FOUNDING_PROMO_END
+  if (!end) return null
+  try {
+    return new Date(end).toLocaleDateString('hr-HR', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch { return end }
 }
 
 const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL || 'https://unitlift.com'
@@ -29,6 +43,11 @@ function RegisterInner() {
   const router = useRouter()
 
   const plan = searchParams.get('plan') ?? ''
+
+  const promoActive    = isFoundingPromoActive()
+  const promoEndDate   = foundingPromoEndDate()
+  const planMeta       = PLAN_META[plan]
+  const promoPrice     = planMeta ? (planMeta.basePrice / 2).toFixed(2).replace('.00', '') : null
 
   const [step, setStep]               = useState<Step>('validating')
   const [fullName, setFullName]       = useState('')
@@ -48,8 +67,6 @@ function RegisterInner() {
       router.replace(`${LANDING_URL}/cijene`)
     }
   }, [plan, router])
-
-  const planMeta = PLAN_META[plan]
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor     = 'var(--app-accent)'
@@ -194,8 +211,18 @@ function RegisterInner() {
                       <p className="text-white font-bold text-sm leading-none">Plan {planMeta.label}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-white font-black text-2xl leading-none">{planMeta.price}</p>
-                      <p className="text-white/35 text-[10px] mt-1">po mjesecu</p>
+                      {promoActive && promoPrice ? (
+                        <>
+                          <p className="text-white font-black text-2xl leading-none">€{promoPrice}<span className="text-sm font-normal text-white/50">/mj</span></p>
+                          <p className="text-white/40 text-[10px] line-through mt-0.5">{planMeta.price}</p>
+                          <span className="inline-block text-[9px] font-bold text-blue-300 bg-blue-500/20 rounded px-1.5 py-0.5 mt-0.5">{t('foundingLabel')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-white font-black text-2xl leading-none">{planMeta.price}</p>
+                          <p className="text-white/35 text-[10px] mt-1">po mjesecu</p>
+                        </>
+                      )}
                     </div>
                   </div>
                   {/* Client limit badge */}
@@ -302,7 +329,14 @@ function RegisterInner() {
                           <p className="text-white text-xs font-bold">Plan {planMeta.label}</p>
                           <p className="text-white/40 text-[10px]">{planMeta.clients} · 14 dana besplatno</p>
                         </div>
-                        <p className="text-white font-black text-xl shrink-0">{planMeta.price}</p>
+                        {promoActive && promoPrice ? (
+                          <div className="text-right shrink-0">
+                            <p className="text-white font-black text-xl leading-none">€{promoPrice}<span className="text-xs font-normal text-white/50">/mj</span></p>
+                            <p className="text-white/40 text-[9px] line-through">{planMeta.price}</p>
+                          </div>
+                        ) : (
+                          <p className="text-white font-black text-xl shrink-0">{planMeta.price}</p>
+                        )}
                       </div>
                       <div className="px-4 py-2 flex items-center gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                         <span className="text-[10px] text-white/50">✓ 30 dana povrat</span>

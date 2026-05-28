@@ -62,15 +62,16 @@ export default function SettingsDialog({ open, onClose }: Props) {
   const [subData, setSubData] = useState<{
     plan: string; status: string; client_limit: number;
     trial_end: string | null; current_period_end: string | null; cancel_at_period_end: boolean
+    promo_ends_at: string | null; promo_lost_at: string | null
   } | null>(null)
   const [subLoading, setSubLoading]       = useState(false)
   const [cancelingPlan, setCancelingPlan] = useState(false)
   const [subClientCount, setSubClientCount] = useState(0)
 
   const PLANS_SETTINGS = [
-    { key: 'starter', label: 'Starter', price: 29, clients: 15, icon: Zap,    color: '#3b82f6' },
-    { key: 'pro',     label: 'Pro',     price: 59, clients: 50, icon: Crown,  color: '#7c3aed' },
-    { key: 'scale',   label: 'Scale',   price: 99, clients: 150, icon: Rocket, color: '#059669' },
+    { key: 'starter', label: 'Starter', price: 29, clients: 10, icon: Zap,    color: '#3b82f6' },
+    { key: 'pro',     label: 'Pro',     price: 59, clients: 30, icon: Crown,  color: '#7c3aed' },
+    { key: 'scale',   label: 'Scale',   price: 99, clients: 75, icon: Rocket, color: '#059669' },
   ]
 
   const PLAN_META_SETTINGS: Record<string, { label: string; price: string; icon: typeof Zap; color: string }> = {
@@ -90,7 +91,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
     if (!user) { setSubLoading(false); return }
     const [subRes, clientsRes] = await Promise.all([
       supabase.from('subscriptions')
-        .select('plan,status,client_limit,trial_end,current_period_end,cancel_at_period_end')
+        .select('plan,status,client_limit,trial_end,current_period_end,cancel_at_period_end,promo_ends_at,promo_lost_at')
         .eq('trainer_id', user.id).maybeSingle(),
       supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id),
     ])
@@ -493,6 +494,19 @@ export default function SettingsDialog({ open, onClose }: Props) {
                         {isTrialing ? t('billingStatusTrial') : isActive ? t('billingStatusActive') : subData.status}
                       </span>
                     </div>
+
+                    {/* Founding promo banner */}
+                    {subData.promo_ends_at && !subData.promo_lost_at && Date.now() < new Date(subData.promo_ends_at).getTime() && (
+                      <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-blue-50 border border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20">
+                        <Sparkles size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">{t('billingPromoTitle')}</p>
+                          <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">
+                            {t('billingPromoDesc', { date: new Date(subData.promo_ends_at).toLocaleDateString(locale) })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {isTrialing && subData.trial_end && (
                       <p className="text-xs text-gray-500 text-center">{t('billingTrialEnds')} <strong>{new Date(subData.trial_end).toLocaleDateString(locale)}</strong></p>
