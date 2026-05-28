@@ -1902,10 +1902,10 @@
     "clientLimitStarter": "Up to 10 active clients",
     "clientLimitPro": "Up to 30 active clients",
     "clientLimitScale": "Up to 75 active clients",
-    "foundingBannerTitle": "Founding offer",
-    "foundingBannerDesc": "50% off forever — valid while subscription stays active.",
-    "foundingBannerEnds": "Offer ends {date}.",
-    "foundingLabel": "founding price",
+    "foundingBannerTitle": "🎉 Promo — 50% off your first 12 months",
+    "foundingBannerDesc": "Pay half price for your entire first year. Discount applies only while subscription stays active.",
+    "foundingBannerEnds": "Promo ends {date}.",
+    "foundingLabel": "PROMO -50%",
     "featOwnBranding": "Custom logo and colors in client app"
   },
   "clientDetail": {

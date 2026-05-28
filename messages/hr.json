@@ -1902,10 +1902,10 @@
     "clientLimitStarter": "Do 10 aktivnih klijenata",
     "clientLimitPro": "Do 30 aktivnih klijenata",
     "clientLimitScale": "Do 75 aktivnih klijenata",
-    "foundingBannerTitle": "Founding ponuda",
-    "foundingBannerDesc": "50% popusta zauvijek — vrijedi dok je pretplata neprekinuto aktivna.",
-    "foundingBannerEnds": "Ponuda završava {date}.",
-    "foundingLabel": "founding cijena",
+    "foundingBannerTitle": "🎉 Promo akcija — 50% popusta prvih 12 mjeseci",
+    "foundingBannerDesc": "Plati upola manje cijelu prvu godinu. Popust vrijedi samo dok je pretplata aktivna.",
+    "foundingBannerEnds": "Akcija traje do {date}.",
+    "foundingLabel": "PROMO -50%",
     "featOwnBranding": "Vlastiti logo i boje u klijentskoj aplikaciji"
   },
   "clientDetail": {
