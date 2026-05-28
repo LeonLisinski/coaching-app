@@ -48,3 +48,6 @@ rls-snapshot.sql
 
 # Internal documentation (contains project IDs, app identifiers)
 TECHNICAL_DOCS.md
+
+# Temporary commit message files
+.commit-msg.tmp
