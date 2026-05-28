@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
-import { PLAN_META } from '@/lib/plans'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Daily cron: report current Scale overage usage to Stripe.
+ * Daily backup/reconciliation cron: reports the peak Scale overage block count
+ * for the current billing period to Stripe.
  *
- * Extra blocks = ceil(max(0, activeClients - 75) / 25)
- * Each block = €10/mo.
+ * IMPORTANT: this cron reads subscriptions.max_overage_blocks (the stored peak),
+ * NOT the live active-client count. The peak is written by set-active and
+ * create-client immediately when a tier crossing is confirmed, so it captures
+ * every threshold crossing even if the trainer deactivates the client before
+ * this cron runs.
  *
- * Uses stripe.subscriptionItems.createUsageRecord with action='set' and
- * aggregate_usage='max' on the price — Stripe keeps the highest value reported
- * during the billing period and charges that at the end of the month.
- * This means a trainer is billed for the peak they reached, not the current
- * count at the moment of invoicing.
+ * The daily run acts as a retry/reconciliation layer: if the immediate Stripe
+ * report inside set-active/create-client failed, this cron will re-send the
+ * correct peak value.
+ *
+ * Stripe aggregates with action='set' + aggregate_usage='max' on the price —
+ * the highest value reported during the period is what gets billed.
+ *
+ * max_overage_blocks is reset to 0 by the webhook on each invoice.payment_succeeded
+ * (start of new billing period).
+ *
+ * NOTE: uses Stripe API version 2025-02-24.acacia — the LAST version that supports
+ * the legacy subscriptionItems.createUsageRecord endpoint. This endpoint was
+ * removed in 2025-03-31.basil. New Billing Meters do not support max aggregation,
+ * so the legacy API is intentionally retained.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET
@@ -30,7 +42,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const overagePriceId = PLAN_META['scale'].stripeOveragePriceId
+  const overagePriceId = process.env.STRIPE_PRICE_SCALE_OVERAGE
   if (!overagePriceId) {
     return NextResponse.json({ ok: true, skipped: 'No overage price configured' })
   }
@@ -39,11 +51,12 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
 
+  // Read stored peak overage blocks — NOT live active client count.
   const { data: scaleSubs } = await supabase
     .from('subscriptions')
-    .select('trainer_id, stripe_subscription_id')
+    .select('trainer_id, stripe_subscription_id, max_overage_blocks')
     .eq('plan', 'scale')
     .eq('status', 'active')
     .not('is_ambassador', 'eq', true)
@@ -53,27 +66,19 @@ export async function GET(req: NextRequest) {
 
   for (const sub of scaleSubs ?? []) {
     try {
-      const { count: activeClients } = await supabase
-        .from('clients')
-        .select('id', { count: 'exact', head: true })
-        .eq('trainer_id', sub.trainer_id)
-        .eq('active', true)
+      const blocks = sub.max_overage_blocks ?? 0
 
-      const count = activeClients ?? 0
-      const limit = PLAN_META['scale'].clientLimit ?? 75
-      const blockSize = PLAN_META['scale'].overageBlockSize ?? 25
-      const extraBlocks = Math.max(0, Math.ceil((count - limit) / blockSize))
-
-      // Find the overage subscription item
       const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
       const overageItem = stripeSub.items.data.find(i => i.price.id === overagePriceId)
 
       if (overageItem) {
-        // Report current usage — Stripe aggregates as MAX over the billing period.
-        // action='set' means "this is the current quantity right now".
-        // The price must be created with aggregate_usage='max' in Stripe Dashboard.
-        await stripe.subscriptionItems.createUsageRecord(overageItem.id, {
-          quantity:  extraBlocks,
+        // The Stripe SDK's TypeScript types no longer expose `createUsageRecord`
+        // (it was removed from the types when Stripe deprecated the legacy
+        // metered usage API). The runtime endpoint still works as long as the
+        // pinned API version (2025-02-24.acacia) is used at request time, so
+        // we cast to `any` to bypass the type check.
+        await (stripe.subscriptionItems as any).createUsageRecord(overageItem.id, {
+          quantity:  blocks,
           action:    'set',
           timestamp: Math.floor(Date.now() / 1000),
         })

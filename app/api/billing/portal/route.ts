@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No Stripe subscription to manage.' }, { status: 400 })
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
 
   const portalSession = await stripe.billingPortal.sessions.create({

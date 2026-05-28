@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { PLAN_META, type Plan } from '@/lib/plans'
+import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ hasAccess: false, status: null })
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
 
   let sub: Stripe.Subscription
   try {
@@ -42,8 +42,11 @@ export async function POST(req: NextRequest) {
   }
   const subA = sub as any
 
-  const plan = (sub.metadata?.plan ?? 'starter') as Plan
-  const planMeta = PLAN_META[plan] ?? PLAN_META['starter']
+  // STRICT plan whitelist — Stripe metadata could in theory contain anything
+  // (admin tampering, manual update). Never accept 'ambassador' here.
+  const rawPlan = sub.metadata?.plan ?? 'starter'
+  const plan: Plan = BILLABLE_PLANS.includes(rawPlan as Plan) ? (rawPlan as Plan) : 'starter'
+  const planMeta = PLAN_META[plan]
   const status = sub.status
 
   const isHealthy = status === 'active' || status === 'trialing'

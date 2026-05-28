@@ -121,6 +121,8 @@ function ClientsPageContent() {
   const [confirmToggle, setConfirmToggle] = useState<Client | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Client | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [upgradeRequired, setUpgradeRequired] = useState<{ plan: string; current: number; limit: number } | null>(null)
+  const [overageConfirm, setOverageConfirm] = useState<{ client: Client; info: { currentBlocks: number; newBlocks: number; additionalEur: number; newTotalEur: number; newCount: number } } | null>(null)
   const [copyClient, setCopyClient] = useState<Client | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [checkinTodayOnly, setCheckinTodayOnly] = useState(false)
@@ -241,13 +243,33 @@ function ClientsPageContent() {
     setLoading(false)
   }
 
-  const toggleStatus = async (client: Client) => {
+  const toggleStatus = async (client: Client, opts?: { confirm_overage?: boolean }) => {
     setDeleting(true)
-    const { error } = await supabase.from('clients').update({ active: !client.active }).eq('id', client.id)
+    const newActive = !client.active
+    const { data: { session } } = await supabase.auth.getSession()
+    const res = await fetch(`/api/clients/${client.id}/set-active`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: newActive, confirm_overage: opts?.confirm_overage }),
+    })
+    const data = await res.json()
     setDeleting(false)
-    if (error) { console.error('[toggleStatus]', error.message); return }
-    setClients(prev => prev.map(c => c.id === client.id ? { ...c, active: !c.active } : c))
+
+    if (res.status === 402 && data?.error === 'UPGRADE_REQUIRED') {
+      setUpgradeRequired({ plan: data.plan, current: data.current, limit: data.limit })
+      setConfirmToggle(null)
+      return
+    }
+    if (res.status === 402 && data?.error === 'OVERAGE_CONFIRMATION_REQUIRED') {
+      setOverageConfirm({ client, info: data })
+      setConfirmToggle(null)
+      return
+    }
+    if (!res.ok) { console.error('[toggleStatus]', data); return }
+
+    setClients(prev => prev.map(c => c.id === client.id ? { ...c, active: newActive } : c))
     setConfirmToggle(null)
+    setOverageConfirm(null)
   }
 
   const deleteClient = async (client: Client) => {
@@ -875,6 +897,41 @@ function ClientsPageContent() {
         onCancel={() => setConfirmToggle(null)}
         confirmLabel={tCommon(confirmToggle?.active ? 'inactive' : 'active')}
         destructive={confirmToggle?.active}
+        loading={deleting}
+      />
+
+      {/* Upgrade required modal — Starter/Pro hit limit */}
+      <ConfirmDialog
+        open={upgradeRequired !== null}
+        title="Dostigao si limit plana"
+        description={
+          <div className="space-y-3">
+            <p>Tvoj <strong>{upgradeRequired?.plan === 'starter' ? 'Starter' : 'Pro'}</strong> plan dopušta najviše <strong>{upgradeRequired?.limit}</strong> aktivnih klijenata. Trenutno ih imaš <strong>{upgradeRequired?.current}</strong>.</p>
+            <p>Za dodavanje/aktivaciju ovog klijenta nadogradi na <strong>{upgradeRequired?.plan === 'starter' ? 'Pro' : 'Scale'}</strong> plan.</p>
+          </div>
+        }
+        confirmLabel="Otvori plaćanja"
+        onConfirm={() => { router.push('/dashboard/billing'); setUpgradeRequired(null) }}
+        onCancel={() => setUpgradeRequired(null)}
+      />
+
+      {/* Scale overage confirmation modal */}
+      <ConfirmDialog
+        open={overageConfirm !== null}
+        title="Potvrdi dodatni Scale obračun"
+        description={
+          <div className="space-y-3">
+            <p>Aktivacijom ovog klijenta prijeđeš na <strong>{overageConfirm?.info.newCount}</strong> aktivnih klijenata, što ulazi u dodatni Scale obračun.</p>
+            <p>
+              Nova mjesečna cijena: <strong>€{overageConfirm?.info.newTotalEur}/mj</strong><br/>
+              (osnovni Scale €99 + €{overageConfirm?.info.additionalEur} za dodatne klijente)
+            </p>
+            <p className="text-xs text-gray-500">Overage se obračunava na temelju najvećeg broja aktivnih klijenata dosegnutog u trenutnom billing periodu.</p>
+          </div>
+        }
+        confirmLabel="Potvrdi i aktiviraj"
+        onConfirm={() => overageConfirm && toggleStatus(overageConfirm.client, { confirm_overage: true })}
+        onCancel={() => setOverageConfirm(null)}
         loading={deleting}
       />
 

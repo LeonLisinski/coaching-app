@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
-import { PLAN_META, PUBLIC_PLANS, type Plan } from '@/lib/plans'
-import { isFoundingPromoActive } from '@/lib/founding'
+import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
+import { isPromoEligible } from '@/lib/promo'
+import { isTrialEligible } from '@/lib/trial'
 import { sendResendEmail } from '@/lib/resend-server'
 
 // Simple per-instance sliding window rate limiter.
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
   // case to keep case-insensitive lookups (e.g. find-or-invite) working.
   const email = rawEmail.trim().toLowerCase()
 
-  const resolvedPlan = (PUBLIC_PLANS.includes(plan as Plan) ? plan : 'starter') as Plan
+  // STRICT plan whitelist. 'ambassador' never accepted here.
+  const resolvedPlan = (BILLABLE_PLANS.includes(plan as Plan) ? plan : 'starter') as Plan
   const priceId = PLAN_META[resolvedPlan].stripePriceId
   if (!priceId) {
     return NextResponse.json({ error: 'Plan nije konfiguriran.' }, { status: 500 })
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
 
   let stripe: Stripe
   try {
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' })
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
   } catch (e) {
     console.error('[register/start] Stripe init error:', e)
     return NextResponse.json({ error: 'Konfiguracijska greška. Kontaktiraj podršku.' }, { status: 500 })
@@ -174,36 +176,72 @@ export async function POST(req: NextRequest) {
 
   let checkoutUrl: string
   try {
-    const customer = await stripe.customers.create({
-      email,
-      name:  full_name.trim(),
-      metadata: { supabase_user_id: user.id },
-    })
+    // Reuse existing Stripe customer by email if present (avoids duplicates
+    // on re-registration). Otherwise create new.
+    let customerId: string
+    const existing = await stripe.customers.list({ email, limit: 1 })
+    if (existing.data.length > 0) {
+      customerId = existing.data[0].id
+      // Update metadata to point at this Supabase user (latest registration).
+      await stripe.customers.update(customerId, {
+        name: full_name.trim(),
+        metadata: { supabase_user_id: user.id },
+      })
+    } else {
+      const customer = await stripe.customers.create({
+        email,
+        name:  full_name.trim(),
+        metadata: { supabase_user_id: user.id },
+      })
+      customerId = customer.id
+    }
+
+    // Trial only once ever — even brand new auth user is checked because the
+    // profile row already exists at this point with the same id as auth user.
+    // (For first-ever registration, profile.trial_used_at IS NULL → eligible.)
+    const eligibleByDb = await isTrialEligible(adminDb, user.id)
+    let eligibleByStripe = true
+    if (eligibleByDb) {
+      const priorSubs = await stripe.subscriptions.list({ customer: customerId, limit: 100, status: 'all' })
+      eligibleByStripe = !priorSubs.data.some(s => (s as any).trial_start != null)
+    }
+    const grantTrial = eligibleByDb && eligibleByStripe
+
+    // Promo eligibility — new users only, while global promo date is in the future.
+    const grantPromo = !!(await isPromoEligible(adminDb, user.id)) && !!process.env.STRIPE_COUPON_FOUNDING
+
+    // Same deferred-coupon logic as /api/billing/checkout:
+    //   • With trial: apply coupon via trial_will_end webhook so 12 months start from first paid invoice.
+    //   • Without trial: apply coupon immediately — subscription_create is the first paid invoice.
+    const applyCouponNow = grantPromo && !grantTrial
 
     const planMeta = PLAN_META[resolvedPlan]
-    const useFoundingPromo = isFoundingPromoActive() && !!process.env.STRIPE_COUPON_FOUNDING
 
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }]
     if (resolvedPlan === 'scale' && planMeta.stripeOveragePriceId) {
-      lineItems.push({ price: planMeta.stripeOveragePriceId, quantity: 0 })
+      lineItems.push({ price: planMeta.stripeOveragePriceId })
     }
 
     const session = await stripe.checkout.sessions.create({
-      customer:                  customer.id,
+      customer:                  customerId,
       mode:                      'subscription',
       payment_method_types:      ['card'],
       payment_method_collection: 'always',
       line_items:                lineItems,
       subscription_data: {
-        trial_period_days: 14,
+        ...(grantTrial ? { trial_period_days: 14 } : {}),
         metadata: { plan: resolvedPlan, supabase_user_id: user.id },
       },
-      ...(useFoundingPromo ? {
+      // Promo is controlled SERVER-SIDE only. We never allow manual promotion codes.
+      ...(applyCouponNow ? {
         discounts: [{ coupon: process.env.STRIPE_COUPON_FOUNDING! }],
-      } : {
-        allow_promotion_codes: true,
-      }),
-      metadata: { plan: resolvedPlan, supabase_user_id: user.id },
+      } : {}),
+      metadata: {
+        plan:             resolvedPlan,
+        supabase_user_id: user.id,
+        granted_trial:    grantTrial ? '1' : '0',
+        promo_granted:    grantPromo ? '1' : '0',
+      },
       success_url: `${appUrl}/dashboard?setup=pending`,
       cancel_url:  `${appUrl}/register?plan=${resolvedPlan}`,
     })

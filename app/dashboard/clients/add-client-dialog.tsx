@@ -66,6 +66,13 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
   const [error, setError]     = useState('')
   const [limitInfo, setLimitInfo] = useState<{ current: number; limit: number; plan: string } | null>(null)
   const [limitChecking, setLimitChecking] = useState(false)
+  const [overagePrompt, setOveragePrompt] = useState<null | {
+    newCount: number
+    baseEur: number
+    additionalEur: number
+    newTotalEur: number
+    inPromo: boolean
+  }>(null)
 
   // Step 1
   const [full_name, setFullName]         = useState('')
@@ -131,7 +138,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
   // Reset on open + check limit
   useEffect(() => {
     if (open) {
-      setStep('account'); setError(''); setLimitInfo(null)
+      setStep('account'); setError(''); setLimitInfo(null); setOveragePrompt(null)
       setFullName(initialValues?.full_name || ''); setEmail(initialValues?.email || ''); setGender(initialValues?.gender || '')
       setGoal(''); setDobDisplay(''); setDob(''); setStartDateDisplay(''); setStartDate(''); setWeight(''); setHeight(''); setActivity(''); setNotes('')
       setSelectedWorkout(''); setSelectedMeal(''); setSelectedMealRest(''); setMealPlanMode('default'); setSelectedPackage(''); setCheckinDay(null)
@@ -166,7 +173,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
     }
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (opts?: { confirm_overage?: boolean }) => {
     setLoading(true); setError('')
 
     try {
@@ -181,6 +188,13 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
       client_id?: string
       reactivated?: boolean
       existing_account?: boolean
+      currentBlocks?: number
+      newBlocks?: number
+      baseEur?: number
+      additionalEur?: number
+      newTotalEur?: number
+      newCount?: number
+      inPromo?: boolean
     }
     let result: CreateClientResult
     try {
@@ -200,12 +214,24 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
             gender: gender || null,
             activity_level: activity_level || null,
             notes: notes || null,
+            confirm_overage: opts?.confirm_overage ?? false,
           }),
         }
       )
       result = (await response.json()) as CreateClientResult
     } catch {
       setError(tAdd('errConnection'))
+      setLoading(false)
+      return
+    }
+    if (result.error === 'OVERAGE_CONFIRMATION_REQUIRED') {
+      setOveragePrompt({
+        newCount:      result.newCount      ?? 0,
+        baseEur:       result.baseEur       ?? 99,
+        additionalEur: result.additionalEur ?? 0,
+        newTotalEur:   result.newTotalEur   ?? 99,
+        inPromo:       result.inPromo       ?? false,
+      })
       setLoading(false)
       return
     }
@@ -329,7 +355,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
         </div>
 
         {/* Step indicator — hidden when limit reached */}
-        <div className={`flex shrink-0 border-b ${isDark ? 'border-white/8' : 'border-gray-100'} ${limitInfo || limitChecking ? 'hidden' : ''}`}>
+        <div className={`flex shrink-0 border-b ${isDark ? 'border-white/8' : 'border-gray-100'} ${limitInfo || limitChecking || overagePrompt ? 'hidden' : ''}`}>
           {STEPS.map((s, i) => {
             const isActive  = step === s.key
             const isDone    = STEPS.findIndex(x => x.key === step) > i
@@ -366,8 +392,44 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
             </div>
           )}
 
+          {/* ── Scale overage confirmation screen ── */}
+          {!limitChecking && overagePrompt && (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-4">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? '' : 'bg-blue-50'}`}
+                style={isDark ? { backgroundColor: 'rgba(59,130,246,0.2)' } : {}}>
+                <TrendingUp size={26} className={isDark ? 'text-blue-300' : 'text-blue-500'} />
+              </div>
+              <div className="space-y-1">
+                <h3 className={`font-bold text-base ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>Potvrdi dodatni Scale obračun</h3>
+                <p className={`text-sm max-w-[320px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Aktivacijom ovog klijenta prijeđeš na <span className="font-semibold">{overagePrompt.newCount}</span> aktivnih klijenata.
+                </p>
+              </div>
+              <div className={`px-6 py-4 rounded-xl border space-y-1 text-center ${isDark ? 'border-white/8 bg-white/[0.04]' : 'bg-gray-50 border-gray-100'}`}>
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Nova mjesečna cijena</p>
+                <p className="text-3xl font-extrabold" style={{ color: accentHex }}>€{overagePrompt.newTotalEur}<span className="text-sm font-medium opacity-60">/mj</span></p>
+                <p className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Scale €{overagePrompt.baseEur} + €{overagePrompt.additionalEur} dodatno{overagePrompt.inPromo ? ' (promo 50%)' : ''}</p>
+              </div>
+              <p className={`text-[11px] max-w-[300px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Overage se obračunava prema najvećem broju aktivnih klijenata dosegnutom u trenutnom billing periodu.
+              </p>
+              <div className="flex flex-col gap-2 w-full max-w-[260px]">
+                <button onClick={() => handleSubmit({ confirm_overage: true })}
+                  disabled={loading}
+                  className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
+                  style={{ backgroundColor: accentHex }}>
+                  {loading ? 'Aktiviram…' : 'Potvrdi i aktiviraj'}
+                </button>
+                <button onClick={() => setOveragePrompt(null)}
+                  className={`w-full h-10 rounded-xl border text-sm font-medium ${isDark ? 'border-white/10 text-gray-400' : 'border-gray-200 text-gray-600'}`}>
+                  Odustani
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Limit reached screen ── */}
-          {!limitChecking && limitInfo && (
+          {!limitChecking && !overagePrompt && limitInfo && (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-6 gap-4">
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? '' : 'bg-amber-50'}`}
                 style={isDark ? { backgroundColor: 'rgba(217,119,6,0.2)' } : {}}>
@@ -395,8 +457,8 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
             </div>
           )}
 
-          {/* ── Steps (hidden when limit reached or checking) ── */}
-          {!limitChecking && !limitInfo && (
+          {/* ── Steps (hidden when limit reached, overage prompt, or checking) ── */}
+          {!limitChecking && !limitInfo && !overagePrompt && (
           <>
 
           {/* ── Step 1: Account ── */}
@@ -686,7 +748,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
         </div>
 
         {/* Footer */}
-        <div className={`shrink-0 px-6 py-4 border-t ${isDark ? 'border-white/8 bg-[oklch(0.195_0.018_264)]' : 'border-gray-100 bg-white'}`}>
+        <div className={`shrink-0 px-6 py-4 border-t ${isDark ? 'border-white/8 bg-[oklch(0.195_0.018_264)]' : 'border-gray-100 bg-white'} ${overagePrompt ? 'hidden' : ''}`}>
           {limitInfo || limitChecking ? (
             <button type="button" onClick={onClose}
               className={`w-full h-9 rounded-lg border text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-gray-400 hover:bg-white/5' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>

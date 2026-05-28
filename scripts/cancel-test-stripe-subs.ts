@@ -27,7 +27,7 @@ async function main() {
     process.exit(1)
   }
 
-  const stripe = new Stripe(key, { apiVersion: '2026-02-25.clover' })
+  const stripe = new Stripe(key, { apiVersion: '2025-02-24.acacia' })
 
   console.log('Fetching all test-mode subscriptions...')
   let canceled = 0

@@ -19,6 +19,8 @@ type Subscription = {
   current_period_end: string | null
   cancel_at_period_end: boolean
   locked_at: string | null
+  scheduled_plan_change: string | null
+  scheduled_plan_change_at: string | null
 }
 
 const PLANS = [
@@ -69,7 +71,7 @@ export default function BillingPage() {
     if (!user) return
     const [subRes, clientsRes] = await Promise.all([
       supabase.from('subscriptions')
-        .select('plan,status,client_limit,is_ambassador,trial_end,current_period_end,cancel_at_period_end,locked_at')
+        .select('plan,status,client_limit,is_ambassador,trial_end,current_period_end,cancel_at_period_end,locked_at,scheduled_plan_change,scheduled_plan_change_at')
         .eq('trainer_id', user.id).maybeSingle(),
       // Count only active clients (deactivated don't consume a slot)
       supabase.from('clients').select('id', { count: 'exact' }).eq('trainer_id', user.id).eq('active', true),
@@ -116,15 +118,19 @@ export default function BillingPage() {
     const currMeta = PLANS.find(p => p.key === sub.plan)!
     const isUpgrade = newMeta.price > currMeta.price
 
-    if (!isUpgrade && clientCount > newMeta.clients) {
+    // Block downgrade if active count exceeds target limit (Scale uses overage so allowed)
+    if (!isUpgrade && newPlan !== 'scale' && clientCount > newMeta.clients) {
       setError(t('changePlanDowngradeError', { plan: newMeta.label, count: clientCount, limit: newMeta.clients }))
       setShowChangePlan(false)
       return
     }
 
+    const periodEndStr = sub.current_period_end
+      ? new Date(sub.current_period_end).toLocaleDateString(locale)
+      : ''
     const confirmMsg = isUpgrade
-      ? t('upgradeConfirm', { plan: newMeta.label, price: newMeta.price })
-      : t('downgradeConfirm', { plan: newMeta.label, price: newMeta.price })
+      ? `Upgrade na ${newMeta.label} (€${newMeta.price}/mj) — Stripe odmah naplaćuje razliku za ostatak ovog perioda. Nastaviti?`
+      : `Downgrade na ${newMeta.label} (€${newMeta.price}/mj) — primjenjuje se na početku sljedećeg perioda${periodEndStr ? ` (${periodEndStr})` : ''}. Do tada zadržavaš trenutni plan i limite. Nastaviti?`
 
     if (!confirm(confirmMsg)) return
 
@@ -132,12 +138,24 @@ export default function BillingPage() {
     const res  = await callApi('/api/billing/change-plan', { new_plan: newPlan })
     const data = await res.json()
     if (res.ok) {
-      setSuccess(t('changePlanSuccess', { plan: newMeta.label, limit: newMeta.clients }))
+      if (data.applied === 'scheduled') {
+        setSuccess(`Downgrade na ${newMeta.label} je zakazan za ${periodEndStr}.`)
+      } else {
+        setSuccess(t('changePlanSuccess', { plan: newMeta.label, limit: newMeta.clients }))
+      }
       setShowChangePlan(false)
       fetchAll()
     } else {
       setError(data.error || t('changePlanError'))
     }
+    setAction('')
+  }
+
+  const handleCancelScheduledChange = async () => {
+    setAction('clear_scheduled')
+    const res = await callApi('/api/billing/cancel-scheduled-change')
+    if (res.ok) { setSuccess('Zakazana promjena plana je otkazana.'); fetchAll() }
+    else setError('Greška pri otkazivanju zakazane promjene.')
     setAction('')
   }
 
@@ -263,6 +281,20 @@ export default function BillingPage() {
                   <p className="text-xs text-amber-700">
                     {t('cancelAtPeriodEnd', { date: new Date(sub.current_period_end).toLocaleDateString(locale) })}
                   </p>
+                </div>
+              )}
+              {sub.scheduled_plan_change && sub.scheduled_plan_change_at && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100">
+                  <TrendingDown size={12} className="text-blue-500 mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                      Zakazan downgrade na <strong>{PLANS.find(p => p.key === sub.scheduled_plan_change)?.label ?? sub.scheduled_plan_change}</strong> od {new Date(sub.scheduled_plan_change_at).toLocaleDateString(locale)}.
+                    </p>
+                    <button onClick={handleCancelScheduledChange}
+                      className="text-[11px] font-semibold text-blue-600 hover:underline mt-0.5">
+                      Otkaži zakazanu promjenu
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

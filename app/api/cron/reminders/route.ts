@@ -281,16 +281,16 @@ export async function GET(req: NextRequest) {
     errors.push(`payment block: ${e?.message || e}`)
   }
 
-  // ── Trial ending reminders (7 and 3 days before charge) ───────────────────
+  // ── Trial ending reminders (7 and 2 days before charge) ───────────────────
   try {
     const now7d = new Date(); now7d.setDate(now7d.getDate() + 7)
-    const now3d = new Date(); now3d.setDate(now3d.getDate() + 3)
+    const now2d = new Date(); now2d.setDate(now2d.getDate() + 2)
 
-    // Fetch trialing subs whose trial ends in the 7d or 3d window (±12 hours)
+    // Fetch trialing subs whose trial ends in the 7d or 2d window (±12 hours)
     const windowStart7 = new Date(now7d); windowStart7.setHours(windowStart7.getHours() - 12)
     const windowEnd7   = new Date(now7d); windowEnd7.setHours(windowEnd7.getHours() + 12)
-    const windowStart3 = new Date(now3d); windowStart3.setHours(windowStart3.getHours() - 12)
-    const windowEnd3   = new Date(now3d); windowEnd3.setHours(windowEnd3.getHours() + 12)
+    const windowStart2 = new Date(now2d); windowStart2.setHours(windowStart2.getHours() - 12)
+    const windowEnd2   = new Date(now2d); windowEnd2.setHours(windowEnd2.getHours() + 12)
 
     const { data: trialSubs } = await supabase
       .from('subscriptions')
@@ -302,11 +302,11 @@ export async function GET(req: NextRequest) {
     for (const ts of trialSubs ?? []) {
       const trialEndDate = new Date(ts.trial_end)
       const in7d = trialEndDate >= windowStart7 && trialEndDate <= windowEnd7
-      const in3d = trialEndDate >= windowStart3 && trialEndDate <= windowEnd3
-      if (!in7d && !in3d) continue
+      const in2d = trialEndDate >= windowStart2 && trialEndDate <= windowEnd2
+      if (!in7d && !in2d) continue
 
-      const reminderType = in3d ? 'trial_3d' : 'trial_7d'
-      const daysLeft = in3d ? 3 : 7
+      const reminderType = in2d ? 'trial_2d' : 'trial_7d'
+      const daysLeft = in2d ? 2 : 7
       const dedupeKey = `trial-${reminderType}-${ts.trainer_id}-${todayStr}`
       const inserted = await tryInsertDedupe(supabase, reminderType, dedupeKey)
       if (!inserted) continue
