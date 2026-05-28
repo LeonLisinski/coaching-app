@@ -52,7 +52,8 @@ console.log(`Scale product ID: ${scaleProductId}`)
 // CRITICAL: pin to 2025-02-24.acacia — the LAST version that supports
 // creating a metered price with aggregate_usage='max'.
 // Do NOT change this version without first migrating to a different billing model.
-const stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const stripe = new Stripe(stripeKey, { apiVersion: '2025-02-24.acacia' as any })
 
 async function main() {
   console.log('\nCreating Scale Overage metered price...')

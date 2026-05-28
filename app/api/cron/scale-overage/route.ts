@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+  const stripe = createStripeClient()
 
   // Read stored peak overage blocks — NOT live active client count.
   const { data: scaleSubs } = await supabase

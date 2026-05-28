@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 import { PLAN_META, getClientLimit, type Plan } from '@/lib/plans'
 import { sendResendEmail } from '@/lib/resend-server'
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+  const stripe = createStripeClient()
 
   const nowIso = new Date().toISOString()
 

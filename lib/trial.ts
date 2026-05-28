@@ -27,17 +27,17 @@ export async function markTrialUsed(
 ): Promise<void> {
   // Use COALESCE so we never overwrite the original trial timestamp
   const at = (startedAt ?? new Date()).toISOString()
-  await adminDb.rpc('mark_trial_used_once', { p_user_id: userId, p_at: at })
-    .then(() => {})
-    .catch(async () => {
-      // Fallback: plain update if RPC isn't deployed yet
-      const { data: profile } = await adminDb
-        .from('profiles')
-        .select('trial_used_at')
-        .eq('id', userId)
-        .maybeSingle()
-      if (!profile?.trial_used_at) {
-        await adminDb.from('profiles').update({ trial_used_at: at }).eq('id', userId)
-      }
-    })
+  try {
+    await adminDb.rpc('mark_trial_used_once', { p_user_id: userId, p_at: at })
+  } catch {
+    // Fallback: plain update if RPC isn't deployed yet
+    const { data: profile } = await adminDb
+      .from('profiles')
+      .select('trial_used_at')
+      .eq('id', userId)
+      .maybeSingle()
+    if (!profile?.trial_used_at) {
+      await adminDb.from('profiles').update({ trial_used_at: at }).eq('id', userId)
+    }
+  }
 }

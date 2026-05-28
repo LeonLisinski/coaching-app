@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 import { isPromoEligible } from '@/lib/promo'
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   let stripe: Stripe
   try {
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
+    stripe = createStripeClient()
   } catch (e) {
     console.error('[register/start] Stripe init error:', e)
     return NextResponse.json({ error: 'Konfiguracijska greška. Kontaktiraj podršku.' }, { status: 500 })

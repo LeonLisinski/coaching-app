@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 
@@ -38,7 +39,7 @@ async function tryClaimEvent(db: SupabaseClient, eventId: string, eventType: str
 }
 
 export async function POST(req: NextRequest) {
-  const stripe    = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+  const stripe    = createStripeClient()
   const body      = await req.text()
   const signature = req.headers.get('stripe-signature') ?? ''
 
@@ -194,7 +195,9 @@ export async function POST(req: NextRequest) {
       if (!process.env.STRIPE_COUPON_FOUNDING) break
 
       try {
-        await stripe.subscriptions.update(subId, {
+        // `coupon` was removed from SubscriptionUpdateParams in newer SDK types;
+        // it is still accepted at runtime by the pinned API version.
+        await (stripe.subscriptions.update as any)(subId, {
           coupon: process.env.STRIPE_COUPON_FOUNDING,
         })
         console.log('[stripe webhook] invoice.created: founding coupon applied to', subId)

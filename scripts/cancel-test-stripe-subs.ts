@@ -27,7 +27,8 @@ async function main() {
     process.exit(1)
   }
 
-  const stripe = new Stripe(key, { apiVersion: '2025-02-24.acacia' })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stripe = new Stripe(key, { apiVersion: '2025-02-24.acacia' as any })
 
   console.log('Fetching all test-mode subscriptions...')
   let canceled = 0

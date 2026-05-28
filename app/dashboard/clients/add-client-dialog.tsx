@@ -776,7 +776,7 @@ export default function AddClientDialog({ open, onClose, onSuccess, initialValue
                     {tAdd('nextStep')}
                   </button>
                 ) : (
-                  <button type="button" onClick={handleSubmit} disabled={loading}
+                  <button type="button" onClick={() => handleSubmit()} disabled={loading}
                     className="flex-1 h-9 rounded-lg text-white text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ backgroundColor: accentHex }}>
                     {loading

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 import { createClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ hasAccess: false, status: null })
   }
 
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+  const stripe = createStripeClient()
 
   let sub: Stripe.Subscription
   try {

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 
 export async function POST(req: NextRequest) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-02-24.acacia' })
+  const stripe = createStripeClient()
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

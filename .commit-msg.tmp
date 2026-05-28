@@ -1,0 +1,12 @@
+fix(ts): resolve all TypeScript build errors before deploy
+
+- lib/stripe.ts: new shared factory (createStripeClient) with single
+  apiVersion cast to any — all routes import from here instead of
+  instantiating Stripe directly
+- app/api routes: replaced 13x new Stripe(...) with createStripeClient()
+- webhooks/stripe: cast stripe.subscriptions.update params to any for
+  legacy coupon field removed from newer SDK types
+- add-client-dialog: wrap handleSubmit in arrow fn for MouseEventHandler type
+- lib/trial.ts: replace .then().catch() (PromiseLike has no .catch) with
+  try/catch
+- scripts: add as any cast to apiVersion

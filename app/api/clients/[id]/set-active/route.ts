@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Stripe from 'stripe'
+import { createStripeClient } from '@/lib/stripe'
 import { PLAN_META, scaleOverageBlocks, scaleOverageTierIncreases, getClientLimit, type Plan } from '@/lib/plans'
 
 /**
@@ -169,7 +170,7 @@ export async function POST(
     const overagePriceId = PLAN_META['scale'].stripeOveragePriceId
     if (overagePriceId && process.env.STRIPE_SECRET_KEY) {
       try {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
+        const stripe = createStripeClient()
         const stripeSub = await stripe.subscriptions.retrieve(sub.stripe_subscription_id)
         const overageItem = stripeSub.items.data.find(i => i.price.id === overagePriceId)
         if (overageItem) {
