@@ -21,57 +21,63 @@ function ResetPasswordForm() {
   const [verifying, setVerifying] = useState(true)
 
   useEffect(() => {
-    const code       = searchParams.get('code')
-    const token_hash = searchParams.get('token_hash')
-    const type       = searchParams.get('type')
+    let settled = false
 
-    // 1. PKCE flow — ?code= (Supabase v2 default, same-browser only)
-    if (code) {
-      supabase.auth
-        .exchangeCodeForSession(code)
-        .then(({ error }) => {
-          if (error) setError(t('resetErrorInvalid'))
-          setVerifying(false)
-        })
-      return
+    const settle = (err?: string) => {
+      if (settled) return
+      settled = true
+      if (err) setError(err)
+      setVerifying(false)
     }
 
-    // 2. OTP / token_hash flow — ?token_hash=...&type=recovery
-    if (token_hash && type === 'recovery') {
-      supabase.auth
-        .verifyOtp({ token_hash, type: 'recovery' })
-        .then(({ error }) => {
-          if (error) setError(t('resetErrorInvalid'))
-          setVerifying(false)
-        })
-      return
-    }
-
-    // 3. Implicit flow — #access_token=...&refresh_token=...&type=recovery
-    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : ''
-    if (hash) {
-      const params = new URLSearchParams(hash)
-      const access_token  = params.get('access_token')
-      const refresh_token = params.get('refresh_token')
-      const hashType      = params.get('type')
-
-      if (access_token && refresh_token && hashType === 'recovery') {
-        supabase.auth
-          .setSession({ access_token, refresh_token })
-          .then(({ error }) => {
-            if (error) setError(t('resetErrorInvalid'))
-            setVerifying(false)
-          })
-        return
+    // Primary: listen for Supabase PASSWORD_RECOVERY event.
+    // createBrowserClient auto-detects ?code= / #access_token= / ?token_hash= internally.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        settle()  // session ready, show password form
       }
+    })
+
+    // Fallback: manual extraction for cases where auto-detection doesn't fire
+    const tryManual = async () => {
+      const code       = new URLSearchParams(window.location.search).get('code')
+      const token_hash = new URLSearchParams(window.location.search).get('token_hash')
+      const type       = new URLSearchParams(window.location.search).get('type')
+      const hash       = window.location.hash.replace(/^#/, '')
+      const hashParams = hash ? new URLSearchParams(hash) : null
+      const access_token  = hashParams?.get('access_token')
+      const refresh_token = hashParams?.get('refresh_token')
+      const hashType      = hashParams?.get('type')
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error) return // onAuthStateChange will fire
+        // PKCE failed (different browser/tab) — fall through to token_hash
+      }
+
+      if (token_hash && type === 'recovery') {
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
+        if (!error) return // onAuthStateChange will fire
+      }
+
+      if (access_token && refresh_token && (hashType === 'recovery' || !hashType)) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+        if (!error) return // onAuthStateChange will fire
+      }
+
+      // Nothing worked
+      settle(t('resetErrorInvalid'))
     }
 
-    // Nothing matched — show debug info in dev
-    const debugUrl = typeof window !== 'undefined'
-      ? `URL: ${window.location.search || '(nema query)'} | Hash: ${window.location.hash || '(nema hash)'}`
-      : ''
-    setError(`${t('resetErrorInvalid')} [${debugUrl}]`)
-    setVerifying(false)
+    tryManual()
+
+    // Safety timeout — if no event fires after 8s, show error
+    const timeout = setTimeout(() => settle(t('resetErrorInvalid')), 8000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
