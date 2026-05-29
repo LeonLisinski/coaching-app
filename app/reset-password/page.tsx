@@ -66,8 +66,11 @@ function ResetPasswordForm() {
       }
     }
 
-    // Nothing matched
-    setError(t('resetErrorInvalid'))
+    // Nothing matched — show debug info in dev
+    const debugUrl = typeof window !== 'undefined'
+      ? `URL: ${window.location.search || '(nema query)'} | Hash: ${window.location.hash || '(nema hash)'}`
+      : ''
+    setError(`${t('resetErrorInvalid')} [${debugUrl}]`)
     setVerifying(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
