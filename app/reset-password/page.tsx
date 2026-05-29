@@ -21,9 +21,22 @@ function ResetPasswordForm() {
   const [verifying, setVerifying] = useState(true)
 
   useEffect(() => {
+    const code       = searchParams.get('code')
     const token_hash = searchParams.get('token_hash')
     const type       = searchParams.get('type')
 
+    // PKCE flow (Supabase v2 default) — email sends ?code=...
+    if (code) {
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) setError(t('resetErrorInvalid'))
+          setVerifying(false)
+        })
+      return
+    }
+
+    // Legacy / implicit flow — ?token_hash=...&type=recovery
     if (!token_hash || type !== 'recovery') {
       setError(t('resetErrorInvalid'))
       setVerifying(false)
