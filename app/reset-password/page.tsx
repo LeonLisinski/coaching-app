@@ -25,7 +25,7 @@ function ResetPasswordForm() {
     const token_hash = searchParams.get('token_hash')
     const type       = searchParams.get('type')
 
-    // PKCE flow (Supabase v2 default) — email sends ?code=...
+    // 1. PKCE flow — ?code= (Supabase v2 default, same-browser only)
     if (code) {
       supabase.auth
         .exchangeCodeForSession(code)
@@ -36,19 +36,39 @@ function ResetPasswordForm() {
       return
     }
 
-    // Legacy / implicit flow — ?token_hash=...&type=recovery
-    if (!token_hash || type !== 'recovery') {
-      setError(t('resetErrorInvalid'))
-      setVerifying(false)
+    // 2. OTP / token_hash flow — ?token_hash=...&type=recovery
+    if (token_hash && type === 'recovery') {
+      supabase.auth
+        .verifyOtp({ token_hash, type: 'recovery' })
+        .then(({ error }) => {
+          if (error) setError(t('resetErrorInvalid'))
+          setVerifying(false)
+        })
       return
     }
 
-    supabase.auth
-      .verifyOtp({ token_hash, type: 'recovery' })
-      .then(({ error }) => {
-        if (error) setError(t('resetErrorInvalid'))
-        setVerifying(false)
-      })
+    // 3. Implicit flow — #access_token=...&refresh_token=...&type=recovery
+    const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : ''
+    if (hash) {
+      const params = new URLSearchParams(hash)
+      const access_token  = params.get('access_token')
+      const refresh_token = params.get('refresh_token')
+      const hashType      = params.get('type')
+
+      if (access_token && refresh_token && hashType === 'recovery') {
+        supabase.auth
+          .setSession({ access_token, refresh_token })
+          .then(({ error }) => {
+            if (error) setError(t('resetErrorInvalid'))
+            setVerifying(false)
+          })
+        return
+      }
+    }
+
+    // Nothing matched
+    setError(t('resetErrorInvalid'))
+    setVerifying(false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
