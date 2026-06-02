@@ -134,11 +134,11 @@ function ResetPasswordForm() {
           </div>
           <div>
             <h1 className="text-[2.6rem] font-black text-white leading-[1.1] tracking-tight">
-              Novi početak,<br />
-              nova <span style={{ color: 'var(--app-accent)' }}>lozinka.</span>
+              Postavi lozinku<br />
+              i počni <span style={{ color: 'var(--app-accent)' }}>koristiti.</span>
             </h1>
             <p className="text-white/40 text-sm mt-4 leading-relaxed max-w-[290px]">
-              Postavi novu lozinku i nastavi tamo gdje si stao.
+              Jedan korak do tvog UnitLift dashboarda.
             </p>
           </div>
           <p className="text-white/25 text-[11px]">© 2026 UnitLift · unitlift.com</p>

@@ -51,8 +51,8 @@ export default function RegisterSuccessPage() {
         {/* Note */}
         <p className="text-xs text-gray-400 leading-relaxed">
           Ako email ne stigne unutar 5 minuta, provjeri spam mapu ili kontaktiraj{' '}
-          <a href="mailto:podrska@unitlift.com" className="underline" style={{ color: BLUE }}>
-            podrska@unitlift.com
+          <a href="mailto:support@unitlift.com" className="underline" style={{ color: BLUE }}>
+            support@unitlift.com
           </a>
         </p>
 

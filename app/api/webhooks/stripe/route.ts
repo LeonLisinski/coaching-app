@@ -128,7 +128,7 @@ async function provisionNewTrainerAccount(
       type:    'invite',
       email,
       options: {
-        redirectTo: `${appUrl}/dashboard`,
+        redirectTo: `${appUrl}/reset-password`,
         data:       { full_name: displayName },
       },
     })
