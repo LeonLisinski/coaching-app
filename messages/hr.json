@@ -2657,5 +2657,23 @@
     "mon": "Pon", "tue": "Uto", "wed": "Sri", "thu": "Čet",
     "fri": "Pet", "sat": "Sub", "sun": "Ned",
     "allDay": "Cijeli dan"
+  },
+  "buyerModal": {
+    "title": "Podaci za račun",
+    "subtitle": "Na koji način koristiš UnitLift?",
+    "typePrivate": "Privatna osoba",
+    "typeBusiness": "Poslovni korisnik (obrt / tvrtka)",
+    "nameLabel": "Ime i prezime",
+    "emailLabel": "E-mail adresa",
+    "countryLabel": "Država (opcionalno)",
+    "addressLabel": "Adresa (opcionalno)",
+    "companyLabel": "Naziv obrta / tvrtke",
+    "oibLabel": "OIB",
+    "oibPlaceholder": "11-znamenkasti OIB",
+    "oibError": "OIB mora imati točno 11 znamenki (samo brojevi)",
+    "invoiceEmailLabel": "E-mail za račun",
+    "continueBtn": "Nastavi na naplatu",
+    "cancelBtn": "Odustani",
+    "required": "Obavezno polje"
   }
 }

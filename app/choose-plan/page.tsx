@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Loader2, AlertTriangle, Clock, CreditCard, XCircle, Sparkles } from 'lucide-react'
+import { Loader2, AlertTriangle, Clock, CreditCard, XCircle, Sparkles, X, Building2, User } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { isFoundingPromoActive, foundingPromoEndDate } from '@/lib/founding'
 
@@ -30,7 +30,6 @@ const BLUE  = '#0066FF'
 const NAVY  = '#0A1024'
 const GREEN = '#44cc88'
 
-
 const Chk = () => (
   <span style={{
     width: 17, height: 17, borderRadius: '50%', flexShrink: 0, marginTop: 2,
@@ -42,6 +41,208 @@ const Chk = () => (
 
 type SubStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'locked' | null
 
+type BuyerType = 'private' | 'business'
+
+interface BuyerInfo {
+  type: BuyerType
+  name: string
+  email: string
+  country: string
+  address: string
+  company: string
+  oib: string
+  invoiceEmail: string
+}
+
+function BuyerModal({
+  plan,
+  prefillName,
+  prefillEmail,
+  onClose,
+  onSubmit,
+  submitting,
+}: {
+  plan: string
+  prefillName: string
+  prefillEmail: string
+  onClose: () => void
+  onSubmit: (buyer: BuyerInfo) => void
+  submitting: boolean
+}) {
+  const t = useTranslations('buyerModal')
+  const [type, setType] = useState<BuyerType>('private')
+  const [name, setName]           = useState(prefillName)
+  const [email, setEmail]         = useState(prefillEmail)
+  const [country, setCountry]     = useState('')
+  const [address, setAddress]     = useState('')
+  const [company, setCompany]     = useState('')
+  const [oib, setOib]             = useState('')
+  const [invoiceEmail, setInvoiceEmail] = useState(prefillEmail)
+  const [errors, setErrors]       = useState<Record<string, string>>({})
+
+  const validate = () => {
+    const e: Record<string, string> = {}
+    if (type === 'private') {
+      if (!name.trim()) e.name = t('required')
+    } else {
+      if (!company.trim()) e.company = t('required')
+      if (!oib.trim()) e.oib = t('required')
+      else if (!/^\d{11}$/.test(oib.trim())) e.oib = t('oibError')
+    }
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validate()) return
+    onSubmit({ type, name, email, country, address, company, oib, invoiceEmail })
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box',
+    border: '1px solid #d1d5db', borderRadius: 10,
+    padding: '10px 12px', fontSize: '.875rem',
+    outline: 'none', background: '#fff',
+    color: NAVY,
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: '.8rem', fontWeight: 600,
+    color: '#374151', marginBottom: 4,
+  }
+
+  const Field = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+      {error && <span style={{ fontSize: '.75rem', color: '#dc2626' }}>{error}</span>}
+    </div>
+  )
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(10,16,36,.55)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '16px',
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 20, width: '100%', maxWidth: 480,
+        boxShadow: '0 24px 80px rgba(0,0,0,.18)',
+        maxHeight: '90dvh', display: 'flex', flexDirection: 'column',
+        overflowY: 'auto',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 0' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: NAVY }}>{t('title')}</h2>
+            <p style={{ margin: '3px 0 0', fontSize: '.82rem', color: '#6b7a99' }}>{t('subtitle')}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: '#9ca3af' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Type toggle */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {(['private', 'business'] as BuyerType[]).map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => { setType(opt); setErrors({}) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                  border: type === opt ? `2px solid ${BLUE}` : '2px solid #e2e8f0',
+                  background: type === opt ? `rgba(0,102,255,.06)` : '#f9fafb',
+                  transition: 'all .15s',
+                  textAlign: 'left',
+                }}
+              >
+                {opt === 'private'
+                  ? <User size={16} color={type === opt ? BLUE : '#9ca3af'} />
+                  : <Building2 size={16} color={type === opt ? BLUE : '#9ca3af'} />}
+                <span style={{ fontSize: '.82rem', fontWeight: 600, color: type === opt ? BLUE : '#374151', lineHeight: 1.3 }}>
+                  {t(opt === 'private' ? 'typePrivate' : 'typeBusiness')}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {type === 'private' ? (
+            <>
+              <Field label={t('nameLabel')} error={errors.name}>
+                <input value={name} onChange={e => setName(e.target.value)} style={{ ...inputStyle, borderColor: errors.name ? '#dc2626' : '#d1d5db' }} />
+              </Field>
+              <Field label={t('emailLabel')}>
+                <input value={email} onChange={e => setEmail(e.target.value)} type="email" style={inputStyle} />
+              </Field>
+              <Field label={t('countryLabel')}>
+                <input value={country} onChange={e => setCountry(e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label={t('addressLabel')}>
+                <input value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+              </Field>
+            </>
+          ) : (
+            <>
+              <Field label={t('companyLabel')} error={errors.company}>
+                <input value={company} onChange={e => setCompany(e.target.value)} style={{ ...inputStyle, borderColor: errors.company ? '#dc2626' : '#d1d5db' }} />
+              </Field>
+              <Field label={t('oibLabel')} error={errors.oib}>
+                <input
+                  value={oib}
+                  onChange={e => setOib(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder={t('oibPlaceholder')}
+                  style={{ ...inputStyle, borderColor: errors.oib ? '#dc2626' : '#d1d5db' }}
+                  inputMode="numeric"
+                />
+              </Field>
+              <Field label={t('addressLabel')}>
+                <input value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+              </Field>
+              <Field label={t('invoiceEmailLabel')}>
+                <input value={invoiceEmail} onChange={e => setInvoiceEmail(e.target.value)} type="email" style={inputStyle} />
+              </Field>
+            </>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1, height: 46, borderRadius: 12, border: '1.5px solid #d1d5db',
+                background: '#fff', color: '#374151', fontWeight: 600, fontSize: '.9rem',
+                cursor: 'pointer',
+              }}
+            >
+              {t('cancelBtn')}
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                flex: 2, height: 46, borderRadius: 12, border: 'none',
+                background: `linear-gradient(90deg, ${BLUE}, #0055ee)`,
+                color: '#fff', fontWeight: 700, fontSize: '.9rem',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                opacity: submitting ? 0.7 : 1,
+              }}
+            >
+              {submitting ? <Loader2 size={15} className="animate-spin" /> : null}
+              {t('continueBtn')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function ChoosePlanPage() {
   const router = useRouter()
   const t = useTranslations('choosePlan')
@@ -50,6 +251,11 @@ export default function ChoosePlanPage() {
   const [error, setError]       = useState('')
   const [subStatus, setSubStatus] = useState<SubStatus>(null)
   const [subLoading, setSubLoading] = useState(true)
+
+  // Buyer modal state
+  const [pendingPlan, setPendingPlan]   = useState<string | null>(null)
+  const [prefillName, setPrefillName]   = useState('')
+  const [prefillEmail, setPrefillEmail] = useState('')
 
   const promoActive = isFoundingPromoActive()
   const promoEndDate = foundingPromoEndDate(locale)
@@ -117,12 +323,28 @@ export default function ChoosePlanPage() {
           setSubStatus('canceled')
         }
       }
+
+      // Pre-fill from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle()
+      setPrefillName(profile?.full_name ?? '')
+      setPrefillEmail(profile?.email ?? user.email ?? '')
+
       setSubLoading(false)
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectPlan = async (planKey: string) => {
-    setLoading(planKey)
+  const handleSelectPlan = (planKey: string) => {
+    setError('')
+    setPendingPlan(planKey)
+  }
+
+  const handleBuyerSubmit = async (buyer: BuyerInfo) => {
+    if (!pendingPlan) return
+    setLoading(pendingPlan)
     setError('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -131,210 +353,225 @@ export default function ChoosePlanPage() {
       const res = await fetch('/api/billing/checkout', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ plan: pendingPlan, buyer }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || t('errorCreate')); setLoading(null); return }
+      if (!res.ok) {
+        setError(data.error || t('errorCreate'))
+        setLoading(null)
+        setPendingPlan(null)
+        return
+      }
       window.location.href = data.checkout_url
     } catch {
       setError(t('errorServer'))
       setLoading(null)
+      setPendingPlan(null)
     }
   }
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg,#fff 0%,#f5f9ff 100%)' }}>
+    <>
+      {/* Buyer info modal */}
+      {pendingPlan && (
+        <BuyerModal
+          plan={pendingPlan}
+          prefillName={prefillName}
+          prefillEmail={prefillEmail}
+          onClose={() => { setPendingPlan(null); setLoading(null) }}
+          onSubmit={handleBuyerSubmit}
+          submitting={!!loading}
+        />
+      )}
 
-      {/* Header */}
-      <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingTop: 'max(14px, env(safe-area-inset-top, 14px))', paddingBottom: '14px', paddingLeft: 28, paddingRight: 28, background: '#fff', borderBottom: '1px solid #e8edf5' }}>
-        <GradientLogo height={34} />
-        <span style={{ fontWeight: 700, fontSize: 20, color: NAVY }}>UnitLift</span>
-      </header>
+      <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg,#fff 0%,#f5f9ff 100%)' }}>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 16px 0' }}>
-        <div style={{ width: '100%', maxWidth: 980, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        {/* Header */}
+        <header style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingTop: 'max(14px, env(safe-area-inset-top, 14px))', paddingBottom: '14px', paddingLeft: 28, paddingRight: 28, background: '#fff', borderBottom: '1px solid #e8edf5' }}>
+          <GradientLogo height={34} />
+          <span style={{ fontWeight: 700, fontSize: 20, color: NAVY }}>UnitLift</span>
+        </header>
 
-          {/* Status banner */}
-          {!subLoading && subStatus && subStatus !== 'active' && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 10,
-              background: STATUS_BANNER[subStatus].bg,
-              border: `1px solid ${STATUS_BANNER[subStatus].border}`,
-              borderRadius: 14, padding: '12px 16px',
-              maxWidth: 520, margin: '0 auto 20px', width: '100%',
-            }}>
-              <span style={{ marginTop: 1, flexShrink: 0 }}>{STATUS_BANNER[subStatus].icon}</span>
-              <div>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: STATUS_BANNER[subStatus].text }}>
-                  {STATUS_BANNER[subStatus].label}
-                </p>
-                <p style={{ margin: '2px 0 0', fontSize: '.8rem', color: STATUS_BANNER[subStatus].text, opacity: .8, lineHeight: 1.4 }}>
-                  {STATUS_BANNER[subStatus].sub}
-                </p>
-              </div>
-            </div>
-          )}
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 16px 0' }}>
+          <div style={{ width: '100%', maxWidth: 980, display: 'flex', flexDirection: 'column', flex: 1 }}>
 
-          {/* Founding promo banner */}
-          {promoActive && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 10,
-              background: 'linear-gradient(135deg,rgba(0,102,255,.07),rgba(0,85,238,.04))',
-              border: '1px solid rgba(0,102,255,.25)',
-              borderRadius: 14, padding: '14px 18px',
-              maxWidth: 560, margin: '0 auto 20px', width: '100%',
-            }}>
-              <Sparkles size={16} color={BLUE} style={{ flexShrink: 0, marginTop: 2 }} />
-              <div>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: NAVY }}>
-                  {t('foundingBannerTitle')}
-                </p>
-                <p style={{ margin: '3px 0 0', fontSize: '.8rem', color: '#4b5a7a', lineHeight: 1.5 }}>
-                  {t('foundingBannerDesc')}
-                  {promoEndDate && <> {t('foundingBannerEnds', { date: promoEndDate })}</>}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Headline */}
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 900, color: NAVY, lineHeight: 1.1, margin: '0 0 10px' }}>
-              {subLoading ? ' ' : subStatus ? t('titleExisting') : t('titleNew')}
-            </h1>
-            <p style={{ fontSize: '.9rem', color: '#6b7a99', margin: 0 }}>
-              {t('subtitle')}
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', maxWidth: 400, margin: '0 auto 24px', fontSize: '.8rem', color: '#dc2626' }}>
-              ⚠ {error}
-            </div>
-          )}
-
-          {/* Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 22 }}>
-            {PLANS.map(plan => {
-              const isLoading = loading === plan.key
-              return (
-                <div key={plan.key} style={{
-                  borderRadius: 20,
-                  padding: '36px 30px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  position: 'relative',
-                  background: plan.popular
-                    ? 'linear-gradient(180deg,rgba(0,102,255,.08),#fff 26%)'
-                    : '#fff',
-                  border: plan.popular
-                    ? '2px solid rgba(0,102,255,.38)'
-                    : '1px solid #e2e8f0',
-                  boxShadow: plan.popular
-                    ? '0 0 0 1px rgba(0,102,255,.08), 0 18px 48px rgba(0,102,255,.14)'
-                    : '0 12px 36px rgba(0,102,255,.08)',
-                  paddingTop: plan.popular ? 50 : 36,
-                }}>
-
-                  {plan.popular && (
-                    <div style={{
-                      position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
-                      background: `linear-gradient(90deg, ${BLUE}, #0055ee)`,
-                      color: '#fff', fontSize: '.7rem', fontWeight: 700,
-                      padding: '5px 17px', borderRadius: 20, whiteSpace: 'nowrap',
-                      letterSpacing: '.05em', textTransform: 'uppercase',
-                    }}>
-                      {t('mostPopular')}
-                    </div>
-                  )}
-
-                  {/* Plan name */}
-                  <div style={{ fontSize: '.75rem', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>
-                    {plan.label}
-                  </div>
-
-                  {/* Price */}
-                  {promoActive ? (
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY }}>
-                          €{(plan.price / 2).toFixed(2).replace('.00', '')}
-                        </span>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55 }}>{t('monthSuffix')}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                        <span style={{ fontSize: '.8rem', color: '#9ca3af', textDecoration: 'line-through' }}>€{plan.price}</span>
-                        <span style={{ fontSize: '.72rem', fontWeight: 700, color: BLUE, background: 'rgba(0,102,255,.09)', borderRadius: 6, padding: '2px 7px' }}>
-                          {t('foundingLabel')}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY, marginBottom: 4 }}>
-                      €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>{t('monthSuffix')}</span>
-                    </div>
-                  )}
-
-                  {/* Clients */}
-                  <div style={{ fontSize: '.8rem', color: '#6b7a99', marginBottom: 22 }}>{plan.clients}</div>
-
-                  {/* Divider */}
-                  <div style={{ height: 1, background: '#e2e8f0', marginBottom: 20 }} />
-
-                  {/* Features */}
-                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
-                    {FEATURES_COMMON.map(f => (
-                      <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: '.86rem', color: NAVY, lineHeight: 1.4 }}>
-                        <Chk />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* CTA */}
-                  <button onClick={() => handleSelectPlan(plan.key)} disabled={!!loading}
-                    style={{
-                      width: '100%', height: 48, borderRadius: 12, border: 'none',
-                      background: `linear-gradient(90deg, ${BLUE}, #0055ee)`,
-                      color: '#fff', fontWeight: 700, fontSize: '.95rem',
-                      cursor: loading ? 'not-allowed' : 'pointer',
-                      opacity: loading && !isLoading ? 0.6 : 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      transition: 'opacity .15s',
-                    }}>
-                    {isLoading
-                      ? <><Loader2 size={15} className="animate-spin" /> {t('activateBtn')}</>
-                      : t('activateBtn')
-                    }
-                  </button>
+            {/* Status banner */}
+            {!subLoading && subStatus && subStatus !== 'active' && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                background: STATUS_BANNER[subStatus].bg,
+                border: `1px solid ${STATUS_BANNER[subStatus].border}`,
+                borderRadius: 14, padding: '12px 16px',
+                maxWidth: 520, margin: '0 auto 20px', width: '100%',
+              }}>
+                <span style={{ marginTop: 1, flexShrink: 0 }}>{STATUS_BANNER[subStatus].icon}</span>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: STATUS_BANNER[subStatus].text }}>
+                    {STATUS_BANNER[subStatus].label}
+                  </p>
+                  <p style={{ margin: '2px 0 0', fontSize: '.8rem', color: STATUS_BANNER[subStatus].text, opacity: .8, lineHeight: 1.4 }}>
+                    {STATUS_BANNER[subStatus].sub}
+                  </p>
                 </div>
-              )
-            })}
-          </div>
+              </div>
+            )}
 
-          {/* Footer note */}
-          <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: 16, paddingBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <p style={{ color: '#6b7a99', fontSize: '0.85rem', margin: 0 }}>
-              {locale === 'en'
-                ? '14 days free. Billing starts after the trial. Cancel anytime.'
-                : '14 dana besplatno. Naplata počinje tek nakon probnog razdoblja. Otkazivanje u svako doba.'}
-            </p>
-            <p style={{ fontSize: '0.9rem', color: '#9ca3af', margin: 0 }}>
-              {t('wrongAccount')}{' '}
-              <button onClick={() => supabase.auth.signOut().then(() => { window.location.href = '/login' })}
-                style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit', padding: 0 }}>
-                {t('switchAccount')}
-              </button>
-              {' · '}
-              <a href="https://unitlift.com" style={{ color: BLUE, textDecoration: 'underline' }}>
-                unitlift.com
-              </a>
-            </p>
+            {/* Founding promo banner */}
+            {promoActive && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                background: 'linear-gradient(135deg,rgba(0,102,255,.07),rgba(0,85,238,.04))',
+                border: '1px solid rgba(0,102,255,.25)',
+                borderRadius: 14, padding: '14px 18px',
+                maxWidth: 560, margin: '0 auto 20px', width: '100%',
+              }}>
+                <Sparkles size={16} color={BLUE} style={{ flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: '.875rem', color: NAVY }}>
+                    {t('foundingBannerTitle')}
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: '.8rem', color: '#4b5a7a', lineHeight: 1.5 }}>
+                    {t('foundingBannerDesc')}
+                    {promoEndDate && <> {t('foundingBannerEnds', { date: promoEndDate })}</>}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Headline */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.4rem)', fontWeight: 900, color: NAVY, lineHeight: 1.1, margin: '0 0 10px' }}>
+                {subLoading ? ' ' : subStatus ? t('titleExisting') : t('titleNew')}
+              </h1>
+              <p style={{ fontSize: '.9rem', color: '#6b7a99', margin: 0 }}>
+                {t('subtitle')}
+              </p>
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', maxWidth: 400, margin: '0 auto 24px', fontSize: '.8rem', color: '#dc2626' }}>
+                ⚠ {error}
+              </div>
+            )}
+
+            {/* Cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 22 }}>
+              {PLANS.map(plan => {
+                const isLoading = loading === plan.key
+                return (
+                  <div key={plan.key} style={{
+                    borderRadius: 20,
+                    padding: '36px 30px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                    background: plan.popular
+                      ? 'linear-gradient(180deg,rgba(0,102,255,.08),#fff 26%)'
+                      : '#fff',
+                    border: plan.popular
+                      ? '2px solid rgba(0,102,255,.38)'
+                      : '1px solid #e2e8f0',
+                    boxShadow: plan.popular
+                      ? '0 0 0 1px rgba(0,102,255,.08), 0 18px 48px rgba(0,102,255,.14)'
+                      : '0 12px 36px rgba(0,102,255,.08)',
+                    paddingTop: plan.popular ? 50 : 36,
+                  }}>
+
+                    {plan.popular && (
+                      <div style={{
+                        position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)',
+                        background: `linear-gradient(90deg, ${BLUE}, #0055ee)`,
+                        color: '#fff', fontSize: '.7rem', fontWeight: 700,
+                        padding: '5px 17px', borderRadius: 20, whiteSpace: 'nowrap',
+                        letterSpacing: '.05em', textTransform: 'uppercase',
+                      }}>
+                        {t('mostPopular')}
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '.75rem', fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: BLUE, marginBottom: 10 }}>
+                      {plan.label}
+                    </div>
+
+                    {promoActive ? (
+                      <div style={{ marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                          <span style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY }}>
+                            €{(plan.price / 2).toFixed(2).replace('.00', '')}
+                          </span>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55 }}>{t('monthSuffix')}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                          <span style={{ fontSize: '.8rem', color: '#9ca3af', textDecoration: 'line-through' }}>€{plan.price}</span>
+                          <span style={{ fontSize: '.72rem', fontWeight: 700, color: BLUE, background: 'rgba(0,102,255,.09)', borderRadius: 6, padding: '2px 7px' }}>
+                            {t('foundingLabel')}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '3.2rem', fontWeight: 800, lineHeight: 1, letterSpacing: '-1.5px', color: NAVY, marginBottom: 4 }}>
+                        €{plan.price}<span style={{ fontSize: '1.1rem', fontWeight: 500, opacity: .55, letterSpacing: 0 }}>{t('monthSuffix')}</span>
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: '.8rem', color: '#6b7a99', marginBottom: 22 }}>{plan.clients}</div>
+
+                    <div style={{ height: 1, background: '#e2e8f0', marginBottom: 20 }} />
+
+                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 9, flex: 1 }}>
+                      {FEATURES_COMMON.map(f => (
+                        <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: '.86rem', color: NAVY, lineHeight: 1.4 }}>
+                          <Chk />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <button onClick={() => handleSelectPlan(plan.key)} disabled={!!loading}
+                      style={{
+                        width: '100%', height: 48, borderRadius: 12, border: 'none',
+                        background: `linear-gradient(90deg, ${BLUE}, #0055ee)`,
+                        color: '#fff', fontWeight: 700, fontSize: '.95rem',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        opacity: loading && !isLoading ? 0.6 : 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        transition: 'opacity .15s',
+                      }}>
+                      {isLoading
+                        ? <><Loader2 size={15} className="animate-spin" /> {t('activateBtn')}</>
+                        : t('activateBtn')
+                      }
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer note */}
+            <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: 16, paddingBottom: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p style={{ color: '#6b7a99', fontSize: '0.85rem', margin: 0 }}>
+                {locale === 'en'
+                  ? '14 days free. Billing starts after the trial. Cancel anytime.'
+                  : '14 dana besplatno. Naplata počinje tek nakon probnog razdoblja. Otkazivanje u svako doba.'}
+              </p>
+              <p style={{ fontSize: '0.9rem', color: '#9ca3af', margin: 0 }}>
+                {t('wrongAccount')}{' '}
+                <button onClick={() => supabase.auth.signOut().then(() => { window.location.href = '/login' })}
+                  style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit', padding: 0 }}>
+                  {t('switchAccount')}
+                </button>
+                {' · '}
+                <a href="https://unitlift.com" style={{ color: BLUE, textDecoration: 'underline' }}>
+                  unitlift.com
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
+

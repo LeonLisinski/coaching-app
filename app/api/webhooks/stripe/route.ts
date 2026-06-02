@@ -23,6 +23,60 @@ function clientLimitForPlan(plan: Plan): number | null {
 
 const GRACE_MS = 3 * 24 * 60 * 60 * 1000
 
+// ── KPP helper ────────────────────────────────────────────────────────────────
+
+interface KppPayload {
+  kupac:            string
+  oib_kupca:        string | null
+  buyer_type:       'private' | 'business'
+  opis:             string
+  nacin_placanja:   string
+  iznos:            number
+  datum:            string
+  stripe_payment_id: string | null
+}
+
+async function createKppEntry(db: SupabaseClient, payload: KppPayload) {
+  try {
+    const year = new Date(payload.datum).getFullYear()
+    const yy   = String(year % 100).padStart(2, '0')
+
+    // Get next seq (use DB function)
+    const { data: seqData } = await db.rpc('next_kpp_seq', { p_year: year })
+    const seq = (seqData as number | null) ?? 1
+    const seqPad = String(seq).padStart(3, '0')
+
+    const rbr         = `${yy}-${seqPad}-01`
+    const broj_racuna = `UL-${yy}-${seqPad}`
+
+    const { error } = await db.from('kpp_entries').insert({
+      rbr,
+      broj_racuna,
+      kupac:           payload.kupac || 'N/A',
+      oib_kupca:       payload.oib_kupca || null,
+      buyer_type:      payload.buyer_type,
+      opis:            payload.opis,
+      nacin_placanja:  payload.nacin_placanja,
+      iznos:           payload.iznos,
+      datum:           payload.datum,
+      kategorija:      'app',
+      stripe_payment_id: payload.stripe_payment_id || null,
+    })
+
+    if (error) {
+      if ((error as any).code === '23505') {
+        console.warn('[kpp] Duplicate stripe_payment_id — skipping', payload.stripe_payment_id)
+      } else {
+        console.error('[kpp] Failed to insert kpp_entry:', error)
+      }
+    } else {
+      console.log('[kpp] Created entry', rbr, 'iznos:', payload.iznos, 'EUR')
+    }
+  } catch (e) {
+    console.error('[kpp] Unexpected error creating entry:', e)
+  }
+}
+
 /** Mark event as processed. Returns true on first time, false on duplicate. */
 async function tryClaimEvent(db: SupabaseClient, eventId: string, eventType: string): Promise<boolean> {
   const { data, error } = await db
@@ -144,6 +198,28 @@ export async function POST(req: NextRequest) {
       if (customerId) {
         await stripe.customers.update(customerId, {
           metadata: { supabase_user_id: userId },
+        })
+      }
+
+      // ── KPP entry: only for non-trial first payments ──────────────────────
+      // For trialing subs, the first real payment happens later (invoice.payment_succeeded).
+      // For non-trial subs, checkout.session.completed IS the first payment.
+      // We detect "paid now" by checking amount_total > 0 and payment_status == 'paid'.
+      if (
+        session.payment_status === 'paid' &&
+        (session.amount_total ?? 0) > 0
+      ) {
+        await createKppEntry(db, {
+          kupac:       session.metadata?.buyer_name ?? 'N/A',
+          oib_kupca:   session.metadata?.buyer_oib  || null,
+          buyer_type:  (session.metadata?.buyer_type as 'private' | 'business') ?? 'private',
+          opis:        `UnitLift ${plan.toUpperCase()} pretplata`,
+          nacin_placanja: 'kartica',
+          iznos:       (session.amount_total ?? 0) / 100,
+          datum:       new Date().toISOString().slice(0, 10),
+          stripe_payment_id: session.payment_intent
+            ? (typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as any)?.id)
+            : session.id,
         })
       }
       break
@@ -311,6 +387,37 @@ export async function POST(req: NextRequest) {
       if (updateErr) {
         console.error('[stripe webhook] invoice.payment_succeeded update failed:', updateErr)
         return NextResponse.json({ error: 'DB error' }, { status: 500 })
+      }
+
+      // ── KPP entry for recurring/trial-end payments ────────────────────────
+      // subscription_create without prior checkout.session.completed KPP entry
+      // covers the case where checkout was free-trial → first real invoice fires here.
+      // subscription_cycle covers monthly renewals.
+      // We always create KPP for amountPaid > 0 — the unique stripe_payment_id
+      // (invoice.payment_intent) deduplicates if we ever process the same invoice twice.
+      if ((invoice.amount_paid ?? 0) > 0) {
+        const piId = typeof invoice.payment_intent === 'string'
+          ? invoice.payment_intent
+          : (invoice.payment_intent as any)?.id ?? null
+
+        // Try to recover buyer info from subscription metadata
+        const buyerName   = (sub.metadata as any)?.buyer_name   ?? ''
+        const buyerOib    = (sub.metadata as any)?.buyer_oib    ?? ''
+        const buyerType   = ((sub.metadata as any)?.buyer_type  ?? 'private') as 'private' | 'business'
+        const invoiceDatum = invoice.period_start
+          ? new Date(invoice.period_start * 1000).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10)
+
+        await createKppEntry(db, {
+          kupac:            buyerName || 'N/A',
+          oib_kupca:        buyerOib || null,
+          buyer_type:       buyerType,
+          opis:             `UnitLift ${safePlan(sub.metadata?.plan).toUpperCase()} pretplata`,
+          nacin_placanja:   'kartica',
+          iznos:            (invoice.amount_paid ?? 0) / 100,
+          datum:            invoiceDatum,
+          stripe_payment_id: piId,
+        })
       }
       break
     }

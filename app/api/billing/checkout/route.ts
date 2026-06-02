@@ -24,7 +24,20 @@ export async function POST(req: NextRequest) {
   const authHeader = req.headers.get('Authorization')
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { plan } = await req.json()
+  const body = await req.json()
+  const { plan, buyer } = body as {
+    plan: string
+    buyer?: {
+      type: 'private' | 'business'
+      name: string
+      email: string
+      country: string
+      address: string
+      company: string
+      oib: string
+      invoiceEmail: string
+    }
+  }
   const resolvedPlan = BILLABLE_PLANS.includes(plan as Plan) ? (plan as Plan) : null
   if (!resolvedPlan) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
 
@@ -117,7 +130,14 @@ export async function POST(req: NextRequest) {
     line_items:                lineItems,
     subscription_data: {
       ...(grantTrial ? { trial_period_days: 14 } : {}),
-      metadata: { plan: resolvedPlan, supabase_user_id: user.id },
+      metadata: {
+        plan: resolvedPlan,
+        supabase_user_id: user.id,
+        // Buyer info stored on subscription for future invoice KPP entries
+        buyer_type:  buyer?.type ?? 'private',
+        buyer_name:  (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
+        buyer_oib:   buyer?.oib ?? '',
+      },
     },
     // Promo is controlled SERVER-SIDE only. We never allow manual promotion codes.
     // Founding promo is applied by:
@@ -133,6 +153,12 @@ export async function POST(req: NextRequest) {
       supabase_user_id: user.id,
       granted_trial: grantTrial  ? '1' : '0',
       promo_granted: grantPromo  ? '1' : '0',
+      // Buyer info for KPP entry creation in webhook
+      buyer_type:    buyer?.type ?? 'private',
+      buyer_name:    (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
+      buyer_oib:     buyer?.oib ?? '',
+      buyer_address: buyer?.address ?? '',
+      buyer_email:   (buyer?.type === 'business' ? buyer?.invoiceEmail : buyer?.email) ?? '',
     },
     success_url: `${appUrl}/dashboard?setup=pending`,
     cancel_url:  `${appUrl}/choose-plan`,

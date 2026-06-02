@@ -2658,5 +2658,23 @@
     "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu",
     "fri": "Fri", "sat": "Sat", "sun": "Sun",
     "allDay": "All day"
+  },
+  "buyerModal": {
+    "title": "Billing details",
+    "subtitle": "How are you using UnitLift?",
+    "typePrivate": "Private individual",
+    "typeBusiness": "Business (sole trader / company)",
+    "nameLabel": "Full name",
+    "emailLabel": "Email address",
+    "countryLabel": "Country (optional)",
+    "addressLabel": "Address (optional)",
+    "companyLabel": "Company / business name",
+    "oibLabel": "VAT ID (OIB)",
+    "oibPlaceholder": "11-digit OIB",
+    "oibError": "OIB must be exactly 11 digits (numbers only)",
+    "invoiceEmailLabel": "Invoice email",
+    "continueBtn": "Continue to checkout",
+    "cancelBtn": "Cancel",
+    "required": "Required field"
   }
 }
