@@ -22,24 +22,30 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     let settled = false
+    let cleanup: (() => void) | undefined
 
     const settle = (err?: string) => {
       if (settled) return
       settled = true
       if (err) setError(err)
       setVerifying(false)
+      cleanup?.()
     }
 
-    // Primary: listen for Supabase PASSWORD_RECOVERY event.
-    // createBrowserClient auto-detects ?code= / #access_token= / ?token_hash= internally.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        settle()  // session ready, show password form
-      }
-    })
+    const run = async () => {
+      // Case 1: AuthRecoveryHandler already set a recovery session on the
+      // homepage before redirecting here — just check getSession().
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) { settle(); return }
 
-    // Fallback: manual extraction for cases where auto-detection doesn't fire
-    const tryManual = async () => {
+      // Case 2: User arrived directly on this page with tokens in the URL.
+      // Set up the event listener FIRST so we don't miss the event.
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') settle()
+      })
+      cleanup = () => subscription.unsubscribe()
+
+      // Case 3: Manual fallback for all token formats.
       const code       = new URLSearchParams(window.location.search).get('code')
       const token_hash = new URLSearchParams(window.location.search).get('token_hash')
       const type       = new URLSearchParams(window.location.search).get('type')
@@ -47,37 +53,28 @@ function ResetPasswordForm() {
       const hashParams = hash ? new URLSearchParams(hash) : null
       const access_token  = hashParams?.get('access_token')
       const refresh_token = hashParams?.get('refresh_token')
-      const hashType      = hashParams?.get('type')
 
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (!error) return // onAuthStateChange will fire
-        // PKCE failed (different browser/tab) — fall through to token_hash
+        if (!error) return // event will fire
       }
-
       if (token_hash && type === 'recovery') {
         const { error } = await supabase.auth.verifyOtp({ token_hash, type: 'recovery' })
-        if (!error) return // onAuthStateChange will fire
+        if (!error) return
       }
-
-      if (access_token && refresh_token && (hashType === 'recovery' || !hashType)) {
+      if (access_token && refresh_token) {
         const { error } = await supabase.auth.setSession({ access_token, refresh_token })
-        if (!error) return // onAuthStateChange will fire
+        if (!error) return
       }
 
-      // Nothing worked
-      settle(t('resetErrorInvalid'))
+      // Nothing in the URL — wait for event or timeout.
+      const timeout = setTimeout(() => settle(t('resetErrorInvalid')), 5000)
+      const prevCleanup = cleanup
+      cleanup = () => { prevCleanup?.(); clearTimeout(timeout) }
     }
 
-    tryManual()
-
-    // Safety timeout — if no event fires after 8s, show error
-    const timeout = setTimeout(() => settle(t('resetErrorInvalid')), 8000)
-
-    return () => {
-      subscription.unsubscribe()
-      clearTimeout(timeout)
-    }
+    run()
+    return () => cleanup?.()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const inputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
