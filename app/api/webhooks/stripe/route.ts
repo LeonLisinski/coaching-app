@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { createStripeClient } from '@/lib/stripe'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
+import { sendResendEmail } from '@/lib/resend-server'
 
 function supabaseAdmin() {
   return createClient(
@@ -92,6 +93,115 @@ async function tryClaimEvent(db: SupabaseClient, eventId: string, eventType: str
   return !!data
 }
 
+// ── Account creation for new registrations ───────────────────────────────────
+// Called from checkout.session.completed when session.metadata.registration === '1'.
+// Creates the Supabase trainer account and sends an invite/magic-link email.
+// Idempotent: skips creation if the email is already in profiles.
+
+async function provisionNewTrainerAccount(
+  db: SupabaseClient,
+  opts: {
+    email:       string
+    displayName: string
+    planLabel:   string
+  }
+): Promise<string | null> {
+  const { email, displayName, planLabel } = opts
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
+
+  // Check if profile already exists (idempotency)
+  const { data: existing } = await db
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+
+  let userId: string
+
+  if (existing?.id) {
+    userId = existing.id
+    console.log('[register webhook] account already exists for', email, '— skipping creation')
+  } else {
+    // Generate invite link (creates user + returns one-time link)
+    const { data: linkData, error: linkErr } = await db.auth.admin.generateLink({
+      type:    'invite',
+      email,
+      options: {
+        redirectTo: `${appUrl}/dashboard`,
+        data:       { full_name: displayName },
+      },
+    })
+
+    if (linkErr || !linkData?.user) {
+      console.error('[register webhook] generateLink(invite) error:', linkErr?.message)
+      return null
+    }
+
+    userId = linkData.user.id
+    const actionLink = linkData.properties?.action_link
+
+    // Wait for DB trigger to create profiles row
+    const pollStart = Date.now()
+    while (Date.now() - pollStart < 4000) {
+      const { data: p } = await db.from('profiles').select('id').eq('id', userId).maybeSingle()
+      if (p?.id) break
+      await new Promise(r => setTimeout(r, 300))
+    }
+
+    // Upsert profile
+    await db.from('profiles').upsert({
+      id:        userId,
+      full_name: displayName,
+      role:      'trainer',
+      email:     email.toLowerCase(),
+    }, { onConflict: 'id' })
+
+    await db.from('trainer_profiles').upsert(
+      { id: userId },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
+
+    // Send welcome/activation email
+    if (actionLink) {
+      const html = `
+        <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f6f7fb;color:#111827">
+          <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:32px">
+            <h2 style="margin:0 0 8px;font-size:22px">Dobro došao/la u UnitLift! 🎉</h2>
+            <p style="margin:0 0 6px;color:#4b5563;font-size:15px">Bok ${displayName},</p>
+            <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.6">
+              Plaćanje za <strong>UnitLift ${planLabel}</strong> plan je uspješno prihvaćeno.<br>
+              Klikni na gumb ispod da aktiviraš račun i postavi lozinku.
+            </p>
+            <a href="${actionLink}"
+              style="display:inline-block;background:#0066ff;color:#fff;text-decoration:none;font-weight:700;padding:14px 24px;border-radius:10px;font-size:15px">
+              Aktiviraj UnitLift račun →
+            </a>
+            <p style="margin:24px 0 0;color:#6b7280;font-size:13px">
+              Link je valjan 24 sata. Ako gumb ne radi, kopiraj ovaj URL u browser:
+            </p>
+            <p style="margin:6px 0 0;color:#374151;font-size:12px;word-break:break-all">${actionLink}</p>
+            <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
+            <p style="margin:0;color:#9ca3af;font-size:12px">© 2026 UnitLift · <a href="https://unitlift.com" style="color:#6b7280">unitlift.com</a></p>
+          </div>
+        </div>
+      `
+      const sendResult = await sendResendEmail({
+        to:      email,
+        subject: `Aktiviraj UnitLift račun — ${planLabel} plan`,
+        html,
+      })
+      if (!sendResult.ok) {
+        console.error('[register webhook] invite email failed:', (sendResult as any).logHint)
+      } else {
+        console.log('[register webhook] invite email sent to', email)
+      }
+    }
+  }
+
+  return userId
+}
+
 export async function POST(req: NextRequest) {
   const stripe    = createStripeClient()
   const body      = await req.text()
@@ -117,7 +227,41 @@ export async function POST(req: NextRequest) {
     // ── Checkout completed → create/update subscription row ──────────────────
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session
-      const userId  = session.metadata?.supabase_user_id
+
+      // ── New registration: create Supabase account first ───────────────────
+      // When registration='1', no Supabase user exists yet. Provision it now.
+      let userId = session.metadata?.supabase_user_id
+      const isNewRegistration = session.metadata?.registration === '1'
+
+      if (isNewRegistration && !userId) {
+        const email       = session.metadata?.pending_email ?? session.customer_details?.email ?? ''
+        const displayName = session.metadata?.display_name  ?? session.customer_details?.name  ?? ''
+        const planLabel   = (session.metadata?.plan ?? 'starter').toUpperCase()
+
+        if (!email) {
+          console.error('[register webhook] No email in session metadata for new registration', session.id)
+          break
+        }
+
+        const newUserId = await provisionNewTrainerAccount(db, { email, displayName, planLabel })
+        if (!newUserId) {
+          console.error('[register webhook] Failed to provision account for', email)
+          // Don't break — still try to process payment/subscription
+          break
+        }
+        userId = newUserId
+
+        // Update Stripe customer metadata with new user ID
+        const customerId = typeof session.customer === 'string'
+          ? session.customer
+          : (session.customer as any)?.id
+        if (customerId) {
+          await stripe.customers.update(customerId, {
+            metadata: { supabase_user_id: newUserId },
+          })
+        }
+      }
+
       if (!userId) break
 
       const subId = typeof session.subscription === 'string'
@@ -199,6 +343,21 @@ export async function POST(req: NextRequest) {
         await stripe.customers.update(customerId, {
           metadata: { supabase_user_id: userId },
         })
+      }
+
+      // For new registrations: also patch the subscription metadata with supabase_user_id
+      // so that future invoice.payment_succeeded webhooks can find the user
+      if (isNewRegistration && subId) {
+        try {
+          await (stripe.subscriptions.update as any)(subId, {
+            metadata: {
+              ...sub.metadata,
+              supabase_user_id: userId,
+            },
+          })
+        } catch (e) {
+          console.warn('[register webhook] Could not patch subscription metadata:', e)
+        }
       }
 
       // ── KPP entry: only for non-trial first payments ──────────────────────
