@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   if (existingProfile) {
     const message = existingProfile.role === 'trainer'
       ? 'Već postoji trenerski račun s ovom email adresom. Pokušaj se prijaviti, ili koristi opciju "Zaboravljena lozinka".'
-      : 'Ova email adresa već postoji u UnitLift sustavu kao klijentski račun. Za trenerski račun koristi drugu adresu ili kontaktiraj podrska@unitlift.com.'
+      : 'Ova email adresa već postoji u UnitLift sustavu kao klijentski račun. Za trenerski račun koristi drugu adresu ili kontaktiraj support@unitlift.com.'
     return NextResponse.json({ error: message }, { status: 409 })
   }
 
