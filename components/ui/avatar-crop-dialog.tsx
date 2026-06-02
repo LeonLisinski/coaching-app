@@ -91,9 +91,20 @@ export default function AvatarCropDialog({ file, onConfirm, onClose, accentColor
   const handleConfirm = () => {
     const canvas = canvasRef.current
     if (!canvas) return
-    canvas.toBlob(blob => {
-      if (blob) onConfirm(blob)
-    }, 'image/jpeg', 0.92)
+    // canvas.toBlob() can produce malformed output on iOS Safari when the
+    // source image is HEIC/HEIF. Using toDataURL + manual Blob construction
+    // guarantees a valid JPEG with correct magic bytes on all platforms.
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+      const base64 = dataUrl.split(',')[1]
+      if (!base64) return
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+      const blob = new Blob([bytes], { type: 'image/jpeg' })
+      onConfirm(blob)
+    } catch {
+      // fall back to toBlob
+      canvas.toBlob(blob => { if (blob) onConfirm(blob) }, 'image/jpeg', 0.92)
+    }
   }
 
   return (

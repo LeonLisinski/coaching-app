@@ -49,6 +49,7 @@ import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboardi
 // 60-second in-memory cache for notifications — avoids 4 parallel queries on every nav
 const NOTIF_CACHE_MS = 60_000
 let _notifCacheTs    = 0
+let _notifCacheLocale = ''
 let _notifCacheData: {
   notifications: { id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package' | 'lead'; href?: string; isNew?: boolean }[]
   count: number
@@ -147,8 +148,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const fetchNotifications = useCallback(async (userId: string) => {
     // Serve from cache for 60 s to avoid 4 queries on every soft navigation
+    // Cache is locale-aware — switching language invalidates immediately.
     const nowMs = Date.now()
-    if (_notifCacheData && nowMs - _notifCacheTs < NOTIF_CACHE_MS) {
+    if (_notifCacheData && nowMs - _notifCacheTs < NOTIF_CACHE_MS && _notifCacheLocale === locale) {
       setNotifications(_notifCacheData.notifications)
       setNotifCount(_notifCacheData.count)
       return
@@ -294,10 +296,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const entries = Object.entries(lead.answers || {})
       const nameVal = entries.find(([k]) => /ime|name/i.test(k))?.[1]
       const emailVal = entries.find(([k]) => /email/i.test(k))?.[1]
-      const displayName = nameVal ? String(nameVal) : emailVal ? String(emailVal) : 'Nepoznat'
+      const displayName = nameVal ? String(nameVal) : emailVal ? String(emailVal) : tLayout('fallbackUnknown')
       notifs.push({
         id: `lead-${lead.id}`,
-        title: 'Nova prijava',
+        title: tLayout('notifNewLead'),
         subtitle: displayName,
         time: formatTime(lead.created_at),
         type: 'lead',
@@ -313,13 +315,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     })
 
     const newCount = notifs.filter(n => n.isNew).length
-    // Write to module-level cache
-    _notifCacheTs   = nowMs
-    _notifCacheData = { notifications: notifs, count: newCount }
+    // Write to module-level cache (locale-keyed)
+    _notifCacheTs     = nowMs
+    _notifCacheLocale = locale
+    _notifCacheData   = { notifications: notifs, count: newCount }
 
     setNotifications(notifs)
     setNotifCount(newCount)
-  }, [tLayout])
+  }, [tLayout, locale])
 
   // Update last-visited client / chat / checkin whenever the pathname changes
   useEffect(() => {

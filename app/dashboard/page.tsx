@@ -1089,6 +1089,130 @@ function DashboardPageContent() {
         )
       })()}
 
+      {/* ── GLOBAL: Clients overview + Expiring packages ──────────────────────── */}
+      {dashView === 'global' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Clients check-in overview */}
+          <div
+            className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/8' : 'border-gray-100 shadow-sm bg-white'}`}
+            style={{ background: isDark ? 'oklch(0.195 0.018 264)' : undefined }}
+          >
+            <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isDark ? 'border-white/8' : 'border-gray-50'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${accentHex}${isDark ? '28' : '15'}` }}>
+                  <Users size={13} style={{ color: accentHex }} />
+                </div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('clientsOverviewTitle')}</p>
+              </div>
+              <button onClick={() => router.push('/dashboard/clients')} className="flex items-center gap-1 text-xs font-medium" style={{ color: accentHex }}>
+                {t2('clientsAllLink')} <ChevronRight size={11} />
+              </button>
+            </div>
+            {clients.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center px-5">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-2.5" style={{ backgroundColor: `${accentHex}${isDark ? '18' : '0e'}` }}>
+                  <Users size={18} style={{ color: accentHex, opacity: 0.45 }} />
+                </div>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('noActiveClients')}</p>
+              </div>
+            ) : (
+              <div className={`divide-y ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
+                {clients.slice(0, 6).map(c => {
+                  const statusColor = c.status === 'submitted' ? '#10b981' : c.status === 'late' ? '#f43f5e' : '#9ca3af'
+                  const statusLabel = c.status === 'submitted' ? t2('statusSubmitted') : c.status === 'late' ? t2('statusLate') : t2('statusOk')
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => router.push(`/dashboard/clients/${c.id}`)}
+                      className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50/60'}`}
+                    >
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accentHex}${isDark ? '25' : '12'}` }}>
+                        <span className="text-xs font-bold" style={{ color: accentHex }}>
+                          {c.full_name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className={`flex-1 text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{c.full_name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs tabular-nums" style={{ color: isDark ? '#6b7280' : '#9ca3af' }}>{c.checkin_rate}%</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: `${statusColor}15`, color: statusColor }}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                      <ChevronRight size={12} className={`ml-0.5 shrink-0 ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-500'}`} />
+                    </div>
+                  )
+                })}
+                {clients.length > 6 && (
+                  <div className={`px-5 py-3 text-center`}>
+                    <button onClick={() => router.push('/dashboard/clients')} className="text-xs font-medium" style={{ color: accentHex }}>
+                      {t2('moreClients', { count: clients.length - 6 })}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Expiring packages */}
+          <div
+            className={`rounded-2xl border overflow-hidden ${isDark ? 'border-white/8' : 'border-gray-100 shadow-sm bg-white'}`}
+            style={{ background: isDark ? 'oklch(0.195 0.018 264)' : undefined }}
+          >
+            <div className={`flex items-center justify-between px-5 py-3.5 border-b ${isDark ? 'border-white/8' : 'border-gray-50'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${expiringPackages.length > 0 ? '#f59e0b' : accentHex}${isDark ? '28' : '15'}` }}>
+                  <AlertCircle size={13} style={{ color: expiringPackages.length > 0 ? '#f59e0b' : accentHex }} />
+                </div>
+                <p className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t2('expiringPackagesTitle')}</p>
+              </div>
+              <button onClick={() => router.push('/dashboard/financije')} className="flex items-center gap-1 text-xs font-medium" style={{ color: accentHex }}>
+                {t2('financeLink')} <ChevronRight size={11} />
+              </button>
+            </div>
+            {expiringPackages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center px-5">
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-2.5"
+                  style={{ backgroundColor: 'rgba(16,185,129,0.12)' }}>
+                  <Check size={18} style={{ color: '#10b981', opacity: 0.7 }} />
+                </div>
+                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t2('expiringPackagesOk')}</p>
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{t2('expiringPackagesOkSub')}</p>
+              </div>
+            ) : (
+              <div className={`divide-y ${isDark ? 'divide-white/6' : 'divide-gray-50'}`}>
+                {expiringPackages.map(ep => (
+                  <div
+                    key={ep.id}
+                    onClick={() => router.push(`/dashboard/clients/${ep.client_id}?tab=packages`)}
+                    className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors group ${isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50/60'}`}
+                  >
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: ep.days_left <= 2 ? 'rgba(244,63,94,0.12)' : 'rgba(245,158,11,0.12)' }}>
+                      <AlertCircle size={14} style={{ color: ep.days_left <= 2 ? '#f43f5e' : '#f59e0b' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{ep.client_name}</p>
+                      <p className={`text-xs truncate ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{ep.pkg_name}</p>
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: ep.days_left <= 2 ? 'rgba(244,63,94,0.12)' : 'rgba(245,158,11,0.12)',
+                        color: ep.days_left <= 2 ? '#f43f5e' : '#f59e0b',
+                      }}>
+                      {ep.days_left === 0 ? t2('expiringToday') : `${ep.days_left}d`}
+                    </span>
+                    <ChevronRight size={12} className={`ml-0.5 shrink-0 ${isDark ? 'text-gray-600 group-hover:text-gray-400' : 'text-gray-300 group-hover:text-gray-500'}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
     </div>
   )
 }
