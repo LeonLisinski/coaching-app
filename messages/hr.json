@@ -113,6 +113,7 @@
       "checkin": { "label": "Check-in sustav", "desc": "Tjedni napredak s grafikonima i fotografijama." },
       "chat": { "label": "Chat s klijentima", "desc": "Poruke u stvarnom vremenu i brzi predlošci." },
       "finance": { "label": "Financijski pregled", "desc": "Paketi, plaćanja i izvještaji na jednom ekranu." }
+    }
   },
   "common": {
     "loading": "Učitavanje...",
