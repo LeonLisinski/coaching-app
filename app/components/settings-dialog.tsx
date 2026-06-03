@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { useAppTheme, type AccentColor } from '@/app/contexts/app-theme'
-import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket, Sparkles } from 'lucide-react'
+import { Settings, Mail, Globe, Check, Palette, Smartphone, Share, Download, Bell, BellOff, BellRing, TriangleAlert, Trash2, CreditCard, Zap, Crown, Rocket, Sparkles, MessageSquare, ClipboardCheck, Package, ClipboardList } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 import { supabase } from '@/lib/supabase'
@@ -25,7 +25,7 @@ const ACCENT_COLORS: { key: AccentColor; hex: string }[] = [
   { key: 'slate',  hex: '#475569' },
 ]
 
-type Tab = 'theme' | 'billing' | 'contact' | 'danger'
+type Tab = 'theme' | 'billing' | 'contact' | 'notifs' | 'danger'
 
 
 interface Props {
@@ -48,6 +48,17 @@ export default function SettingsDialog({ open, onClose }: Props) {
   // Plan change / cancel confirm state
   const [confirmAction, setConfirmAction] = useState<null | { type: 'cancel' | 'change'; plan?: string; label?: string; price?: number }>(null)
   const [billingError, setBillingError] = useState('')
+
+  // Notification preferences state
+  type NotifPrefs = Record<string, { in_app_enabled: boolean; push_enabled: boolean; email_enabled: boolean }>
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>({
+    message: { in_app_enabled: true, push_enabled: true, email_enabled: false },
+    checkin: { in_app_enabled: true, push_enabled: true, email_enabled: false },
+    package: { in_app_enabled: true, push_enabled: true, email_enabled: true },
+    lead:    { in_app_enabled: true, push_enabled: true, email_enabled: false },
+  })
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false)
+  const [notifPrefsSaving, setNotifPrefsSaving] = useState(false)
 
   // Delete account state
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0) // 0=idle, 1=warn1, 2=confirm
@@ -83,7 +94,40 @@ export default function SettingsDialog({ open, onClose }: Props) {
   useEffect(() => {
     if (tab === 'danger')  loadDangerData()
     if (tab === 'billing') loadSub()
+    if (tab === 'notifs')  loadNotifPrefs()
   }, [tab])
+
+  const loadNotifPrefs = async () => {
+    setNotifPrefsLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/notifications/prefs', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setNotifPrefs(data)
+      }
+    } finally {
+      setNotifPrefsLoading(false)
+    }
+  }
+
+  const saveNotifPref = async (type: string, key: 'in_app_enabled' | 'push_enabled' | 'email_enabled', value: boolean) => {
+    const updated = { ...notifPrefs, [type]: { ...notifPrefs[type], [key]: value } }
+    setNotifPrefs(updated)
+    setNotifPrefsSaving(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      await fetch('/api/notifications/prefs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ [type]: updated[type] }),
+      })
+    } finally {
+      setNotifPrefsSaving(false)
+    }
+  }
 
   const loadSub = async () => {
     setSubLoading(true)
@@ -281,23 +325,26 @@ export default function SettingsDialog({ open, onClose }: Props) {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100 bg-gray-50/50 dark:border-white/8 dark:bg-white/3">
           {([
-            ['theme',   <Palette size={14} />,       t('tabs.theme'),    t('tabs.theme')],
-            ['billing', <CreditCard size={14} />,    t('tabs.billing'),  t('mobileTabPlan')],
-            ['contact', <Mail size={14} />,           t('tabs.contact'),  t('tabs.contact')],
-            ['danger',  <TriangleAlert size={14} />, t('tabs.account'),  t('tabs.account')],
-          ] as [Tab, React.ReactNode, string, string][]).map(([key, icon, label, mobileLabel]) => (
+            ['theme',   <Palette size={15} />,       t('tabs.theme'),   t('tabs.theme')],
+            ['billing', <CreditCard size={15} />,    t('tabs.billing'), t('mobileTabPlan')],
+            ['notifs',  <Bell size={15} />,           t('tabs.notifs'),  t('tabs.notifs')],
+            ['contact', <Mail size={15} />,           t('tabs.contact'), t('tabs.contact')],
+            ['danger',  <TriangleAlert size={15} />, t('tabs.account'), t('tabs.account')],
+          ] as [Tab, React.ReactNode, string, string][]).map(([key, icon, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex-1 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-4 py-2.5 sm:py-3 font-medium transition-colors border-b-2 outline-none focus:outline-none ${
+              title={label}
+              className={`flex-1 flex items-center justify-center py-3 font-medium transition-colors border-b-2 outline-none focus:outline-none ${
                 tab === key
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200'
+                  : 'border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200'
               }`}
             >
-              {icon}
-              <span className="text-[9px] leading-tight sm:hidden">{mobileLabel}</span>
-              <span className="hidden sm:inline text-sm">{label}</span>
+              {/* Mobile: icon only */}
+              <span className="sm:hidden">{icon}</span>
+              {/* Desktop: icon + label */}
+              <span className="hidden sm:flex items-center gap-1.5 text-sm">{icon}{label}</span>
             </button>
           ))}
         </div>
@@ -607,6 +654,69 @@ export default function SettingsDialog({ open, onClose }: Props) {
                   </div>
                 )
               })()}
+            </div>
+          )}
+
+          {tab === 'notifs' && (
+            <div className="space-y-5">
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                Odaberi na koji način želiš primati svaki tip obavijesti.
+              </p>
+
+              {notifPrefsLoading ? (
+                <div className="flex justify-center py-6"><div className="w-5 h-5 border-2 border-gray-200 border-t-[var(--app-accent)] rounded-full animate-spin" /></div>
+              ) : (
+                <div className="space-y-3">
+                  {([
+                    { key: 'message', icon: MessageSquare,  label: 'Poruke',                color: '#0ea5e9' },
+                    { key: 'checkin', icon: ClipboardCheck, label: 'Check-in (tjedni)',      color: 'var(--app-accent)' },
+                    { key: 'package', icon: Package,        label: 'Istek paketa klijenta', color: '#f59e0b' },
+                    { key: 'lead',    icon: ClipboardList,  label: 'Nova prijava',           color: '#a855f7' },
+                  ] as const).map(({ key, icon: Icon, label, color }) => {
+                    const pref = notifPrefs[key] ?? { in_app_enabled: true, push_enabled: true, email_enabled: false }
+                    return (
+                      <div key={key} className="rounded-xl border border-gray-100 dark:border-white/8 overflow-hidden">
+                        {/* Type header */}
+                        <div className="flex items-center gap-2.5 px-4 py-2.5 bg-gray-50/60 dark:bg-white/[0.03]">
+                          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)` }}>
+                            <Icon size={12} style={{ color }} />
+                          </div>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{label}</p>
+                        </div>
+                        {/* Toggles */}
+                        <div className="divide-y divide-gray-50 dark:divide-white/5">
+                          {([
+                            { k: 'in_app_enabled' as const, label: 'In-app (zvonce)', desc: 'Prikazuje se unutar aplikacije' },
+                            { k: 'push_enabled'   as const, label: 'Push notifikacija', desc: 'Na uređaju (web/PWA)' },
+                            { k: 'email_enabled'  as const, label: 'Email', desc: 'Na tvoju email adresu' },
+                          ]).map(({ k, label: tLabel, desc }) => (
+                            <div key={k} className="flex items-center justify-between px-4 py-2.5">
+                              <div>
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{tLabel}</p>
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500">{desc}</p>
+                              </div>
+                              <button
+                                onClick={() => saveNotifPref(key, k, !pref[k])}
+                                disabled={notifPrefsSaving}
+                                className={`relative w-10 h-5.5 rounded-full transition-colors shrink-0 ${pref[k] ? 'bg-[var(--app-accent)]' : 'bg-gray-200 dark:bg-white/15'}`}
+                                style={{ height: '22px', width: '40px' }}
+                              >
+                                <span
+                                  className="absolute top-0.5 left-0.5 w-[18px] h-[18px] bg-white rounded-full shadow transition-transform"
+                                  style={{ transform: pref[k] ? 'translateX(18px)' : 'translateX(0)' }}
+                                />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {notifPrefsSaving && (
+                <p className="text-[10px] text-gray-400 text-center">Sprema se...</p>
+              )}
             </div>
           )}
 

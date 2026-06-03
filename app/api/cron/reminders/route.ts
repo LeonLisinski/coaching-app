@@ -9,6 +9,11 @@ import {
 import { escapeHtml } from '@/lib/html-escape'
 import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
 import { cronCheckinReminder, reminderGreetingLine } from '@/lib/reminder-email-copy'
+import {
+  buildPackageExpiryEmail,
+  buildPendingPaymentsEmail,
+  buildTrialEndingEmail,
+} from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
@@ -195,16 +200,42 @@ export async function GET(req: NextRequest) {
       const inserted = await tryInsertDedupe(supabase, 'package_expiry', dedupeKey)
       if (!inserted) continue
 
-      const line =
-        daysLeft === 0
-          ? `Paket <strong>${escapeHtml(pkgName)}</strong> za <strong>${escapeHtml(clientName)}</strong> istječe <strong>danas</strong>.`
-          : `Paket <strong>${escapeHtml(pkgName)}</strong> za <strong>${escapeHtml(clientName)}</strong> istječe za <strong>${daysLeft}</strong> dana (${escapeHtml(endDateStr)}).`
+      // Insert in-app notification (1 day and 0 days only)
+      if (daysLeft <= 1) {
+        const notifSourceId = `pkg-notif-${(cp as any).id}-d${daysLeft}-${todayStr}`
+        await supabase
+          .from('trainer_notifications')
+          .upsert({
+            trainer_id: (cp as any).trainer_id,
+            type: 'package',
+            title: clientName,
+            body: daysLeft === 0
+              ? `Paket "${pkgName}" istječe danas`
+              : `Paket "${pkgName}" istječe sutra`,
+            href: `${url}/dashboard/clients/${(cp as any).client_id}?tab=paketi`,
+            source_id: notifSourceId,
+          }, { onConflict: 'trainer_id,source_id', ignoreDuplicates: true })
+      }
 
-      const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0b0a12;color:#e4e4e7;padding:24px;">
-<p>Bok ${escapeHtml(trainer.full_name?.split(' ')[0] || 'trener')},</p>
-<p>${line}</p>
-<p><a href="${escapeHtml(url)}/dashboard/clients/${(cp as any).client_id}?tab=paketi" style="color:#a78bfa;">Otvori pakete klijenta</a></p>
-</body></html>`
+      // Check email preference before sending
+      const { data: pref } = await supabase
+        .from('trainer_notification_prefs')
+        .select('email_enabled')
+        .eq('trainer_id', (cp as any).trainer_id)
+        .eq('type', 'package')
+        .maybeSingle()
+      // Default: email enabled for packages if no pref row exists
+      const emailEnabled = pref ? pref.email_enabled : true
+      if (!emailEnabled) { pkgSent++; continue }
+
+      const html = buildPackageExpiryEmail({
+        trainerFirstName: trainer.full_name?.split(' ')[0] || 'Trener',
+        clientName,
+        packageName: pkgName,
+        daysLeft,
+        endDate: endDateStr,
+        clientPackageUrl: `${url}/dashboard/clients/${(cp as any).client_id}?tab=paketi`,
+      })
 
       const r = await sendResendEmail({
         to: trainer.email,
@@ -259,15 +290,11 @@ export async function GET(req: NextRequest) {
       const inserted = await tryInsertDedupe(supabase, 'payment_pending', dedupeKey)
       if (!inserted) continue
 
-      const rows = bundle.items
-        .map(i => `<li>${escapeHtml(i.client)} — <strong>${i.amount}€</strong> na čekanju</li>`) 
-        .join('')
-      const html = `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0b0a12;color:#e4e4e7;padding:24px;">
-<p>Bok ${escapeHtml(bundle.name.split(' ')[0] || 'trener')},</p>
-<p>Imaš <strong>${bundle.items.length}</strong> otvorenih uplata:</p>
-<ul>${rows}</ul>
-<p><a href="${escapeHtml(url)}/dashboard/financije" style="color:#a78bfa;">Otvori financije</a></p>
-</body></html>`
+      const html = buildPendingPaymentsEmail({
+        trainerFirstName: bundle.name.split(' ')[0] || 'Trener',
+        items: bundle.items,
+        financeUrl: `${url}/dashboard/financije`,
+      })
 
       const r = await sendResendEmail({
         to: bundle.email,
@@ -323,43 +350,13 @@ export async function GET(req: NextRequest) {
       const planLabel = (ts.plan as string).charAt(0).toUpperCase() + (ts.plan as string).slice(1)
       const endStr = trialEndDate.toLocaleDateString('hr-HR', { day: 'numeric', month: 'long', year: 'numeric' })
 
-      const html = `<!DOCTYPE html>
-<html lang="hr">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;background:#0b0a12;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#0b0a12;padding:32px 16px;">
-    <tr><td align="center">
-      <table role="presentation" width="100%" style="max-width:520px;background:linear-gradient(180deg,#15131f 0%,#0e0c16 100%);border-radius:20px;border:1px solid rgba(255,255,255,0.08);overflow:hidden;">
-        <tr><td style="padding:28px 28px 8px 28px;text-align:center;">
-          <div style="display:inline-block;padding:10px 14px;border-radius:14px;background:#5b21b6;margin-bottom:16px;">
-            <span style="font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.02em;">UnitLift</span>
-          </div>
-          <h1 style="margin:0 0 8px 0;font-size:22px;font-weight:800;color:#f4f4f5;line-height:1.25;">
-            Tvoj trial istječe za ${daysLeft} dana
-          </h1>
-          <p style="margin:0;font-size:14px;color:#a1a1aa;">Plan: <strong style="color:#a78bfa;">${planLabel}</strong></p>
-        </td></tr>
-        <tr><td style="padding:8px 28px 28px 28px;">
-          <p style="margin:0 0 16px 0;font-size:15px;color:#d4d4d8;line-height:1.6;">
-            Bok <strong style="color:#fff;">${firstName}</strong>,<br/><br/>
-            Tvoj 14-dnevni besplatni trial istječe <strong style="color:#e4e4e7;">${endStr}</strong>.
-            Nakon toga počinje redovita naplata za plan <strong style="color:#a78bfa;">${planLabel}</strong>.<br/><br/>
-            Ako želiš prilagoditi ili otkazati pretplatu, to možeš napraviti u postavkama naplate.
-          </p>
-          <div style="text-align:center;margin:24px 0;">
-            <a href="${url}/dashboard/billing" style="display:inline-block;padding:14px 28px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#ffffff !important;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 8px 24px rgba(91,33,182,0.35);">
-              Upravljaj pretplatom
-            </a>
-          </div>
-          <p style="margin:0;font-size:12px;color:#71717a;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;line-height:1.5;">
-            Hvala što koristiš UnitLift.
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`
+      const html = buildTrialEndingEmail({
+        trainerFirstName: firstName,
+        daysLeft,
+        planLabel,
+        trialEndStr: endStr,
+        billingUrl: `${url}/dashboard/billing`,
+      })
 
       const r = await sendResendEmail({
         to: profile.email,

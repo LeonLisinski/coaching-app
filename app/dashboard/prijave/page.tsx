@@ -465,6 +465,17 @@ export default function LeadsPage() {
     { value: 'yes_no',        label: tL('typeYesNo') },
   ]
 
+  // ── Auto-mark lead notifications as read on page visit ──────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetch('/api/notifications/mark-read', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ type: 'lead' }),
+      })
+    })
+  }, [])
+
   // ── Auth + data load + real-time ─────────────────────────────────────────
   useEffect(() => {
     // Use a ref so cleanup can always access the channel even if init() is still async

@@ -46,7 +46,7 @@ const TrainerOnboardingWizard = nextDynamic(
 import { runTrainerTour, type TourStrings } from '@/lib/trainer-tour'
 import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboarding-storage'
 
-// 60-second in-memory cache for notifications — avoids 4 parallel queries on every nav
+// 60-second in-memory cache for notifications — avoids redundant queries on every soft navigation
 const NOTIF_CACHE_MS = 60_000
 let _notifCacheTs    = 0
 let _notifCacheLocale = ''
@@ -97,7 +97,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifs, setShowNotifs]     = useState(false)
   const [notifCount, setNotifCount]     = useState(0)
-  const [seenIds, setSeenIds]           = useState<Set<string>>(new Set())
   const [notifications, setNotifications] = useState<{ id: string; title: string; subtitle: string; time: string; type: 'checkin' | 'message' | 'payment' | 'package' | 'lead'; href?: string; isNew?: boolean }[]>([])
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [tourFarewell, setTourFarewell] = useState(false)
@@ -147,8 +146,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [startProductTour])
 
   const fetchNotifications = useCallback(async (userId: string) => {
-    // Serve from cache for 60 s to avoid 4 queries on every soft navigation
-    // Cache is locale-aware — switching language invalidates immediately.
     const nowMs = Date.now()
     if (_notifCacheData && nowMs - _notifCacheTs < NOTIF_CACHE_MS && _notifCacheLocale === locale) {
       setNotifications(_notifCacheData.notifications)
@@ -157,55 +154,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     const now = new Date()
-    const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7)
-    const sevenDaysAgoDate = sevenDaysAgo.toISOString().split('T')[0]
 
-    const stored = localStorage.getItem('notif_seen_ids')
-    let storedSeen: Set<string> = new Set()
-    if (stored) {
-      try { storedSeen = new Set(JSON.parse(stored)) } catch { localStorage.removeItem('notif_seen_ids') }
+    // Read from persistent notifications table — no more localStorage for seen state
+    const { data: rows, error } = await supabase
+      .from('trainer_notifications')
+      .select('id, type, title, body, href, source_id, read_at, created_at')
+      .eq('trainer_id', userId)
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) {
+      console.error('[notifications] fetch error:', error)
+      return
     }
-    setSeenIds(storedSeen)
-
-    const sevenDaysAheadDate = new Date(now); sevenDaysAheadDate.setDate(now.getDate() + 7)
-    const sevenDaysAhead = sevenDaysAheadDate.toISOString().split('T')[0]
-    const oneDayAgoDate = new Date(now); oneDayAgoDate.setDate(now.getDate() - 1)
-    const oneDayAgo = oneDayAgoDate.toISOString().split('T')[0]
-
-    // Use explicit FK hints to resolve PGRST201 ambiguity:
-    // clients has both user_id → profiles and trainer_id → profiles
-    const [msgsRes, checkinsRes, pkgRes, leadsRes] = await Promise.all([
-      supabase.from('messages')
-        .select('id, content, created_at, client_id, clients!messages_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
-        .eq('trainer_id', userId).neq('sender_id', userId).eq('read', false)
-        .order('created_at', { ascending: false }).limit(30),
-      supabase.from('checkins')
-        .select('id, date, client_id, clients!checkins_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
-        .eq('trainer_id', userId)
-        .gte('date', sevenDaysAgoDate)
-        .order('date', { ascending: false }).limit(30),
-      supabase.from('client_packages')
-        .select('id, end_date, client_id, packages!client_packages_package_id_fkey(name), clients!client_packages_client_id_fkey(profiles!clients_user_id_fkey(full_name))')
-        .eq('trainer_id', userId)
-        .eq('status', 'active')
-        .gte('end_date', oneDayAgo)
-        .lte('end_date', sevenDaysAhead)
-        .order('end_date', { ascending: true }),
-      supabase.from('lead_submissions')
-        .select('id, answers, created_at, seen')
-        .eq('trainer_id', userId)
-        .eq('seen', false)
-        .order('created_at', { ascending: false })
-        .limit(20),
-    ])
-
-    const msgs = msgsRes.data
-    const checkins = checkinsRes.data
-    const pkgAlerts = pkgRes.data
-    const newLeads = leadsRes.data
 
     const formatTime = (dateStr: string) => {
-      const d = new Date(dateStr + (dateStr.includes('T') ? '' : 'T12:00:00'))
+      const d = new Date(dateStr)
       const diffMs = now.getTime() - d.getTime()
       const diffH = Math.floor(diffMs / 3600000)
       const diffD = Math.floor(diffH / 24)
@@ -215,107 +180,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return tLayout('timeDays', { n: diffD })
     }
 
-    const notifs: typeof notifications = []
-
-    type MsgN = {
-      id: string
-      content?: string | null
-      created_at: string
-      client_id: string
-      clients?: { profiles?: { full_name?: string | null } | null } | null
-    }
-    type CiN = {
-      id: string
-      date: string
-      client_id: string
-      clients?: { profiles?: { full_name?: string | null } | null } | null
-    }
-    type PkgN = {
-      id: string
-      end_date: string
-      client_id: string
-      packages?: { name?: string | null } | null
-      clients?: { profiles?: { full_name?: string | null } | null } | null
+    type NotifRow = {
+      id: string; type: string; title: string; body: string
+      href: string | null; source_id: string | null; read_at: string | null; created_at: string
     }
 
-    ;((msgs ?? []) as MsgN[]).forEach((m) => {
-      const name = m.clients?.profiles?.full_name || tLayout('fallbackClient')
-      const id = `msg-${m.id}`
-      notifs.push({
-        id,
-        title: name,
-        subtitle: m.content?.slice(0, 55) || tLayout('notifNewMessage'),
-        time: formatTime(m.created_at),
-        type: 'message',
-        href: `/dashboard/chat?clientId=${m.client_id}`,
-        // Messages are always new if they're unread in the DB — don't use localStorage
-        // for message type since the DB read flag is the source of truth.
-        isNew: true,
-      })
-    })
-
-    ;((checkins ?? []) as CiN[]).forEach((c) => {
-      const name = c.clients?.profiles?.full_name || tLayout('fallbackClient')
-      const id = `ci-${c.id}`
-      notifs.push({
-        id,
-        title: name,
-        subtitle: tLayout('notifSubmittedCheckin'),
-        time: formatTime(c.date),
-        type: 'checkin',
-        href: `/dashboard/checkins/${c.client_id}`,
-        isNew: !storedSeen.has(id),
-      })
-    })
-
-    ;((pkgAlerts ?? []) as PkgN[]).forEach((cp) => {
-      const name = cp.clients?.profiles?.full_name || tLayout('fallbackClient')
-      const pkgName = cp.packages?.name || tLayout('fallbackPackage')
-      const endDate = cp.end_date as string
-      const daysLeft = Math.ceil((new Date(endDate).getTime() - now.getTime()) / 86400000)
-      const id = `pkg-${cp.id}-${endDate}`
-      const subtitle = daysLeft < 0
-        ? tLayout('notifPackageExpired', { name: pkgName })
-        : daysLeft === 0
-        ? tLayout('notifPackageExpiresToday', { name: pkgName })
-        : tLayout('notifPackageExpiresIn', { name: pkgName, days: daysLeft, unit: daysLeft === 1 ? tLayout('notifDaysSingular') : tLayout('notifDaysPlural') })
-      notifs.push({
-        id,
-        title: name,
-        subtitle,
-        time: daysLeft < 0 ? tLayout('notifTimeExpiredDays', { n: Math.abs(daysLeft) }) : daysLeft === 0 ? tLayout('notifTimeToday') : tLayout('notifTimeIn', { n: daysLeft }),
-        type: 'package',
-        href: `/dashboard/clients/${cp.client_id}?tab=paketi`,
-        isNew: !storedSeen.has(id),
-      })
-    })
-
-    // New leads — always isNew (same logic as unread messages)
-    type LeadN = { id: string; answers: Record<string, unknown>; created_at: string; seen: boolean }
-    ;((newLeads ?? []) as LeadN[]).forEach((lead) => {
-      const entries = Object.entries(lead.answers || {})
-      const nameVal = entries.find(([k]) => /ime|name/i.test(k))?.[1]
-      const emailVal = entries.find(([k]) => /email/i.test(k))?.[1]
-      const displayName = nameVal ? String(nameVal) : emailVal ? String(emailVal) : tLayout('fallbackUnknown')
-      notifs.push({
-        id: `lead-${lead.id}`,
-        title: tLayout('notifNewLead'),
-        subtitle: displayName,
-        time: formatTime(lead.created_at),
-        type: 'lead',
-        href: '/dashboard/prijave',
-        isNew: true,
-      })
-    })
-
-    notifs.sort((a, b) => {
-      if (a.isNew && !b.isNew) return -1
-      if (!a.isNew && b.isNew) return 1
-      return 0
-    })
+    const notifs = (rows as NotifRow[]).map(r => ({
+      id: r.source_id ?? r.id,
+      title: r.title,
+      subtitle: r.body,
+      time: formatTime(r.created_at),
+      type: r.type as 'checkin' | 'message' | 'payment' | 'package' | 'lead',
+      href: r.href ?? undefined,
+      isNew: !r.read_at,
+    }))
 
     const newCount = notifs.filter(n => n.isNew).length
-    // Write to module-level cache (locale-keyed)
+
     _notifCacheTs     = nowMs
     _notifCacheLocale = locale
     _notifCacheData   = { notifications: notifs, count: newCount }
@@ -530,22 +411,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearTimeout(tid)
   }, [helpMobileHint])
 
-  const markAllSeen = () => {
-    const allIds = notifications.map(n => n.id)
-    const newSeen = new Set([...seenIds, ...allIds])
-    setSeenIds(newSeen)
-    localStorage.setItem('notif_seen_ids', JSON.stringify([...newSeen]))
-    setNotifications(n => n.map(x => ({ ...x, isNew: false })))
+  const markAllSeen = async () => {
+    _notifCacheData = null
+    setNotifications([])
     setNotifCount(0)
+    await fetch('/api/notifications/mark-read', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
   }
 
-  const markOneSeen = (id: string) => {
-    if (seenIds.has(id)) return
-    const newSeen = new Set([...seenIds, id])
-    setSeenIds(newSeen)
-    localStorage.setItem('notif_seen_ids', JSON.stringify([...newSeen]))
-    setNotifications(n => n.map(x => x.id === id ? { ...x, isNew: false } : x))
+  const markOneSeen = async (id: string) => {
+    _notifCacheData = null
+    setNotifications(n => n.filter(x => x.id !== id))
     setNotifCount(c => Math.max(0, c - 1))
+    await fetch('/api/notifications/mark-read', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source_ids: [id] }) })
   }
 
   const handleLogout = async () => {

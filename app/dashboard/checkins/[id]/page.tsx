@@ -40,6 +40,18 @@ export default function ClientCheckinPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = usePersistedTab(`checkin_tab_${id as string}`, 'overview')
 
+  // Auto-mark checkin notifications as read for this client
+  useEffect(() => {
+    if (!id) return
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetch('/api/notifications/mark-read', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ href: `/dashboard/checkins/${id}` }),
+      })
+    })
+  }, [id])
+
   // Client navigation (prev/next from the check-in clients list)
   type NavClient = { id: string; full_name: string; gender: string | null }
   const [navList, setNavList] = useState<NavClient[]>([])

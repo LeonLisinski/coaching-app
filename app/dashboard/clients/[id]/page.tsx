@@ -167,6 +167,19 @@ function ClientDetailPageContent() {
     if (urlTab in LEGACY_CHECKIN_SUBS) setCheckinSubTab(LEGACY_CHECKIN_SUBS[urlTab])
     if (urlTab in LEGACY_OSTALO_SUBS) setOstaloSubTab(LEGACY_OSTALO_SUBS[urlTab])
   }, [urlTab])
+
+  // Auto-mark package notifications as read when on this client's packages tab
+  useEffect(() => {
+    if (!id) return
+    if (activeTab !== 'ostalo') return
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      fetch('/api/notifications/mark-read', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ href: `/dashboard/clients/${id}?tab=paketi` }),
+      })
+    })
+  }, [id, activeTab])
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEditDialog, setShowEditDialog] = useState(false)

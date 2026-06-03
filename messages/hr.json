@@ -1687,7 +1687,8 @@
       "theme": "Izgled",
       "billing": "Pretplata",
       "contact": "Pomoć",
-      "account": "Račun"
+      "account": "Račun",
+      "notifs": "Obavijesti"
     },
     "mobileTabPlan": "Plan",
     "activeTheme": "Aktivna tema:",

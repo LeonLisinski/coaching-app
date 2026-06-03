@@ -1687,7 +1687,8 @@
       "theme": "Appearance",
       "billing": "Subscription",
       "contact": "Help",
-      "account": "Account"
+      "account": "Account",
+      "notifs": "Notifications"
     },
     "mobileTabPlan": "Plan",
     "activeTheme": "Active theme:",

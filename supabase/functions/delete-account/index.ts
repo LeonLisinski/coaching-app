@@ -38,11 +38,15 @@ Deno.serve(async (req) => {
 
   const now = new Date().toISOString()
 
-  // ── Mark this user for deletion ────────────────────────────────────────────
-  await supabase
-    .from('profiles')
-    .update({ deletion_requested_at: now })
-    .eq('id', user.id)
+  // ── Mark this user for deletion + ban from Auth ─────────────────────────────
+  await Promise.all([
+    supabase
+      .from('profiles')
+      .update({ deletion_requested_at: now })
+      .eq('id', user.id),
+    // Ban user so they cannot log in during the 30-day grace period
+    supabase.auth.admin.updateUserById(user.id, { ban_duration: '876000h' }),
+  ])
 
   // Capability lookups: a single user may be BOTH a trainer (has clients of
   // their own) AND a client (active relationship with another trainer).

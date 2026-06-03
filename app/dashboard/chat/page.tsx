@@ -55,9 +55,15 @@ function ChatPageContent() {
     if (selectedClientId) {
       localStorage.setItem('last_chat_client_id', selectedClientId)
       setInActiveChat(true)
+      // Mark message notifications for this specific client as read
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        fetch('/api/notifications/mark-read', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ href: `/dashboard/chat?clientId=${selectedClientId}` }),
+        })
+      })
     } else {
-      // User explicitly returned to the chat list — forget the last chat so
-      // the tab nav returns to the list next time instead of auto-opening it
       localStorage.removeItem('last_chat_client_id')
       setInActiveChat(false)
     }
