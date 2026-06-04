@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 
 // ── Shared types & constants ──────────────────────────────────────────────────
@@ -118,8 +118,13 @@ export function TrainerSettingsProvider({ children }: { children: ReactNode }) {
     if (userId) await loadSettings(userId)
   }, [userId, loadSettings])
 
+  const value = useMemo(
+    () => ({ userId, settings, loading, refresh }),
+    [userId, settings, loading, refresh],
+  )
+
   return (
-    <TrainerSettingsContext.Provider value={{ userId, settings, loading, refresh }}>
+    <TrainerSettingsContext.Provider value={value}>
       {children}
     </TrainerSettingsContext.Provider>
   )

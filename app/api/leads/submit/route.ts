@@ -19,6 +19,15 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
 
@@ -83,7 +92,7 @@ export async function POST(req: NextRequest) {
   const answerLines = Object.entries(answers as Record<string, unknown>)
     .map(([label, value]) => {
       const val = Array.isArray(value) ? value.join(', ') : String(value ?? '')
-      return `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#64748b;font-weight:500;vertical-align:top;white-space:nowrap;">${label}</td><td style="padding:6px 0;font-size:13px;color:#1e293b;">${val}</td></tr>`
+      return `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#64748b;font-weight:500;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:13px;color:#1e293b;">${escapeHtml(val)}</td></tr>`
     })
     .join('')
 
@@ -100,7 +109,7 @@ export async function POST(req: NextRequest) {
         </td></tr>
         <tr><td style="padding:32px;">
           <p style="margin:0 0 4px;font-size:20px;font-weight:700;color:#0f172a;">Nova prijava! 🎉</p>
-          <p style="margin:0 0 24px;font-size:14px;color:#64748b;">Netko je upravo popunio tvoju prijavnu formu <strong style="color:#0f172a;">${form.title || 'Prijavna forma'}</strong>.</p>
+          <p style="margin:0 0 24px;font-size:14px;color:#64748b;">Netko je upravo popunio tvoju prijavnu formu <strong style="color:#0f172a;">${escapeHtml(form.title || 'Prijavna forma')}</strong>.</p>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
             ${answerLines}
           </table>

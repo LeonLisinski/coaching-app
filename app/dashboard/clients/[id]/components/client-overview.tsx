@@ -101,9 +101,7 @@ export default function ClientOverview({ clientId }: Props) {
 
     const [
       { data: recentCheckins, error: e1 },
-      { count: checkinTotal },
       { data: clientRow },
-      { data: checkinCfg },
       { data: assignsData },
       { data: meal },
       { data: workoutLogs },
@@ -111,21 +109,26 @@ export default function ClientOverview({ clientId }: Props) {
       { data: paramsData },
       { data: dailyLogsData },
     ] = await Promise.all([
-      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(120),
-      supabase.from('checkins').select('id', { count: 'exact', head: true }).eq('client_id', clientId),
-      supabase.from('clients').select('start_date').eq('id', clientId).maybeSingle(),
-      supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
+      // Reduced limit 120→20: overview only uses last week + most recent entry
+      supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(20),
+      // checkin_config embedded: saves a full round trip (was a separate query)
+      supabase.from('clients').select('start_date, checkin_config(checkin_day)').eq('id', clientId).maybeSingle(),
       supabase.from('client_workout_plans').select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)').eq('client_id', clientId).order('assigned_at', { ascending: true }).limit(50),
       supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
-      supabase.from('workout_logs').select('id, date, day_name, plan_id, exercises').eq('client_id', clientId).order('date', { ascending: false }).limit(300),
+      // Removed `exercises` from select (not used in overview) + limit 300→52 (≈1yr of weekly workouts)
+      supabase.from('workout_logs').select('id, date, day_name, plan_id').eq('client_id', clientId).order('date', { ascending: false }).limit(52),
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview').eq('trainer_id', user.id).order('order_index'),
-      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(180),
+      // Reduced limit 180→21 (3 weeks of daily logs)
+      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(21),
     ])
 
     if (e1) console.error('client-overview checkins', e1)
 
     setStartDate(clientRow?.start_date ?? null)
+
+    // Extract checkin_config that was embedded in the clients query (saves a round trip)
+    const checkinCfg = (clientRow?.checkin_config as { checkin_day?: number } | null) ?? null
 
     const assignments = (assignsData as unknown as TrainingAssignment[]) || []
     const workouts = (workoutLogs as unknown as TrainingWorkoutLog[]) || []

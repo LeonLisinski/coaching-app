@@ -18,8 +18,8 @@ alter table public.trainer_events enable row level security;
 
 create policy "Trainers manage own events"
   on public.trainer_events for all
-  using (trainer_id = auth.uid())
-  with check (trainer_id = auth.uid());
+  using (trainer_id = (select auth.uid()))
+  with check (trainer_id = (select auth.uid()));
 
 create index trainer_events_trainer_id_starts_at
   on public.trainer_events (trainer_id, starts_at);

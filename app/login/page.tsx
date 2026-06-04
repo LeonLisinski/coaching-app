@@ -66,25 +66,26 @@ export default function LoginPage() {
       return
     }
 
-    // Role check — only trainers can access the web app
-    const { data: profile, error: profileErr } = await supabase
-      .from('profiles')
-      .select('role')
+    // Role check — only trainers can access the web app.
+    // We check trainer_profiles existence (service-role-created, immutable via RLS)
+    // rather than the mutable profiles.role field.
+    const { data: trainerProfile, error: tpErr } = await supabase
+      .from('trainer_profiles')
+      .select('id')
       .eq('id', data.user.id)
-      .single()
+      .maybeSingle()
 
     // Distinguish between "not a trainer" and a transient DB/network error.
-    // A failed fetch should not kick out a legitimate trainer.
-    if (profileErr && profileErr.code !== 'PGRST116') {
-      // PGRST116 = no rows found; other errors = transient failure
-      console.error('[login] profile fetch error:', profileErr.message)
+    if (tpErr && tpErr.code !== 'PGRST116') {
+      // PGRST116 = no rows found; other codes = transient failure
+      console.error('[login] trainer_profiles fetch error:', tpErr.message)
       setError('Greška pri provjeri računa. Pokušaj ponovo.')
       await supabase.auth.signOut()
       setLoading(false)
       return
     }
 
-    if (!profile || profile.role !== 'trainer') {
+    if (!trainerProfile) {
       await supabase.auth.signOut()
       setError('Ova platforma je namijenjena isključivo trenerima. Klijenti koriste mobilnu aplikaciju.')
       setLoading(false)

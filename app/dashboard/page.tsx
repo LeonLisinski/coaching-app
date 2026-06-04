@@ -506,30 +506,26 @@ function DashboardPageContent() {
 
     // Single parallel round — checkin_config embedded in clients via PostgREST relationship,
     // eliminating the separate checkin_config query and one full network RTT.
+    // get_dashboard_finance_stats replaces client_packages.limit(2000)+payments — aggregated in DB.
     const [
       { data: profileData },
       { data: clientsData },
       { data: allCheckins },
       { data: checkinCounts },
       { count: unread },
-      { data: packagesData },
+      { data: financeStats },
       { data: weekEventsData },
       { data: weekLeadsData },
     ] = await Promise.all([
       supabase.from('profiles').select('full_name').eq('id', user.id).single(),
       supabase.from('clients')
         .select(`id, start_date, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
-        .eq('trainer_id', user.id).eq('active', true).limit(2000),
+        .eq('trainer_id', user.id).eq('active', true).limit(500),
       supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
       supabase.rpc('get_client_checkin_counts', { trainer_user_id: user.id }),
       supabase.from('messages').select('id', { count: 'exact', head: true })
         .eq('trainer_id', user.id).neq('sender_id', user.id).eq('read', false),
-      supabase
-        .from('client_packages')
-        .select(`id, client_id, price, status, start_date, end_date, payments(id,status,amount,paid_at), packages(name)`)
-        .eq('trainer_id', user.id)
-        .or(`status.eq.active,start_date.gte.${new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10)}`)
-        .limit(2000),
+      supabase.rpc('get_dashboard_finance_stats', { p_trainer_id: user.id }),
       supabase.from('trainer_events')
         .select('id, title, starts_at, type, color, completed')
         .eq('trainer_id', user.id)
@@ -555,11 +551,16 @@ function DashboardPageContent() {
     })
 
     // PostgREST returns payments as a single object (not array) when client_package_id has a
-    // UNIQUE constraint. Normalise to array here so all downstream code stays the same.
-    const normalizedPackages = (packagesData || []).map((cp: any) => ({
-      ...cp,
-      payments: cp.payments == null ? [] : Array.isArray(cp.payments) ? cp.payments : [cp.payments],
-    }))
+    // Finance stats from RPC (replaces client_packages.limit(2000) + nested payments)
+    const fs = (financeStats as any) ?? {}
+    const fsStats = fs.stats ?? {}
+    const expectedMonth  = Number(fsStats.expected_month  ?? 0)
+    const collectedMonth = Number(fsStats.collected_month ?? 0)
+    const paidByStart    = Number(fsStats.paid_by_start   ?? 0)
+    const latePayments   = Number(fsStats.late_payments_count ?? 0)
+    const ytdRevenue     = Number(fsStats.ytd_revenue     ?? 0)
+    const totalMonth     = paidByStart + expectedMonth
+    const progress       = totalMonth > 0 ? Math.round((paidByStart / totalMonth) * 100) : (paidByStart > 0 ? 100 : 0)
 
     const lastCheckinMap: Record<string, string> = {}
     allCheckins?.forEach((c: any) => { lastCheckinMap[c.client_id] = c.last_date })
@@ -605,94 +606,24 @@ function DashboardPageContent() {
       .map(r => ({ id: r.id, full_name: r.full_name, submitted: !!(r.last_checkin && r.last_checkin >= todayStr) }))
     setTodayCheckinClients(todayClients)
 
-    // Revenue calculations — use normalizedPackages (payments already normalised to array above)
-    const now        = new Date()
-    const monthStart = isoDate(new Date(now.getFullYear(), now.getMonth(), 1))
-    const monthEnd   = isoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0))
-
-    let expectedMonth = 0, collectedMonth = 0, paidByStart = 0, latePayments = 0
-    const monthly: Record<string, { ocekivano: number; naplaceno: number }> = {}
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      monthly[getMonthLabel(d)] = { ocekivano: 0, naplaceno: 0 }
-    }
-
-    normalizedPackages.forEach((cp: any) => {
-      const price      = cp.price || 0
-      const paidPayment = (cp.payments as any[])?.find((p: any) => p.status === 'paid')
-      const hasPaid    = !!paidPayment
-      const paidAmt    = paidPayment?.amount || price   // stvarni iznos plaćanja
-
-      // Kasna plaćanja = aktivni paketi bez uplate čiji je end_date prošao
-      if (!hasPaid && cp.status === 'active' && new Date(cp.end_date) < now) latePayments++
-
-      // ── STAT KARTICE ──────────────────────────────────────────────────────────
-      // Naplaćeno ovaj mj = plaćanja s paid_at u tekućem mj (stvarni novčani tok)
-      // paid_at može biti timestamp ("2026-03-31T22:00:00+00:00") pa uzimamo samo prvih 10 znakova
-      ;(cp.payments as any[])?.forEach((p: any) => {
-        const paidDate = p.paid_at ? (p.paid_at as string).substring(0, 10) : null
-        if (p.status === 'paid' && paidDate && paidDate >= monthStart && paidDate <= monthEnd) {
-          collectedMonth += p.amount || price
-        }
-      })
-      // Paketi koji POČINJU ovaj mj — za donut i konzistentnost s bar chartom
-      // naplaćeno = svi plaćeni (uključujući expired), očekivano = samo aktivni neplaćeni
-      if (cp.start_date >= monthStart && cp.start_date <= monthEnd) {
-        if (hasPaid)                     paidByStart   += paidAmt
-        else if (cp.status === 'active') expectedMonth += price
-      }
-
-      // ── BAR CHART (historijski) ───────────────────────────────────────────────
-      // naplaćeno = stvarni iznos, očekivano = samo aktivni neplaćeni
-      for (let i = 5; i >= 0; i--) {
-        const d      = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const mStart = isoDate(new Date(d.getFullYear(), d.getMonth(), 1))
-        const mEnd   = isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0))
-        const key    = getMonthLabel(d)
-        if (cp.start_date >= mStart && cp.start_date <= mEnd) {
-          if (hasPaid)                     monthly[key].naplaceno += paidAmt
-          else if (cp.status === 'active') monthly[key].ocekivano += price
-        }
-      }
-    })
-
-    const totalMonth = paidByStart + expectedMonth
-    const progress   = totalMonth > 0 ? Math.round((paidByStart / totalMonth) * 100) : (paidByStart > 0 ? 100 : 0)
-
-    // Expiring packages (within 7 days, active, not paid)
+    // Expiring packages — enriched with client name from rows
     const clientNameMapForPkg: Record<string, string> = {}
     rows.forEach(r => { clientNameMapForPkg[r.id] = r.full_name })
-    const expiring = normalizedPackages
-      .filter((cp: any) => {
-        if (cp.status !== 'active') return false
-        const dl = Math.ceil((new Date(cp.end_date).getTime() - Date.now()) / 86400000)
-        return dl >= 0 && dl <= 7
-      })
-      .map((cp: any) => ({
-        id: cp.id,
-        client_id: cp.client_id,
-        client_name: clientNameMapForPkg[cp.client_id] || '—',
-        pkg_name: (cp.packages as any)?.name || '—',
-        end_date: cp.end_date,
-        days_left: Math.ceil((new Date(cp.end_date).getTime() - Date.now()) / 86400000),
-      }))
-      .sort((a: any, b: any) => a.days_left - b.days_left)
+    const expiringRaw: any[] = fs.expiring_packages ?? []
+    const expiring = expiringRaw.map((ep: any) => ({
+      id:          ep.id,
+      client_id:   ep.client_id,
+      client_name: clientNameMapForPkg[ep.client_id] || '—',
+      pkg_name:    ep.pkg_name ?? '—',
+      end_date:    ep.end_date,
+      days_left:   Number(ep.days_left),
+    }))
     setExpiringPackages(expiring)
 
-    // Year-to-date revenue = plaćanja s paid_at ove godine (stvarni novčani tok)
-    const thisYear = now.getFullYear().toString()
-    let ytdRevenue = 0
-    normalizedPackages.forEach((cp: any) => {
-      ;(cp.payments as any[])?.forEach((p: any) => {
-        if (p.status === 'paid' && (p.paid_at as string | null)?.substring(0, 4) === thisYear) {
-          ytdRevenue += p.amount || cp.price || 0
-        }
-      })
-    })
     setYearRevenue(ytdRevenue)
-
     setStats({ activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, paidByStart, totalMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 })
-    setMonthlyRevenue(Object.entries(monthly).map(([month, v]) => ({ month, ...v })))
+    const computedMonthlyRevenue = (fs.monthly_chart as any[] ?? []).map((m: any) => ({ month: m.month, ocekivano: Number(m.fakturirano ?? 0), naplaceno: Number(m.naplaceno ?? 0) }))
+    setMonthlyRevenue(computedMonthlyRevenue)
     setProgressPercent(progress)
 
     // ─── Week events + leads ──────────────────────────────────────────────────
@@ -741,7 +672,7 @@ function DashboardPageContent() {
       todayCheckinClients: todayClients,
       expiringPackages: expiring,
       stats: { activeClients: clientsData?.length || 0, submitted, late, neutral, expectedMonth, collectedMonth, paidByStart, totalMonth, latePayments, avgCheckinRate: avgRate, unreadMessages: unread || 0 },
-      monthlyRevenue: Object.entries(monthly).map(([month, v]) => ({ month, ...v })),
+      monthlyRevenue: computedMonthlyRevenue,
       progressPercent: progress,
       yearRevenue: ytdRevenue,
       weekEvents: allWeekEvents,

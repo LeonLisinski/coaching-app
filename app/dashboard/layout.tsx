@@ -32,19 +32,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import LocaleSwitcher from '@/components/locale-switcher'
 import ThemeSwitcher from '@/components/theme-switcher'
-import SettingsDialog from '@/app/components/settings-dialog'
 import UnitLiftLogo from '@/app/components/unitlift-logo'
-import GlobalSearch from '@/app/components/global-search'
 import { TabStateProvider } from '@/app/contexts/tab-state'
 import { TrainerSettingsProvider } from '@/app/contexts/trainer-settings-context'
 import MobileBottomNav from '@/app/components/mobile-bottom-nav'
 import { useActiveChat } from '@/app/contexts/active-chat'
+const SettingsDialog = nextDynamic(() => import('@/app/components/settings-dialog'), { ssr: false })
+const GlobalSearch = nextDynamic(() => import('@/app/components/global-search'), { ssr: false })
 const TrainerOnboardingWizard = nextDynamic(
   () => import('@/app/components/onboarding/trainer-onboarding-wizard'),
   { ssr: false },
 )
-import { runTrainerTour, type TourStrings } from '@/lib/trainer-tour'
+import type { TourStrings } from '@/lib/trainer-tour'
 import { LS_ONBOARDING_COMPLETE, LS_TOUR_COMPLETE } from '@/lib/trainer-onboarding-storage'
+import { usePushNotifications } from '@/app/hooks/use-push-notifications'
 
 // 60-second in-memory cache for notifications — avoids redundant queries on every soft navigation
 const NOTIF_CACHE_MS = 60_000
@@ -102,7 +103,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [tourFarewell, setTourFarewell] = useState(false)
   const [helpMobileHint, setHelpMobileHint] = useState(false)
 
-  /** Uvijek pokreće vođeni obilazak (driver.js) — nakon onboardinga ili s većeg ekrana. */
+  const { unsubscribe: unsubscribePush } = usePushNotifications()
+
+  /** Uvijek pokreće vođeni obilazak (driver.js) — lazily imported so driver.js doesn't
+   *  land in the layout bundle. CSS is still pre-loaded via driver.css import at the top. */
   const startProductTour = useCallback(() => {
     const strings: TourStrings = {
       step1Title: tTour('step1Title'),
@@ -121,10 +125,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       nextBtn: tTour('nextBtn'),
       doneBtn: tTour('doneBtn'),
     }
-    void runTrainerTour({
-      locale,
-      strings,
-      onFarewell: () => setTourFarewell(true),
+    import('@/lib/trainer-tour').then(({ runTrainerTour }) => {
+      void runTrainerTour({
+        locale,
+        strings,
+        onFarewell: () => setTourFarewell(true),
+      })
     })
   }, [locale, tTour])
 
@@ -415,17 +421,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     _notifCacheData = null
     setNotifications([])
     setNotifCount(0)
-    await fetch('/api/notifications/mark-read', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch('/api/notifications/mark-read', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({}),
+    })
   }
 
   const markOneSeen = async (id: string) => {
     _notifCacheData = null
     setNotifications(n => n.filter(x => x.id !== id))
     setNotifCount(c => Math.max(0, c - 1))
-    await fetch('/api/notifications/mark-read', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source_ids: [id] }) })
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch('/api/notifications/mark-read', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ source_ids: [id] }),
+    })
   }
 
   const handleLogout = async () => {
+    await unsubscribePush()
     await supabase.auth.signOut()
     router.push('/login')
   }

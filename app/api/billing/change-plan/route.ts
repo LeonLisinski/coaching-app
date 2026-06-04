@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
         items,
         proration_behavior: 'always_invoice',  // charge prorated difference NOW
         metadata: {
+          ...stripeSub.metadata,   // preserve supabase_user_id + other existing keys
           plan: newPlanKey,
           client_limit: String(newPlanMeta.clientLimit ?? ''),
         },

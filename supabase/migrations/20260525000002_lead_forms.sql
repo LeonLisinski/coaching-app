@@ -76,8 +76,8 @@ DROP POLICY IF EXISTS "lead_forms_public_read" ON public.lead_forms;
 
 CREATE POLICY "lead_forms_trainer"
   ON public.lead_forms FOR ALL
-  USING (trainer_id = auth.uid())
-  WITH CHECK (trainer_id = auth.uid());
+  USING (trainer_id = (select auth.uid()))
+  WITH CHECK (trainer_id = (select auth.uid()));
 
 CREATE POLICY "lead_forms_public_read"
   ON public.lead_forms FOR SELECT TO anon
@@ -89,8 +89,8 @@ DROP POLICY IF EXISTS "lead_form_questions_public_read" ON public.lead_form_ques
 
 CREATE POLICY "lead_form_questions_trainer"
   ON public.lead_form_questions FOR ALL
-  USING  (form_id IN (SELECT id FROM public.lead_forms WHERE trainer_id = auth.uid()))
-  WITH CHECK (form_id IN (SELECT id FROM public.lead_forms WHERE trainer_id = auth.uid()));
+  USING  (form_id IN (SELECT id FROM public.lead_forms WHERE trainer_id = (select auth.uid())))
+  WITH CHECK (form_id IN (SELECT id FROM public.lead_forms WHERE trainer_id = (select auth.uid())));
 
 CREATE POLICY "lead_form_questions_public_read"
   ON public.lead_form_questions FOR SELECT TO anon
@@ -102,7 +102,7 @@ DROP POLICY IF EXISTS "lead_submissions_anon_insert" ON public.lead_submissions;
 
 CREATE POLICY "lead_submissions_trainer"
   ON public.lead_submissions FOR ALL
-  USING (trainer_id = auth.uid());
+  USING (trainer_id = (select auth.uid()));
 
 CREATE POLICY "lead_submissions_anon_insert"
   ON public.lead_submissions FOR INSERT TO anon

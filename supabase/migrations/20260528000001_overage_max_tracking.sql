@@ -60,6 +60,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  -- Only service_role (auth.uid() IS NULL) may call this function.
+  -- Authenticated client sessions are explicitly blocked.
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'Forbidden: must be called via service_role';
+  END IF;
+
   UPDATE subscriptions
   SET    max_overage_blocks = GREATEST(max_overage_blocks, p_blocks),
          updated_at         = now()
@@ -96,6 +102,12 @@ AS $$
 DECLARE
   v_client_id UUID;
 BEGIN
+  -- Only service_role (auth.uid() IS NULL) may call this function.
+  -- Authenticated client sessions are explicitly blocked.
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'Forbidden: must be called via service_role';
+  END IF;
+
   UPDATE subscriptions
   SET    max_overage_blocks = GREATEST(max_overage_blocks, p_blocks),
          updated_at         = now()

@@ -51,17 +51,27 @@ CREATE INDEX IF NOT EXISTS idx_kpp_entries_stripe        ON kpp_entries (stripe_
 
 -- ── Helper: next sequential number for the given year ─────────────────────────
 -- Returns e.g. 42 if there are already 41 rows for year 2026.
+-- Converted to plpgsql so we can enforce service_role-only access.
 CREATE OR REPLACE FUNCTION next_kpp_seq(p_year int DEFAULT EXTRACT(YEAR FROM now())::int)
 RETURNS int
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
 AS $$
-  SELECT COALESCE(
-    MAX(
-      (regexp_match(rbr, E'^\\d{2}-(\\d+)-'))[1]::int
-    ), 0
-  ) + 1
-  FROM kpp_entries
-  WHERE rbr LIKE (LPAD((p_year % 100)::text, 2, '0') || '-%')
+BEGIN
+  -- Only service_role (auth.uid() IS NULL) may call this function.
+  IF auth.uid() IS NOT NULL THEN
+    RAISE EXCEPTION 'Forbidden: must be called via service_role';
+  END IF;
+
+  RETURN (
+    SELECT COALESCE(
+      MAX(
+        (regexp_match(rbr, E'^\\d{2}-(\\d+)-'))[1]::int
+      ), 0
+    ) + 1
+    FROM kpp_entries
+    WHERE rbr LIKE (LPAD((p_year % 100)::text, 2, '0') || '-%')
+  );
+END;
 $$;

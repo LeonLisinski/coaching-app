@@ -1,16 +1,13 @@
 // Supabase Edge Function: send-push
-// Triggered by database webhook when new message or check-in is inserted
+// Triggered by database webhook when a new message (client→trainer) or
+// a new check-in (client INSERT) is inserted.
+//
+// Web-push (VAPID) for the trainer web app.
+// Parallel: send-client-push handles Expo push for the client mobile app.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const VAPID_PUBLIC  = Deno.env.get('VAPID_PUBLIC_KEY')!
-const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY')!
-const VAPID_EMAIL   = Deno.env.get('VAPID_EMAIL') || 'mailto:info@unitlift.com'
-
-// Minimal VAPID + web-push implementation for Deno
 async function sendWebPush(sub: { endpoint: string; p256dh: string; auth: string }, payload: string) {
-  // Use the web app's /api/push/send endpoint instead of direct push in edge function
-  // This avoids needing to implement VAPID signing in Deno from scratch
   const appUrl = Deno.env.get('APP_URL') || 'https://app.unitlift.com'
   const secret = Deno.env.get('PUSH_SECRET') || ''
 
@@ -24,6 +21,20 @@ async function sendWebPush(sub: { endpoint: string; p256dh: string; auth: string
   })
 }
 
+async function getClientFirstName(
+  supabase: ReturnType<typeof createClient>,
+  clientId: string,
+): Promise<string> {
+  // clients.id → clients.user_id → profiles.full_name
+  const { data } = await supabase
+    .from('clients')
+    .select('profiles!clients_user_id_fkey(full_name)')
+    .eq('id', clientId)
+    .maybeSingle()
+  const fullName = (data?.profiles as any)?.full_name as string | undefined
+  return fullName?.split(' ')[0] || 'Klijent'
+}
+
 Deno.serve(async (req) => {
   const body = await req.json()
   const record = body.record
@@ -32,7 +43,7 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
   let trainer_id: string | null = null
@@ -41,47 +52,36 @@ Deno.serve(async (req) => {
   let url = '/dashboard'
   let tag = 'unitlift'
 
-  // Message: record has trainer_id, client_id, sender_id
+  // ── 1. New message from client ──────────────────────────────────────────
+  // Condition: record has trainer_id, client_id, sender_id (messages columns)
   if (record.trainer_id && record.client_id && record.sender_id) {
-    // Only notify if CLIENT sent the message (not trainer)
-    if (record.sender_id === record.trainer_id) return new Response('Trainer sent', { status: 200 })
+    // Only notify trainer when CLIENT sends (not when trainer sends)
+    if (record.sender_id === record.trainer_id) {
+      return new Response('Trainer sent — skipped', { status: 200 })
+    }
 
     trainer_id = record.trainer_id
-
-    // Get client name
-    const { data: client } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', record.client_id)
-      .maybeSingle()
-
-    const name = client?.full_name?.split(' ')[0] || 'Klijent'
+    const name = await getClientFirstName(supabase, record.client_id)
     title = `💬 ${name}`
-    notifBody = record.content?.length > 80 ? record.content.slice(0, 80) + '…' : record.content
-    url = `/dashboard/chat`
+    notifBody = record.content?.length > 80 ? record.content.slice(0, 80) + '…' : (record.content ?? '')
+    url = '/dashboard/chat'
     tag = `message-${record.client_id}`
   }
 
-  // Check-in: record has trainer_id, client_id, status
-  if (record.trainer_id && record.client_id && record.week_start !== undefined) {
+  // ── 2. New check-in submitted by client ──────────────────────────────────
+  // Condition: record has trainer_id, client_id, date (checkins columns).
+  // Was incorrectly gated on record.week_start which doesn't exist.
+  if (!trainer_id && record.trainer_id && record.client_id && record.date !== undefined) {
     trainer_id = record.trainer_id
-
-    const { data: client } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', record.client_id)
-      .maybeSingle()
-
-    const name = client?.full_name?.split(' ')[0] || 'Klijent'
+    const name = await getClientFirstName(supabase, record.client_id)
     title = `📋 ${name} — novi check-in`
     notifBody = 'Klijent je predao tjedni check-in'
-    url = `/dashboard/checkins`
+    url = '/dashboard/checkins'
     tag = `checkin-${record.client_id}`
   }
 
-  if (!trainer_id) return new Response('No trainer', { status: 200 })
+  if (!trainer_id) return new Response('No trainer — skipped', { status: 200 })
 
-  // Get all subscriptions for this trainer
   const { data: subs } = await supabase
     .from('push_subscriptions')
     .select('endpoint, p256dh, auth')
@@ -90,7 +90,6 @@ Deno.serve(async (req) => {
   if (!subs?.length) return new Response('No subscriptions', { status: 200 })
 
   const payload = JSON.stringify({ title, body: notifBody, url, tag, icon: '/apple-touch-icon.png' })
-
   await Promise.all(subs.map(sub => sendWebPush(sub, payload)))
 
   return new Response(JSON.stringify({ sent: subs.length }), {

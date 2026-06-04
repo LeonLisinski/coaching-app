@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
       const updated = await stripe.subscriptions.update(row.stripe_subscription_id, {
         items,
         proration_behavior: 'none',
-        metadata: { plan: targetPlan, client_limit: String(targetMeta.clientLimit ?? '') },
+        metadata: { ...stripeSub.metadata, plan: targetPlan, client_limit: String(targetMeta.clientLimit ?? '') },
       })
       const u = updated as any
 

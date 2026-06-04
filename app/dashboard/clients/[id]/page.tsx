@@ -294,7 +294,12 @@ function ClientDetailPageContent() {
     setDeleting(true)
     // Call the API first (while the clients row still exists for the ownership check)
     // This deletes the auth user, which cascades through profiles → clients → all related rows
-    await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
+    const res = await fetch(`/api/clients/${client.id}/delete`, { method: 'DELETE' })
+    if (!res.ok) {
+      console.error('[deleteClient] API error:', await res.text().catch(() => res.status))
+      setDeleting(false)
+      return
+    }
 
     // Safety-net manual cleanup for any tables not fully covered by cascades
     await supabase.from('workout_logs').delete().eq('client_id', client.id)

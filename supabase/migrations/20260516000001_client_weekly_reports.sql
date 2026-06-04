@@ -51,8 +51,8 @@ create policy "Trainers manage own weekly reports"
   on public.client_weekly_reports
   for all
   to public
-  using (trainer_id = auth.uid())
-  with check (trainer_id = auth.uid());
+  using (trainer_id = (select auth.uid()))
+  with check (trainer_id = (select auth.uid()));
 
 -- Clients can read reports their trainer marked visible.
 drop policy if exists "Clients read visible weekly reports" on public.client_weekly_reports;
@@ -66,7 +66,7 @@ create policy "Clients read visible weekly reports"
       select 1
       from public.clients c
       where c.id = client_weekly_reports.client_id
-        and c.user_id = auth.uid()
+        and c.user_id = (select auth.uid())
     )
   );
 

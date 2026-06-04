@@ -71,26 +71,35 @@ async function createKppEntry(db: SupabaseClient, payload: KppPayload) {
         console.error('[kpp] Failed to insert kpp_entry:', error)
       }
     } else {
-      console.log('[kpp] Created entry', rbr, 'iznos:', payload.iznos, 'EUR')
+      console.debug('[kpp] Created entry', rbr, 'iznos:', payload.iznos, 'EUR')
     }
   } catch (e) {
     console.error('[kpp] Unexpected error creating entry:', e)
   }
 }
 
-/** Mark event as processed. Returns true on first time, false on duplicate. */
-async function tryClaimEvent(db: SupabaseClient, eventId: string, eventType: string): Promise<boolean> {
-  const { data, error } = await db
+/** Check-only: returns true if the event was already successfully processed. No insert. */
+async function isEventProcessed(db: SupabaseClient, eventId: string): Promise<boolean> {
+  const { data } = await db
+    .from('processed_webhook_events')
+    .select('id')
+    .eq('stripe_event_id', eventId)
+    .maybeSingle()
+  return !!data
+}
+
+/**
+ * Record event as successfully processed. Call ONLY after the handler
+ * completes without error. Silently ignores duplicate-key conflicts
+ * (race condition where two retries land simultaneously).
+ */
+async function markEventProcessed(db: SupabaseClient, eventId: string, eventType: string): Promise<void> {
+  const { error } = await db
     .from('processed_webhook_events')
     .insert({ stripe_event_id: eventId, event_type: eventType, processed_at: new Date().toISOString() })
-    .select('id')
-    .single()
-  if (error) {
-    if ((error as any).code === '23505') return false
-    console.error('[webhook] claim event failed:', error)
-    return false
+  if (error && (error as any).code !== '23505') {
+    console.error('[webhook] markEventProcessed failed:', error)
   }
-  return !!data
 }
 
 // ── Account creation for new registrations ───────────────────────────────────
@@ -121,7 +130,7 @@ async function provisionNewTrainerAccount(
 
   if (existing?.id) {
     userId = existing.id
-    console.log('[register webhook] account already exists for', email, '— skipping creation')
+    console.debug('[register webhook] account already exists for', email, '— skipping creation')
   } else {
     // Generate invite link (creates user + returns one-time link)
     const { data: linkData, error: linkErr } = await db.auth.admin.generateLink({
@@ -194,7 +203,7 @@ async function provisionNewTrainerAccount(
       if (!sendResult.ok) {
         console.error('[register webhook] invite email failed:', (sendResult as any).logHint)
       } else {
-        console.log('[register webhook] invite email sent to', email)
+        console.debug('[register webhook] invite email sent to', email)
       }
     }
   }
@@ -217,8 +226,10 @@ export async function POST(req: NextRequest) {
 
   const db = supabaseAdmin()
 
-  const claimed = await tryClaimEvent(db, event.id, event.type)
-  if (!claimed) {
+  // Deduplicate: check if already successfully processed BEFORE doing any work.
+  // The claim (INSERT) happens only AFTER successful processing (see end of handler).
+  // This ensures Stripe retries after a 500 will re-process the event.
+  if (await isEventProcessed(db, event.id)) {
     return NextResponse.json({ received: true, deduped: true })
   }
 
@@ -435,7 +446,7 @@ export async function POST(req: NextRequest) {
         await (stripe.subscriptions.update as any)(subId, {
           coupon: process.env.STRIPE_COUPON_FOUNDING,
         })
-        console.log('[stripe webhook] invoice.created: founding coupon applied to', subId)
+        console.debug('[stripe webhook] invoice.created: founding coupon applied to', subId)
       } catch (e) {
         console.error('[stripe webhook] invoice.created: failed to apply coupon:', e)
         // Non-fatal — if this fails the trial user simply doesn't get the discount.
@@ -541,7 +552,7 @@ export async function POST(req: NextRequest) {
 
       const custId = typeof sub.customer === 'string' ? sub.customer : (sub.customer as any)?.id
       const { error: updateErr } = await db.from('subscriptions').update(updatePayload)
-        .or(`stripe_subscription_id.eq.${subId},stripe_customer_id.eq.${custId}`)
+        .eq('stripe_subscription_id', subId)
         .not('is_ambassador', 'eq', true)
       if (updateErr) {
         console.error('[stripe webhook] invoice.payment_succeeded update failed:', updateErr)
@@ -689,8 +700,11 @@ export async function POST(req: NextRequest) {
     }
 
     default:
-      console.log(`[stripe webhook] Unhandled event: ${event.type}`)
+      console.debug(`[stripe webhook] Unhandled event: ${event.type}`)
   }
 
+  // Claim the event ONLY after all processing succeeded.
+  // Any 500 return above bypasses this line, so Stripe retries will re-process.
+  await markEventProcessed(db, event.id, event.type)
   return NextResponse.json({ received: true })
 }
