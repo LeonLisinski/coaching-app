@@ -325,26 +325,24 @@ export default function SettingsDialog({ open, onClose }: Props) {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100 bg-gray-50/50 dark:border-white/8 dark:bg-white/3">
           {([
-            ['theme',   <Palette size={15} />,       t('tabs.theme'),   t('tabs.theme')],
-            ['billing', <CreditCard size={15} />,    t('tabs.billing'), t('mobileTabPlan')],
-            ['notifs',  <Bell size={15} />,           t('tabs.notifs'),  t('tabs.notifs')],
-            ['contact', <Mail size={15} />,           t('tabs.contact'), t('tabs.contact')],
-            ['danger',  <TriangleAlert size={15} />, t('tabs.account'), t('tabs.account')],
-          ] as [Tab, React.ReactNode, string, string][]).map(([key, icon, label]) => (
+            ['theme',   <Palette size={17} />,       t('tabs.theme')],
+            ['billing', <CreditCard size={17} />,    t('tabs.billing')],
+            ['notifs',  <Bell size={17} />,           t('tabs.notifs')],
+            ['contact', <Mail size={17} />,           t('tabs.contact')],
+            ['danger',  <TriangleAlert size={17} />, t('tabs.account')],
+          ] as [Tab, React.ReactNode, string][]).map(([key, icon, label]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
               title={label}
-              className={`flex-1 flex items-center justify-center py-3 font-medium transition-colors border-b-2 outline-none focus:outline-none ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors border-b-2 outline-none focus:outline-none ${
                 tab === key
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
-                  : 'border-transparent text-gray-400 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-200'
+                  : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
             >
-              {/* Mobile: icon only */}
-              <span className="sm:hidden">{icon}</span>
-              {/* Desktop: icon + label */}
-              <span className="hidden sm:flex items-center gap-1.5 text-sm">{icon}{label}</span>
+              {icon}
+              <span className="text-[9px] font-semibold tracking-wide leading-none">{label}</span>
             </button>
           ))}
         </div>
