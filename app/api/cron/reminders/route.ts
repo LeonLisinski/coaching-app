@@ -292,7 +292,7 @@ export async function GET(req: NextRequest) {
 
       const html = buildPendingPaymentsEmail({
         trainerFirstName: bundle.name.split(' ')[0] || 'Trener',
-        items: bundle.items,
+        items: bundle.items.map(i => ({ clientName: i.client, amount: i.amount })),
         financeUrl: `${url}/dashboard/financije`,
       })
 
