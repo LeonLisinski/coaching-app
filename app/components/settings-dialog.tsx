@@ -298,7 +298,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md w-[calc(100%-2.5rem)] sm:w-auto p-0 gap-0 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[90vh] sm:h-[560px] border-0" showCloseButton={false}>
+      <DialogContent className="w-[calc(100%-2rem)] sm:w-[440px] sm:max-w-[440px] p-0 gap-0 overflow-hidden flex flex-col max-h-[calc(100dvh-3rem)] sm:max-h-[90vh] sm:h-[560px] border-0" showCloseButton={false}>
         <DialogTitle className="sr-only">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('title')}</DialogDescription>
 
@@ -335,7 +335,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
               key={key}
               onClick={() => setTab(key)}
               title={label}
-              className={`w-1/5 shrink-0 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors border-b-2 outline-none focus:outline-none ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2.5 transition-colors border-b-2 outline-none focus:outline-none ${
                 tab === key
                   ? 'border-[var(--app-accent)] text-[var(--app-accent)]'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
