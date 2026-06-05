@@ -390,6 +390,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )
       .on(
         'postgres_changes',
+        // Listen for INSERT too — this fires after the DB trigger inserts the notification row,
+        // so trainer_notifications is guaranteed to exist when we fetch.
+        { event: 'INSERT', schema: 'public', table: 'trainer_notifications', filter: `trainer_id=eq.${uid}` },
+        () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
+      )
+      .on(
+        'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'trainer_notifications', filter: `trainer_id=eq.${uid}` },
         () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
       )
