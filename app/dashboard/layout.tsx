@@ -368,6 +368,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         (payload) => {
           const msg = payload.new as any
           if (msg.sender_id !== uid) {
+            _notifCacheData = null
             fetchNotificationsRef.current(uid)
           }
         },
@@ -375,17 +376,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'messages', filter: `trainer_id=eq.${uid}` },
-        () => { fetchNotificationsRef.current(uid) },
+        () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'checkins', filter: `trainer_id=eq.${uid}` },
-        () => { fetchNotificationsRef.current(uid) },
+        () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'lead_submissions', filter: `trainer_id=eq.${uid}` },
-        () => { fetchNotificationsRef.current(uid) },
+        () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
       )
       .on(
         'postgres_changes',
