@@ -259,7 +259,10 @@ function LeadRow({
   return (
     <div
       className="rounded-2xl border overflow-hidden transition-all"
-      style={{ borderColor: isOpen ? accentHex + '55' : border, background: cardBg }}
+      style={{
+        borderColor: isOpen ? accentHex + '55' : !sub.seen ? accentHex + '70' : border,
+        background: !sub.seen ? (isDark ? 'color-mix(in srgb, var(--app-accent) 6%, oklch(0.195 0.018 264))' : 'color-mix(in srgb, var(--app-accent) 5%, white)') : cardBg,
+      }}
     >
       <button
         type="button"
@@ -283,6 +286,9 @@ function LeadRow({
         </div>
 
         <span className="text-xs shrink-0 hidden sm:block" style={{ color: textMuted }}>{formattedDate}</span>
+        {!sub.seen && (
+          <span className="shrink-0 w-2 h-2 rounded-full" style={{ backgroundColor: accentHex }} />
+        )}
         {isOpen ? <ChevronUp size={15} style={{ color: textMuted }} className="shrink-0" /> : <ChevronDown size={15} style={{ color: textMuted }} className="shrink-0" />}
       </button>
 
@@ -465,14 +471,16 @@ export default function LeadsPage() {
     { value: 'yes_no',        label: tL('typeYesNo') },
   ]
 
-  // ── Auto-mark lead notifications as read on page visit ──────────────────
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      fetch('/api/notifications/mark-read', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ type: 'lead' }),
-      })
+  // ── Mark individual lead as seen + clear its notification ───────────────
+  const markLeadSeen = useCallback(async (subId: string) => {
+    setSubmissions(prev => prev.map(s => s.id === subId ? { ...s, seen: true } : s))
+    await supabase.from('lead_submissions').update({ seen: true }).eq('id', subId)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    await fetch('/api/notifications/mark-read', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ source_ids: [`lead-${subId}`] }),
     })
   }, [])
 
@@ -551,12 +559,6 @@ export default function LeadsPage() {
         .single(),
     ])
     setSubmissions((subsRes.data || []) as Submission[])
-
-    // Mark all as seen
-    const unseenIds = (subsRes.data || []).filter((s: Submission) => !s.seen).map((s: Submission) => s.id)
-    if (unseenIds.length) {
-      await supabase.from('lead_submissions').update({ seen: true }).in('id', unseenIds)
-    }
 
     if (formRes.data) {
       const f = formRes.data as FormConfig
@@ -956,7 +958,11 @@ export default function LeadsPage() {
                   onStatusChange={handleStatusChange}
                   onDelete={handleDelete}
                   onConvert={handleConvert}
-                  onClick={() => setOpenId(openId === sub.id ? null : sub.id)}
+                  onClick={() => {
+                    const isOpening = openId !== sub.id
+                    setOpenId(isOpening ? sub.id : null)
+                    if (isOpening && !sub.seen) markLeadSeen(sub.id)
+                  }}
                   isOpen={openId === sub.id}
                 />
               ))}

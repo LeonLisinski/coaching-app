@@ -103,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [tourFarewell, setTourFarewell] = useState(false)
   const [helpMobileHint, setHelpMobileHint] = useState(false)
 
-  const { unsubscribe: unsubscribePush } = usePushNotifications()
+  const { unsubscribe: unsubscribePush, state: pushState, subscribe: subscribePush } = usePushNotifications()
 
   /** Uvijek pokreće vođeni obilazak (driver.js) — lazily imported so driver.js doesn't
    *  land in the layout bundle. CSS is still pre-loaded via driver.css import at the top. */
@@ -387,6 +387,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: 'INSERT', schema: 'public', table: 'lead_submissions', filter: `trainer_id=eq.${uid}` },
         () => { fetchNotificationsRef.current(uid) },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'trainer_notifications', filter: `trainer_id=eq.${uid}` },
+        () => { _notifCacheData = null; fetchNotificationsRef.current(uid) },
+      )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [userId])
@@ -657,6 +662,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </button>
                       )}
                     </div>
+                    {/* Push notification prompt — shown when trainer hasn't subscribed */}
+                    {pushState === 'prompt' && (
+                      <button
+                        onClick={() => { subscribePush(); setShowNotifs(false) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 border-b border-gray-100 bg-amber-50/60 hover:bg-amber-50 transition-colors text-left"
+                      >
+                        <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#fef3c7' }}>
+                          <Bell size={12} className="text-amber-500" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-amber-800">{tLayout('enablePushTitle')}</p>
+                          <p className="text-[10px] text-amber-600">{tLayout('enablePushDesc')}</p>
+                        </div>
+                      </button>
+                    )}
                     {/* Scrollable list — only show unseen notifications */}
                     <div className="flex-1 overflow-y-auto">
                       {unseenNotifications.length === 0 ? (

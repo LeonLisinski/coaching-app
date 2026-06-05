@@ -1770,6 +1770,8 @@
     "markAllRead": "Mark all as read",
     "noNotifications": "No notifications",
     "goToMessages": "Go to messages",
+    "enablePushTitle": "Enable push notifications",
+    "enablePushDesc": "Click to receive instant alerts",
     "settingsTooltip": "Settings",
     "helpTooltip": "Help",
     "helpTourDesktopOnly": "The feature tour works on a larger screen (tablet or desktop). Settings are always available via the gear icon.",

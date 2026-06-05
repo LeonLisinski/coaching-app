@@ -1770,6 +1770,8 @@
     "markAllRead": "Označi sve pročitanim",
     "noNotifications": "Nema obavijesti",
     "goToMessages": "Idi na poruke",
+    "enablePushTitle": "Uključi push obavijesti",
+    "enablePushDesc": "Klikni za primanje trenutnih obavijesti",
     "settingsTooltip": "Postavke",
     "helpTooltip": "Pomoć",
     "helpTourDesktopOnly": "Obilazak funkcija dostupan je na većem ekranu (tablet ili računalo). Postavke su uvijek dostupne putem ikone zupčanika.",
