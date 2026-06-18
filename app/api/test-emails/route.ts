@@ -391,6 +391,8 @@ export async function GET(req: NextRequest) {
   for (const email of EMAILS) {
     const r = await sendResendEmail({ to: TO, subject: email.subject, html: email.html() })
     results.push({ subject: email.subject, ok: r.ok, error: r.ok ? undefined : (r as any).logHint })
+    // Resend free tier: max 5 req/sec — wait 250ms between sends
+    await new Promise(res => setTimeout(res, 250))
   }
 
   const sent  = results.filter(r => r.ok).length
