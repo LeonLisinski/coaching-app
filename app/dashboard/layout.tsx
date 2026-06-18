@@ -1,6 +1,5 @@
 'use client'
 import 'driver.js/dist/driver.css'
-export const dynamic = 'force-dynamic'
 import nextDynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -161,19 +160,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const now = new Date()
 
-    // Read from persistent notifications table — no more localStorage for seen state
-    const { data: rows, error } = await supabase
-      .from('trainer_notifications')
-      .select('id, type, title, body, href, source_id, read_at, created_at')
-      .eq('trainer_id', userId)
-      .is('read_at', null)
-      .order('created_at', { ascending: false })
-      .limit(50)
+    // Fetch in_app_enabled prefs and notifications in parallel
+    const [prefsResult, notifsResult] = await Promise.all([
+      supabase
+        .from('trainer_notification_prefs')
+        .select('type, in_app_enabled')
+        .eq('trainer_id', userId),
+      supabase
+        .from('trainer_notifications')
+        .select('id, type, title, body, href, source_id, read_at, created_at')
+        .eq('trainer_id', userId)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ])
 
-    if (error) {
-      console.error('[notifications] fetch error:', error)
+    if (notifsResult.error) {
+      console.error('[notifications] fetch error:', notifsResult.error)
       return
     }
+
+    // Build set of types where in_app is explicitly disabled
+    const inAppDisabledTypes = new Set<string>(
+      (prefsResult.data ?? [])
+        .filter(p => p.in_app_enabled === false)
+        .map(p => p.type),
+    )
+
+    const rows = notifsResult.data
 
     const formatTime = (dateStr: string) => {
       const d = new Date(dateStr)
@@ -191,7 +205,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       href: string | null; source_id: string | null; read_at: string | null; created_at: string
     }
 
-    const notifs = (rows as NotifRow[]).map(r => ({
+    const notifs = (rows as NotifRow[])
+      .filter(r => !inAppDisabledTypes.has(r.type))
+      .map(r => ({
       id: r.source_id ?? r.id,
       title: r.title,
       subtitle: r.body,

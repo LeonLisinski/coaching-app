@@ -30,7 +30,8 @@ export async function GET(req: NextRequest) {
 
   const prefsMap = Object.fromEntries((data ?? []).map(r => [r.type, r]))
   const result = TYPES.reduce<Record<string, { in_app_enabled: boolean; push_enabled: boolean; email_enabled: boolean }>>((acc, t) => {
-    acc[t] = prefsMap[t] ?? { in_app_enabled: true, push_enabled: true, email_enabled: false }
+    // Default email_enabled: true only for 'package' (matches cron + UI initial state)
+    acc[t] = prefsMap[t] ?? { in_app_enabled: true, push_enabled: true, email_enabled: t === 'package' }
     return acc
   }, {})
 

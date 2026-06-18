@@ -6,9 +6,6 @@ import {
   getIsoWeekFromYmd,
   getReminderCalendar,
 } from '@/lib/reminder-calendar'
-import { escapeHtml } from '@/lib/html-escape'
-import { buildCheckinReminderEmailHtml } from '@/lib/email-checkin-reminder-html'
-import { cronCheckinReminder, reminderGreetingLine } from '@/lib/reminder-email-copy'
 import {
   buildPackageExpiryEmail,
   buildPendingPaymentsEmail,
@@ -70,79 +67,11 @@ export async function GET(req: NextRequest) {
   const errors: string[] = []
 
   // ── Check-in reminders (clients) ───────────────────────────────────────────
-  try {
-    // Filter checkin_day at DB level (avoids loading all active clients globally).
-    // Using checkin_config!inner ensures only clients WITH a matching config row are returned.
-    const { data: rows, error } = await supabase
-      .from('checkin_config')
-      .select(
-        `
-        checkin_day,
-        clients!inner (
-          id,
-          trainer_id,
-          user_id,
-          active,
-          profiles:profiles!clients_user_id_fkey (full_name, email)
-        )
-      `,
-      )
-      .eq('checkin_day', todayDow)
-      .eq('clients.active', true)
-
-    if (error) throw error
-
-    const cfgRows = (rows || []).map((r: any) => {
-      const client = r.clients as any
-      return {
-        id: client.id as string,
-        email: client.profiles?.email as string | undefined,
-        name: client.profiles?.full_name as string | undefined,
-        checkin_day: r.checkin_day as number,
-      }
-    }).filter(c => c.email)
-
-    const due = cfgRows
-    checkinDueCount = due.length
-    if (due.length) {
-      const ids = due.map(c => c.id)
-      // Samo check-ini za današnji datum — bez učitavanja cijele povijesti za te klijente
-      const { data: todayRows } = await supabase
-        .from('checkins')
-        .select('client_id')
-        .in('client_id', ids)
-        .eq('date', todayStr)
-
-      const submittedToday = new Set((todayRows || []).map(r => r.client_id))
-
-      for (const c of due) {
-        if (submittedToday.has(c.id)) continue
-
-        const dedupeKey = `checkin-${c.id}-${todayStr}`
-        const inserted = await tryInsertDedupe(supabase, 'checkin', dedupeKey)
-        if (!inserted) continue
-
-        const nameRaw = c.name?.split(' ')[0] || ''
-        const greet = reminderGreetingLine('hr', nameRaw)
-        const line2 = escapeHtml(cronCheckinReminder.bodyLine)
-        const html = buildCheckinReminderEmailHtml({
-          lang: 'hr',
-          title: cronCheckinReminder.title,
-          bodyHtml: `<p style="margin:0 0 10px 0;font-size:15px;color:#334155;line-height:1.55;">${greet}</p><p style="margin:0;font-size:15px;color:#334155;line-height:1.55;">${line2}</p>`,
-        })
-
-        const r = await sendResendEmail({
-          to: c.email!,
-          subject: cronCheckinReminder.subject,
-          html,
-        })
-        if (r.ok) checkinSent++
-        else errors.push(`checkin ${c.id}: ${r.errorKey}`)
-      }
-    }
-  } catch (e: any) {
-    errors.push(`checkin block: ${e?.message || e}`)
-  }
+  // NOTE: Client check-in push + email is fully handled by the `client-reminders`
+  // Supabase Edge Function (pg_cron at 08:00 UTC), which respects client_notification_prefs
+  // for both day-before and day-of reminders. This block is intentionally removed to
+  // prevent duplicate emails when both jobs run on the same day.
+  checkinDueCount = 0
 
   // Samo treneri koji imaju aktivni paket ili pending plaćanje — ne cijela tablica profiles
   let trainerMap = new Map<string, { id: string; full_name: string | null; email: string | null }>()
@@ -184,6 +113,38 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error
 
+    // Preload all 'package' prefs for trainers that have relevant packages — avoids N+1 queries in the loop
+    const relevantTrainerIds = [...new Set((cps ?? []).map((cp: any) => cp.trainer_id as string))]
+    const pkgEmailPrefsMap = new Map<string, boolean>()
+    const pkgPushPrefsMap  = new Map<string, boolean>()
+    if (relevantTrainerIds.length) {
+      const { data: prefsRows } = await supabase
+        .from('trainer_notification_prefs')
+        .select('trainer_id, push_enabled, email_enabled')
+        .in('trainer_id', relevantTrainerIds)
+        .eq('type', 'package')
+      ;(prefsRows ?? []).forEach((p: any) => {
+        pkgEmailPrefsMap.set(p.trainer_id, p.email_enabled)
+        pkgPushPrefsMap.set(p.trainer_id, p.push_enabled)
+      })
+    }
+
+    // Preload push subscriptions for trainers with push enabled — avoids per-row queries
+    const pushEnabledTrainerIds = relevantTrainerIds.filter(tid =>
+      pkgPushPrefsMap.has(tid) ? pkgPushPrefsMap.get(tid) : true
+    )
+    const pushSubsMap = new Map<string, { endpoint: string; p256dh: string; auth: string }[]>()
+    if (pushEnabledTrainerIds.length) {
+      const { data: subRows } = await supabase
+        .from('push_subscriptions')
+        .select('trainer_id, endpoint, p256dh, auth')
+        .in('trainer_id', pushEnabledTrainerIds)
+      ;(subRows ?? []).forEach((s: any) => {
+        if (!pushSubsMap.has(s.trainer_id)) pushSubsMap.set(s.trainer_id, [])
+        pushSubsMap.get(s.trainer_id)!.push({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth })
+      })
+    }
+
     for (const cp of cps || []) {
       const endDateStr = (cp as any).end_date as string
       const daysLeft = daysFromTodayToEndDate(endDateStr, todayStr)
@@ -217,16 +178,42 @@ export async function GET(req: NextRequest) {
           }, { onConflict: 'trainer_id,source_id', ignoreDuplicates: true })
       }
 
-      // Check email preference before sending
-      const { data: pref } = await supabase
-        .from('trainer_notification_prefs')
-        .select('email_enabled')
-        .eq('trainer_id', (cp as any).trainer_id)
-        .eq('type', 'package')
-        .maybeSingle()
-      // Default: email enabled for packages if no pref row exists
-      const emailEnabled = pref ? pref.email_enabled : true
-      if (!emailEnabled) { pkgSent++; continue }
+      // Web push notification — respect push_enabled pref (default: ON)
+      const pushEnabled = pkgPushPrefsMap.has((cp as any).trainer_id)
+        ? pkgPushPrefsMap.get((cp as any).trainer_id)!
+        : true
+      if (pushEnabled) {
+        const trainerSubs = pushSubsMap.get((cp as any).trainer_id) ?? []
+        if (trainerSubs.length > 0) {
+          const pushPayload = JSON.stringify({
+            title: `📦 ${clientName}`,
+            body: daysLeft === 0
+              ? `Paket "${pkgName}" istječe danas`
+              : `Paket "${pkgName}" istječe za ${daysLeft} ${daysLeft === 1 ? 'dan' : 'dana'}`,
+            url: `/dashboard/clients/${(cp as any).client_id}?tab=paketi`,
+            tag: `package-${(cp as any).id}`,
+            icon: '/apple-touch-icon.png',
+          })
+          const pushSecret = process.env.PUSH_SECRET
+          if (pushSecret) {
+            await Promise.all(
+              trainerSubs.map(sub =>
+                fetch(`${url}/api/push/send-internal`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'x-push-secret': pushSecret },
+                  body: JSON.stringify({ sub, payload: pushPayload }),
+                }).catch(() => {}),
+              ),
+            )
+          }
+        }
+      }
+
+      // Use preloaded pref (default: email enabled for packages if no pref row exists)
+      const emailEnabled = pkgEmailPrefsMap.has((cp as any).trainer_id)
+        ? pkgEmailPrefsMap.get((cp as any).trainer_id)!
+        : true
+      if (!emailEnabled) { continue }
 
       const html = buildPackageExpiryEmail({
         trainerFirstName: trainer.full_name?.split(' ')[0] || 'Trener',
@@ -326,6 +313,17 @@ export async function GET(req: NextRequest) {
       .not('is_ambassador', 'eq', true)
       .not('trial_end', 'is', null)
 
+    // Preload profiles for all trialing trainers — avoids N+1 individual fetches in the loop
+    const trialTrainerIds = (trialSubs ?? []).map((ts: any) => ts.trainer_id as string)
+    const trialProfileMap = new Map<string, { full_name: string | null; email: string | null }>()
+    if (trialTrainerIds.length) {
+      const { data: trialProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', trialTrainerIds)
+      ;(trialProfiles ?? []).forEach((p: any) => trialProfileMap.set(p.id, p))
+    }
+
     for (const ts of trialSubs ?? []) {
       const trialEndDate = new Date(ts.trial_end)
       const in7d = trialEndDate >= windowStart7 && trialEndDate <= windowEnd7
@@ -338,11 +336,7 @@ export async function GET(req: NextRequest) {
       const inserted = await tryInsertDedupe(supabase, reminderType, dedupeKey)
       if (!inserted) continue
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', ts.trainer_id)
-        .maybeSingle()
+      const profile = trialProfileMap.get(ts.trainer_id)
 
       if (!profile?.email) continue
 

@@ -80,12 +80,45 @@ export async function GET(req: NextRequest) {
           .from('profiles').select('full_name, email').eq('id', row.trainer_id).maybeSingle()
         if (profile?.email) {
           const firstName = profile.full_name?.split(' ')[0] || 'Trener'
+          const safeFirst = firstName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          const safePlan = targetMeta.label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
           await sendResendEmail({
             to: profile.email,
             subject: `UnitLift: zakazana promjena plana nije primijenjena`,
-            html: `<p>Bok ${firstName},</p>
-<p>Zakazana promjena plana na <strong>${targetMeta.label}</strong> nije primijenjena jer trenutno imaš <strong>${activeClients}</strong> aktivnih klijenata, a ${targetMeta.label} dopušta najviše <strong>${targetLimit}</strong>.</p>
-<p>Ostao si na trenutnom planu. Možeš ponovno zakazati promjenu nakon što deaktiviraš višak klijenata.</p>`,
+            html: `<!DOCTYPE html>
+<html lang="hr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.10);">
+        <tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px;text-align:center;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">UnitLift</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Coaching Platform</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px 0;text-align:center;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#0f172a;">⚠️ Promjena plana nije primijenjena</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px 32px;">
+          <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+            Bok <strong style="color:#0f172a;">${safeFirst}</strong>,
+          </p>
+          <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:16px 20px;margin-bottom:16px;">
+            <p style="margin:0;font-size:14px;color:#1e293b;line-height:1.65;">
+              Zakazana promjena plana na <strong style="color:#0f172a;">${safePlan}</strong> nije primijenjena jer trenutno imaš <strong>${activeClients}</strong> aktivnih klijenata, a ${safePlan} dopušta najviše <strong>${targetLimit}</strong>.
+            </p>
+          </div>
+          <p style="margin:0;font-size:14px;color:#64748b;line-height:1.55;">
+            Ostao/la si na trenutnom planu. Možeš ponovno zakazati promjenu nakon što deaktiviraš višak klijenata.
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f1f5f9;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">UnitLift &bull; Coaching Platform &bull; Automatska obavijest</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
           })
         }
         cancelled++

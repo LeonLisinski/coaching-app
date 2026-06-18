@@ -173,28 +173,44 @@ async function provisionNewTrainerAccount(
 
     // Send welcome/activation email
     if (actionLink) {
-      const html = `
-        <div style="font-family:Inter,Arial,sans-serif;padding:24px;background:#f6f7fb;color:#111827">
-          <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:32px">
-            <h2 style="margin:0 0 8px;font-size:22px">Dobro došao/la u UnitLift! 🎉</h2>
-            <p style="margin:0 0 6px;color:#4b5563;font-size:15px">Bok ${displayName},</p>
-            <p style="margin:0 0 20px;color:#4b5563;font-size:14px;line-height:1.6">
-              Plaćanje za <strong>UnitLift ${planLabel}</strong> plan je uspješno prihvaćeno.<br>
-              Klikni na gumb ispod da aktiviraš račun i postavi lozinku.
-            </p>
-            <a href="${actionLink}"
-              style="display:inline-block;background:#0066ff;color:#fff;text-decoration:none;font-weight:700;padding:14px 24px;border-radius:10px;font-size:15px">
-              Aktiviraj UnitLift račun →
-            </a>
-            <p style="margin:24px 0 0;color:#6b7280;font-size:13px">
-              Link je valjan 24 sata. Ako gumb ne radi, kopiraj ovaj URL u browser:
-            </p>
-            <p style="margin:6px 0 0;color:#374151;font-size:12px;word-break:break-all">${actionLink}</p>
-            <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb">
-            <p style="margin:0;color:#9ca3af;font-size:12px">© 2026 UnitLift · <a href="https://unitlift.com" style="color:#6b7280">unitlift.com</a></p>
+      const safeDisplayName = displayName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      const safePlanLabel   = planLabel.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      const html = `<!DOCTYPE html>
+<html lang="hr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.10);">
+        <tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px;text-align:center;">
+          <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">UnitLift</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Coaching Platform</p>
+        </td></tr>
+        <tr><td style="padding:28px 32px 0;text-align:center;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#0f172a;">Dobro došao/la! 🎉</p>
+          <p style="margin:6px 0 0;font-size:14px;color:#64748b;">Plan <strong style="color:#7c3aed;">${safePlanLabel}</strong> je uspješno aktiviran.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px 32px;">
+          <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+            Bok <strong style="color:#0f172a;">${safeDisplayName}</strong>,<br/>
+            plaćanje je uspješno prihvaćeno. Klikni gumb ispod da aktiviraš račun i postaviš lozinku.
+          </p>
+          <div style="margin-top:24px;text-align:center;">
+            <a href="${actionLink}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">Aktiviraj UnitLift račun</a>
           </div>
-        </div>
-      `
+          <p style="margin:24px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+            Link je valjan 24 sata. Ako gumb ne radi, kopiraj ovaj URL u preglednik:<br/>
+            <a href="${actionLink}" style="color:#7c3aed;word-break:break-all;">${actionLink}</a>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f1f5f9;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">UnitLift &bull; Coaching Platform &bull; Automatska obavijest</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`
       const sendResult = await sendResendEmail({
         to:      email,
         subject: `Aktiviraj UnitLift račun — ${planLabel} plan`,

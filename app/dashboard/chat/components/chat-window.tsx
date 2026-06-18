@@ -255,27 +255,6 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
         if (msg.trainer_id === uid) {
           setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg])
           markAsRead(uid)
-
-          // Send push if tab is hidden (app in background)
-          if (msg.sender_id !== uid && document.visibilityState === 'hidden') {
-            const { data: { session } } = await supabase.auth.getSession()
-            if (session?.access_token) {
-              fetch('/api/push/send', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  trainer_id: uid,
-                  title: `💬 ${clientName}`,
-                  body: msg.content ? (msg.content.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content) : (msg.media_type === 'image' ? '📷 Slika' : msg.media_type === 'video' ? '🎬 Video' : ''),
-                  url: '/dashboard/chat',
-                  tag: `message-${clientId}`,
-                }),
-              }).catch(() => {})
-            }
-          }
         }
       })
       .subscribe()
@@ -290,11 +269,16 @@ export default function ChatWindow({ clientId, clientName, accentHex = '#7c3aed'
   useEffect(() => {
     const needsSigning = messages.filter(m => m.media_path && !signedUrls[m.media_path])
     if (!needsSigning.length) return
-    needsSigning.forEach(async m => {
-      const { data } = await supabase.storage.from(CHAT_MEDIA_BUCKET).createSignedUrl(m.media_path!, 3600)
-      if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [m.media_path!]: data.signedUrl }))
-    })
-  }, [messages, signedUrls])
+    Promise.all(
+      needsSigning.map(async m => {
+        try {
+          const { data } = await supabase.storage.from(CHAT_MEDIA_BUCKET).createSignedUrl(m.media_path!, 3600)
+          if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [m.media_path!]: data.signedUrl }))
+        } catch { /* ignore individual signing failures */ }
+      })
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages])
 
   const pickMedia = () => mediaInputRef.current?.click()
 

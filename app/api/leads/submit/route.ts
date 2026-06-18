@@ -92,29 +92,36 @@ export async function POST(req: NextRequest) {
   const answerLines = Object.entries(answers as Record<string, unknown>)
     .map(([label, value]) => {
       const val = Array.isArray(value) ? value.join(', ') : String(value ?? '')
-      return `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#64748b;font-weight:500;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:13px;color:#1e293b;">${escapeHtml(val)}</td></tr>`
+      return `<tr><td style="padding:9px 16px;font-size:13px;color:#64748b;font-weight:500;vertical-align:top;border-bottom:1px solid #f1f5f9;white-space:nowrap;">${escapeHtml(label)}</td><td style="padding:9px 16px;font-size:13px;color:#1e293b;border-bottom:1px solid #f1f5f9;">${escapeHtml(val)}</td></tr>`
     })
     .join('')
 
   const emailHtml = `<!DOCTYPE html>
-<html>
+<html lang="hr">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.10);">
         <tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px;text-align:center;">
           <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">UnitLift</p>
-          <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Coaching Platform</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Coaching Platform</p>
         </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="margin:0 0 4px;font-size:20px;font-weight:700;color:#0f172a;">Nova prijava! 🎉</p>
-          <p style="margin:0 0 24px;font-size:14px;color:#64748b;">Netko je upravo popunio tvoju prijavnu formu <strong style="color:#0f172a;">${escapeHtml(form.title || 'Prijavna forma')}</strong>.</p>
-          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
-            ${answerLines}
+        <tr><td style="padding:28px 32px 0;text-align:center;">
+          <p style="margin:0;font-size:22px;font-weight:700;color:#0f172a;">Nova prijava! 🎉</p>
+          <p style="margin:6px 0 0;font-size:14px;color:#64748b;">Netko je upravo popunio tvoju prijavnu formu <strong style="color:#0f172a;">${escapeHtml(form.title || 'Prijavna forma')}</strong>.</p>
+        </td></tr>
+        <tr><td style="padding:20px 32px 32px;">
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+            <thead>
+              <tr style="background:#f8fafc;">
+                <th colspan="2" style="padding:10px 16px;font-size:11px;font-weight:600;color:#94a3b8;text-align:left;letter-spacing:0.05em;text-transform:uppercase;">Odgovori</th>
+              </tr>
+            </thead>
+            <tbody>${answerLines}</tbody>
           </table>
           <div style="margin-top:28px;text-align:center;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'}/dashboard/prijave" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 28px;border-radius:10px;">Otvori prijave u aplikaciji</a>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'}/dashboard/prijave" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">Otvori prijave u aplikaciji</a>
           </div>
         </td></tr>
         <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f1f5f9;">
@@ -129,7 +136,18 @@ export async function POST(req: NextRequest) {
   // Send email + web push in parallel (fire-and-forget, don't block response)
   const tasks: Promise<unknown>[] = []
 
-  if (trainerEmail) {
+  // Fetch trainer's notification prefs for 'lead' type
+  const { data: leadPref } = await adminDb
+    .from('trainer_notification_prefs')
+    .select('push_enabled, email_enabled')
+    .eq('trainer_id', trainer_id)
+    .eq('type', 'lead')
+    .maybeSingle()
+  // Default: push ON, email OFF for leads
+  const leadPushEnabled  = leadPref ? leadPref.push_enabled  : true
+  const leadEmailEnabled = leadPref ? leadPref.email_enabled : false
+
+  if (trainerEmail && leadEmailEnabled) {
     tasks.push(
       sendResendEmail({
         to: trainerEmail,
@@ -139,8 +157,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Fetch trainer's web push subscriptions and notify
-  tasks.push(
+  // Fetch trainer's web push subscriptions and notify (only if push enabled)
+  if (leadPushEnabled) {
+    tasks.push(
     (async () => {
       const { data: subs } = await adminDb
         .from('push_subscriptions')
@@ -174,6 +193,7 @@ export async function POST(req: NextRequest) {
       )
     })(),
   )
+  }
 
   void Promise.all(tasks)
 
