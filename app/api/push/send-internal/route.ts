@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: NextRequest) {
   const expected = process.env.PUSH_SECRET
@@ -32,7 +33,22 @@ export async function POST(req: NextRequest) {
     )
     return NextResponse.json({ ok: true })
   } catch (err: any) {
-    console.error('[push/send-internal] sendNotification error:', err.statusCode, err.message)
-    return NextResponse.json({ ok: false, status: err.statusCode ?? 500 }, { status: 200 })
+    const statusCode: number = err.statusCode ?? 500
+    console.error('[push/send-internal] sendNotification error:', statusCode, err.message)
+
+    // Auto-remove expired/revoked subscriptions so they don't accumulate
+    if (statusCode === 410 || statusCode === 404) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+      } catch (cleanupErr) {
+        console.error('[push/send-internal] expired sub cleanup failed:', cleanupErr)
+      }
+    }
+
+    return NextResponse.json({ ok: false, status: statusCode }, { status: 200 })
   }
 }

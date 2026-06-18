@@ -4,7 +4,7 @@ import { createStripeClient } from '@/lib/stripe'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 import { sendResendEmail } from '@/lib/resend-server'
-import { buildTrainerWelcomeEmail, buildTrialStartedEmail } from '@/lib/email-templates'
+import { buildTrainerWelcomeEmail } from '@/lib/email-templates'
 
 function supabaseAdmin() {
   return createClient(
@@ -217,13 +217,13 @@ export async function POST(req: NextRequest) {
 
         if (!email) {
           console.error('[register webhook] No email in session metadata for new registration', session.id)
-          break
+          return NextResponse.json({ error: 'missing email' }, { status: 500 })
         }
 
         const provision = await provisionNewTrainerAccount(db, { email, displayName, planLabel })
         if (!provision) {
           console.error('[register webhook] Failed to provision account for', email)
-          break
+          return NextResponse.json({ error: 'provision failed' }, { status: 500 })
         }
         userId = provision.userId
 
@@ -280,12 +280,12 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (!userId) break
+      if (!userId) return NextResponse.json({ error: 'no userId' }, { status: 500 })
 
       const subId = typeof session.subscription === 'string'
         ? session.subscription
         : (session.subscription as any)?.id
-      if (!subId) break
+      if (!subId) return NextResponse.json({ error: 'no subscription id' }, { status: 500 })
 
       const sub  = await stripe.subscriptions.retrieve(subId)
       const subA = sub as any

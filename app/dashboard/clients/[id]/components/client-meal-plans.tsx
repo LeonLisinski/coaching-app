@@ -586,7 +586,11 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
     const user = session?.user
     if (!user) return
     const [{ data: allFoods }, { data: overrides }] = await Promise.all([
-      supabase.from('foods').select('id,name,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id').order('name'),
+      supabase.from('foods')
+        .select('id,name,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id')
+        .or(`trainer_id.eq.${user.id},is_default.eq.true`)
+        .limit(2000)
+        .order('name'),
       supabase.from('trainer_overrides').select('default_id').eq('trainer_id', user.id).eq('resource_type', 'food'),
     ])
     const overriddenIds = new Set((overrides || []).map((o: any) => o.default_id))
@@ -706,7 +710,9 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
         .order('name'),
       supabase
         .from('recipes')
-        .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients'),
+        .select('id, name, total_calories, total_protein, total_carbs, total_fat, ingredients')
+        .eq('trainer_id', user.id)
+        .limit(1000),
     ])
 
     // Only fetch foods if any assigned plan has custom ingredients with extras
@@ -715,7 +721,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
     )
     const foodExtrasMap = new Map<string, Record<string, number>>()
     if (needsExtras) {
-      const { data: allFoods } = await supabase.from('foods').select('id, extras')
+      const { data: allFoods } = await supabase.from('foods').select('id, extras').limit(5000)
       ;(allFoods || []).forEach((f: any) => {
         if (f.extras) foodExtrasMap.set(f.id, f.extras)
       })

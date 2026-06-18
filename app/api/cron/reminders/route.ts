@@ -10,7 +10,6 @@ import {
   buildPackageExpiryEmail,
   buildPendingPaymentsEmail,
   buildTrialEndingEmail,
-  buildTrialStartedEmail,
 } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
@@ -273,7 +272,22 @@ export async function GET(req: NextRequest) {
       byTrainer.get(p.trainer_id as string)!.items.push({ client: clientName, amount: p.amount || 0 })
     }
 
+    // Preload payment email prefs — only send to trainers who have email enabled (default: true)
+    const payTrainerIds = [...byTrainer.keys()]
+    const payEmailEnabledMap = new Map<string, boolean>()
+    if (payTrainerIds.length) {
+      const { data: payPrefs } = await supabase
+        .from('trainer_notification_prefs')
+        .select('trainer_id, email_enabled')
+        .in('trainer_id', payTrainerIds)
+        .eq('type', 'payment')
+      ;(payPrefs ?? []).forEach((p: any) => payEmailEnabledMap.set(p.trainer_id, p.email_enabled))
+    }
+
     for (const [tid, bundle] of byTrainer) {
+      const emailEnabled = payEmailEnabledMap.has(tid) ? payEmailEnabledMap.get(tid) : true
+      if (!emailEnabled) continue
+
       const dedupeKey = `pay-pending-${tid}-${weekKey}`
       const inserted = await tryInsertDedupe(supabase, 'payment_pending', dedupeKey)
       if (!inserted) continue

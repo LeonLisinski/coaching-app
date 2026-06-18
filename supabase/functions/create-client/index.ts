@@ -452,6 +452,8 @@ Deno.serve(async (req) => {
       clientName: full_name || email.split('@')[0] || 'klijent',
       trainerName,
       actionLink,
+    }).catch((e) => {
+      console.error('[create-client] sendClientInviteEmail failed (non-fatal):', e)
     })
 
     return json(200, {

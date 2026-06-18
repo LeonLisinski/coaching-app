@@ -122,47 +122,45 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
 
-  const session = await stripe.checkout.sessions.create({
-    customer:                  customerId,
-    mode:                      'subscription',
-    payment_method_types:      ['card'],
-    payment_method_collection: 'always',
-    line_items:                lineItems,
-    subscription_data: {
-      ...(grantTrial ? { trial_period_days: 14 } : {}),
-      metadata: {
-        plan: resolvedPlan,
-        supabase_user_id: user.id,
-        // Buyer info stored on subscription for future invoice KPP entries
-        buyer_type:  buyer?.type ?? 'private',
-        buyer_name:  (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
-        buyer_oib:   buyer?.oib ?? '',
+  let session: Stripe.Checkout.Session
+  try {
+    session = await stripe.checkout.sessions.create({
+      customer:                  customerId,
+      mode:                      'subscription',
+      payment_method_types:      ['card'],
+      payment_method_collection: 'always',
+      line_items:                lineItems,
+      subscription_data: {
+        ...(grantTrial ? { trial_period_days: 14 } : {}),
+        metadata: {
+          plan: resolvedPlan,
+          supabase_user_id: user.id,
+          buyer_type:  buyer?.type ?? 'private',
+          buyer_name:  (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
+          buyer_oib:   buyer?.oib ?? '',
+        },
       },
-    },
-    // Promo is controlled SERVER-SIDE only. We never allow manual promotion codes.
-    // Founding promo is applied by:
-    //   • this checkout (when no trial — subscription_create is the first paid invoice)
-    //   • OR the invoice.created webhook (when trial is granted — coupon is applied
-    //     onto the first DRAFT paid invoice so the 12-month coupon clock starts
-    //     exactly when the first paid period starts).
-    ...(applyCouponNow ? {
-      discounts: [{ coupon: process.env.STRIPE_COUPON_FOUNDING! }],
-    } : {}),
-    metadata: {
-      plan:          resolvedPlan,
-      supabase_user_id: user.id,
-      granted_trial: grantTrial  ? '1' : '0',
-      promo_granted: grantPromo  ? '1' : '0',
-      // Buyer info for KPP entry creation in webhook
-      buyer_type:    buyer?.type ?? 'private',
-      buyer_name:    (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
-      buyer_oib:     buyer?.oib ?? '',
-      buyer_address: buyer?.address ?? '',
-      buyer_email:   (buyer?.type === 'business' ? buyer?.invoiceEmail : buyer?.email) ?? '',
-    },
-    success_url: `${appUrl}/dashboard?setup=pending`,
-    cancel_url:  `${appUrl}/choose-plan`,
-  })
+      ...(applyCouponNow ? {
+        discounts: [{ coupon: process.env.STRIPE_COUPON_FOUNDING! }],
+      } : {}),
+      metadata: {
+        plan:          resolvedPlan,
+        supabase_user_id: user.id,
+        granted_trial: grantTrial  ? '1' : '0',
+        promo_granted: grantPromo  ? '1' : '0',
+        buyer_type:    buyer?.type ?? 'private',
+        buyer_name:    (buyer?.type === 'private' ? buyer?.name : buyer?.company) ?? '',
+        buyer_oib:     buyer?.oib ?? '',
+        buyer_address: buyer?.address ?? '',
+        buyer_email:   (buyer?.type === 'business' ? buyer?.invoiceEmail : buyer?.email) ?? '',
+      },
+      success_url: `${appUrl}/dashboard?setup=pending`,
+      cancel_url:  `${appUrl}/choose-plan`,
+    })
+  } catch (e: any) {
+    console.error('[billing/checkout] Stripe session create failed:', e?.message)
+    return NextResponse.json({ error: 'Stripe greška. Pokušaj ponovo.' }, { status: 502 })
+  }
 
   return NextResponse.json({ checkout_url: session.url, grantTrial, grantPromo })
 }

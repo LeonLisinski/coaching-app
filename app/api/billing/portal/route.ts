@@ -29,10 +29,16 @@ export async function POST(req: NextRequest) {
   const stripe = createStripeClient()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
 
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer:   sub.stripe_customer_id,
-    return_url: `${appUrl}/dashboard/billing`,
-  })
+  let portalSession: Stripe.BillingPortal.Session
+  try {
+    portalSession = await stripe.billingPortal.sessions.create({
+      customer:   sub.stripe_customer_id,
+      return_url: `${appUrl}/dashboard/billing`,
+    })
+  } catch (e: any) {
+    console.error('[billing/portal] Stripe portal create failed:', e?.message)
+    return NextResponse.json({ error: 'Stripe greška. Pokušaj ponovo.' }, { status: 502 })
+  }
 
   return NextResponse.json({ url: portalSession.url })
 }

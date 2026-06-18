@@ -83,7 +83,6 @@ export function TrainerSettingsProvider({ children }: { children: ReactNode }) {
     if (error) console.error('[TrainerSettings] load error:', error.message)
     if (data) {
       const wd = { ...DEFAULT_WORKOUT_DEFAULTS, ...(data.workout_defaults || {}) }
-      console.log('[TrainerSettings] loaded workout_defaults from DB:', data.workout_defaults, '→ merged:', wd)
       setSettings({
         nutritionFields: data.nutrition_fields || [],
         exerciseFields:  data.exercise_fields  || [],

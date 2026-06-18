@@ -170,7 +170,10 @@ export async function POST(req: NextRequest) {
 
       const pushSecret = process.env.PUSH_SECRET
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
-      if (!pushSecret) return
+      if (!pushSecret) {
+        console.warn('[leads/submit] PUSH_SECRET not set — web push skipped')
+        return
+      }
 
       await Promise.all(
         subs.map((sub) =>

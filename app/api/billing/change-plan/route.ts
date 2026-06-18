@@ -98,7 +98,11 @@ export async function POST(req: NextRequest) {
 
       const overageItem = stripeSub.items.data.find(i => i.price.id === PLAN_META['scale'].stripeOveragePriceId)
       if (newPlanKey === 'scale' && !overageItem && newPlanMeta.stripeOveragePriceId) {
+        // Upgrading TO Scale — add overage meter item
         items.push({ price: newPlanMeta.stripeOveragePriceId })
+      } else if (newPlanKey !== 'scale' && overageItem) {
+        // Upgrading AWAY from Scale — remove overage meter item
+        items.push({ id: overageItem.id, deleted: true } as any)
       }
 
       const updated = await stripe.subscriptions.update(sub.stripe_subscription_id, {

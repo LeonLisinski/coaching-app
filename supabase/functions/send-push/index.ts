@@ -144,6 +144,13 @@ async function getClientFirstName(
 }
 
 Deno.serve(async (req) => {
+  // Reject requests without the shared webhook secret — function runs with JWT verification off
+  const expectedSecret = Deno.env.get('WEBHOOK_SECRET') || ''
+  const providedSecret = req.headers.get('x-webhook-secret') || ''
+  if (!expectedSecret || providedSecret !== expectedSecret) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   const body = await req.json()
   const record = body.record
 
