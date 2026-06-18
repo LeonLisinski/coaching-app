@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { X, UtensilsCrossed } from 'lucide-react'
+import SelectDropdown from '@/app/components/ui/select-dropdown'
 import { FOOD_CATEGORIES } from '../tabs/foods-tab'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import { useTranslations } from 'next-intl'
@@ -117,15 +118,14 @@ export default function AddFoodDialog({ open, onClose, onSuccess, initialName }:
           </div>
           <div className="space-y-2">
             <Label>{t('category')}</Label>
-            <select
+            <SelectDropdown
               value={form.category}
-              onChange={e => setForm({ ...form, category: e.target.value })}
-              className={`w-full border rounded-md px-3 py-2 text-sm ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200' : ''}`}
-            >
-              {FOOD_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
+              onChange={cat => setForm({ ...form, category: cat })}
+              options={FOOD_CATEGORIES}
+              isDark={isDark}
+              accentHex="#f97316"
+              accentClass="focus:ring-orange-400"
+            />
           </div>
 
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('per100gLabel')}</p>

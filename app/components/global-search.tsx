@@ -67,19 +67,24 @@ export default function GlobalSearch() {
     setLoading(true)
     try {
       const lower = q.toLowerCase()
+      const { data: { session } } = await supabase.auth.getSession()
+      const uid = session?.user?.id
       const [{ data: clients }, { data: exercises }, { data: foods }] = await Promise.all([
         supabase
           .from('clients')
           .select('id, profiles!clients_user_id_fkey(full_name, email)')
+          .eq('trainer_id', uid ?? '')
           .limit(100),
         supabase
           .from('exercises')
           .select('id, name, category, primary_muscles')
+          .or(uid ? `trainer_id.eq.${uid},is_default.eq.true` : 'is_default.eq.true')
           .ilike('name', `%${q}%`)
           .limit(5),
         supabase
           .from('foods')
           .select('id, name, calories_per_100g')
+          .or(uid ? `trainer_id.eq.${uid},is_default.eq.true` : 'is_default.eq.true')
           .ilike('name', `%${q}%`)
           .limit(5),
       ])

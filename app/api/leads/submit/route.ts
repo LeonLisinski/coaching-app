@@ -195,7 +195,10 @@ export async function POST(req: NextRequest) {
   )
   }
 
-  void Promise.all(tasks)
+  // Await all notification tasks before responding so Vercel doesn't freeze
+  // the function before Resend/push calls complete (fire-and-forget is unreliable
+  // in serverless environments)
+  await Promise.all(tasks)
 
   return NextResponse.json({ ok: true, submission_id: submission.id })
 }

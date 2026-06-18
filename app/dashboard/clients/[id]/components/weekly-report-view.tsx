@@ -229,21 +229,39 @@ function SummarySection({ snapshot }: { snapshot: WeeklyReportSnapshot }) {
           value={`${formatNumber(s.totalVolumeKg)} ${t('totalVolumeUnit')}`}
         />
       </div>
-      {(s.avgCalories != null || s.avgProtein != null) ? (
+      {(s.avgCalories != null || s.avgProtein != null || s.avgSteps != null) ? (
         <div
           className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 mt-3"
           style={{ borderTop: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid #f3f4f6' }}
         >
-          <SummaryStat
-            label={t('avgKcal')}
-            value={s.avgCalories != null ? `${s.avgCalories} kcal` : t('avgKcalNone')}
-            compact
-          />
-          <SummaryStat
-            label={t('avgProtein')}
-            value={s.avgProtein != null ? `${s.avgProtein} g` : t('avgKcalNone')}
-            compact
-          />
+          {(s.avgCalories != null || s.avgProtein != null) && (
+            <>
+              <SummaryStat
+                label={t('avgKcal')}
+                value={s.avgCalories != null ? `${s.avgCalories} kcal` : t('avgKcalNone')}
+                compact
+              />
+              <SummaryStat
+                label={t('avgProtein')}
+                value={s.avgProtein != null ? `${s.avgProtein} g` : t('avgKcalNone')}
+                compact
+              />
+            </>
+          )}
+          {s.avgSteps != null && (
+            <SummaryStat
+              label={t('avgSteps')}
+              value={
+                <span className={s.stepGoal != null && s.avgSteps >= s.stepGoal ? (isDark ? 'text-emerald-400' : 'text-emerald-700') : undefined}>
+                  {s.avgSteps.toLocaleString('hr-HR')}
+                  {s.stepGoal != null && (
+                    <span className={`ml-1 text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>/{s.stepGoal.toLocaleString('hr-HR')}</span>
+                  )}
+                </span>
+              }
+              compact
+            />
+          )}
         </div>
       ) : null}
     </SectionCard>

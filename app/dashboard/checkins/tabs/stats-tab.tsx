@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,15 @@ import {
 } from 'recharts'
 import { TrendingUp, TrendingDown, Minus, CheckCircle2, Clock, HelpCircle, ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+
+// Module-level stale-while-revalidate cache — avoids refetch on every tab switch.
+// Stats don't need to be real-time; a 3-minute window is fine.
+const STATS_STALE_MS = 3 * 60 * 1000
+let _statsCache: {
+  stats: any; trendData: any[]; dayDist: any[]; topClients: any[];
+  lateClients: any[]; compRate: any[]
+} | null = null
+let _statsFetchedAt = 0
 
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
@@ -102,48 +111,50 @@ export default function CheckinStatsTab() {
   const t = useTranslations('checkins.statsTab')
   const t2 = useTranslations('checkins2')
 
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ submitted: 0, late: 0, neutral: 0, total: 0 })
-  const [trendData, setTrendData] = useState<{ month: string; count: number }[]>([])
-  const [dayDist, setDayDist] = useState<{ day: number; count: number }[]>([])
-  const [topClients, setTopClients] = useState<{ id: string; name: string; gender: string | null; count: number }[]>([])
-  const [lateClients, setLateClients] = useState<{ id: string; name: string; gender: string | null; last: string | null }[]>([])
-  const [compRate, setCompRate] = useState<{ week: string; rate: number }[]>([])
+  const [loading, setLoading] = useState(() => !_statsCache)
+  const [stats, setStats] = useState(() => _statsCache?.stats ?? { submitted: 0, late: 0, neutral: 0, total: 0 })
+  const [trendData, setTrendData] = useState(() => _statsCache?.trendData ?? [])
+  const [dayDist, setDayDist] = useState(() => _statsCache?.dayDist ?? [])
+  const [topClients, setTopClients] = useState(() => _statsCache?.topClients ?? [])
+  const [lateClients, setLateClients] = useState(() => _statsCache?.lateClients ?? [])
+  const [compRate, setCompRate] = useState(() => _statsCache?.compRate ?? [])
 
-  useEffect(() => { fetchStats() }, [])
+  useEffect(() => {
+    const fresh = _statsCache && Date.now() - _statsFetchedAt < STATS_STALE_MS
+    if (fresh) { setLoading(false); return }
+    fetchStats()
+  }, [])
 
   const fetchStats = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { setLoading(false); return }
 
-    // Phase 1: get clients (need IDs before filtering checkins)
-    const { data: clientsData } = await supabase.from('clients')
-      .select(`id, gender, profiles!clients_user_id_fkey(full_name)`)
-      .eq('trainer_id', user.id).eq('active', true)
-
-    if (!clientsData?.length) { setLoading(false); return }
-
-    const clientIds = clientsData.map(c => c.id)
-
-    // Phase 2: all queries filtered by trainer's client IDs — no global table scan
-    // Checkins limited to last 9 months (covers 8-month trend + current month)
     const nineMonthsAgo = new Date()
     nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9)
     const nineMonthsAgoStr = isoDate(nineMonthsAgo)
 
-    const [{ data: allCheckins }, { data: configs }] = await Promise.all([
+    // Single parallel round: embed checkin_config in clients, fetch checkins by trainer concurrently
+    // Limit checkins to 20 000 rows — covers 100 clients × 200 check-ins (>3 years weekly) with headroom.
+    const [{ data: clientsData }, { data: allCheckins }] = await Promise.all([
+      supabase.from('clients')
+        .select(`id, gender, profiles!clients_user_id_fkey(full_name), checkin_config(checkin_day)`)
+        .eq('trainer_id', user.id).eq('active', true),
       supabase.from('checkins')
         .select('client_id, date')
         .eq('trainer_id', user.id)
         .gte('date', nineMonthsAgoStr)
-        .order('date', { ascending: false }),
-      supabase.from('checkin_config')
-        .select('client_id, checkin_day').in('client_id', clientIds),
+        .order('date', { ascending: false })
+        .limit(20000),
     ])
 
+    if (!clientsData?.length) { setLoading(false); return }
+
     const configMap: Record<string, number | null> = {}
-    configs?.forEach(c => { configMap[c.client_id] = c.checkin_day })
+    clientsData.forEach((c: any) => {
+      const ccRaw = c.checkin_config
+      configMap[c.id] = Array.isArray(ccRaw) ? (ccRaw[0]?.checkin_day ?? null) : (ccRaw?.checkin_day ?? null)
+    })
 
     const myCheckins = allCheckins || []
 
@@ -183,10 +194,10 @@ export default function CheckinStatsTab() {
       }))
     )
 
-    // Day distribution
+    // Day distribution — use configMap built above (configMap[clientId] = checkin_day | null)
     const dayCount: Record<number, number> = {}
-    configs?.forEach(c => {
-      if (c.checkin_day != null) dayCount[c.checkin_day] = (dayCount[c.checkin_day] || 0) + 1
+    Object.values(configMap).forEach(day => {
+      if (day != null) dayCount[day] = (dayCount[day] || 0) + 1
     })
     setDayDist(
       [0,1,2,3,4,5,6].map(i => ({ day: i, count: dayCount[i] || 0 })).filter(d => d.count > 0)
@@ -222,12 +233,16 @@ export default function CheckinStatsTab() {
         if (c.date >= wb.start && c.date < wb.end) { weekSets.get(idx)!.add(c.client_id); break }
       }
     })
-    const configured = configs?.length || 1
+    // Weekly completion rate — denominator = clients with a checkin_day configured
+    const configured = Object.values(configMap).filter(d => d != null).length || 1
     const weekRates = weekBounds.map((wb, idx) => ({
       week: wb.label,
       rate: Math.min(Math.round((weekSets.get(idx)!.size / Math.max(configured, 1)) * 100), 100),
     }))
     setCompRate(weekRates)
+
+    _statsCache = { stats: { submitted, late, neutral, total: clientsData.length }, trendData: Object.entries(monthMap).map(([k, count]) => ({ month: tMonths(String(parseInt(k.slice(5)) - 1) as any), count })), dayDist: [0,1,2,3,4,5,6].map(i => ({ day: i, count: dayCount[i] || 0 })).filter(d => d.count > 0), topClients: sorted.map(([id, count]) => { const c = clientsData.find(x => x.id === id); return { id, name: (c?.profiles as any)?.full_name || '—', gender: c?.gender || null, count } }), lateClients: lateList.slice(0, 5), compRate: weekRates }
+    _statsFetchedAt = Date.now()
 
     setLoading(false)
   }

@@ -171,6 +171,137 @@ export function buildPendingPaymentsEmail(opts: {
   })
 }
 
+/**
+ * Trainer welcome + account activation email.
+ * Sent after checkout when a new trainer registers.
+ * When isTrialing is true, includes trial duration and end date.
+ */
+export function buildTrainerWelcomeEmail(opts: {
+  trainerFirstName: string
+  planLabel: string
+  actionLink: string
+  appUrl: string
+  isTrialing?: boolean
+  trialDays?: number
+  trialEndStr?: string
+}): string {
+  const { trainerFirstName, planLabel, actionLink, appUrl, isTrialing, trialDays, trialEndStr } = opts
+
+  const trialBadge = isTrialing ? `
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:14px 18px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0;font-size:14px;color:#7c3aed;font-weight:700;">🎉 ${trialDays}-dnevni besplatni trial je aktiviran</p>
+      ${trialEndStr ? `<p style="margin:4px 0 0;font-size:12px;color:#64748b;">Trial traje do <strong>${esc(trialEndStr)}</strong> — naplata počinje tek tada.</p>` : ''}
+    </div>` : ''
+
+  const steps = `
+    <p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;">Kako početi</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span style="font-size:18px;">👥</span>
+            <div>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">Dodaj prvog klijenta</p>
+              <p style="margin:2px 0 0;font-size:13px;color:#64748b;">Idi na <strong>Klijenti</strong> i pozovi svog prvog klijenta na mobilnu app.</p>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;border-bottom:1px solid #f1f5f9;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span style="font-size:18px;">📋</span>
+            <div>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">Kreiraj plan treninga</p>
+              <p style="margin:2px 0 0;font-size:13px;color:#64748b;">U tabu <strong>Trening</strong> postavi predloške i planove te ih dodijeli klijentima.</p>
+            </div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:10px 0;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <span style="font-size:18px;">📝</span>
+            <div>
+              <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">Postavi prijavnu formu</p>
+              <p style="margin:2px 0 0;font-size:13px;color:#64748b;">U tabu <strong>Prijave</strong> kreiraj formu i podijeli link potencijalnim klijentima.</p>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>`
+
+  const bodyHtml = `
+    <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+      Bok <strong style="color:#0f172a;">${esc(trainerFirstName)}</strong>,<br/>
+      plan <strong style="color:#7c3aed;">${esc(planLabel)}</strong> je uspješno aktiviran. Klikni gumb ispod da postaviš lozinku i pristupiš dashboardu.
+    </p>
+    ${trialBadge}
+    <div style="margin-bottom:24px;text-align:center;">
+      <a href="${esc(actionLink)}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">
+        Aktiviraj račun i postavi lozinku →
+      </a>
+    </div>
+    <p style="margin:0 0 4px;font-size:11px;color:#94a3b8;line-height:1.5;">
+      Link je valjan 24 sata. Ako gumb ne radi: <a href="${esc(actionLink)}" style="color:#7c3aed;word-break:break-all;">${esc(actionLink)}</a>
+    </p>
+    <div style="border-top:1px solid #f1f5f9;margin-top:24px;padding-top:20px;">
+      ${steps}
+    </div>`
+
+  return baseEmail({
+    title: `Dobro došao/la, ${esc(trainerFirstName)}! 🎉`,
+    subtitle: `Plan ${esc(planLabel)} je aktiviran`,
+    bodyHtml,
+  })
+}
+
+/**
+ * Trial started notification — sent when a trainer's Stripe subscription
+ * enters the 'trialing' state (i.e. trial start, not account activation).
+ * Complements the activation email by focusing on what to expect during trial.
+ */
+export function buildTrialStartedEmail(opts: {
+  trainerFirstName: string
+  planLabel: string
+  trialDays: number
+  trialEndStr: string
+  dashboardUrl: string
+  billingUrl: string
+}): string {
+  const { trainerFirstName, planLabel, trialDays, trialEndStr, dashboardUrl, billingUrl } = opts
+
+  const bodyHtml = `
+    <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
+      Bok <strong style="color:#0f172a;">${esc(trainerFirstName)}</strong>,
+    </p>
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:18px 20px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0;font-size:32px;font-weight:800;color:#7c3aed;">${trialDays}</p>
+      <p style="margin:4px 0 0;font-size:14px;color:#64748b;">dana besplatnog triala na planu <strong style="color:#0f172a;">${esc(planLabel)}</strong></p>
+      <p style="margin:8px 0 0;font-size:13px;color:#94a3b8;">Naplata počinje <strong style="color:#0f172a;">${esc(trialEndStr)}</strong></p>
+    </div>
+    <p style="margin:0 0 16px;font-size:14px;color:#334155;line-height:1.6;">
+      Iskoristi trial da upoznaš sve mogućnosti platforme — bez ograničenja:
+    </p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+      ${['Dodaj neograničen broj klijenata', 'Kreiraj planove treninga i prehrane', 'Prati tjedne check-inove i napredak', 'Postavi prijavnu formu za nove klijente'].map(item =>
+        `<tr><td style="padding:6px 0;font-size:14px;color:#334155;line-height:1.5;">✅ &nbsp;${item}</td></tr>`
+      ).join('')}
+    </table>
+    <p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">
+      Pretplatu možeš otkazati u bilo kojem trenutku prije <strong>${esc(trialEndStr)}</strong> bez naplate. 
+      Upravljaj pretplatom u <a href="${esc(billingUrl)}" style="color:#7c3aed;">postavkama naplate</a>.
+    </p>`
+
+  return baseEmail({
+    title: '🚀 Tvoj trial je počeo!',
+    subtitle: `${trialDays} dana besplatno · Plan ${esc(planLabel)}`,
+    bodyHtml,
+    ctaHref: dashboardUrl,
+    ctaLabel: 'Otvori dashboard',
+  })
+}
+
 /** Trial ending reminder sent to trainer */
 export function buildTrialEndingEmail(opts: {
   trainerFirstName: string

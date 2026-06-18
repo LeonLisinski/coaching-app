@@ -4,6 +4,7 @@ import { createStripeClient } from '@/lib/stripe'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { PLAN_META, BILLABLE_PLANS, type Plan } from '@/lib/plans'
 import { sendResendEmail } from '@/lib/resend-server'
+import { buildTrainerWelcomeEmail, buildTrialStartedEmail } from '@/lib/email-templates'
 
 function supabaseAdmin() {
   return createClient(
@@ -104,7 +105,7 @@ async function markEventProcessed(db: SupabaseClient, eventId: string, eventType
 
 // ── Account creation for new registrations ───────────────────────────────────
 // Called from checkout.session.completed when session.metadata.registration === '1'.
-// Creates the Supabase trainer account and sends an invite/magic-link email.
+// Creates the Supabase trainer account and returns the activation link.
 // Idempotent: skips creation if the email is already in profiles.
 
 async function provisionNewTrainerAccount(
@@ -114,7 +115,7 @@ async function provisionNewTrainerAccount(
     displayName: string
     planLabel:   string
   }
-): Promise<string | null> {
+): Promise<{ userId: string; actionLink: string | null } | null> {
   const { email, displayName, planLabel } = opts
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
@@ -131,100 +132,49 @@ async function provisionNewTrainerAccount(
   if (existing?.id) {
     userId = existing.id
     console.debug('[register webhook] account already exists for', email, '— skipping creation')
-  } else {
-    // Generate invite link (creates user + returns one-time link)
-    const { data: linkData, error: linkErr } = await db.auth.admin.generateLink({
-      type:    'invite',
-      email,
-      options: {
-        redirectTo: `${appUrl}/reset-password`,
-        data:       { full_name: displayName },
-      },
-    })
-
-    if (linkErr || !linkData?.user) {
-      console.error('[register webhook] generateLink(invite) error:', linkErr?.message)
-      return null
-    }
-
-    userId = linkData.user.id
-    const actionLink = linkData.properties?.action_link
-
-    // Wait for DB trigger to create profiles row
-    const pollStart = Date.now()
-    while (Date.now() - pollStart < 4000) {
-      const { data: p } = await db.from('profiles').select('id').eq('id', userId).maybeSingle()
-      if (p?.id) break
-      await new Promise(r => setTimeout(r, 300))
-    }
-
-    // Upsert profile
-    await db.from('profiles').upsert({
-      id:        userId,
-      full_name: displayName,
-      role:      'trainer',
-      email:     email.toLowerCase(),
-    }, { onConflict: 'id' })
-
-    await db.from('trainer_profiles').upsert(
-      { id: userId },
-      { onConflict: 'id', ignoreDuplicates: true }
-    )
-
-    // Send welcome/activation email
-    if (actionLink) {
-      const safeDisplayName = displayName.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      const safePlanLabel   = planLabel.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      const html = `<!DOCTYPE html>
-<html lang="hr">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.10);">
-        <tr><td style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:24px 32px;text-align:center;">
-          <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">UnitLift</p>
-          <p style="margin:4px 0 0;font-size:13px;color:rgba(255,255,255,0.75);">Coaching Platform</p>
-        </td></tr>
-        <tr><td style="padding:28px 32px 0;text-align:center;">
-          <p style="margin:0;font-size:22px;font-weight:700;color:#0f172a;">Dobro došao/la! 🎉</p>
-          <p style="margin:6px 0 0;font-size:14px;color:#64748b;">Plan <strong style="color:#7c3aed;">${safePlanLabel}</strong> je uspješno aktiviran.</p>
-        </td></tr>
-        <tr><td style="padding:20px 32px 32px;">
-          <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
-            Bok <strong style="color:#0f172a;">${safeDisplayName}</strong>,<br/>
-            plaćanje je uspješno prihvaćeno. Klikni gumb ispod da aktiviraš račun i postaviš lozinku.
-          </p>
-          <div style="margin-top:24px;text-align:center;">
-            <a href="${actionLink}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">Aktiviraj UnitLift račun</a>
-          </div>
-          <p style="margin:24px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
-            Link je valjan 24 sata. Ako gumb ne radi, kopiraj ovaj URL u preglednik:<br/>
-            <a href="${actionLink}" style="color:#7c3aed;word-break:break-all;">${actionLink}</a>
-          </p>
-        </td></tr>
-        <tr><td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #f1f5f9;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;">UnitLift &bull; Coaching Platform &bull; Automatska obavijest</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`
-      const sendResult = await sendResendEmail({
-        to:      email,
-        subject: `Aktiviraj UnitLift račun — ${planLabel} plan`,
-        html,
-      })
-      if (!sendResult.ok) {
-        console.error('[register webhook] invite email failed:', (sendResult as any).logHint)
-      } else {
-        console.debug('[register webhook] invite email sent to', email)
-      }
-    }
+    return { userId, actionLink: null }
   }
 
-  return userId
+  // Generate invite link (creates user + returns one-time link)
+  const { data: linkData, error: linkErr } = await db.auth.admin.generateLink({
+    type:    'invite',
+    email,
+    options: {
+      redirectTo: `${appUrl}/reset-password`,
+      data:       { full_name: displayName },
+    },
+  })
+
+  if (linkErr || !linkData?.user) {
+    console.error('[register webhook] generateLink(invite) error:', linkErr?.message)
+    return null
+  }
+
+  userId = linkData.user.id
+  const actionLink = linkData.properties?.action_link ?? null
+
+  // Wait for DB trigger to create profiles row
+  const pollStart = Date.now()
+  while (Date.now() - pollStart < 4000) {
+    const { data: p } = await db.from('profiles').select('id').eq('id', userId).maybeSingle()
+    if (p?.id) break
+    await new Promise(r => setTimeout(r, 300))
+  }
+
+  // Upsert profile
+  await db.from('profiles').upsert({
+    id:        userId,
+    full_name: displayName,
+    role:      'trainer',
+    email:     email.toLowerCase(),
+  }, { onConflict: 'id' })
+
+  await db.from('trainer_profiles').upsert(
+    { id: userId },
+    { onConflict: 'id', ignoreDuplicates: true }
+  )
+
+  return { userId, actionLink }
 }
 
 export async function POST(req: NextRequest) {
@@ -270,13 +220,12 @@ export async function POST(req: NextRequest) {
           break
         }
 
-        const newUserId = await provisionNewTrainerAccount(db, { email, displayName, planLabel })
-        if (!newUserId) {
+        const provision = await provisionNewTrainerAccount(db, { email, displayName, planLabel })
+        if (!provision) {
           console.error('[register webhook] Failed to provision account for', email)
-          // Don't break — still try to process payment/subscription
           break
         }
-        userId = newUserId
+        userId = provision.userId
 
         // Update Stripe customer metadata with new user ID
         const customerId = typeof session.customer === 'string'
@@ -284,8 +233,50 @@ export async function POST(req: NextRequest) {
           : (session.customer as any)?.id
         if (customerId) {
           await stripe.customers.update(customerId, {
-            metadata: { supabase_user_id: newUserId },
+            metadata: { supabase_user_id: provision.userId },
           })
+        }
+
+        // Send welcome + activation email — we need sub data for trial info,
+        // so retrieve it now (lightweight, just needs trial_start/trial_end/status)
+        if (provision.actionLink) {
+          try {
+            const appUrl   = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unitlift.com'
+            const subIdRaw = typeof session.subscription === 'string'
+              ? session.subscription
+              : (session.subscription as any)?.id
+            let isTrialing = false; let trialDays = 14; let trialEndStr = ''
+            if (subIdRaw) {
+              const subPreview = await stripe.subscriptions.retrieve(subIdRaw)
+              if (subPreview.status === 'trialing' && (subPreview as any).trial_end) {
+                isTrialing = true
+                const trialEndDate = new Date((subPreview as any).trial_end * 1000)
+                trialDays = Math.max(1, Math.ceil((trialEndDate.getTime() - Date.now()) / 86_400_000))
+                trialEndStr = trialEndDate.toLocaleDateString('hr-HR', { day: 'numeric', month: 'long', year: 'numeric' })
+              }
+            }
+            const firstName = displayName.split(' ')[0] || displayName || 'Trener'
+            const html = buildTrainerWelcomeEmail({
+              trainerFirstName: firstName,
+              planLabel,
+              actionLink: provision.actionLink,
+              appUrl,
+              isTrialing,
+              trialDays,
+              trialEndStr,
+            })
+            const sendResult = await sendResendEmail({
+              to:      email,
+              subject: isTrialing
+                ? `Aktiviraj UnitLift račun — tvoj ${trialDays}-dnevni trial počinje`
+                : `Aktiviraj UnitLift račun — ${planLabel} plan`,
+              html,
+            })
+            if (!sendResult.ok) console.error('[register webhook] welcome email failed:', (sendResult as any).logHint)
+            else console.debug('[register webhook] welcome email sent to', email)
+          } catch (e) {
+            console.error('[register webhook] welcome email error:', e)
+          }
         }
       }
 

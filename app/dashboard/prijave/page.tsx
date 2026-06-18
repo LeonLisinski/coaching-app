@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -184,13 +183,13 @@ type LeadRowLabels = {
 
 // ─── Lead row ───────────────────────────────────────────────────────────────
 function LeadRow({
-  sub, accentHex, isDark, labels, onStatusChange, onDelete, onConvert, onClick, isOpen,
+  sub, accentHex, isDark, labels, onSaved, onDelete, onConvert, onClick, isOpen,
 }: {
   sub: Submission
   accentHex: string
   isDark: boolean
   labels: LeadRowLabels
-  onStatusChange: (id: string, status: string) => void
+  onSaved: (id: string, patch: Partial<Submission>) => void
   onDelete: (id: string) => void
   onConvert: (sub: Submission) => void
   onClick: () => void
@@ -198,8 +197,17 @@ function LeadRow({
 }) {
   const [notes, setNotes] = useState(sub.trainer_notes || '')
   const [callDate, setCallDate] = useState(sub.scheduled_call_at ? sub.scheduled_call_at.slice(0, 16) : '')
+  // Status is local until saved — user can see pending change without losing other edits
+  const [localStatus, setLocalStatus] = useState(sub.status)
   const [saving, setSaving] = useState(false)
   const [savedState, setSavedState] = useState(false)
+
+  // Keep local state in sync when parent updates (e.g. real-time refresh)
+  useEffect(() => { setNotes(sub.trainer_notes || '') }, [sub.trainer_notes])
+  useEffect(() => { setCallDate(sub.scheduled_call_at ? sub.scheduled_call_at.slice(0, 16) : '') }, [sub.scheduled_call_at])
+  useEffect(() => { setLocalStatus(sub.status) }, [sub.status])
+
+  const hasUnsavedStatus = localStatus !== sub.status
 
   const cardBg = isDark ? 'oklch(0.195 0.018 264)' : 'white'
   const border = isDark ? 'rgba(255,255,255,0.08)' : '#f3f4f6'
@@ -214,15 +222,17 @@ function LeadRow({
   const saveDetails = async () => {
     setSaving(true)
     const isoCall = callDate ? new Date(callDate).toISOString() : null
+
+    // Save notes, date AND status in a single update
     await supabase.from('lead_submissions').update({
       trainer_notes: notes || null,
       scheduled_call_at: isoCall,
+      status: localStatus,
     }).eq('id', sub.id)
 
     // Sync to trainer_events so the call appears on the calendar
     const { data: { session } } = await supabase.auth.getSession()
     if (session && isoCall) {
-      // Upsert: one event per lead_submission_id (match by lead_submission_id)
       const { data: existing } = await supabase
         .from('trainer_events')
         .select('id')
@@ -241,9 +251,15 @@ function LeadRow({
         await supabase.from('trainer_events').insert(payload)
       }
     } else if (session && !isoCall) {
-      // Call was cleared → remove the linked event from calendar
       await supabase.from('trainer_events').delete().eq('lead_submission_id', sub.id)
     }
+
+    // Notify parent so submissions list reflects saved status
+    onSaved(sub.id, {
+      trainer_notes: notes || null,
+      scheduled_call_at: isoCall,
+      status: localStatus,
+    })
 
     setSaving(false)
     setSavedState(true)
@@ -306,20 +322,44 @@ function LeadRow({
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: textMuted }}>Status</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(labels.statusLabels).map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onStatusChange(sub.id, key)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${STATUS_COLORS[key]}`}
-                  style={sub.status === key ? { outline: `2px solid ${accentHex}`, outlineOffset: '2px' } : {}}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: textMuted }}>Status</p>
+              {hasUnsavedStatus && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: accentHex + '18', color: accentHex }}>
+                  Nespremljeno
+                </span>
+              )}
             </div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(labels.statusLabels).map(([key, label]) => {
+                const isSelected = localStatus === key
+                const isSaved = sub.status === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setLocalStatus(key)}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${STATUS_COLORS[key]}`}
+                    style={
+                      isSelected
+                        ? { outline: `2px solid ${accentHex}`, outlineOffset: '2px', fontWeight: 700 }
+                        : { opacity: 0.6 }
+                    }
+                  >
+                    {label}
+                    {isSelected && !isSaved && (
+                      <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-current align-middle" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            {hasUnsavedStatus && (
+              <p className="text-[11px] mt-1.5" style={{ color: textMuted }}>
+                Promjena statusa sprema se klikom na "Spremi"
+              </p>
+            )}
           </div>
 
           <div>
@@ -355,7 +395,7 @@ function LeadRow({
               onClick={saveDetails}
               disabled={saving}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-70"
-              style={{ backgroundColor: accentHex }}
+              style={{ backgroundColor: (hasUnsavedStatus && !saving && !savedState) ? accentHex : savedState ? '#10b981' : accentHex }}
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : savedState ? <CheckCircle2 size={13} /> : <Save size={13} />}
               {savedState ? labels.saved : labels.save}
@@ -546,6 +586,31 @@ export default function LeadsPage() {
     }
   }, [])
 
+  // ── Polling fallback + focus refresh (handles realtime drops/localhost) ───
+  useEffect(() => {
+    if (!userId || !handle) return
+
+    const silentRefresh = async () => {
+      const { data } = await supabase
+        .from('lead_submissions')
+        .select('id, trainer_id, answers, status, seen, scheduled_call_at, trainer_notes, created_at')
+        .eq('trainer_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(200)
+      if (data) setSubmissions(data as Submission[])
+    }
+
+    // Poll every 60s as realtime fallback
+    const interval = setInterval(silentRefresh, 60_000)
+    // Also refresh when window regains focus (user submits form in another tab)
+    window.addEventListener('focus', silentRefresh)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', silentRefresh)
+    }
+  }, [userId, handle])
+
   const loadAll = useCallback(async (uid: string, avatarUrl?: string | null) => {
     const [subsRes, formRes] = await Promise.all([
       supabase.from('lead_submissions')
@@ -554,7 +619,7 @@ export default function LeadsPage() {
         .order('created_at', { ascending: false })
         .limit(200),
       supabase.from('lead_forms')
-        .select('id, trainer_id, title, title_en, description, description_en, accent_color, is_active, photo_url')
+        .select('id, trainer_id, title, title_en, description, description_en, accent_color, is_active, photo_url, lead_form_questions(id, form_id, type, label, label_en, required, options, order_index)')
         .eq('trainer_id', uid)
         .single(),
     ])
@@ -569,16 +634,12 @@ export default function LeadsPage() {
       setDraftDescEn(f.description_en || '')
       setDraftColor(f.accent_color)
       setDraftActive(f.is_active)
-      // If no custom form photo is set, default to the trainer's profile avatar
       setDraftPhoto(f.photo_url ?? avatarUrl ?? null)
 
-      const { data: qs } = await supabase
-        .from('lead_form_questions')
-        .select('id, form_id, type, label, label_en, required, options, order_index')
-        .eq('form_id', f.id)
-        .order('order_index')
+      const qs = ((f as any).lead_form_questions as Question[] | null) ?? []
+      const sorted = [...qs].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
       setQuestions(
-        (qs || []).map((q: Question) => ({
+        sorted.map((q: Question) => ({
           _key: makeKey(),
           id: q.id,
           type: q.type,
@@ -612,7 +673,12 @@ export default function LeadsPage() {
     setLoading(false)
   }
 
-  // ── Status change ─────────────────────────────────────────────────────────
+  // ── Save patch (status + notes + date saved together) ────────────────────
+  const handleSaved = (id: string, patch: Partial<Submission>) => {
+    setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
+  }
+
+  // ── Status change (still used by convert-to-client flow) ─────────────────
   const handleStatusChange = async (id: string, status: string) => {
     await supabase.from('lead_submissions').update({ status }).eq('id', id)
     setSubmissions(prev => prev.map(s => s.id === id ? { ...s, status } : s))
@@ -955,7 +1021,7 @@ export default function LeadsPage() {
                   accentHex={accentHex}
                   isDark={isDark}
                   labels={rowLabels}
-                  onStatusChange={handleStatusChange}
+                  onSaved={handleSaved}
                   onDelete={handleDelete}
                   onConvert={handleConvert}
                   onClick={() => {
@@ -1171,11 +1237,11 @@ export default function LeadsPage() {
             {/* Active toggle */}
             <label className="flex items-center gap-3 cursor-pointer">
               <div
-                className="relative w-10 h-5 rounded-full transition-all"
+                className="relative w-11 h-6 rounded-full overflow-hidden transition-all shrink-0"
                 style={{ backgroundColor: draftActive ? accentHex : (isDark ? '#374151' : '#d1d5db') }}
                 onClick={() => setDraftActive(v => !v)}
               >
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${draftActive ? 'left-5' : 'left-0.5'}`} />
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${draftActive ? 'left-6' : 'left-1'}`} />
               </div>
               <span className="text-sm font-medium" style={{ color: textMain }}>{tL('formActive')}</span>
             </label>

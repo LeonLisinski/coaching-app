@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 
 import nextDynamic from 'next/dynamic'
 import MobileDashboard from '@/app/dashboard/mobile-dashboard'
@@ -389,6 +388,7 @@ function SetupBanner({ onReady }: { onReady: () => void }) {
 
 // Module-level stale cache to avoid full refetch on in-session navigation back to dashboard
 const DASH_STALE_MS = 90_000 // 90 seconds
+const DASH_SS_KEY   = 'dash_snap_v1'
 let _dashLastFetch = 0
 
 type DashSnap = {
@@ -403,7 +403,18 @@ type DashSnap = {
   newLeadsWeek: number
   newLeadsToday: number
 }
-let _dashSnap: DashSnap | null = null
+
+// Attempt to seed module cache from sessionStorage on first import (survives hard-refresh within same tab session)
+let _dashSnap: DashSnap | null = (() => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(DASH_SS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { ts: number; snap: DashSnap }
+    _dashLastFetch = parsed.ts
+    return parsed.snap
+  } catch { return null }
+})()
 
 function DashboardPageContent() {
   const t      = useTranslations('dashboard')
@@ -427,7 +438,11 @@ function DashboardPageContent() {
     }
   }, [])
 
-  const [loading, setLoading] = useState(() => !(_dashSnap && Date.now() - _dashLastFetch < DASH_STALE_MS))
+  // Show content immediately if ANY snapshot exists (stale-while-revalidate).
+  // Fresh check is still enforced in the useEffect; skeleton only when truly no data.
+  const [loading, setLoading] = useState(() => !_dashSnap)
+  const [revalidating, setRevalidating] = useState(false)
+  const [fetchError, setFetchError] = useState(false)
   const [trainerName, setTrainerName] = useState(() => _dashSnap?.trainerName ?? '')
   const [dashView, setDashView] = usePersistedTab('dashboard_view', 'global') as [string, (v: string) => void]
   const [todayCheckinClients, setTodayCheckinClients] = useState<{ id: string; full_name: string; submitted: boolean }[]>(() => _dashSnap?.todayCheckinClients ?? [])
@@ -453,46 +468,22 @@ function DashboardPageContent() {
       // Cache is fresh — render immediately, no fetch
       return
     }
-    _dashLastFetch = now
-    fetchData()
-  }, [])
-
-  // Real-time: refresh unread message count as messages arrive / get read
-  useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null
-    let cancelled = false
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return
-      const uid = session?.user?.id
-      if (!uid) return
-
-      channel = supabase
-        .channel(`dashboard-unread-${uid}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'messages', filter: `trainer_id=eq.${uid}` },
-          async () => {
-            const { count } = await supabase
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('trainer_id', uid)
-              .neq('sender_id', uid)
-              .eq('read', false)
-            setStats(s => ({ ...s, unreadMessages: count ?? 0 }))
-          },
-        )
-        .subscribe()
+    // Stale or empty: if we already have data show it, revalidate silently in background
+    const silent = !!_dashSnap
+    if (silent) setRevalidating(true)
+    fetchData().then(() => {
+      _dashLastFetch = Date.now()
+    }).finally(() => {
+      if (silent) setRevalidating(false)
     })
-
-    return () => {
-      cancelled = true
-      if (channel) supabase.removeChannel(channel)
-    }
   }, [])
+
+  // Note: real-time unread count is handled by layout's single shared channel.
+  // Removing duplicate dashboard-unread channel to avoid duplicate subscriptions.
 
   const fetchData = async () => {
     try {
+    setFetchError(false)
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) { setLoading(false); return }
@@ -599,6 +590,7 @@ function DashboardPageContent() {
     setClients(rows)
 
     // Today widget — clients with check-in day = today
+    // checkin_day uses JS Date.getDay() convention: 0=Sun … 6=Sat
     const todayDay = new Date().getDay()
     const todayStr = isoDate(new Date())
     const todayClients = rows
@@ -679,9 +671,12 @@ function DashboardPageContent() {
       newLeadsWeek: leadsThisWeek,
       newLeadsToday: leadsThisToday,
     }
+    // Persist to sessionStorage so hard-refresh within the same tab session is also instant
+    try { sessionStorage.setItem(DASH_SS_KEY, JSON.stringify({ ts: Date.now(), snap: _dashSnap })) } catch { /* quota */ }
 
     } catch (err) {
       console.error('[dashboard] fetchData error:', err)
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -709,6 +704,21 @@ function DashboardPageContent() {
     </div>
   )
 
+  if (fetchError) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <AlertCircle size={32} className="text-rose-400 mb-3" />
+      <p className={`text-base font-semibold ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>Greška pri učitavanju dashboarda</p>
+      <p className={`text-sm mt-1 mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Provjeri internetsku vezu i pokušaj ponovo.</p>
+      <button
+        onClick={() => { setLoading(true); fetchData() }}
+        className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
+        style={{ backgroundColor: accentHex }}
+      >
+        Pokušaj ponovo
+      </button>
+    </div>
+  )
+
   return (
     <div className="space-y-4">
 
@@ -720,8 +730,9 @@ function DashboardPageContent() {
       {/* Header */}
       <div className="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h1 className={`text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+          <h1 className={`flex items-center gap-2 text-2xl font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
             {greeting}{trainerName ? `, ${trainerName}` : ''} 👋
+            {revalidating && <Loader2 size={16} className="animate-spin text-gray-400 mt-0.5" />}
           </h1>
           <p className={`text-sm mt-0.5 capitalize ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{dateStr}</p>
         </div>

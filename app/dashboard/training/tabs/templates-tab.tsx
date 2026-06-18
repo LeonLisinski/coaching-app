@@ -150,14 +150,19 @@ function TemplateCard({
 }
 
 // ─── Main tab ──────────────────────────────────────────────────────────────────
-export default function TemplatesTab({ activeType, onExerciseCreated }: { activeType?: 'exercise' | 'template' | null; onExerciseCreated?: () => void }) {
+
+// Module-level cache — avoids refetch when switching between the 3 training panels on desktop.
+const TMPL_STALE_MS = 5 * 60 * 1000
+let _tmplCache: Template[] | null = null
+let _tmplCachedAt = 0
+export default function TemplatesTab({ activeType, refreshKey, onExerciseCreated }: { activeType?: 'exercise' | 'template' | null; refreshKey?: number; onExerciseCreated?: () => void }) {
   const t = useTranslations('training.templatesTab')
   const tCommon = useTranslations('common')
   const { mode } = useAppTheme()
   const isDark = mode === 'dark'
 
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [loading, setLoading] = useState(true)
+  const [templates, setTemplates] = useState<Template[]>(() => _tmplCache ?? [])
+  const [loading, setLoading] = useState(() => !_tmplCache)
   const [showAdd, setShowAdd] = useState(false)
   const [editTemplate, setEditTemplate] = useState<Template | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -166,7 +171,11 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
   const [minExercises, setMinExercises] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
 
-  useEffect(() => { fetchTemplates() }, [])
+  useEffect(() => {
+    const forceRefresh = (refreshKey ?? 0) > 0
+    if (forceRefresh || !_tmplCache || Date.now() - _tmplCachedAt > TMPL_STALE_MS) fetchTemplates()
+    else setLoading(false)
+  }, [refreshKey])
 
   const fetchTemplates = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -176,13 +185,18 @@ export default function TemplatesTab({ activeType, onExerciseCreated }: { active
       .from('workout_templates')
       .select('id, name, description, exercises, created_at')
       .eq('trainer_id', user.id)
-    if (data) setTemplates(data)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (data) { _tmplCache = data as Template[]; _tmplCachedAt = Date.now(); setTemplates(data as Template[]) }
     setLoading(false)
   }
 
   const deleteTemplate = async (id: string) => {
     await supabase.from('workout_templates').delete().eq('id', id)
-    setTemplates(templates.filter(t => t.id !== id))
+    const updated = templates.filter(t => t.id !== id)
+    _tmplCache = updated
+    _tmplCachedAt = Date.now()
+    setTemplates(updated)
     setConfirmDelete(null)
   }
 

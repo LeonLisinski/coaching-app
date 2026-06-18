@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import nextDynamic from 'next/dynamic'
 import MobileClientsView from '@/app/dashboard/clients/mobile-clients-view'
 import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
@@ -126,7 +125,7 @@ function ClientsPageContent() {
   const [copyClient, setCopyClient] = useState<Client | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [checkinTodayOnly, setCheckinTodayOnly] = useState(false)
-  const todayDow = new Date().getDay() // 0=Sun … 6=Sat
+  const todayDow = new Date().getDay() // 0=Sun … 6=Sat (JS Date.getDay() convention — matches DB checkin_day)
   const clickTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1008,16 +1007,27 @@ function MobileClientsPageWrapper() {
   )
 }
 
+const PageSkeleton = () => (
+  <div className="space-y-4 animate-pulse">
+    <div className="flex items-center justify-between">
+      <div className="h-8 w-40 bg-gray-100 dark:bg-white/5 rounded-lg" />
+      <div className="h-9 w-32 bg-gray-100 dark:bg-white/5 rounded-xl" />
+    </div>
+    <div className="h-10 bg-gray-100 dark:bg-white/5 rounded-xl" />
+    {[...Array(8)].map((_, i) => <div key={i} className="h-16 bg-gray-100 dark:bg-white/5 rounded-2xl" />)}
+  </div>
+)
+
 export default function ClientsPage() {
   const isLg = useIsLg()
   if (isLg === undefined) return null
   if (isLg) return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageSkeleton />}>
       <ClientsPageContent />
     </Suspense>
   )
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageSkeleton />}>
       <MobileClientsPageWrapper />
     </Suspense>
   )

@@ -1,11 +1,10 @@
 'use client'
 import MobileUnavailable from '@/app/components/mobile-unavailable'
-export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { supabase } from '@/lib/supabase'
-import { usePersistedTab } from '@/app/contexts/tab-state'
+// usePersistedTab intentionally not used here — nutrition tab resets on navigation
 import { useIsLg } from '@/hooks/use-mobile'
 import {
   DndContext, DragOverlay, pointerWithin,
@@ -36,7 +35,7 @@ function NutritionPageContent() {
   const [foodRefreshKey, setFoodRefreshKey] = useState(0)
   const [recipeRefreshKey, setRecipeRefreshKey] = useState(0)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
-  const [mobileTab, setMobileTab] = usePersistedTab('nutrition_tab', 'foods')
+  const [mobileTab, setMobileTab] = useState('foods')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),

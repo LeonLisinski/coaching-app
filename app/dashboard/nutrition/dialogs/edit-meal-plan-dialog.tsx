@@ -146,7 +146,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
     const user = session?.user
     if (!user) return
     const [{ data: allFoods }, { data: overrides }] = await Promise.all([
-      supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').order('name'),
+      supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').or(`trainer_id.eq.${user.id},is_default.eq.true`).order('name').limit(2000),
       supabase.from('trainer_overrides').select('default_id').eq('trainer_id', user.id).eq('resource_type', 'food'),
     ])
     const overriddenIds = new Set((overrides || []).map(o => o.default_id))

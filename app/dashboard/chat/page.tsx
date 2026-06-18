@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import { useEffect, useState, Suspense } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
@@ -281,9 +280,17 @@ function ChatPageContent() {
   )
 }
 
+const PageSkeleton = () => (
+  <div className="space-y-4 animate-pulse">
+    <div className="h-8 w-48 bg-gray-100 dark:bg-white/5 rounded-lg" />
+    <div className="h-10 bg-gray-100 dark:bg-white/5 rounded-xl" />
+    {[...Array(6)].map((_, i) => <div key={i} className="h-16 bg-gray-100 dark:bg-white/5 rounded-2xl" />)}
+  </div>
+)
+
 export default function ChatPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageSkeleton />}>
       <ChatPageContent />
     </Suspense>
   )

@@ -31,6 +31,7 @@ function isoDate(d: Date) {
 function getStatus(checkinDay: number | null, lastCheckin: string | null): 'submitted' | 'late' | 'neutral' {
   if (checkinDay === null) return 'neutral'
   const today = new Date()
+  // checkin_day uses JS Date.getDay() convention: 0=Sun … 6=Sat
   const rawDaysBack = (today.getDay() - checkinDay + 7) % 7
 
   // Today IS the check-in day — still time to submit, show neutral unless already submitted today
@@ -69,7 +70,7 @@ export default function ClientsCheckinTab() {
   const { accent, mode } = useAppTheme()
   const accentHex = ACCENT_HEX_MAP[accent] || '#7c3aed'
   const isDark = mode === 'dark'
-  const todayDow = new Date().getDay()
+  const todayDow = new Date().getDay() // 0=Sun … 6=Sat (JS Date.getDay() convention — matches DB checkin_day)
 
   const STATUS_CONFIG = {
     submitted: { dot: 'bg-emerald-500', badge: isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200', label: t2('statusSubmitted') },
@@ -101,21 +102,25 @@ export default function ClientsCheckinTab() {
     const { data: { session } } = await supabase.auth.getSession()
     const user = session?.user
     if (!user) return
-    const { data: clientsData } = await supabase.from('clients')
-      .select(`id, gender, profiles!clients_user_id_fkey (full_name)`)
-      .eq('trainer_id', user.id).eq('active', true)
-    if (!clientsData) return
-    const clientIds = clientsData.map(c => c.id)
-    const [{ data: configs }, { data: lastCheckins }] = await Promise.all([
-      supabase.from('checkin_config').select('client_id, checkin_day').in('client_id', clientIds),
+
+    // Single parallel round: embed checkin_config in clients, fetch last checkins concurrently
+    const [{ data: clientsData }, { data: lastCheckins }] = await Promise.all([
+      supabase.from('clients')
+        .select(`id, gender, profiles!clients_user_id_fkey (full_name), checkin_config(checkin_day)`)
+        .eq('trainer_id', user.id).eq('active', true),
       supabase.rpc('get_trainer_last_checkins', { p_trainer_id: user.id }),
     ])
-    const configMap: Record<string, number | null> = {}
-    configs?.forEach(c => { configMap[c.client_id] = c.checkin_day })
+
+    if (!clientsData) { setLoading(false); return }
+
     const lastMap: Record<string, string> = {}
     lastCheckins?.forEach((c: any) => { lastMap[c.client_id] = c.last_date })
+
     setClients(clientsData.map((c: any) => {
-      const checkinDay = configMap[c.id] ?? null
+      const ccRaw = c.checkin_config
+      const checkinDay: number | null = Array.isArray(ccRaw)
+        ? (ccRaw[0]?.checkin_day ?? null)
+        : (ccRaw?.checkin_day ?? null)
       const lastCheckin = lastMap[c.id] || null
       return { id: c.id, full_name: c.profiles?.full_name || '—', gender: c.gender || null, checkin_day: checkinDay, last_checkin: lastCheckin, status: getStatus(checkinDay, lastCheckin) }
     }))

@@ -99,7 +99,8 @@ export default function FoodsTab({
         supabase.from('foods')
           .select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras')
           .or(`trainer_id.eq.${user.id},is_default.eq.true`)
-          .order('name'),
+          .order('name')
+          .limit(2000),
         supabase.from('trainer_overrides')
           .select('default_id')
           .eq('trainer_id', user.id)

@@ -114,14 +114,7 @@ export async function middleware(request: NextRequest) {
         .eq('trainer_id', user.id)
         .maybeSingle()
 
-      // Auto-lock if locked_at has passed
-      if (sub?.locked_at && new Date(sub.locked_at) <= new Date()) {
-        await adminDb.from('subscriptions')
-          .update({ status: 'locked', updated_at: new Date().toISOString() })
-          .eq('trainer_id', user.id)
-          .eq('status', 'past_due')
-      }
-
+      // Auto-lock is enforced by effectiveStatus computed below (no DB write needed in middleware)
       effectiveStatus = sub?.locked_at && new Date(sub.locked_at) <= new Date()
         ? 'locked'
         : sub?.status

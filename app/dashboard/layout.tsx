@@ -58,13 +58,13 @@ let _notifCacheData: {
 const navItems = [
   { href: '/dashboard',             labelKey: 'overview',  icon: LayoutDashboard, color: 'text-violet-400' },
   { href: '/dashboard/clients',     labelKey: 'clients',   icon: Users,           color: 'text-sky-400'    },
+  { href: '/dashboard/checkins',    labelKey: 'checkins',  icon: ListChecks,      color: 'text-teal-400'   },
+  { href: '/dashboard/chat',        labelKey: 'chat',      icon: MessageSquare,   color: 'text-amber-400'  },
+  { href: '/dashboard/kalendar',    labelKey: 'calendar',  icon: CalendarDays,    color: 'text-cyan-400'   },
+  { href: '/dashboard/prijave',     labelKey: 'leads',     icon: ClipboardList,   color: 'text-fuchsia-400'},
   { href: '/dashboard/training',    labelKey: 'training',  icon: Dumbbell,        color: 'text-indigo-400' },
   { href: '/dashboard/nutrition',   labelKey: 'nutrition', icon: UtensilsCrossed, color: 'text-orange-400' },
-  { href: '/dashboard/checkins',    labelKey: 'checkins',  icon: ListChecks,      color: 'text-teal-400'   },
   { href: '/dashboard/financije',   labelKey: 'finance',   icon: Banknote,        color: 'text-emerald-400'},
-  { href: '/dashboard/chat',        labelKey: 'chat',      icon: MessageSquare,   color: 'text-amber-400'  },
-  { href: '/dashboard/prijave',     labelKey: 'leads',     icon: ClipboardList,   color: 'text-fuchsia-400'},
-  { href: '/dashboard/kalendar',    labelKey: 'calendar',  icon: CalendarDays,    color: 'text-cyan-400'   },
   { href: '/dashboard/profile',     labelKey: 'profile',   icon: User,            color: 'text-rose-400'   },
 ]
 

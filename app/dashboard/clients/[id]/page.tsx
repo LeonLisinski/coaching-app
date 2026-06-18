@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import nextDynamic from 'next/dynamic'
 import MobileClientDetail from '@/app/dashboard/clients/[id]/mobile-client-detail'
 import { useEffect, useLayoutEffect, useState, useRef, Suspense } from 'react'
@@ -301,17 +300,19 @@ function ClientDetailPageContent() {
       return
     }
 
-    // Safety-net manual cleanup for any tables not fully covered by cascades
-    await supabase.from('workout_logs').delete().eq('client_id', client.id)
-    await supabase.from('nutrition_logs').delete().eq('client_id', client.id)
-    await supabase.from('daily_logs').delete().eq('client_id', client.id)
-    await supabase.from('checkins').delete().eq('client_id', client.id)
-    await supabase.from('payments').delete().eq('client_id', client.id)
-    await supabase.from('client_packages').delete().eq('client_id', client.id)
-    await supabase.from('client_meal_plans').delete().eq('client_id', client.id)
-    await supabase.from('client_workout_plans').delete().eq('client_id', client.id)
-    await supabase.from('checkin_config').delete().eq('client_id', client.id)
-    await supabase.from('messages').delete().eq('client_id', client.id)
+    // Safety-net manual cleanup for any tables not fully covered by cascades (parallelized)
+    await Promise.all([
+      supabase.from('workout_logs').delete().eq('client_id', client.id),
+      supabase.from('nutrition_logs').delete().eq('client_id', client.id),
+      supabase.from('daily_logs').delete().eq('client_id', client.id),
+      supabase.from('checkins').delete().eq('client_id', client.id),
+      supabase.from('payments').delete().eq('client_id', client.id),
+      supabase.from('client_packages').delete().eq('client_id', client.id),
+      supabase.from('client_meal_plans').delete().eq('client_id', client.id),
+      supabase.from('client_workout_plans').delete().eq('client_id', client.id),
+      supabase.from('checkin_config').delete().eq('client_id', client.id),
+      supabase.from('messages').delete().eq('client_id', client.id),
+    ])
     await supabase.from('clients').delete().eq('id', client.id)
 
     router.push('/dashboard/clients')

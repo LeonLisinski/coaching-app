@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import ExerciseMediaInput, { emptyMediaValue, type ExerciseMediaValue } from '../components/exercise-media-input'
 import { uploadExerciseMedia } from '@/lib/exercise-media'
+import SelectDropdown from '@/app/components/ui/select-dropdown'
 
 export type CreatedExercise = {
   id: string; name: string; category: string
@@ -217,10 +218,14 @@ export default function AddExerciseDialog({ open, onClose, onSuccess, initialNam
 
             <div className="space-y-1.5">
               <Label className={`text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('equipment')}</Label>
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-400 ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200' : ''}`}>
-                {EQUIPMENT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <SelectDropdown
+                value={form.category}
+                onChange={cat => setForm({ ...form, category: cat })}
+                options={EQUIPMENT_CATEGORIES}
+                isDark={isDark}
+                accentHex="#059669"
+                accentClass="focus:ring-emerald-400"
+              />
             </div>
 
             <MuscleChipSelect value={primaryMuscles} onChange={setPrimaryMuscles}

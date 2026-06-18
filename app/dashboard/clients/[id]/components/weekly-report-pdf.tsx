@@ -369,6 +369,12 @@ function TldrSection({ snap }: { snap: WeeklyReportSnapshot }) {
             <Text style={s.chipLabel}>ukupni volumen kg</Text>
           </View>
         )}
+        {summary.avgSteps != null && (
+          <View style={[s.chip, summary.stepGoal != null && summary.avgSteps >= summary.stepGoal ? s.chipGreen : {}]}>
+            <Text style={s.chipBig}>{fmtNum(summary.avgSteps)}</Text>
+            <Text style={s.chipLabel}>{summary.stepGoal != null ? `koraka ⌀ / cilj ${fmtNum(summary.stepGoal)}` : 'koraka prosjek'}</Text>
+          </View>
+        )}
       </View>
     </View>
   )

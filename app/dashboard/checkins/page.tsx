@@ -1,16 +1,20 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
+import nextDynamic from 'next/dynamic'
 import MobileCheckinsView from '@/app/dashboard/checkins/mobile-checkins-view'
 import { useIsLg } from '@/hooks/use-mobile'
 import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import ClientsCheckinTab from '@/app/dashboard/checkins/tabs/clients-tab'
-import ParametersTab from '@/app/dashboard/checkins/tabs/parameters-tab'
-import CheckinStatsTab from '@/app/dashboard/checkins/tabs/stats-tab'
 import { ClipboardList, Settings2, BarChart2 } from 'lucide-react'
 import { usePersistedTab } from '@/app/contexts/tab-state'
+import { Loader2 } from 'lucide-react'
+
+const TabLoader = () => <div className="flex justify-center items-center py-16"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+
+const ClientsCheckinTab = nextDynamic(() => import('@/app/dashboard/checkins/tabs/clients-tab'), { loading: TabLoader })
+const ParametersTab     = nextDynamic(() => import('@/app/dashboard/checkins/tabs/parameters-tab'), { loading: TabLoader })
+const CheckinStatsTab   = nextDynamic(() => import('@/app/dashboard/checkins/tabs/stats-tab'), { loading: TabLoader })
 
 const TAB_VALUES = ['clients', 'stats', 'parameters'] as const
 

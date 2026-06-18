@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import {
   Dumbbell, UtensilsCrossed, MessageSquare, ClipboardCheck,
   ArrowRight, Calendar, Activity, Percent, ClipboardList, Scale,
-  ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock,
+  ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Clock, Footprints,
 } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 import { useTranslations } from 'next-intl'
@@ -87,6 +87,8 @@ export default function ClientOverview({ clientId }: Props) {
   const [checkinDay, setCheckinDay] = useState<number | null>(null)
   const [snapshotAdherence, setSnapshotAdherence] = useState<number | null>(null)
   const [paramSnapIdx, setParamSnapIdx] = useState(0)
+  const [stepGoal, setStepGoal] = useState<number | null>(null)
+  const [weekStepsAvg, setWeekStepsAvg] = useState<number | null>(null)
 
   useEffect(() => { fetchOverview() }, [clientId])
 
@@ -112,7 +114,7 @@ export default function ClientOverview({ clientId }: Props) {
       // Reduced limit 120→20: overview only uses last week + most recent entry
       supabase.from('checkins').select('id, date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(20),
       // checkin_config embedded: saves a full round trip (was a separate query)
-      supabase.from('clients').select('start_date, checkin_config(checkin_day)').eq('id', clientId).maybeSingle(),
+      supabase.from('clients').select('start_date, step_goal, checkin_config(checkin_day)').eq('id', clientId).maybeSingle(),
       supabase.from('client_workout_plans').select('id, active, assigned_at, ended_at, days, workout_plan:workout_plans(id, name, days)').eq('client_id', clientId).order('assigned_at', { ascending: true }).limit(50),
       supabase.from('client_meal_plans').select('id, active, meal_plan:meal_plans(id, name)').eq('client_id', clientId).eq('active', true).limit(1).maybeSingle(),
       // Removed `exercises` from select (not used in overview) + limit 300→52 (≈1yr of weekly workouts)
@@ -120,12 +122,13 @@ export default function ClientOverview({ clientId }: Props) {
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview').eq('trainer_id', user.id).order('order_index'),
       // Reduced limit 180→21 (3 weeks of daily logs)
-      supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date', { ascending: false }).limit(21),
+      supabase.from('daily_logs').select('date, values, steps').eq('client_id', clientId).order('date', { ascending: false }).limit(21),
     ])
 
     if (e1) console.error('client-overview checkins', e1)
 
     setStartDate(clientRow?.start_date ?? null)
+    setStepGoal((clientRow as { step_goal?: number | null } | null)?.step_goal ?? null)
 
     // Extract checkin_config that was embedded in the clients query (saves a round trip)
     const checkinCfg = (clientRow?.checkin_config as { checkin_day?: number } | null) ?? null
@@ -137,7 +140,7 @@ export default function ClientOverview({ clientId }: Props) {
     if (sorted[0]) setLastCheckin({ id: sorted[0].id, date: sorted[0].date })
 
     const params = (paramsData as CheckinParamRow[] | null) ?? []
-    const dailyRows = (dailyLogsData as { date: string; values: Record<string, unknown> }[] | null) ?? []
+    const dailyRows = (dailyLogsData as { date: string; values: Record<string, unknown>; steps: number | null }[] | null) ?? []
 
     const resolvedCheckinDay = checkinCfg?.checkin_day ?? 1
     const weekDaysBounds = getWeekDays(resolvedCheckinDay, 0)
@@ -160,6 +163,18 @@ export default function ClientOverview({ clientId }: Props) {
       const vals = (c.values as Record<string, unknown> | undefined) || {}
       mergedByDate[d] = { ...mergedByDate[d], ...vals }
     }
+
+    // Steps — average of days with a recorded count within the snapshot week
+    const weekStepValues: number[] = []
+    for (const row of dailyRows) {
+      if (!inSnapshotWeek(row.date)) continue
+      if (typeof row.steps === 'number') weekStepValues.push(row.steps)
+    }
+    setWeekStepsAvg(
+      weekStepValues.length > 0
+        ? Math.round(weekStepValues.reduce((a, b) => a + b, 0) / weekStepValues.length)
+        : null,
+    )
 
     const numericDailyWeekly = params.filter(p => p.type === 'number' && (p.frequency === 'daily' || p.frequency === 'weekly'))
     setEligibleParams(numericDailyWeekly)
@@ -252,7 +267,7 @@ export default function ClientOverview({ clientId }: Props) {
       {/* ── Status tjedna: horizontalni strip ── */}
       <div className={`rounded-2xl border px-4 py-3 ${isDark ? 'border-white/8' : 'border-gray-100 bg-white shadow-sm'}`} style={cardStyle}>
         <p className={`text-[11px] font-semibold uppercase tracking-wide mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('snapshotSectionTitle')}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`grid grid-cols-2 gap-3 ${(stepGoal != null || weekStepsAvg != null) ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-4'}`}>
 
           {/* Check-in status */}
           <button type="button" onClick={goCheckinTab}
@@ -322,6 +337,36 @@ export default function ClientOverview({ clientId }: Props) {
                 <p className={`text-base font-bold leading-tight ${dayName ? (isDark ? 'text-gray-100' : 'text-gray-800') : (isDark ? 'text-gray-500' : 'text-gray-400')}`}>
                   {dayName ?? '—'}
                 </p>
+              </button>
+            )
+          })()}
+
+          {/* Koraci */}
+          {(stepGoal != null || weekStepsAvg != null) && (() => {
+            const reached = stepGoal != null && weekStepsAvg != null && weekStepsAvg >= stepGoal
+            return (
+              <button type="button" onClick={goCheckinTab}
+                className={`rounded-xl px-3 py-2.5 text-left transition-all border ${
+                  reached
+                    ? isDark ? 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15' : 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                    : isDark ? 'bg-white/[0.03] border-white/8 hover:bg-white/8' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                }`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Footprints size={12} className={reached ? 'text-emerald-400' : 'text-indigo-400'} />
+                  <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('snapshotStepsTitle')}</span>
+                </div>
+                {weekStepsAvg != null ? (
+                  <p className={`text-base font-bold leading-tight ${reached ? 'text-emerald-500' : isDark ? 'text-gray-100' : 'text-gray-800'}`}>
+                    {weekStepsAvg.toLocaleString('hr-HR')}
+                    {stepGoal != null && (
+                      <span className={`text-sm font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>/{stepGoal.toLocaleString('hr-HR')}</span>
+                    )}
+                  </p>
+                ) : (
+                  <p className={`text-sm font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {stepGoal != null ? `${t('snapshotStepsNoData')} · ${stepGoal.toLocaleString('hr-HR')}` : t('snapshotStepsNoData')}
+                  </p>
+                )}
               </button>
             )
           })()}

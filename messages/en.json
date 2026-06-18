@@ -801,7 +801,9 @@
         "weightSingle": "{value} kg",
         "weightNone": "No measurements",
         "totalVolume": "Total volume",
-        "totalVolumeUnit": "kg lifted"
+        "totalVolumeUnit": "kg lifted",
+        "avgSteps": "⌀ steps",
+        "avgStepsNone": "No data"
       },
       "trainings": {
         "noSessions": "No workouts logged in this period.",
@@ -2003,6 +2005,8 @@
     "attentionReasonNoPlan": "No active plan",
     "attentionReasonUnread": "{n} unread messages",
     "snapshotSectionTitle": "This week",
+    "snapshotStepsTitle": "Steps",
+    "snapshotStepsNoData": "No data",
     "snapshotWeightTitle": "Body weight",
     "snapshotWeightDelta": "{sign}{value}{unit}",
     "snapshotEmptyWeightNoParam": "No weekly numeric parameter for weight (add one or set the unit to kg).",

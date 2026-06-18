@@ -801,7 +801,9 @@
         "weightSingle": "{value} kg",
         "weightNone": "Bez mjerenja",
         "totalVolume": "Ukupni volume",
-        "totalVolumeUnit": "kg dignuto"
+        "totalVolumeUnit": "kg dignuto",
+        "avgSteps": "⌀ koraka",
+        "avgStepsNone": "Bez podataka"
       },
       "trainings": {
         "noSessions": "Nema zabilježenih treninga u ovom periodu.",
@@ -2003,6 +2005,8 @@
     "attentionReasonNoPlan": "Nema aktivnog plana",
     "attentionReasonUnread": "{n} nepročitanih poruka",
     "snapshotSectionTitle": "Ovaj tjedan",
+    "snapshotStepsTitle": "Koraci",
+    "snapshotStepsNoData": "Nema podataka",
     "snapshotWeightTitle": "Tjelesna masa",
     "snapshotWeightDelta": "{sign}{value}{unit}",
     "snapshotEmptyWeightNoParam": "Nema tjednog numeričkog parametra za masu (dodaj ga ili označi jedinicu kg).",

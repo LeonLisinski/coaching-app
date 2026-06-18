@@ -1,5 +1,4 @@
 'use client'
-export const dynamic = 'force-dynamic'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -295,7 +294,6 @@ export default function KalendarPage() {
         const { data: { session } } = await supabase.auth.getSession()
         if (!session) { router.push('/login'); return }
         const uid = session.user.id
-        setUserId(uid)
 
         const [clientsRes, leadsRes, schedRes] = await Promise.all([
           supabase.from('clients')
@@ -311,7 +309,8 @@ export default function KalendarPage() {
               clients!inner(
                 user_id,
                 active,
-                profiles!clients_user_id_fkey(full_name)
+                profiles!clients_user_id_fkey(full_name),
+                client_packages(client_id, end_date, status)
               )
             `)
             .eq('trainer_id', uid),
@@ -334,31 +333,24 @@ export default function KalendarPage() {
         if (schedRes.data) {
           const activeConfigs = (schedRes.data as any[]).filter(r => r.clients?.active)
 
-          const configClientIds = activeConfigs.map(r => r.client_id)
-          const { data: pkgRows } = configClientIds.length
-            ? await supabase
-                .from('client_packages')
-                .select('client_id, end_date')
-                .in('client_id', configClientIds)
-                .eq('status', 'active')
-                .order('end_date', { ascending: false })
-            : { data: [] as { client_id: string; end_date: string }[] }
-
-          const pkgMap = new Map<string, string | null>()
-          for (const row of pkgRows ?? []) {
-            if (!pkgMap.has(row.client_id)) pkgMap.set(row.client_id, row.end_date)
-          }
-
-          const schedulesWithEnd: CheckinSchedule[] = activeConfigs.map(r => ({
-            client_id:      r.client_id,
-            client_user_id: r.clients.user_id,
-            full_name:      r.clients.profiles?.full_name ?? '—',
-            checkin_day:    r.checkin_day,
-            end_date:       pkgMap.get(r.client_id) ?? null,
-          }))
+          const schedulesWithEnd: CheckinSchedule[] = activeConfigs.map(r => {
+            const activePkgs: any[] = (r.clients?.client_packages ?? [])
+              .filter((p: any) => p.status === 'active')
+              .sort((a: any, b: any) => (a.end_date > b.end_date ? -1 : 1))
+            return {
+              client_id:      r.client_id,
+              client_user_id: r.clients.user_id,
+              full_name:      r.clients.profiles?.full_name ?? '—',
+              checkin_day:    r.checkin_day,
+              end_date:       activePkgs[0]?.end_date ?? null,
+            }
+          })
           setSchedules(schedulesWithEnd)
         }
         await loadEvents(uid, today.getFullYear(), today.getMonth())
+        // Set userId AFTER loadEvents so the month-change effect (below) doesn't re-fire
+        // for the initial month — init already loaded it.
+        setUserId(uid)
         setLoading(false)
       } catch (err) {
         console.error('Kalendar init error:', err)
@@ -371,7 +363,10 @@ export default function KalendarPage() {
   }, [router, loadEvents])
 
   useEffect(() => {
-    if (userId) loadEvents(userId, viewYear, viewMonth)
+    // Skip the initial month — init() already fetched it.
+    // Only fires when the user navigates to a different month.
+    const isInitialMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth()
+    if (userId && !isInitialMonth) loadEvents(userId, viewYear, viewMonth)
   }, [viewYear, viewMonth, userId, loadEvents])
 
   // ── Month grid ────────────────────────────────────────────────────────────

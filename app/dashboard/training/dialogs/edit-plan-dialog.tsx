@@ -26,48 +26,7 @@ import SortableExerciseCard, { type PlanExercise } from '../components/sortable-
 import { useTrainerSettings } from '@/hooks/use-trainer-settings'
 import AddExerciseDialog, { type CreatedExercise } from './add-exercise-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
-
-/** Custom styled select dropdown — replaces native <select> */
-function CustomSelect({ value, onChange, options, onOpen }: {
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-  onOpen?: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-  const selected = options.find(o => o.value === value)
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen(v => { if (!v) onOpen?.(); return !v })}
-        className="w-full flex items-center justify-between border border-blue-200 rounded-md px-3 h-7 text-xs bg-white text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors">
-        <span className={selected?.value ? 'text-gray-800 font-medium' : 'text-gray-400'}>{selected?.label}</span>
-        <ChevronDown size={12} className={`text-blue-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
-          <div className="max-h-52 overflow-y-auto">
-            {options.map(opt => (
-              <button key={opt.value} type="button"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => { onChange(opt.value); setOpen(false) }}
-                className={`w-full text-left px-3 py-2 text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                  opt.value === value ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-blue-50'
-                }`}>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+import SelectDropdown from '@/app/components/ui/select-dropdown'
 
 function SortableDayWrapper({ id, isNew, children }: { id: string; isNew?: boolean; children: (handle: React.HTMLAttributes<HTMLButtonElement>, isDragging: boolean) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -171,7 +130,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     if (!user) return
     const [{ data: tmpl }, { data: exer }] = await Promise.all([
       supabase.from('workout_templates').select('id, name, exercises').eq('trainer_id', user.id).order('name'),
-      supabase.from('exercises').select('id, name, category, exercise_type, section').order('name'),
+      supabase.from('exercises').select('id, name, category, exercise_type, section').or(`trainer_id.eq.${user.id},is_default.eq.true`).order('name').limit(1000),
     ])
     if (tmpl) setTemplates(tmpl)
     if (exer) setExercises(exer)
@@ -536,13 +495,17 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                         </div>
 
                         {day.mode === 'template' && (
-                          <CustomSelect
+                          <SelectDropdown
                             value={day.template_id || ''}
-                            onChange={v => updateDayField(index, 'template_id', v || null)}
-                            onOpen={() => {
+                            onChange={v => {
+                              updateDayField(index, 'template_id', v || null)
                               setExerciseSearch(prev => ({ ...prev, [index]: '' }))
                               setSearchFocused(prev => ({ ...prev, [index]: false }))
                             }}
+                            isDark={isDark}
+                            accentHex="#2563eb"
+                            accentClass="focus:ring-blue-400"
+                            className="!py-1 text-xs"
                             options={[
                               { value: '', label: t('form.noTemplate') },
                               ...templates.map(tmpl => ({ value: tmpl.id, label: `${tmpl.name} (${flattenExercises(tmpl.exercises || []).length} ${t('form.exerciseCountSuffix')})` }))

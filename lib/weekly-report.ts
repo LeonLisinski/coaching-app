@@ -34,6 +34,10 @@ export type WeeklyReportSummary = {
   weightEnd: number | null
   weightDelta: number | null
   totalVolumeKg: number
+  // Optional — added later; absent on older stored snapshots.
+  avgSteps?: number | null
+  stepGoal?: number | null
+  stepsLoggedDays?: number
 }
 
 export type WeeklySessionSummary = {
@@ -266,7 +270,7 @@ export async function buildWeeklyReportSnapshot(
   ] = await Promise.all([
     supabase
       .from('clients')
-      .select('id, goal, weight, height, start_date, profile:user_id(full_name)')
+      .select('id, goal, weight, height, start_date, step_goal, profile:user_id(full_name)')
       .eq('id', clientId)
       .maybeSingle(),
     supabase
@@ -292,7 +296,7 @@ export async function buildWeeklyReportSnapshot(
       .order('date', { ascending: true }),
     supabase
       .from('daily_logs')
-      .select('id, date, values')
+      .select('id, date, values, steps')
       .eq('client_id', clientId)
       .gte('date', start)
       .lte('date', end)
@@ -320,7 +324,7 @@ export async function buildWeeklyReportSnapshot(
   ])
 
   const clientRow = clientRes.data as
-    | { goal: string | null; weight: number | null; height: number | null; start_date: string | null; profile?: { full_name?: string | null } | { full_name?: string | null }[] }
+    | { goal: string | null; weight: number | null; height: number | null; start_date: string | null; step_goal: number | null; profile?: { full_name?: string | null } | { full_name?: string | null }[] }
     | null
   const workoutLogs = (workoutLogsRes.data || []) as TrainingWorkoutLog[]
   const prevWorkoutLogs = (prevWorkoutLogsRes.data || []) as TrainingWorkoutLog[]
@@ -337,7 +341,7 @@ export async function buildWeeklyReportSnapshot(
     trainer_comment: string | null;
   }>
   const dailyLogs = (dailyLogsRes.data || []) as Array<{
-    id: string; date: string; values: Record<string, unknown> | null;
+    id: string; date: string; values: Record<string, unknown> | null; steps: number | null;
   }>
   const allParams = (paramsRes.data || []) as Array<{
     id: string; name: string; type: string; unit: string | null;
@@ -390,6 +394,14 @@ export async function buildWeeklyReportSnapshot(
   const weightEnd = weightValuesInRange[weightValuesInRange.length - 1]?.value ?? null
   const weightDelta = weightStart != null && weightEnd != null ? round1(weightEnd - weightStart) : null
 
+  // ── Steps — average of days with a recorded count in range
+  const stepValues = dailyLogs
+    .map(r => r.steps)
+    .filter((v): v is number => typeof v === 'number')
+  const avgSteps = stepValues.length > 0
+    ? Math.round(stepValues.reduce((a, b) => a + b, 0) / stepValues.length)
+    : null
+
   // ── Trainings
   const trainings = buildTrainingsSection(workoutLogs, prevWorkoutLogs, assignments, range)
 
@@ -423,6 +435,9 @@ export async function buildWeeklyReportSnapshot(
     weightEnd,
     weightDelta,
     totalVolumeKg: trainings.totalVolumeKg,
+    avgSteps,
+    stepGoal: clientRow?.step_goal ?? null,
+    stepsLoggedDays: stepValues.length,
   }
 
   return {

@@ -73,6 +73,12 @@ function DraggableExerciseCard({
   )
 }
 
+// Module-level cache for exercises — avoids full refetch when switching between panels on desktop.
+// Invalidated by explicit refreshKey change (after add/edit/delete).
+const EXERCISES_STALE_MS = 5 * 60 * 1000
+let _exCache: Exercise[] | null = null
+let _exCachedAt = 0
+
 export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 'exercise' | 'template' | null; refreshKey?: number }) {
   const t = useTranslations('training.exercisesTab')
   const tCommon = useTranslations('common')
@@ -80,7 +86,7 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
   const { mode } = useAppTheme()
   const isDark = mode === 'dark'
 
-  const [exercises, setExercises] = useState<Exercise[]>([])
+  const [exercises, setExercises] = useState<Exercise[]>(() => _exCache ?? [])
   const [search, setSearch] = useState('')
   const [activeEquipment, setActiveEquipment] = useState('Sve')
   const [activeMuscle, setActiveMuscle] = useState('Sve')
@@ -88,13 +94,18 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
   const [sortKey, setSortKey] = useState<SortKey>('name_asc')
   const [showFilters, setShowFilters] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !_exCache)
   const [showAdd, setShowAdd] = useState(false)
   const [editExercise, setEditExercise] = useState<Exercise | null>(null)
   const [previewExercise, setPreviewExercise] = useState<Exercise | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  useEffect(() => { fetchExercises() }, [refreshKey])
+  useEffect(() => {
+    const forceRefresh = (refreshKey ?? 0) > 0
+    const stale = !_exCache || Date.now() - _exCachedAt > EXERCISES_STALE_MS
+    if (forceRefresh || stale) fetchExercises()
+    else setLoading(false)
+  }, [refreshKey])
 
   const fetchExercises = async () => {
     setLoading(true)
@@ -106,7 +117,8 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       supabase.from('exercises')
         .select('id,name,category,muscle_group,primary_muscles,secondary_muscles,description,video_url,is_default,trainer_id,exercise_type,extras,section,media_type,media_path,media_mime,media_size_bytes,image_path,image_mime,image_size_bytes')
         .or(`trainer_id.eq.${user.id},is_default.eq.true`)
-        .order('name'),
+        .order('name')
+        .limit(1000),
       supabase.from('trainer_overrides')
         .select('default_id')
         .eq('trainer_id', user.id)
@@ -118,13 +130,18 @@ export default function ExercisesTab({ activeType, refreshKey }: { activeType?: 
       (!e.is_default && e.trainer_id === user.id) ||
       (e.is_default && !overriddenIds.has(e.id))
     )
+    _exCache = visible
+    _exCachedAt = Date.now()
     setExercises(visible)
     setLoading(false)
   }
 
   const deleteExercise = async (id: string) => {
     await supabase.from('exercises').delete().eq('id', id)
-    setExercises(prev => prev.filter(e => e.id !== id))
+    const updated = exercises.filter(e => e.id !== id)
+    _exCache = updated
+    _exCachedAt = Date.now()
+    setExercises(updated)
     setConfirmDelete(null)
   }
 

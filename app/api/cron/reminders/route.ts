@@ -10,6 +10,7 @@ import {
   buildPackageExpiryEmail,
   buildPendingPaymentsEmail,
   buildTrialEndingEmail,
+  buildTrialStartedEmail,
 } from '@/lib/email-templates'
 
 export const dynamic = 'force-dynamic'
@@ -295,16 +296,18 @@ export async function GET(req: NextRequest) {
     errors.push(`payment block: ${e?.message || e}`)
   }
 
-  // ── Trial ending reminders (7 and 2 days before charge) ───────────────────
+  // ── Trial ending reminders (7, 2 and 1 day before charge) ────────────────
   try {
     const now7d = new Date(); now7d.setDate(now7d.getDate() + 7)
     const now2d = new Date(); now2d.setDate(now2d.getDate() + 2)
+    const now1d = new Date(); now1d.setDate(now1d.getDate() + 1)
 
-    // Fetch trialing subs whose trial ends in the 7d or 2d window (±12 hours)
     const windowStart7 = new Date(now7d); windowStart7.setHours(windowStart7.getHours() - 12)
     const windowEnd7   = new Date(now7d); windowEnd7.setHours(windowEnd7.getHours() + 12)
     const windowStart2 = new Date(now2d); windowStart2.setHours(windowStart2.getHours() - 12)
     const windowEnd2   = new Date(now2d); windowEnd2.setHours(windowEnd2.getHours() + 12)
+    const windowStart1 = new Date(now1d); windowStart1.setHours(windowStart1.getHours() - 12)
+    const windowEnd1   = new Date(now1d); windowEnd1.setHours(windowEnd1.getHours() + 12)
 
     const { data: trialSubs } = await supabase
       .from('subscriptions')
@@ -313,7 +316,6 @@ export async function GET(req: NextRequest) {
       .not('is_ambassador', 'eq', true)
       .not('trial_end', 'is', null)
 
-    // Preload profiles for all trialing trainers — avoids N+1 individual fetches in the loop
     const trialTrainerIds = (trialSubs ?? []).map((ts: any) => ts.trainer_id as string)
     const trialProfileMap = new Map<string, { full_name: string | null; email: string | null }>()
     if (trialTrainerIds.length) {
@@ -328,16 +330,16 @@ export async function GET(req: NextRequest) {
       const trialEndDate = new Date(ts.trial_end)
       const in7d = trialEndDate >= windowStart7 && trialEndDate <= windowEnd7
       const in2d = trialEndDate >= windowStart2 && trialEndDate <= windowEnd2
-      if (!in7d && !in2d) continue
+      const in1d = trialEndDate >= windowStart1 && trialEndDate <= windowEnd1
+      if (!in7d && !in2d && !in1d) continue
 
-      const reminderType = in2d ? 'trial_2d' : 'trial_7d'
-      const daysLeft = in2d ? 2 : 7
+      const reminderType = in1d ? 'trial_1d' : in2d ? 'trial_2d' : 'trial_7d'
+      const daysLeft = in1d ? 1 : in2d ? 2 : 7
       const dedupeKey = `trial-${reminderType}-${ts.trainer_id}-${todayStr}`
       const inserted = await tryInsertDedupe(supabase, reminderType, dedupeKey)
       if (!inserted) continue
 
       const profile = trialProfileMap.get(ts.trainer_id)
-
       if (!profile?.email) continue
 
       const firstName = profile.full_name?.split(' ')[0] || 'Trener'
@@ -352,9 +354,10 @@ export async function GET(req: NextRequest) {
         billingUrl: `${url}/dashboard/billing`,
       })
 
+      const subjectDay = daysLeft === 1 ? 'sutra istječe' : `istječe za ${daysLeft} dana`
       const r = await sendResendEmail({
         to: profile.email,
-        subject: `UnitLift: tvoj trial istječe za ${daysLeft} dana`,
+        subject: `UnitLift: tvoj trial ${subjectDay}`,
         html,
       })
       if (r.ok) trialReminderSent++

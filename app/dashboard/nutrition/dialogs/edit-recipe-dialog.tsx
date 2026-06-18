@@ -71,7 +71,12 @@ export default function EditRecipeDialog({ recipe, open, onClose, onSuccess }: P
 
   const fetchFoods = async () => {
     setFoodsLoaded(false)
-    const { data } = await supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').order('name')
+    const { data: { session } } = await supabase.auth.getSession()
+    const uid = session?.user?.id
+    const q = uid
+      ? supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').or(`trainer_id.eq.${uid},is_default.eq.true`).order('name').limit(2000)
+      : supabase.from('foods').select('id,name,category,calories_per_100g,protein_per_100g,carbs_per_100g,fat_per_100g,is_default,trainer_id,extras').eq('is_default', true).order('name').limit(2000)
+    const { data } = await q
     setFoodsLoaded(true)
     if (data) setFoods(data)
   }

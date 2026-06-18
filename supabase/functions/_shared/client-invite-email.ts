@@ -51,18 +51,28 @@ export function buildClientInviteHtml(opts: {
           <td style="padding:20px 32px 32px;">
             <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
               Bok <strong style="color:#0f172a;">${safeName}</strong>,<br/><br/>
-              za korištenje <strong>mobilne aplikacije UnitLift</strong> trebaš postaviti lozinku. Klikni gumb ispod — otvorit će se sigurna stranica.
+              tvoj trener koristi <strong>UnitLift mobilnu aplikaciju</strong> za praćenje treninga, prehrane i napretka. Postavi lozinku kako bi pristupio/la svojem profilu.
             </p>
             <div style="margin:24px 0;text-align:center;">
-              <a href="${safeLink}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">Postavi lozinku</a>
+              <a href="${safeLink}" style="display:inline-block;background:#7c3aed;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:10px;">Postavi lozinku →</a>
+            </div>
+            <!-- What's in the app -->
+            <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+              <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Što te čeka u aplikaciji</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">💪 &nbsp;Tjedni planovi treninga i vježbi</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">🥗 &nbsp;Personalizirani planovi prehrane</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">📋 &nbsp;Tjedni check-in praćenje napretka</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">💬 &nbsp;Direktna komunikacija s trenerom</td></tr>
+              </table>
             </div>
             <div style="border-top:1px solid #f1f5f9;padding-top:20px;margin-top:4px;">
               <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;font-weight:600;">English</p>
               <p style="margin:0 0 12px;font-size:13px;color:#64748b;line-height:1.5;">
-                <strong>${safeTrainer}</strong> added you as a client. To use the <strong>UnitLift mobile app</strong>, set your password using the button above.
+                <strong>${safeTrainer}</strong> added you as a client on UnitLift. Set your password using the button above, then download the mobile app to get started.
               </p>
               <p style="margin:0;font-size:11px;color:#94a3b8;word-break:break-all;">
-                Ako gumb ne radi: <a href="${safeLink}" style="color:#7c3aed;">${safeLink}</a>
+                Ako gumb ne radi / Button not working: <a href="${safeLink}" style="color:#7c3aed;">${safeLink}</a>
               </p>
             </div>
           </td>
@@ -114,17 +124,27 @@ export function buildClientAddedHtml(opts: {
           <td style="padding:20px 32px 32px;">
             <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
               Bok <strong style="color:#0f172a;">${safeName}</strong>,<br/><br/>
-              već imaš UnitLift račun s ovom email adresom. Otvori mobilnu aplikaciju i prijavi se sa svojom postojećom lozinkom.
+              već imaš UnitLift račun s ovom email adresom. Otvori mobilnu aplikaciju i prijavi se — tvoj novi trener <strong>${safeTrainer}</strong> je spreman za suradnju.
             </p>
+            <!-- What's in the app -->
+            <div style="background:#f8fafc;border-radius:12px;padding:16px 20px;margin-bottom:20px;">
+              <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Što te čeka</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">💪 &nbsp;Tjedni planovi treninga i vježbi</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">🥗 &nbsp;Personalizirani planovi prehrane</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">📋 &nbsp;Tjedni check-in praćenje napretka</td></tr>
+                <tr><td style="padding:5px 0;font-size:13px;color:#334155;">💬 &nbsp;Direktna komunikacija s trenerom</td></tr>
+              </table>
+            </div>
             <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
               <p style="margin:0;font-size:13px;color:#1e293b;line-height:1.5;">
-                Ne sjećaš se lozinke? U aplikaciji odaberi <strong>Zaboravljena lozinka</strong> — dobit ćeš link za reset.
+                Ne sjećaš se lozinke? U aplikaciji odaberi <strong>Zaboravljena lozinka</strong> i dobit ćeš link za reset.
               </p>
             </div>
             <div style="border-top:1px solid #f1f5f9;padding-top:16px;">
               <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;font-weight:600;">English</p>
               <p style="margin:0;font-size:13px;color:#64748b;line-height:1.5;">
-                <strong>${safeTrainer}</strong> added you as a client. You already have a UnitLift account with this email — open the mobile app and sign in with your existing password.
+                <strong>${safeTrainer}</strong> added you as a client. You already have a UnitLift account — open the mobile app and sign in with your existing password. Forgot it? Use <strong>Forgot Password</strong> in the app.
               </p>
             </div>
           </td>

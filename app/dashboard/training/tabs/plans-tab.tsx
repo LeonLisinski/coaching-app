@@ -112,23 +112,32 @@ function PlanCard({
 }
 
 // ─── Main tab ──────────────────────────────────────────────────────────────────
-export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'template' | null }) {
+
+const PLANS_STALE_MS = 5 * 60 * 1000
+let _plansCache: WorkoutPlan[] | null = null
+let _plansCachedAt = 0
+
+export default function PlansTab({ activeType, refreshKey }: { activeType?: 'exercise' | 'template' | null; refreshKey?: number }) {
   const t = useTranslations('training.plansTab')
   const tCommon = useTranslations('common')
   const { mode } = useAppTheme()
   const isDark = mode === 'dark'
 
-  const [plans, setPlans] = useState<WorkoutPlan[]>([])
+  const [plans, setPlans] = useState<WorkoutPlan[]>(() => _plansCache ?? [])
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>('date_desc')
   const [minDays, setMinDays] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !_plansCache)
   const [showAdd, setShowAdd] = useState(false)
   const [editPlan, setEditPlan] = useState<WorkoutPlan | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
-  useEffect(() => { fetchPlans() }, [])
+  useEffect(() => {
+    const forceRefresh = (refreshKey ?? 0) > 0
+    if (forceRefresh || !_plansCache || Date.now() - _plansCachedAt > PLANS_STALE_MS) fetchPlans()
+    else setLoading(false)
+  }, [refreshKey])
 
   const fetchPlans = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -139,13 +148,17 @@ export default function PlansTab({ activeType }: { activeType?: 'exercise' | 'te
       .select('id, name, description, days, created_at')
       .eq('trainer_id', user.id)
       .eq('is_template', true)
-    if (data) setPlans(data)
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (data) { _plansCache = data as WorkoutPlan[]; _plansCachedAt = Date.now(); setPlans(data as WorkoutPlan[]) }
     setLoading(false)
   }
 
   const deletePlan = async (id: string) => {
     await supabase.from('workout_plans').delete().eq('id', id)
-    setPlans(plans.filter(p => p.id !== id))
+    const updated = plans.filter(p => p.id !== id)
+    _plansCache = updated; _plansCachedAt = Date.now()
+    setPlans(updated)
     setConfirmDelete(null)
   }
 

@@ -1,13 +1,13 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { useParams, useRouter } from 'next/navigation'
 import { usePersistedTab } from '@/app/contexts/tab-state'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, ClipboardList, History, BarChart2, Settings2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ClipboardList, History, BarChart2, Settings2, FileText, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
 const ACCENT_HEX: Record<string, string> = {
@@ -19,6 +19,11 @@ import CheckinOverview from '@/app/dashboard/checkins/[id]/components/checkin-ov
 import CheckinHistory from '@/app/dashboard/checkins/[id]/components/checkin-history'
 import CheckinGraphs from '@/app/dashboard/checkins/[id]/components/checkin-graphs'
 import CheckinConfig from '@/app/dashboard/checkins/[id]/components/checkin-config'
+
+const ClientWeeklyReports = dynamic(
+  () => import('@/app/dashboard/clients/[id]/components/client-weekly-reports'),
+  { ssr: false },
+)
 
 type Client = {
   id: string
@@ -39,6 +44,7 @@ export default function ClientCheckinPage() {
   const [client, setClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = usePersistedTab(`checkin_tab_${id as string}`, 'overview')
+  const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(['overview']))
 
   // Auto-mark checkin notifications as read for this client
   useEffect(() => {
@@ -105,6 +111,11 @@ export default function ClientCheckinPage() {
       })
     }
     setLoading(false)
+  }
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    setMountedTabs(prev => new Set([...prev, val]))
   }
 
   if (loading) return <p className="text-gray-500 text-sm p-8">{tCommon('loading')}</p>
@@ -219,7 +230,7 @@ export default function ClientCheckinPage() {
         )
       })()}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="bg-gray-100/80">
           <TabsTrigger value="overview" className="flex items-center gap-1.5">
             <ClipboardList size={13} />
@@ -237,6 +248,10 @@ export default function ClientCheckinPage() {
             <Settings2 size={13} />
             {t('detail.tabs.config')}
           </TabsTrigger>
+          <TabsTrigger value="izvjestaji" className="flex items-center gap-1.5">
+            <FileText size={13} />
+            Izvještaji
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-5">
           <CheckinOverview clientId={id as string} />
@@ -249,6 +264,11 @@ export default function ClientCheckinPage() {
         </TabsContent>
         <TabsContent value="config" className="mt-5">
           <CheckinConfig clientId={id as string} />
+        </TabsContent>
+        <TabsContent value="izvjestaji" className="mt-5">
+          {mountedTabs.has('izvjestaji') && (
+            <ClientWeeklyReports clientId={id as string} clientName={client.full_name} />
+          )}
         </TabsContent>
       </Tabs>
     </div>

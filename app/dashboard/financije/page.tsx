@@ -1,14 +1,16 @@
 'use client'
-export const dynamic = 'force-dynamic'
 
 import MobileFinanceView from '@/app/dashboard/financije/mobile-finance-view'
+import nextDynamic from 'next/dynamic'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useIsLg } from '@/hooks/use-mobile'
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  CartesianGrid,
-} from 'recharts'
+
+const FinanceRevenueChart = nextDynamic(() => import('./finance-revenue-chart'), {
+  ssr: false,
+  loading: () => <div className="h-[210px] animate-pulse rounded-xl bg-gray-100/50 dark:bg-white/5" />,
+})
+
 import {
   Banknote, TrendingUp, AlertTriangle, Package,
   Check, Clock, ArrowUpRight, ArrowDownRight,
@@ -582,35 +584,13 @@ function FinancijePageContent() {
         <div className={`lg:col-span-3 rounded-2xl border p-5 ${isDark ? 'border-white/8' : 'bg-white border-gray-100 shadow-sm'}`} style={isDark ? { background: 'oklch(0.195 0.018 264)' } : undefined}>
           <h2 className={`text-sm font-semibold mb-1 ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('finance.chart.title')}</h2>
           <p className={`text-xs mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{t('dashboard.revenue.title')}</p>
-          <ResponsiveContainer width="100%" height={210}>
-            <BarChart data={monthlyData} barCategoryGap="40%">
-              <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.06)' : '#f3f4f6'} vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={42} tickFormatter={v => `${v}€`} />
-              <Tooltip
-                cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
-                formatter={(v: any, name: any) => [`${v} €`, name === 'naplaceno' ? t('dashboard.revenue.collected') : t('dashboard.revenue.expected')] as any}
-                contentStyle={{
-                  fontSize: 12,
-                  borderRadius: 10,
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.10)' : '#e5e7eb'}`,
-                  boxShadow: isDark ? '0 4px 16px rgb(0 0 0 / 0.5)' : '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                  backgroundColor: isDark ? '#1e2030' : '#ffffff',
-                  color: isDark ? '#e8eaf0' : '#111827',
-                }}
-              />
-              <Bar dataKey="naplaceno" stackId="rev" fill={accentHex} fillOpacity={0.85} radius={[0, 0, 0, 0]} />
-              <Bar dataKey="fakturirano" stackId="rev" fill={isDark ? `${accentHex}80` : `${accentHex}30`} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="flex items-center gap-5 mt-1">
-            <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: `${accentHex}20` }} /> {t('dashboard.revenue.expected')}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: accentHex, opacity: 0.85 }} /> {t('dashboard.revenue.collected')}
-            </span>
-          </div>
+          <FinanceRevenueChart
+            data={monthlyData}
+            isDark={isDark}
+            accentHex={accentHex}
+            labelCollected={t('dashboard.revenue.collected')}
+            labelExpected={t('dashboard.revenue.expected')}
+          />
         </div>
 
         {/* Package popularity */}

@@ -1,9 +1,8 @@
 'use client'
 import MobileUnavailable from '@/app/components/mobile-unavailable'
-export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { usePersistedTab } from '@/app/contexts/tab-state'
+// usePersistedTab intentionally not used here — training tab resets on navigation
 import { useIsLg } from '@/hooks/use-mobile'
 import { supabase } from '@/lib/supabase'
 import {
@@ -35,7 +34,7 @@ function TrainingPageContent() {
   const [exerciseRefreshKey, setExerciseRefreshKey] = useState(0)
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0)
   const [planRefreshKey, setPlanRefreshKey] = useState(0)
-  const [mobileTab, setMobileTab] = usePersistedTab('training_tab', 'exercises')
+  const [mobileTab, setMobileTab] = useState('exercises')
 
   const { mode } = useAppTheme()
   const isDark = mode === 'dark'
@@ -216,7 +215,7 @@ function TrainingPageContent() {
               </div>
             </div>
             <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
-              <TemplatesTab key={templateRefreshKey} activeType={activeType} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
+              <TemplatesTab activeType={activeType} refreshKey={templateRefreshKey} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
             </div>
           </div>
 
@@ -241,7 +240,7 @@ function TrainingPageContent() {
               </div>
             </div>
             <div className={`flex flex-col flex-1 min-h-0 ${isDark ? 'bg-white/[0.03]' : 'bg-white'}`}>
-              <PlansTab key={planRefreshKey} activeType={activeType} />
+              <PlansTab activeType={activeType} refreshKey={planRefreshKey} />
             </div>
           </div>
 
@@ -259,10 +258,10 @@ function TrainingPageContent() {
               <ExercisesTab activeType={activeType} refreshKey={exerciseRefreshKey} />
             </TabsContent>
             <TabsContent value="templates" className="mt-4">
-              <TemplatesTab key={templateRefreshKey} activeType={activeType} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
+              <TemplatesTab activeType={activeType} refreshKey={templateRefreshKey} onExerciseCreated={() => setExerciseRefreshKey(k => k + 1)} />
             </TabsContent>
             <TabsContent value="plans" className="mt-4">
-              <PlansTab key={planRefreshKey} activeType={activeType} />
+              <PlansTab activeType={activeType} refreshKey={planRefreshKey} />
             </TabsContent>
           </Tabs>
         </div>

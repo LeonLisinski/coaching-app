@@ -60,6 +60,20 @@ export async function POST(req: NextRequest) {
     )
   )
 
+  // Auto-remove expired/invalid subscriptions (HTTP 410 Gone or 404)
+  const expiredEndpoints: string[] = []
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      const status = (r.reason as any)?.statusCode
+      if (status === 410 || status === 404) {
+        expiredEndpoints.push(subs[i].endpoint)
+      }
+    }
+  })
+  if (expiredEndpoints.length) {
+    await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints)
+  }
+
   const sent = results.filter(r => r.status === 'fulfilled').length
   return NextResponse.json({ sent, total: subs.length })
 }
