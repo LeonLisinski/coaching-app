@@ -182,8 +182,10 @@ export default function ProfilePage() {
   const handleCropConfirm = async (blob: Blob) => {
     if (!profile) return
     setCropFile(null)
+    // Refresh session token before uploading to ensure JWT is valid
+    await supabase.auth.refreshSession()
     const fileName = `${profile.id}-${Date.now()}.jpg`
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { upsert: true, contentType: 'image/jpeg' })
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, blob, { contentType: 'image/jpeg' })
     if (uploadError) { alert(tProfile('uploadError', { err: uploadError.message })); return }
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
     const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', profile.id)
