@@ -16,6 +16,14 @@ import nextDynamic from 'next/dynamic'
 const AddClientDialog = nextDynamic(() => import('@/app/dashboard/clients/add-client-dialog'), { ssr: false })
 const DateTimePicker  = nextDynamic(() => import('@/app/components/date-time-picker'), { ssr: false })
 
+/** Convert UTC ISO string from DB to local datetime string for <input type="datetime-local"> */
+function utcToLocalInput(utcIso: string): string {
+  const d = new Date(utcIso)
+  // getTimezoneOffset() returns minutes behind UTC (negative for UTC+N)
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
 const ACCENT_HEX: Record<string, string> = {
   violet: '#7c3aed', blue: '#2563eb', indigo: '#4f46e5', sky: '#0284c7',
   teal: '#0d9488', green: '#16a34a', yellow: '#ca8a04', amber: '#d97706',
@@ -196,7 +204,7 @@ function LeadRow({
   isOpen: boolean
 }) {
   const [notes, setNotes] = useState(sub.trainer_notes || '')
-  const [callDate, setCallDate] = useState(sub.scheduled_call_at ? sub.scheduled_call_at.slice(0, 16) : '')
+  const [callDate, setCallDate] = useState(sub.scheduled_call_at ? utcToLocalInput(sub.scheduled_call_at) : '')
   // Status is local until saved — user can see pending change without losing other edits
   const [localStatus, setLocalStatus] = useState(sub.status)
   const [saving, setSaving] = useState(false)
@@ -204,7 +212,7 @@ function LeadRow({
 
   // Keep local state in sync when parent updates (e.g. real-time refresh)
   useEffect(() => { setNotes(sub.trainer_notes || '') }, [sub.trainer_notes])
-  useEffect(() => { setCallDate(sub.scheduled_call_at ? sub.scheduled_call_at.slice(0, 16) : '') }, [sub.scheduled_call_at])
+  useEffect(() => { setCallDate(sub.scheduled_call_at ? utcToLocalInput(sub.scheduled_call_at) : '') }, [sub.scheduled_call_at])
   useEffect(() => { setLocalStatus(sub.status) }, [sub.status])
 
   const hasUnsavedStatus = localStatus !== sub.status
