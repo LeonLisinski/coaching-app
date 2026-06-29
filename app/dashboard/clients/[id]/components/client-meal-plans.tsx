@@ -46,7 +46,7 @@ type MealPlan = {
   protein_target: number | null
   carbs_target: number | null
   fat_target: number | null
-  extras_targets: Record<string, number | null> | null
+  extras_targets?: Record<string, number | null> | null
   meals: any[]
 }
 

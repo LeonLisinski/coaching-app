@@ -44,7 +44,7 @@ type Recipe   = { id: string; name: string; total_calories: number; total_protei
 type Food     = { id: string; name: string; calories_per_100g: number; protein_per_100g: number; carbs_per_100g: number; fat_per_100g: number; extras?: Record<string, number> }
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
 type PlanType = 'default' | 'training_day' | 'rest_day'
-type MealPlan = { id: string; name: string; plan_type?: PlanType; calories_target: number | null; protein_target: number | null; carbs_target: number | null; fat_target: number | null; meals: MealSlot[] }
+type MealPlan = { id: string; name: string; plan_type?: PlanType; calories_target: number | null; protein_target: number | null; carbs_target: number | null; fat_target: number | null; extras_targets?: Record<string, number | null> | null; notes?: string | null; supplements?: { name: string; amount: string; timing: string }[] | null; meals: MealSlot[] }
 type Props    = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void; clientAssignId?: string; initialCustomName?: string; initialSupplements?: { name: string; amount: string; timing: string }[] }
 
 function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, onFoodsRefresh, isNew, isPreExisting }: {
