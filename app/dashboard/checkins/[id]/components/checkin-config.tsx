@@ -28,7 +28,7 @@ type ClientParam = {
 }
 
 const PHOTO_POSITIONS = ['front', 'side', 'back'] as const
-const BLANK_PARAM = { name: '', type: 'number', unit: '', options: '', frequency: 'daily' as const, required: false }
+const BLANK_PARAM: { name: string; type: string; unit: string; options: string; frequency: 'daily' | 'weekly'; required: boolean } = { name: '', type: 'number', unit: '', options: '', frequency: 'daily', required: false }
 
 export default function CheckinConfig({ clientId }: Props) {
   const t = useTranslations('checkins')
