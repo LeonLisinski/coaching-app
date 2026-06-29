@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/compone
 import { Badge } from '@/components/ui/badge'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil, Layers } from 'lucide-react'
-import { flattenExercises } from '../lib/template-blocks'
+import { flattenExercises, getAllUsedExerciseIds } from '../lib/template-blocks'
 import BlockCard from '../components/block-card'
 import {
   type TemplateBlock, type ExerciseOption,
@@ -71,11 +72,13 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const [createExerciseName, setCreateExerciseName] = useState('')
   const blurTimers   = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
   const searchRefs   = useRef<Record<number, HTMLInputElement | null>>({})
+  const searchWrapperRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const daysEndRef   = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const justFocusedSearchRef = useRef<Record<number, boolean>>({})
   const wasAlreadyFocusedSearchRef = useRef<Record<number, boolean>>({})
+  const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
@@ -102,7 +105,27 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     }
   }, [dropdownKbIndex])
 
-  const toggleDay     = (i: number) => setExpandedDays(prev => ({ ...prev, [i]: !(prev[i] ?? true) }))
+  // Reposition exercise dropdowns on scroll/resize (portal-based approach)
+  useEffect(() => {
+    const openCount = Object.values(searchFocused).filter(Boolean).length
+    if (openCount === 0) return
+    const update = () => {
+      setDropdownRects(prev => {
+        const next = { ...prev }
+        for (const k of Object.keys(prev)) {
+          const rect = searchWrapperRefs.current[Number(k)]?.getBoundingClientRect()
+          if (rect) next[Number(k)] = rect
+        }
+        return next
+      })
+    }
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [searchFocused])
   const isDayExpanded = (i: number) => expandedDays[i] ?? true
 
   useEffect(() => {
@@ -200,11 +223,12 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
     }))
   }
 
-  const getFilteredExercisesForDay = (dayIndex: number) =>
-    exercises
-      .filter(e => e.name.toLowerCase().includes((exerciseSearch[dayIndex] || '').toLowerCase())
-        && !days[dayIndex]?.exercises.find(de => (de as PlanExercise).exercise_id === e.id))
+  const getFilteredExercisesForDay = (dayIndex: number) => {
+    const usedIds = getAllUsedExerciseIds((days[dayIndex]?.exercises ?? []) as any[])
+    return exercises
+      .filter(e => e.name.toLowerCase().includes((exerciseSearch[dayIndex] || '').toLowerCase()) && !usedIds.has(e.id))
       .slice(0, 20)
+  }
 
   const handleExerciseKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, dayIndex: number) => {
     const filtered = getFilteredExercisesForDay(dayIndex)
@@ -515,7 +539,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
                         {/* Search + Dodaj superset */}
                         <div className="flex gap-1.5 items-start">
-                        <div className="relative flex-1">
+                        <div ref={el => { searchWrapperRefs.current[index] = el }} className="relative flex-1">
                           <div className="relative">
                             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
                               <Plus size={12} />
@@ -528,19 +552,10 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                               onFocus={() => {
                                 if (blurTimers.current[index]) clearTimeout(blurTimers.current[index])
                                 setSearchFocused(prev => ({ ...prev, [index]: true }))
-                                setTimeout(() => {
-                                  const input = searchRefs.current[index]
-                                  const container = scrollContainerRef.current
-                                  if (input && container) {
-                                    const inputBottom = input.getBoundingClientRect().bottom
-                                    const containerBottom = container.getBoundingClientRect().bottom
-                                    if (inputBottom + 220 > containerBottom) {
-                                      container.scrollBy({ top: inputBottom + 220 - containerBottom, behavior: 'smooth' })
-                                    }
-                                  }
-                                }, 60)
+                                const rect = searchWrapperRefs.current[index]?.getBoundingClientRect()
+                                if (rect) setDropdownRects(prev => ({ ...prev, [index]: rect }))
                               }}
-                              onBlur={() => { blurTimers.current[index] = setTimeout(() => setSearchFocused(prev => ({ ...prev, [index]: false })), 200) }}
+                              onBlur={() => { blurTimers.current[index] = setTimeout(() => { setSearchFocused(prev => ({ ...prev, [index]: false })); setDropdownRects(prev => { const n = { ...prev }; delete n[index]; return n }) }, 200) }}
                               onClick={() => {
                                 if (wasAlreadyFocusedSearchRef.current[index] && (searchFocused[index] || exerciseSearch[index])) {
                                   setSearchFocused(prev => ({ ...prev, [index]: false }))
@@ -550,48 +565,60 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                               }}
                               onKeyDown={e => handleExerciseKeyDown(e, index)}
                               placeholder={t('form.searchExercisePlaceholder')}
-                              className="h-7 text-xs pl-7 border-dashed focus:border-solid focus:border-blue-300"
+                              className={`h-7 text-xs pl-7 border-dashed focus:border-solid ${isDark ? 'bg-white/[0.05] border-white/10 text-gray-200 placeholder:text-gray-600 focus:border-blue-500' : 'focus:border-blue-300'}`}
                             />
                           </div>
-                          {!!(searchFocused[index] || exerciseSearch[index]) && (
-                            <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-blue-100 rounded-xl bg-white shadow-lg overflow-hidden">
+                          {!!(searchFocused[index] || exerciseSearch[index]) && dropdownRects[index] && createPortal((() => {
+                            const r = dropdownRects[index]
+                            const PANEL_MAX_H = 240
+                            const spaceBelow = window.innerHeight - r.bottom - 8
+                            const openAbove = spaceBelow < PANEL_MAX_H && r.top > spaceBelow
+                            return (
                               <div
-                                ref={el => { dropdownRefs.current[index] = el }}
-                                className="overflow-y-auto max-h-48"
-                                onWheel={e => e.stopPropagation()}
+                                className={`rounded-xl border shadow-xl overflow-hidden ${isDark ? 'border-white/10 bg-[oklch(0.18_0.018_264)]' : 'border-blue-100 bg-white'}`}
+                                style={{ position: 'fixed', zIndex: 9999, width: r.width, left: r.left, ...(openAbove ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) }}
                               >
-                                {getFilteredExercisesForDay(index).length === 0 ? (
-                                  <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
-                                    {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
-                                  </p>
-                                ) : getFilteredExercisesForDay(index).map((e, ei) => (
-                                  <button key={e.id} type="button"
-                                    data-kb-item={ei}
+                                <div
+                                  ref={el => { dropdownRefs.current[index] = el }}
+                                  className="overflow-y-auto"
+                                  style={{ maxHeight: openAbove ? Math.min(PANEL_MAX_H, r.top - 12) : Math.min(PANEL_MAX_H, spaceBelow) }}
+                                  onWheel={e => e.stopPropagation()}
+                                >
+                                  {getFilteredExercisesForDay(index).length === 0 ? (
+                                    <p className="px-3 py-2.5 text-xs text-gray-400 text-center">
+                                      {exercises.length === 0 ? t('form.loadingExercises') : t('form.noResults', { search: exerciseSearch[index] ? t('form.noResultsFor', { search: exerciseSearch[index] }) : '' })}
+                                    </p>
+                                  ) : getFilteredExercisesForDay(index).map((e, ei) => (
+                                    <button key={e.id} type="button"
+                                      data-kb-item={ei}
+                                      onMouseDown={ev => ev.preventDefault()}
+                                      onClick={() => { addExercise(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
+                                      onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
+                                      className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b last:border-0 transition-colors ${
+                                        (dropdownKbIndex[index] ?? -1) === ei
+                                          ? 'bg-blue-600 text-white'
+                                          : isDark ? 'border-white/5 text-gray-300 hover:bg-white/[0.06]' : 'border-gray-50 hover:bg-blue-50'
+                                      }`}>
+                                      <span className="font-medium">{e.name}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        {e.exercise_type === 'endurance' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : isDark ? 'bg-blue-900/30 text-blue-400 border-blue-800/40' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{t('form.enduranceBadge')}</span>}
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : isDark ? 'bg-white/[0.08] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{e.category}</span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                                <div className={`border-t px-3 py-2 ${isDark ? 'border-white/8 bg-white/[0.03]' : 'border-blue-50 bg-blue-50/40'}`}>
+                                  <button type="button"
                                     onMouseDown={ev => ev.preventDefault()}
-                                    onClick={() => { addExercise(index, e); setDropdownKbIndex(prev => ({ ...prev, [index]: -1 })) }}
-                                    onMouseEnter={() => setDropdownKbIndex(prev => ({ ...prev, [index]: ei }))}
-                                    className={`w-full text-left px-3 py-2 flex items-center justify-between text-xs border-b border-gray-50 last:border-0 transition-colors ${
-                                      (dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-600 text-white' : 'hover:bg-blue-50'
-                                    }`}>
-                                    <span className="font-medium">{e.name}</span>
-                                    <div className="flex items-center gap-1.5">
-                                      {e.exercise_type === 'endurance' && <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{t('form.enduranceBadge')}</span>}
-                                      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${(dropdownKbIndex[index] ?? -1) === ei ? 'bg-blue-500 text-white border-blue-400' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>{e.category}</span>
-                                    </div>
+                                    onClick={() => { setCreateExerciseName(exerciseSearch[index] || ''); setCreateExerciseFor(index) }}
+                                    className="w-full text-left text-xs text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 font-medium transition-colors">
+                                    <Plus size={12} />
+                                    <span>{exerciseSearch[index] ? tTemplate('createExercise', { search: exerciseSearch[index] }) : tTemplate('createNewExercise')}</span>
                                   </button>
-                                ))}
+                                </div>
                               </div>
-                              <div className="border-t border-blue-50 bg-blue-50/40 px-3 py-2">
-                                <button type="button"
-                                  onMouseDown={ev => ev.preventDefault()}
-                                  onClick={() => { setCreateExerciseName(exerciseSearch[index] || ''); setCreateExerciseFor(index) }}
-                                  className="w-full text-left text-xs text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 font-medium transition-colors">
-                                  <Plus size={12} />
-                                  <span>{exerciseSearch[index] ? tTemplate('createExercise', { search: exerciseSearch[index] }) : tTemplate('createNewExercise')}</span>
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                            )
+                          })(), document.body)}
                         </div>
                         {/* Dodaj superset button */}
                         <button

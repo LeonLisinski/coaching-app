@@ -109,7 +109,7 @@ export default function CheckinHistory({ clientId }: Props) {
     const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().slice(0, 10)
 
     const [{ data: paramsData }, { data: checkinsData }, { data: configData }, { data: dailyData }] = await Promise.all([
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
       supabase.from('checkins').select('id, date, values, photo_urls, trainer_comment').eq('client_id', clientId).order('date', { ascending: false }).limit(100),
       supabase.from('checkin_config').select('checkin_day').eq('client_id', clientId).maybeSingle(),
       supabase.from('daily_logs').select('date, values').eq('client_id', clientId).order('date').gte('date', ninetyDaysAgoStr),

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, X, UtensilsCrossed, ChevronDown, ChevronUp, GripVertical, BookMarked, Zap, Check } from 'lucide-react'
+import { SupplementsSection, type Supplement } from '@/app/dashboard/nutrition/components/supplements-section'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import AddMealPlanDialog from '@/app/dashboard/nutrition/dialogs/add-meal-plan-dialog'
 import EditMealPlanDialog from '@/app/dashboard/nutrition/dialogs/edit-meal-plan-dialog'
@@ -61,6 +62,7 @@ type AssignedPlan = {
   carbs_target: number | null
   fat_target: number | null
   extras_targets: Record<string, number | null> | null
+  supplements: { name: string; amount: string; timing: string }[] | null
   meal_plan: MealPlan
 }
 
@@ -95,7 +97,6 @@ function SortableMealCard({
   onRemove: () => void
 }) {
   const t = useTranslations('clients.mealPlans')
-  const [showIngredients, setShowIngredients] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: meal.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
 
@@ -106,6 +107,8 @@ function SortableMealCard({
     meal.custom_ingredients && meal.custom_ingredients.length > 0
       ? meal.custom_ingredients
       : recipes.find(r => r.id === meal.recipe_id)?.ingredients || []
+
+  const [showIngredients, setShowIngredients] = useState(ingredients.length > 0)
 
   const updateIngredientGrams = (food_id: string, newGrams: number) => {
     const updated = ingredients.map(ing => {
@@ -167,7 +170,9 @@ function SortableMealCard({
           onUpdate('protein', recipe?.total_protein || 0)
           onUpdate('carbs', recipe?.total_carbs || 0)
           onUpdate('fat', recipe?.total_fat || 0)
-          onUpdate('custom_ingredients', recipe?.ingredients ? [...recipe.ingredients] : [])
+          const newIngredients = recipe?.ingredients ? [...recipe.ingredients] : []
+          onUpdate('custom_ingredients', newIngredients)
+          setShowIngredients(newIngredients.length > 0)
         }}>
           <SelectTrigger className="h-8 text-sm border-gray-200">
             <SelectValue placeholder={t('selectRecipePlaceholder')} />
@@ -181,6 +186,37 @@ function SortableMealCard({
             ))}
           </SelectContent>
         </Select>
+
+        {/* Ingredient list — shown when recipe or custom_ingredients present */}
+        {ingredients.length > 0 && (
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowIngredients(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-1.5 bg-gray-50 text-[11px] font-semibold text-gray-500 hover:text-purple-600 transition-colors"
+            >
+              <span>Namirnice ({ingredients.length})</span>
+              {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {showIngredients && (
+              <div className="divide-y divide-gray-50 px-3 py-1.5 space-y-1">
+                {ingredients.map((ing: any) => (
+                  <div key={ing.food_id} className="flex items-center gap-2 py-1">
+                    <span className="flex-1 text-xs text-gray-700 truncate">{ing.name}</span>
+                    <input
+                      type="number"
+                      value={Math.round(ing.grams) || 0}
+                      onChange={e => updateIngredientGrams(ing.food_id, parseFloat(e.target.value) || 0)}
+                      className="w-14 h-6 text-xs border border-gray-200 rounded px-1.5 text-center focus:border-purple-300 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-gray-400 w-3 shrink-0">g</span>
+                    <span className="text-[10px] text-gray-400 w-14 text-right shrink-0">{Math.round(ing.calories)} kcal</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Manual macro inputs */}
         <div className="grid grid-cols-4 gap-1.5">
@@ -201,37 +237,6 @@ function SortableMealCard({
             </div>
           ))}
         </div>
-
-        {/* Ingredient editing — visible when a recipe is selected */}
-        {meal.recipe_id && ingredients.length > 0 && (
-          <div className="border-t border-gray-100 pt-2 mt-1">
-            <button
-              type="button"
-              onClick={() => setShowIngredients(v => !v)}
-              className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400 hover:text-purple-600 transition-colors"
-            >
-              {showIngredients ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              Namirnice ({ingredients.length})
-            </button>
-            {showIngredients && (
-              <div className="mt-2 space-y-1.5">
-                {ingredients.map((ing: any) => (
-                  <div key={ing.food_id} className="flex items-center gap-2">
-                    <span className="flex-1 text-xs text-gray-600 truncate">{ing.name}</span>
-                    <input
-                      type="number"
-                      value={Math.round(ing.grams) || 0}
-                      onChange={e => updateIngredientGrams(ing.food_id, parseFloat(e.target.value) || 0)}
-                      className="w-16 h-6 text-xs border border-gray-200 rounded px-1.5 text-center focus:border-purple-300 focus:outline-none"
-                    />
-                    <span className="text-[10px] text-gray-400 w-3">g</span>
-                    <span className="text-[10px] text-gray-400 w-14 text-right">{Math.round(ing.calories)} kcal</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   )
@@ -557,6 +562,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
   const [assignTargets, setAssignTargets] = useState({ calories: '', protein: '', carbs: '', fat: '' })
   const [assignPlanType, setAssignPlanType] = useState<'default' | 'training_day' | 'rest_day'>('default')
   const [assignNotes, setAssignNotes] = useState('')
+  const [assignSupplements, setAssignSupplements] = useState<Supplement[]>([])
   const [assigning, setAssigning] = useState(false)
 
   // Other
@@ -696,7 +702,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
       supabase
         .from('client_meal_plans')
         .select(`
-          id, active, assigned_at, notes, plan_type, custom_name, meals,
+          id, active, assigned_at, notes, plan_type, custom_name, meals, supplements,
           calories_target, protein_target, carbs_target, fat_target, extras_targets,
           meal_plan:meal_plans (id, name, calories_target, protein_target, carbs_target, fat_target, meals, extras_targets)
         `)
@@ -859,12 +865,13 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
         carbs_target:    assignTargets.carbs     ? parseInt(assignTargets.carbs)    : null,
         fat_target:      assignTargets.fat       ? parseInt(assignTargets.fat)       : null,
         notes: assignNotes || null, active: true, plan_type: assignPlanType,
+        supplements: assignSupplements.map(({ id: _id, ...s }) => s),
       })
       setAssigning(false)
       setShowAssignDialog(false)
       setSelectedPlanId(''); setAssignMeals([])
       setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' })
-      setAssignPlanType('default'); setAssignNotes('')
+      setAssignPlanType('default'); setAssignNotes(''); setAssignSupplements([])
     }
 
     if (conflicting) {
@@ -1058,6 +1065,15 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
                         {t('mealsCount', { count: meals.length })} · {new Date(assigned.assigned_at).toLocaleDateString(locale)}
                       </p>
                       {assigned.notes && <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>{assigned.notes}</p>}
+                      {assigned.supplements && assigned.supplements.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {assigned.supplements.map((s, i) => (
+                            <span key={i} className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border ${isDark ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-purple-50 border-purple-200 text-purple-700'}`}>
+                              💊 {s.name} <span className="opacity-60">· {s.amount}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1241,7 +1257,7 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
         open={showAssignDialog}
         onOpenChange={v => {
           setShowAssignDialog(v)
-          if (!v) { setSelectedPlanId(''); setAssignMeals([]); setAssignNotes(''); setAssignPlanType('default'); setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' }) }
+          if (!v) { setSelectedPlanId(''); setAssignMeals([]); setAssignNotes(''); setAssignSupplements([]); setAssignPlanType('default'); setAssignTargets({ calories: '', protein: '', carbs: '', fat: '' }) }
         }}
       >
         <DialogContent className="max-w-lg flex flex-col max-h-[90vh] p-0 gap-0" showCloseButton={false}>
@@ -1388,6 +1404,12 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
               )}
             </div>
 
+            {/* Suplementacija */}
+            <SupplementsSection
+              supplements={assignSupplements}
+              onChange={setAssignSupplements}
+            />
+
             {/* Napomena */}
             <div className="space-y-1.5">
               <Label>{t('noteLabel')} <span className="text-gray-400 font-normal text-xs">({tCommon('optional')})</span></Label>
@@ -1462,9 +1484,13 @@ export default function ClientMealPlans({ clientId, refreshKey }: Props) {
             protein_target: editTarget.protein_target ?? editTarget.meal_plan.protein_target,
             carbs_target: editTarget.carbs_target ?? editTarget.meal_plan.carbs_target,
             fat_target: editTarget.fat_target ?? editTarget.meal_plan.fat_target,
+            extras_targets: editTarget.extras_targets ?? editTarget.meal_plan.extras_targets,
+            notes: editTarget.notes,
+            supplements: editTarget.supplements,
           }}
           clientAssignId={editTarget.id}
           initialCustomName={editTarget.custom_name || ''}
+          initialSupplements={editTarget.supplements || []}
           onClose={() => setEditTarget(null)}
           onSuccess={() => { setEditTarget(null); fetchData() }}
         />

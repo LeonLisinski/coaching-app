@@ -10,8 +10,6 @@ export type CheckinParamRow = {
   unit: string | null
   frequency: string
   order_index?: number
-  /** Ako true, parametar je u skupu do 3 za karticu tjednog pregleda klijenta (isti za sve klijente). */
-  show_in_overview?: boolean | null
 }
 
 const WEIGHT_NAME_RE = /weight|težina|tezina|tjelesna|body\s*weight|^bw$/i

@@ -120,7 +120,7 @@ export default function ClientOverview({ clientId }: Props) {
       // Removed `exercises` from select (not used in overview) + limit 300→52 (≈1yr of weekly workouts)
       supabase.from('workout_logs').select('id, date, day_name, plan_id').eq('client_id', clientId).order('date', { ascending: false }).limit(52),
       supabase.from('messages').select('content, created_at, sender_id, trainer_id').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview').eq('trainer_id', user.id).order('order_index'),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index').eq('trainer_id', user.id).order('order_index'),
       // Reduced limit 180→21 (3 weeks of daily logs)
       supabase.from('daily_logs').select('date, values, steps').eq('client_id', clientId).order('date', { ascending: false }).limit(21),
     ])
@@ -180,7 +180,6 @@ export default function ClientOverview({ clientId }: Props) {
     setEligibleParams(numericDailyWeekly)
 
     const orderedParamIds = numericDailyWeekly
-      .filter(p => p.show_in_overview === true)
       .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
       .slice(0, 3)
       .map(p => p.id)

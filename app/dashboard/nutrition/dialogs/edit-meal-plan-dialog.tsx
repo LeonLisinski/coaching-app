@@ -12,6 +12,7 @@ import MealSlotEditor from '../components/meal-slot-editor'
 import { decimalKeyDown } from '@/lib/utils'
 import { Plus, X, CalendarDays } from 'lucide-react'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import { SupplementsSection, type Supplement } from '../components/supplements-section'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -19,9 +20,11 @@ import {
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-// Custom sensor: skip drag activation when pointer starts on an interactive element
+// Custom sensor: skip drag activation when pointer starts on an interactive element,
+// but always allow drag when the element is explicitly the drag handle.
 function isInteractiveElement(el: HTMLElement | null) {
   while (el) {
+    if ((el as HTMLElement).dataset?.dragHandle) return false  // drag handle — allow
     if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
     el = el.parentElement
   }
@@ -42,13 +45,14 @@ type Food     = { id: string; name: string; calories_per_100g: number; protein_p
 type MealSlot = { _id: string; meal_type: string; recipe_id: string | null; recipe_name: string; calories: number; protein: number; carbs: number; fat: number; custom_ingredients?: any[]; save_as_recipe?: boolean }
 type PlanType = 'default' | 'training_day' | 'rest_day'
 type MealPlan = { id: string; name: string; plan_type?: PlanType; calories_target: number | null; protein_target: number | null; carbs_target: number | null; fat_target: number | null; meals: MealSlot[] }
-type Props    = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void; clientAssignId?: string; initialCustomName?: string }
+type Props    = { plan: MealPlan; open: boolean; onClose: () => void; onSuccess: () => void; clientAssignId?: string; initialCustomName?: string; initialSupplements?: { name: string; amount: string; timing: string }[] }
 
-function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, onFoodsRefresh, isNew }: {
+function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChange, onRemove, onCopy, onFoodsRefresh, isNew, isPreExisting }: {
   meal: MealSlot; index: number; recipes: any[]; foods: any[]; nutritionFields: string[];
   onChange: (i: number, f: string, v: any) => void; onRemove: (i: number) => void; onCopy: (i: number) => void;
   onFoodsRefresh?: () => void;
   isNew?: boolean;
+  isPreExisting?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: meal._id })
@@ -71,13 +75,14 @@ function SortableMealSlot({ meal, index, recipes, foods, nutritionFields, onChan
         onCopy={onCopy} isDragging={isDragging}
         dragHandleProps={{ ...listeners, ...attributes } as any}
         onFoodsRefresh={onFoodsRefresh}
+        isPreExisting={isPreExisting}
       />
       <div ref={slotEndRef} />
     </div>
   )
 }
 
-export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, clientAssignId, initialCustomName }: Props) {
+export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, clientAssignId, initialCustomName, initialSupplements }: Props) {
   const t       = useTranslations('nutrition.dialogs.mealPlan')
   const tCommon = useTranslations('common')
   const isClientEdit = !!clientAssignId
@@ -101,6 +106,7 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
     fat:      plan.fat_target?.toString()      || '',
   })
   const [meals, setMeals]     = useState<MealSlot[]>(plan.meals || [])
+  const initialMealIds        = useRef<Set<string>>(new Set())
   const [extrasTargets, setExtrasTargets] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries((plan as any).extras_targets || {}).map(([k, v]) => [k, v != null ? String(v) : '']))
   )
@@ -108,6 +114,8 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
   const [foods, setFoods]     = useState<Food[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [supplements, setSupplements] = useState<Supplement[]>([])
+  const [notes, setNotes]     = useState('')
 
   const mealsEndRef = useRef<HTMLDivElement>(null)
 
@@ -128,7 +136,11 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
         recipe_name: m.recipe_name ?? '', calories: m.calories ?? 0, protein: m.protein ?? 0,
         carbs: m.carbs ?? 0, fat: m.fat ?? 0, custom_ingredients: m.custom_ingredients, extras: m.extras,
       })))
+      // Zabilježi koji su obroci već postojali — novi dodani u ovoj sesiji neće biti pre-existing
+      initialMealIds.current = new Set((plan.meals || []).map((m: any) => m._id).filter(Boolean))
       setExtrasTargets(Object.fromEntries(Object.entries((plan as any).extras_targets || {}).map(([k, v]) => [k, v != null ? String(v) : ''])))
+      setSupplements((initialSupplements || []).map((s: any) => ({ ...s, id: s.id || `supp-${Date.now()}-${Math.random()}` })))
+      setNotes((plan as any).notes || '')
       fetchRecipes(); fetchFoods()
     }
   }, [open])
@@ -258,12 +270,15 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
         meals: processedMeals, calories_target: tgt.calories, protein_target: tgt.protein, carbs_target: tgt.carbs, fat_target: tgt.fat,
         extras_targets: extrasTgt,
         custom_name: customName.trim() || null,
+        supplements: supplements.map(({ id: _id, ...s }) => s),
+        notes: notes.trim() || null,
       }).eq('id', clientAssignId)
       if (error) { setError(error.message); setLoading(false); return }
     } else {
       const { error } = await supabase.from('meal_plans').update({
         name, plan_type: planType, calories_target: tgt.calories, protein_target: tgt.protein, carbs_target: tgt.carbs, fat_target: tgt.fat,
         extras_targets: extrasTgt, meals: processedMeals,
+        notes: notes.trim() || null,
       }).eq('id', plan.id)
       if (error) { setError(error.message); setLoading(false); return }
     }
@@ -365,6 +380,14 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
               </div>
             </div>
 
+            {/* Notes */}
+            <div className="px-6 pb-3 space-y-1.5">
+              <Label className={`text-xs ${isDark ? 'text-gray-400' : ''}`}>
+                {t('notesLabel')} <span className={`font-normal ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>({t('optional')})</span>
+              </Label>
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('notesPlaceholder')} className="text-sm h-8" />
+            </div>
+
             {/* Sticky: Obroci header — sticks when form fields scroll out of view */}
             <div
               className="sticky top-0 z-10 px-6 py-2 flex items-center justify-between"
@@ -396,12 +419,20 @@ export default function EditMealPlanDialog({ plan, open, onClose, onSuccess, cli
                       onChange={updateMeal} onRemove={removeMeal} onCopy={copyMeal}
                       onFoodsRefresh={fetchFoods}
                       isNew={flashMealId === meal._id}
+                      isPreExisting={initialMealIds.current.has(meal._id)}
                     />
                   ))}
                 </SortableContext>
               </DndContext>
               <div ref={mealsEndRef} />
             </div>
+
+            {/* Supplements — only shown when editing a client assignment */}
+            {isClientEdit && (
+              <div className="px-6 pb-4">
+                <SupplementsSection supplements={supplements} onChange={setSupplements} />
+              </div>
+            )}
           </form>
         </div>
 

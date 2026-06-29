@@ -103,6 +103,7 @@ type Props = {
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>
   isDragging?: boolean
   onFoodsRefresh?: () => void
+  isPreExisting?: boolean
 }
 
 const MEAL_TYPE_KEYS = ['mealTypeBreakfast', 'mealTypeLunch', 'mealTypeDinner', 'mealTypeSnack1', 'mealTypeSnack2', 'mealTypeSnack', 'mealTypePreWorkout', 'mealTypePostWorkout'] as const
@@ -116,7 +117,7 @@ function calcTotals(ings: Ingredient[]) {
   }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 }
 
-export default function MealSlotEditor({ meal, index, recipes, foods, nutritionFields = [], onChange, onRemove, onCopy, dragHandleProps, isDragging, onFoodsRefresh }: Props) {
+export default function MealSlotEditor({ meal, index, recipes, foods, nutritionFields = [], onChange, onRemove, onCopy, dragHandleProps, isDragging, onFoodsRefresh, isPreExisting }: Props) {
   const t = useTranslations('nutrition.dialogs.mealPlan')
   const tRecipe = useTranslations('nutrition.dialogs.recipe')
   const tCommon = useTranslations('common')
@@ -127,7 +128,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
     meal.custom_ingredients?.length ? 'custom' : 'existing'
   )
   const [recipeIngredients, setRecipeIngredients] = useState<Ingredient[]>([])
-  const [showIngredients, setShowIngredients] = useState(false)
+  const [showIngredients, setShowIngredients] = useState(!!isPreExisting)
 
   const [customName, setCustomName] = useState(meal.recipe_name || '')
   const [saveAsRecipe, setSaveAsRecipe] = useState(meal.save_as_recipe || false)
@@ -493,7 +494,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
         }}
       >
         {dragHandleProps && (
-          <button type="button" {...dragHandleProps}
+          <button type="button" {...dragHandleProps} data-drag-handle="true"
             className={`cursor-grab active:cursor-grabbing shrink-0 touch-none ${isDark ? 'text-rose-800 hover:text-rose-500' : 'text-rose-300 hover:text-rose-500'}`}
             tabIndex={-1}>
             <GripVertical size={14} />
@@ -504,7 +505,9 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
             ? <ChevronUp   size={14} className={`shrink-0 ${isDark ? 'text-rose-600' : 'text-rose-400'}`} />
             : <ChevronDown size={14} className={`shrink-0 ${isDark ? 'text-rose-600' : 'text-rose-400'}`} />}
           {expanded ? (
-            <span className={`text-sm font-semibold truncate ${isDark ? 'text-rose-300' : 'text-rose-800'}`}>{meal.meal_type || t('mealFallback')}</span>
+            <span className={`text-sm font-semibold truncate ${isDark ? 'text-rose-300' : 'text-rose-800'}`}>
+              {meal.recipe_name || customName || meal.meal_type || t('mealFallback')}
+            </span>
           ) : (
             <span className={`text-xs truncate min-w-0 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               {(meal.calories > 0 || meal.protein > 0)
@@ -542,7 +545,8 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
         style={isDark ? { background: 'rgba(15,15,20,0.8)' } : { background: 'white' }}
       >
 
-      {/* Mode toggle */}
+      {/* Mode toggle — skriveno za postojeće obroke */}
+      {!isPreExisting && (
       <div className="flex gap-2">
         <button type="button" onClick={() => setMode('existing')}
           className={`text-xs px-3 py-1 rounded-full border transition-colors ${
@@ -561,9 +565,12 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
           {t('customMeal')}
         </button>
       </div>
+      )}
 
       {mode === 'existing' ? (
         <div className="space-y-2">
+          {/* Recipe dropdown — samo za nove obroke */}
+          {!isPreExisting && (
           <Select
             value={meal.recipe_id || 'none'}
             onValueChange={handleSelectRecipe}
@@ -580,6 +587,19 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
               ))}
             </SelectContent>
           </Select>
+          )}
+          {/* Naziv jela — editabilan i za pre-existing */}
+          {isPreExisting && (
+          <Input
+            value={customName || meal.recipe_name || ''}
+            onChange={e => {
+              setCustomName(e.target.value)
+              onChange(index, 'recipe_name', e.target.value)
+            }}
+            placeholder={`${t('mealName')}...`}
+            className={`h-8 text-sm ${isDark ? 'border-rose-900/40 focus:border-rose-700' : 'border-rose-200 focus:border-rose-400'}`}
+          />
+          )}
 
           {/* Editable sastojci recepta */}
           {recipeIngredients.length > 0 && (
@@ -655,12 +675,14 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
                       </button>
                     </div>
                   ))}
+                  {!isPreExisting && (
                   <label className={`flex items-center gap-2 text-xs cursor-pointer pt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-600'}`}>
                     <input type="checkbox" checked={saveAsRecipe}
                       onChange={e => { setSaveAsRecipe(e.target.checked); updateCustomTotals(ingredients, customName, e.target.checked) }}
                       className="rounded" />
                     {t('saveAsDishLabel')}
                   </label>
+                  )}
                 </div>
               )}
             </div>

@@ -76,15 +76,21 @@ export default function CheckinOverview({ clientId }: Props) {
     const startDate = isoDate(days[0])
     const endDate = isoDate(days[6])
 
-    const [{ data: params }, { data: logsData }, { data: checkinData }] = await Promise.all([
-      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, show_in_overview, archived, trainer_id').eq('trainer_id', user.id).order('order_index'),
+    const [{ data: configData }, { data: globalParams }, { data: clientSpecificParams }, { data: logsData }, { data: checkinData }] = await Promise.all([
+      supabase.from('checkin_config').select('excluded_parameter_ids').eq('client_id', clientId).maybeSingle(),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index, archived').eq('trainer_id', user.id).is('client_id', null).order('order_index'),
+      supabase.from('checkin_parameters').select('id, name, type, unit, frequency, order_index').eq('client_id', clientId).order('order_index'),
       supabase.from('daily_logs').select('id, client_id, date, values').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date'),
       supabase.from('checkins').select('id, client_id, trainer_id, date, values, photo_urls, trainer_note, trainer_comment').eq('client_id', clientId).gte('date', startDate).lte('date', endDate).order('date', { ascending: false }).limit(1),
     ])
 
-    if (params) {
-      setDailyParams(params.filter((p: Parameter) => p.frequency === 'daily'))
-      setWeeklyParams(params.filter((p: Parameter) => p.frequency === 'weekly'))
+    if (globalParams || clientSpecificParams) {
+      const excluded: string[] = configData?.excluded_parameter_ids ?? []
+      const active = (globalParams ?? []).filter((p: Parameter) => !p.archived && !excluded.includes(p.id))
+      const clientExtra = (clientSpecificParams ?? []) as Parameter[]
+      const allParams = [...active, ...clientExtra]
+      setDailyParams(allParams.filter((p: Parameter) => p.frequency === 'daily'))
+      setWeeklyParams(allParams.filter((p: Parameter) => p.frequency === 'weekly'))
     }
     if (logsData) setDailyLogs(logsData)
     const c = checkinData?.[0] || null

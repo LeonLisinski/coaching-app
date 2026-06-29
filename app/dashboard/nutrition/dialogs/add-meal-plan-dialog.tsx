@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 function isInteractiveElement(el: HTMLElement | null) {
   while (el) {
+    if ((el as HTMLElement).dataset?.dragHandle) return false
     if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
     el = el.parentElement
   }
@@ -99,6 +100,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
   const [foods, setFoods]     = useState<Food[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [notes, setNotes]     = useState('')
 
   const mealsEndRef = useRef<HTMLDivElement>(null)
 
@@ -234,11 +236,12 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
       extras_targets: extrasTgt,
       meals: processedMeals,
       is_template: isTemplate,
+      notes: notes.trim() || null,
     })
 
     if (error) { setError(error.message); setLoading(false); return }
     setLoading(false); onSuccess(); onClose()
-    setName(''); setPlanType('default'); setTargets({ calories: '', protein: '', carbs: '', fat: '' }); setExtrasTargets({}); setMeals([])
+    setName(''); setPlanType('default'); setTargets({ calories: '', protein: '', carbs: '', fat: '' }); setExtrasTargets({}); setMeals([]); setNotes('')
   }
 
   return (
@@ -313,6 +316,12 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Notes */}
+            <div className="px-6 pb-3 space-y-1.5">
+              <Label className="text-xs">{t('notesLabel')} <span className={`font-normal ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>({t('optional')})</span></Label>
+              <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('notesPlaceholder')} className="text-sm" />
             </div>
 
             {/* Sticky: Obroci header — sticks when form fields scroll out of view */}

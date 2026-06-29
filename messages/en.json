@@ -481,7 +481,21 @@
       "mealMacroFat": "Fat",
       "mealMacroKcal": "Kcal",
       "selectRecipePlaceholder": "Select recipe...",
-      "noRecipeOption": "— No recipe —"
+      "noRecipeOption": "— No recipe —",
+      "supplements": {
+        "title": "Supplementation",
+        "optional": "optional",
+        "quickAdd": "Quick add",
+        "added": "Added",
+        "addCustom": "Add custom",
+        "namePlaceholder": "Name (e.g. Ashwagandha)",
+        "amountPlaceholder": "Amount",
+        "timingMorning": "Morning",
+        "timingPre": "Pre workout",
+        "timingPost": "Post workout",
+        "timingEvening": "Evening",
+        "timingWithMeal": "With meal"
+      }
     },
     "packages": {
       "title": "Packages & Payments",
@@ -1384,7 +1398,10 @@
         "clientPlanNameHint": "Leave empty for default name: \"{planName}\"",
         "clientEditTitle": "Edit client plan — {planName}",
         "clientEditSubtitle": "Changes apply only to this client",
-        "editSubtitle": "Edit meals and plan goals"
+        "editSubtitle": "Edit meals and plan goals",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "e.g. Special instructions for this plan...",
+        "optional": "optional"
       }
     }
   },
@@ -1570,7 +1587,14 @@
           "biweekly": "Every other check-in",
           "monthly": "Once a month"
         },
-        "save": "Save settings"
+        "save": "Save settings",
+        "paramOverrides": "Check-in parameters",
+        "paramOverridesHint": "Choose which parameters this client needs to fill in. Global parameters are included by default.",
+        "paramAllGlobalOn": "All global parameters active",
+        "paramClientBadge": "This client only",
+        "paramAddClientParam": "Add parameter for this client only",
+        "paramNoParams": "No parameters defined. Add them in the Parameters tab.",
+        "paramDeleteConfirm": "Delete this client-specific parameter?"
       },
       "graphs": {
         "parameterLabel": "Parameter:",

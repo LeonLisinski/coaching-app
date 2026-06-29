@@ -481,7 +481,21 @@
       "mealMacroFat": "Masti",
       "mealMacroKcal": "Kcal",
       "selectRecipePlaceholder": "Odaberi recept...",
-      "noRecipeOption": "— Bez recepta —"
+      "noRecipeOption": "— Bez recepta —",
+      "supplements": {
+        "title": "Suplementacija",
+        "optional": "opcionalno",
+        "quickAdd": "Brzi dodaci",
+        "added": "Dodano",
+        "addCustom": "Dodaj vlastiti",
+        "namePlaceholder": "Naziv (npr. Ashwagandha)",
+        "amountPlaceholder": "Količina",
+        "timingMorning": "Jutro",
+        "timingPre": "Pred trening",
+        "timingPost": "Post trening",
+        "timingEvening": "Večera",
+        "timingWithMeal": "Uz obrok"
+      }
     },
     "packages": {
       "title": "Paketi i plaćanja",
@@ -1384,7 +1398,10 @@
         "clientPlanNameHint": "Ostavi prazno za zadani naziv: \"{planName}\"",
         "clientEditTitle": "Uredi plan klijenta — {planName}",
         "clientEditSubtitle": "Promjene vrijede samo za ovog klijenta",
-        "editSubtitle": "Uredi obroke i ciljeve plana"
+        "editSubtitle": "Uredi obroke i ciljeve plana",
+        "notesLabel": "Napomena",
+        "notesPlaceholder": "npr. Posebne upute za ovaj plan...",
+        "optional": "opcionalno"
       }
     }
   },
@@ -1570,7 +1587,14 @@
           "biweekly": "Svaki drugi check-in",
           "monthly": "Jednom mjesečno"
         },
-        "save": "Spremi postavke"
+        "save": "Spremi postavke",
+        "paramOverrides": "Parametri check-ina",
+        "paramOverridesHint": "Odaberi koje parametre ovaj klijent treba ispuniti. Globalni parametri su uključeni po defaultu.",
+        "paramAllGlobalOn": "Svi globalni parametri aktivni",
+        "paramClientBadge": "Samo ovaj klijent",
+        "paramAddClientParam": "Dodaj parametar samo za ovog klijenta",
+        "paramNoParams": "Nema definiranih parametara. Dodaj ih na kartici Parametri.",
+        "paramDeleteConfirm": "Obriši ovaj client-specifični parametar?"
       },
       "graphs": {
         "parameterLabel": "Parametar:",
