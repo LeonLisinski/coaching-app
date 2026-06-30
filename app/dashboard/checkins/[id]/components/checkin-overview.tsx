@@ -175,75 +175,53 @@ export default function CheckinOverview({ clientId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Week navigator */}
-      <div className={`rounded-2xl border-2 px-3 py-3 sm:px-4 shadow-sm ${
+      {/* Week navigator — compact single row */}
+      <div className={`rounded-xl border px-3 py-2 flex items-center gap-2 ${
         isDark
           ? 'border-white/10 bg-white/[0.04]'
-          : 'border-teal-200/80 bg-gradient-to-b from-teal-50/90 to-white'
+          : 'border-teal-200/80 bg-teal-50/60'
       }`}>
-        <div className="mb-2">
-          <p className={`text-sm font-bold ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{t('weekRangeTitle')}</p>
-          <p className={`text-[11px] mt-0.5 leading-snug ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('weekRangeSubtitle')}</p>
+        <button
+          type="button"
+          aria-label={t('weekBackAria')}
+          onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
+          disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
+          className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-colors ${
+            isDark
+              ? 'bg-white/8 border-white/15 text-gray-200 hover:bg-white/14 disabled:hover:bg-white/8'
+              : 'bg-white border-teal-200 text-teal-700 hover:bg-teal-50 disabled:hover:bg-white'
+          }`}
+        >
+          <ChevronLeft size={16} strokeWidth={2.5} />
+        </button>
+        <div className="text-center flex-1 min-w-0">
+          <span className={`text-sm font-bold tabular-nums ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
+            {fmt(days[0])} — {fmt(days[6])}
+          </span>
+          {weekOffset === 0 && (
+            <span className={`ml-2 text-[11px] font-semibold ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+              {t('thisWeek')}
+            </span>
+          )}
+          {weekOffset < 0 && (
+            <span className="ml-2 text-[11px] text-gray-400 font-medium">
+              {Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}
+            </span>
+          )}
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            aria-label={t('weekBackAria')}
-            onClick={() => setWeekOffset(w => Math.max(w - 1, MAX_WEEK_OFFSET_BACK))}
-            disabled={weekOffset <= MAX_WEEK_OFFSET_BACK}
-            className={`min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl border-2 shadow-sm active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed transition-colors ${
-              isDark
-                ? 'bg-white/8 border-white/15 text-gray-200 hover:bg-white/14 disabled:hover:bg-white/8'
-                : 'bg-white border-teal-200 text-teal-700 hover:bg-teal-50 disabled:hover:bg-white'
-            }`}
-          >
-            <ChevronLeft size={22} strokeWidth={2.5} />
-          </button>
-          <div className="text-center min-w-0 flex-1 px-1">
-            <p className={`text-sm sm:text-base font-bold tabular-nums ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>{fmt(days[0])} — {fmt(days[6])}</p>
-            {weekOffset === 0 && <p className={`text-[11px] font-semibold mt-0.5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>{t('thisWeek')}</p>}
-            {weekOffset < 0 && (
-              <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                {Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? t2('weekEarlier') : t2('weeksEarlier')}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            aria-label={t('weekForwardAria')}
-            onClick={() => setWeekOffset(w => w + 1)}
-            disabled={weekOffset >= 0}
-            className={`min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-xl border-2 shadow-sm active:scale-[0.98] disabled:opacity-35 disabled:cursor-not-allowed transition-colors ${
-              isDark
-                ? 'bg-white/8 border-white/15 text-gray-300 hover:bg-white/14'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <ChevronRight size={22} strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
-
-      {/* Quick jump */}
-      <div className="flex flex-col gap-2">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">{tHist('quickJumpWeeks')}</p>
-        <div className="flex flex-wrap gap-2">
-          {([1, 2, 3] as const).map(n => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setWeekOffset(-n)}
-              className={`text-[11px] px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                isDark
-                  ? 'border-white/15 bg-white/[0.04] text-gray-300 hover:border-white/30 hover:bg-white/8'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-teal-300 hover:bg-teal-50/50'
-              }`}
-            >
-              {n === 1 ? tHist('weeksAgo1') : n === 2 ? tHist('weeksAgo2') : tHist('weeksAgo3')}
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-gray-400 leading-snug">{t('maxPastWeeksHint', { n: Math.abs(MAX_WEEK_OFFSET_BACK) })}</p>
+        <button
+          type="button"
+          aria-label={t('weekForwardAria')}
+          onClick={() => setWeekOffset(w => w + 1)}
+          disabled={weekOffset >= 0}
+          className={`h-8 w-8 shrink-0 flex items-center justify-center rounded-lg border active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed transition-colors ${
+            isDark
+              ? 'bg-white/8 border-white/15 text-gray-300 hover:bg-white/14'
+              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <ChevronRight size={16} strokeWidth={2.5} />
+        </button>
       </div>
 
       {loading ? (
@@ -259,42 +237,40 @@ export default function CheckinOverview({ clientId }: Props) {
               ? isDark ? 'border-emerald-500/25 bg-emerald-500/[0.07]' : 'border-emerald-200 bg-emerald-50/30'
               : isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'
           }`}>
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between mb-3">
+            <div className="px-3 py-2.5">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   {checkin
-                    ? <CalendarCheck size={15} className="text-emerald-500" />
-                    : <CalendarX size={15} className={isDark ? 'text-white/20' : 'text-gray-300'} />
+                    ? <CalendarCheck size={14} className="text-emerald-500" />
+                    : <CalendarX size={14} className={isDark ? 'text-white/20' : 'text-gray-300'} />
                   }
                   <p className={`font-semibold text-sm ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{t('weeklyCheckin')}</p>
                   <span className="text-xs text-gray-400">· {tDays(String(checkinDay))}</span>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-2">
-                    {!checkin && weekOffset === 0 && (
-                      <button
-                        onClick={() => pingClient(t2('remindMessage'))}
-                        disabled={pinging || pinged}
-                        className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border transition-all ${
-                          pinged
-                            ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                            : isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-                        }`}
-                      >
-                        {pinged ? t2('remindSent') : pinging ? '...' : t2('remindBtn')}
-                      </button>
-                    )}
-                    <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${
-                      checkin
-                        ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                        : isDark ? 'bg-white/8 text-gray-400 border-white/15' : 'bg-gray-100 text-gray-400 border-gray-200'
-                    }`}>
-                      {checkin
-                        ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
-                        : t('notSent')
-                      }
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  {!checkin && weekOffset === 0 && (
+                    <button
+                      onClick={() => pingClient(t2('remindMessage'))}
+                      disabled={pinging || pinged}
+                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border transition-all ${
+                        pinged
+                          ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                          : isDark ? 'bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/25' : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                      }`}
+                    >
+                      {pinged ? t2('remindSent') : pinging ? '...' : t2('remindBtn')}
+                    </button>
+                  )}
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${
+                    checkin
+                      ? isDark ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                      : isDark ? 'bg-white/8 text-gray-400 border-white/15' : 'bg-gray-100 text-gray-400 border-gray-200'
+                  }`}>
+                    {checkin
+                      ? `✓ ${new Date(checkin.date).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })}`
+                      : t('notSent')
+                    }
+                  </span>
                   {remindError && (
                     <p className="text-[10px] text-red-500 max-w-[220px] text-right leading-tight">{remindError}</p>
                   )}
@@ -303,7 +279,7 @@ export default function CheckinOverview({ clientId }: Props) {
 
               {/* Weekly param values */}
               {weeklyParams.length > 0 && (
-                <div className="flex gap-2 flex-wrap mb-3">
+                <div className="flex gap-1.5 flex-wrap mb-2">
                   {weeklyParams.map(p => {
                     const raw = checkin?.values?.[p.id]
                     const display = formatCheckinVal(raw, p.type)
@@ -311,7 +287,7 @@ export default function CheckinOverview({ clientId }: Props) {
                     const isBoolean = p.type === 'boolean'
                     const boolYes = isBoolean && (raw === true || raw === 'true')
                     return (
-                      <div key={p.id} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${
+                      <div key={p.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border ${
                         hasVal
                           ? isDark ? 'bg-white/8 border-white/12' : 'bg-white border-gray-200'
                           : isDark ? 'bg-white/[0.03] border-white/8' : 'bg-gray-50 border-gray-100'
@@ -332,13 +308,13 @@ export default function CheckinOverview({ clientId }: Props) {
 
               {/* Trainer comment */}
               {checkin && (
-                <div className={`pt-3 border-t space-y-2 ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
+                <div className={`pt-2 border-t space-y-1.5 ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('commentToClient')}</p>
-                    <p className="text-[11px] text-gray-400">{t('sendAsChat')}</p>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{t('commentToClient')}</p>
+                    <p className="text-[10px] text-gray-400">{t('sendAsChat')}</p>
                   </div>
                   {checkin.trainer_comment && (
-                    <div className={`rounded-lg px-3 py-2 text-xs border ${
+                    <div className={`rounded-lg px-2.5 py-1.5 text-xs border ${
                       isDark ? 'bg-teal-500/10 text-teal-300 border-teal-500/20' : 'bg-teal-50 text-teal-700 border-teal-100'
                     }`}>
                       {t('lastLabel')}: &ldquo;{checkin.trainer_comment}&rdquo;
@@ -350,15 +326,15 @@ export default function CheckinOverview({ clientId }: Props) {
                       onChange={e => setComment(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendComment()}
                       placeholder={t('commentPlaceholder')}
-                      className={`flex-1 border rounded-xl px-3 py-2 text-sm focus:outline-none transition-colors ${
+                      className={`flex-1 border rounded-lg px-3 py-1.5 text-sm focus:outline-none transition-colors ${
                         isDark
                           ? 'bg-white/[0.05] border-white/12 text-gray-100 placeholder:text-gray-500 focus:border-teal-500/50'
                           : 'border-gray-200 focus:border-teal-300'
                       }`}
                     />
                     <Button size="sm" onClick={sendComment} disabled={sending || !comment.trim() || sent}
-                      className={`flex-shrink-0 gap-1.5 h-9 text-xs px-3 ${sent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
-                      <Send size={13} />
+                      className={`flex-shrink-0 gap-1.5 h-8 text-xs px-3 ${sent ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-teal-600 hover:bg-teal-700'}`}>
+                      <Send size={12} />
                       {sending ? t('sending') : sent ? t('sent') : t('send')}
                     </Button>
                   </div>

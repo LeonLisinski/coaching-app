@@ -12,6 +12,16 @@ import {
   Mail, Phone, User, Eye, EyeOff,
 } from 'lucide-react'
 import nextDynamic from 'next/dynamic'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import {
+  SortableContext, arrayMove, verticalListSortingStrategy,
+  sortableKeyboardCoordinates, useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const AddClientDialog = nextDynamic(() => import('@/app/dashboard/clients/add-client-dialog'), { ssr: false })
 const DateTimePicker  = nextDynamic(() => import('@/app/components/date-time-picker'), { ssr: false })
@@ -99,6 +109,19 @@ function slugify(name: string): string {
     .slice(0, 48)
 }
 
+// ─── DnD helpers ────────────────────────────────────────────────────────────
+function isInteractiveEl(el: HTMLElement | null) {
+  while (el) {
+    if ((el as HTMLElement).dataset?.dragHandle) return false
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
+    el = el.parentElement
+  }
+  return false
+}
+class SmartPointerSensor extends PointerSensor {
+  static activators = [{ eventName: 'onPointerDown' as const, handler: ({ nativeEvent }: React.PointerEvent) => !isInteractiveEl(nativeEvent.target as HTMLElement) }]
+}
+
 // ─── Custom question-type selector ──────────────────────────────────────────
 function TypeSelect({
   value, options, isDark, border, textMain, accentHex, onChange,
@@ -128,7 +151,7 @@ function TypeSelect({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all"
+        className="w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-md border text-xs font-medium transition-all"
         style={{
           borderColor: open ? accentHex : border,
           background: isDark ? '#0f0f1a' : 'white',
@@ -156,7 +179,7 @@ function TypeSelect({
                 key={opt.value}
                 type="button"
                 onMouseDown={e => { e.preventDefault(); onChange(opt.value); setOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2"
+                className="w-full text-left px-2.5 py-1.5 text-xs transition-colors flex items-center gap-1.5"
                 style={{
                   background: isSelected ? accentHex + '18' : 'transparent',
                   color: isSelected ? accentHex : textMain,
@@ -171,6 +194,130 @@ function TypeSelect({
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Sortable question row (dnd-kit) ─────────────────────────────────────────
+function SortableQuestionRow({
+  q, idx, total, isDark, border, textMain, textMuted, accentHex,
+  contentLang, qTypes, tL, onChange, onMove, onDelete, onEnter,
+}: {
+  q: DraftQuestion
+  idx: number
+  total: number
+  isDark: boolean
+  border: string
+  textMain: string
+  textMuted: string
+  accentHex: string
+  contentLang: 'hr' | 'en'
+  qTypes: { value: string; label: string }[]
+  tL: (key: string) => string
+  onChange: (patch: Partial<DraftQuestion>) => void
+  onMove: (idx: number, dir: -1 | 1) => void
+  onDelete: () => void
+  onEnter: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q._key })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, zIndex: isDragging ? 50 : undefined, borderColor: border, background: isDark ? '#1a1a2e' : '#f9fafb' }}
+      className="rounded-lg border"
+    >
+      <div className="flex items-center gap-1.5 px-2 py-1.5">
+          {/* Drag handle */}
+          <button
+            type="button"
+            data-drag-handle="true"
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing shrink-0 touch-none transition-colors"
+            style={{ color: textMuted }}
+            tabIndex={-1}
+          >
+            <GripVertical size={13} />
+          </button>
+
+          <span className="text-[10px] font-bold w-5 shrink-0 text-center" style={{ color: accentHex }}>#{idx + 1}</span>
+
+          {/* Label input */}
+          <input
+            type="text"
+            value={contentLang === 'hr' ? q.label : q.label_en}
+            onChange={e => onChange({ [contentLang === 'hr' ? 'label' : 'label_en']: e.target.value })}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onEnter() } }}
+            placeholder={contentLang === 'hr' ? 'Tekst pitanja...' : 'Question text...'}
+            className="flex-1 min-w-0 px-2 py-1 rounded-md border text-sm outline-none"
+            style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+            autoFocus={contentLang === 'hr' && idx === total - 1 && q.label === ''}
+          />
+
+          {/* Type selector */}
+          <div className="w-32 shrink-0">
+            <TypeSelect
+              value={q.type}
+              options={qTypes}
+              isDark={isDark}
+              border={border}
+              textMain={textMain}
+              accentHex={accentHex}
+              onChange={val => onChange({ type: val })}
+            />
+          </div>
+
+          {/* Required checkbox */}
+          <label
+            className="flex items-center gap-1 cursor-pointer shrink-0 px-2 py-1 rounded-md border"
+            title={tL('questionRequired')}
+            style={{ borderColor: q.required ? accentHex + '80' : border, background: q.required ? accentHex + '10' : 'transparent' }}
+          >
+            <input
+              type="checkbox"
+              checked={q.required}
+              onChange={e => onChange({ required: e.target.checked })}
+              className="w-3.5 h-3.5 rounded"
+              style={{ accentColor: accentHex }}
+            />
+            <span className="text-[11px] font-semibold" style={{ color: q.required ? accentHex : textMuted }}>Obv.</span>
+          </label>
+
+          {/* Move up/down */}
+          <div className="flex items-center shrink-0">
+            <button type="button" onClick={() => onMove(idx, -1)} disabled={idx === 0}
+              className="w-5 h-5 rounded flex items-center justify-center transition-colors disabled:opacity-20"
+              style={{ color: textMuted }}>
+              <ChevronUp size={12} />
+            </button>
+            <button type="button" onClick={() => onMove(idx, 1)} disabled={idx === total - 1}
+              className="w-5 h-5 rounded flex items-center justify-center transition-colors disabled:opacity-20"
+              style={{ color: textMuted }}>
+              <ChevronDown size={12} />
+            </button>
+          </div>
+
+          {/* Delete */}
+          <button type="button" onClick={onDelete}
+            className="w-5 h-5 rounded flex items-center justify-center text-red-400 hover:text-red-600 shrink-0">
+            <X size={12} />
+          </button>
+        </div>
+
+        {/* Options textarea — only for choice types */}
+        {(q.type === 'single_choice' || q.type === 'multi_choice') && (
+          <div className="px-2 pb-2">
+            <textarea
+              value={q.options}
+              onChange={e => onChange({ options: e.target.value })}
+              rows={2}
+              placeholder={contentLang === 'hr' ? 'Opcija 1\nOpcija 2\nOpcija 3' : 'Option 1\nOption 2\nOption 3'}
+              className="w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none resize-none"
+              style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
+            />
+          </div>
+        )}
     </div>
   )
 }
@@ -468,8 +615,11 @@ export default function LeadsPage() {
   const [linkCopied, setLinkCopied]       = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
-  const [dragIdx, setDragIdx]             = useState<number | null>(null)
-  const [dragOverIdx, setDragOverIdx]     = useState<number | null>(null)
+
+  const sensors = useSensors(
+    useSensor(SmartPointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   // Handle setup state
   const [handleSetup, setHandleSetup]     = useState('')
@@ -1256,7 +1406,7 @@ export default function LeadsPage() {
           </div>
 
           {/* Questions */}
-          <div className="rounded-2xl p-5 border space-y-4" style={{ background: cardBg, borderColor: border }}>
+          <div className="rounded-2xl p-4 border space-y-3" style={{ background: cardBg, borderColor: border }}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold" style={{ color: textMain }}>{tL('questionsCount', { count: questions.length })}</h3>
               <button
@@ -1274,134 +1424,44 @@ export default function LeadsPage() {
               <p className="text-sm text-center py-4" style={{ color: textMuted }}>{tL('noQuestions')}</p>
             )}
 
-            <div className="space-y-3">
-              {questions.map((q, idx) => (
-                <div
-                  key={q._key}
-                  draggable
-                  onDragStart={() => setDragIdx(idx)}
-                  onDragEnd={() => { setDragIdx(null); setDragOverIdx(null) }}
-                  onDragOver={e => { e.preventDefault(); setDragOverIdx(idx) }}
-                  onDrop={e => {
-                    e.preventDefault()
-                    if (dragIdx === null || dragIdx === idx) return
-                    setQuestions(prev => {
-                      const next = [...prev]
-                      const [moved] = next.splice(dragIdx, 1)
-                      next.splice(idx, 0, moved)
-                      return next
-                    })
-                    setDragIdx(null)
-                    setDragOverIdx(null)
-                  }}
-                  className="rounded-xl border p-4 space-y-3 transition-all"
-                  style={{
-                    borderColor: dragOverIdx === idx && dragIdx !== idx ? accentHex : border,
-                    background: isDark ? '#1a1a2e' : '#f9fafb',
-                    opacity: dragIdx === idx ? 0.4 : 1,
-                    boxShadow: dragOverIdx === idx && dragIdx !== idx ? `0 0 0 2px ${accentHex}44` : 'none',
-                    cursor: dragIdx !== null ? 'grabbing' : 'default',
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <GripVertical size={15} style={{ color: textMuted }} className="cursor-grab shrink-0 hidden sm:block" />
-                    <span className="text-xs font-bold" style={{ color: accentHex }}>#{idx + 1}</span>
-                    {/* Up / down — primary on mobile, also handy on desktop */}
-                    <div className="flex items-center gap-0.5 ml-0.5">
-                      <button
-                        type="button"
-                        onClick={() => moveQuestion(idx, -1)}
-                        disabled={idx === 0}
-                        className="w-6 h-6 rounded flex items-center justify-center transition-colors disabled:opacity-25"
-                        style={{ color: textMuted }}
-                        title="Pomakni gore"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveQuestion(idx, 1)}
-                        disabled={idx === questions.length - 1}
-                        className="w-6 h-6 rounded flex items-center justify-center transition-colors disabled:opacity-25"
-                        style={{ color: textMuted }}
-                        title="Pomakni dolje"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    </div>
-                    <div className="flex-1" />
-                    <button type="button" onClick={() => setQuestions(prev => prev.filter((_, i) => i !== idx))}
-                      className="w-6 h-6 rounded flex items-center justify-center text-red-400 hover:text-red-600">
-                      <X size={13} />
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Label input - full width */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>
-                        {tL('questionLabel')} ({contentLang.toUpperCase()})
-                      </label>
-                      <input
-                        type="text"
-                        value={contentLang === 'hr' ? q.label : q.label_en}
-                        onChange={e => setQuestions(prev => prev.map((x, i) => i === idx
-                          ? { ...x, [contentLang === 'hr' ? 'label' : 'label_en']: e.target.value }
-                          : x))}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addQuestion() } }}
-                        placeholder={contentLang === 'hr' ? 'npr. Ime i prezime' : 'e.g. Full name'}
-                        className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
-                        style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                        autoFocus={contentLang === 'hr' && idx === questions.length - 1 && q.label === ''}
-                      />
-                    </div>
-
-                    {/* Type + Required — side by side on all screens */}
-                    <div className="flex items-end gap-2">
-                      <div className="flex-1 space-y-1">
-                        <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionType')}</label>
-                        <TypeSelect
-                          value={q.type}
-                          options={qTypes}
-                          isDark={isDark}
-                          border={border}
-                          textMain={textMain}
-                          accentHex={accentHex}
-                          onChange={val => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, type: val } : x))}
-                        />
-                      </div>
-                      <div className="space-y-1 shrink-0">
-                        <label className="text-[11px] font-semibold block" style={{ color: textMuted }}>{tL('questionRequired')}</label>
-                        <label className="flex items-center gap-2 cursor-pointer h-9 px-3 rounded-lg border"
-                          style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white' }}>
-                          <input
-                            type="checkbox"
-                            checked={q.required}
-                            onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, required: e.target.checked } : x))}
-                            className="w-4 h-4 rounded"
-                            style={{ accentColor: accentHex }}
-                          />
-                          <span className="text-sm" style={{ color: textMain }}>{tL('yes')}</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  {(q.type === 'single_choice' || q.type === 'multi_choice') && (
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-semibold" style={{ color: textMuted }}>{tL('questionOptions')}</label>
-                      <textarea
-                        value={q.options}
-                        onChange={e => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, options: e.target.value } : x))}
-                        rows={3}
-                        placeholder={contentLang === 'hr' ? 'Opcija 1\nOpcija 2\nOpcija 3' : 'Option 1\nOption 2\nOption 3'}
-                        className="w-full px-3 py-2 rounded-lg border text-sm outline-none resize-none"
-                        style={{ borderColor: border, background: isDark ? '#0f0f1a' : 'white', color: textMain }}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="space-y-1.5">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis]}
+                onDragEnd={(event: DragEndEvent) => {
+                  const { active, over } = event
+                  if (!over || active.id === over.id) return
+                  setQuestions(prev => {
+                    const oldIndex = prev.findIndex(q => q._key === active.id)
+                    const newIndex = prev.findIndex(q => q._key === over.id)
+                    return arrayMove(prev, oldIndex, newIndex)
+                  })
+                }}
+              >
+                <SortableContext items={questions.map(q => q._key)} strategy={verticalListSortingStrategy}>
+                  {questions.map((q, idx) => (
+                    <SortableQuestionRow
+                      key={q._key}
+                      q={q}
+                      idx={idx}
+                      total={questions.length}
+                      isDark={isDark}
+                      border={border}
+                      textMain={textMain}
+                      textMuted={textMuted}
+                      accentHex={accentHex}
+                      contentLang={contentLang}
+                      qTypes={qTypes}
+                      tL={tL}
+                      onChange={(patch) => setQuestions(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
+                      onMove={moveQuestion}
+                      onDelete={() => setQuestions(prev => prev.filter((_, i) => i !== idx))}
+                      onEnter={addQuestion}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
               <div ref={questionsEndRef} />
             </div>
 

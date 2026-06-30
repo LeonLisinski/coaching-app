@@ -646,7 +646,7 @@
       "scenarioHint": "Click scenario → send to Macros tab",
       "scenarioSelected": "Selected →Macros",
       "fillData": "Enter weight, height and age",
-      "saveActivity": "Save activity level to client",
+      "saveActivity": "Update client profile",
       "savedLabel": "Saved",
       "scenarios": {
         "maintain": "Maintain",
@@ -1478,7 +1478,8 @@
       "weeklyCount": "Weekly ({count})",
       "required": "Required",
       "dblClickHint": "double-click to edit",
-      "editTooltip": "Edit (or double-click)",
+      "clickHint": "click to edit",
+      "editTooltip": "Edit",
       "close": "Close",
       "active": "Active",
       "deleteTitle": "Delete parameter",

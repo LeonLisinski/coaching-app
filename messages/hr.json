@@ -646,10 +646,10 @@
       "scenarioHint": "Klikni scenarij → pošalji u Makrosi tab",
       "scenarioSelected": "Odabrano →Makrosi",
       "fillData": "Upiši težinu, visinu i godine",
-      "saveActivity": "Spremi razinu aktivnosti na klijenta",
+      "saveActivity": "Ažuriraj profil klijenta",
       "savedLabel": "Spremljeno",
       "scenarios": {
-        "maintain": "Maintain",
+        "maintain": "Održavanje (0)",
         "loss": "Gubitak (−500)",
         "gain": "Dobivanje (+300)"
       },
@@ -1478,7 +1478,8 @@
       "weeklyCount": "Tjedni ({count})",
       "required": "Obavezno",
       "dblClickHint": "dvoklik za uređivanje",
-      "editTooltip": "Uredi (ili dvoklik)",
+      "clickHint": "klik za uređivanje",
+      "editTooltip": "Uredi",
       "close": "Zatvori",
       "active": "Aktivan",
       "deleteTitle": "Obriši parametar",

@@ -220,10 +220,11 @@ export default function CheckinConfig({ clientId }: Props) {
 
   const DAY_NAMES = [0, 1, 2, 3, 4, 5, 6].map(i => tDaysShort(String(i) as any))
 
-  const cardCls = `rounded-xl border px-4 py-3.5 space-y-3 ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`
-  const sectionLabelCls = `text-xs font-bold uppercase tracking-wide mb-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`
-  const dividerCls = `pt-2 border-t space-y-2 ${isDark ? 'border-white/8' : 'border-gray-50'}`
-  const inputCls = `border rounded-lg px-3 py-2 text-sm focus:outline-none transition-colors ${
+  const cardCls = `rounded-xl border px-3 py-2.5 ${isDark ? 'border-white/10 bg-white/[0.03]' : 'border-gray-100 bg-white'}`
+  const labelCls = `text-xs font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`
+  const rowCls = `flex items-center justify-between gap-3`
+  const dividerCls = `pt-2 border-t ${isDark ? 'border-white/8' : 'border-gray-50'}`
+  const inputCls = `border rounded-lg px-3 py-1.5 text-sm focus:outline-none transition-colors ${
     isDark
       ? 'bg-white/[0.05] border-white/12 text-gray-100 placeholder:text-gray-500 focus:border-white/25'
       : 'border-gray-200 focus:border-gray-300'
@@ -233,52 +234,50 @@ export default function CheckinConfig({ clientId }: Props) {
   const allExcluded = globalParams.length > 0 && activeParams.length === 0
 
   return (
-    <div className="space-y-3 max-w-lg">
+    <div className="space-y-2 max-w-lg">
 
-      {/* Check-in day */}
-      <div className={cardCls}>
-        <div>
-          <p className={sectionLabelCls}>{tConfig('checkinDay')}</p>
-          <p className="text-[11px] text-gray-400">{t2('checkinDayHint')}</p>
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {[0, 1, 2, 3, 4, 5, 6].map(i => (
-            <button key={i} type="button" onClick={() => setConfig({ ...config, checkin_day: i })}
-              className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
-              style={config.checkin_day === i
-                ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
-                : inactivePill}>
-              {DAY_NAMES[i]}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Photo frequency */}
-      <div className={cardCls}>
-        <div>
-          <p className={sectionLabelCls}>{tConfig('photoFrequency')}</p>
-          <p className="text-[11px] text-gray-400">{t2('photoFreqHint')}</p>
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {PHOTO_FREQUENCIES.map(f => (
-            <button key={f.value} type="button" onClick={() => setConfig({ ...config, photo_frequency: f.value })}
-              className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
-              style={config.photo_frequency === f.value
-                ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
-                : inactivePill}>
-              {f.label}
-            </button>
-          ))}
+      {/* Card 1: Dan + Frekvencija slika + Pozicije — all in one */}
+      <div className={`${cardCls} space-y-2.5`}>
+        {/* Dan check-ina */}
+        <div className={rowCls}>
+          <span className={labelCls}>{tConfig('checkinDay')}</span>
+          <div className="flex gap-1 flex-wrap justify-end">
+            {[0, 1, 2, 3, 4, 5, 6].map(i => (
+              <button key={i} type="button" onClick={() => setConfig({ ...config, checkin_day: i })}
+                className="text-xs px-2.5 py-0.5 rounded-full border font-medium transition-colors"
+                style={config.checkin_day === i
+                  ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                  : inactivePill}>
+                {DAY_NAMES[i]}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Frekvencija slika */}
+        <div className={`${rowCls} ${dividerCls}`}>
+          <span className={labelCls}>{tConfig('photoFrequency')}</span>
+          <div className="flex gap-1">
+            {PHOTO_FREQUENCIES.map(f => (
+              <button key={f.value} type="button" onClick={() => setConfig({ ...config, photo_frequency: f.value })}
+                className="text-xs px-2.5 py-0.5 rounded-full border font-medium transition-colors"
+                style={config.photo_frequency === f.value
+                  ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
+                  : inactivePill}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pozicije slika */}
         {config.photo_frequency !== 'none' && (
-          <div className={dividerCls}>
-            <p className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-400' : 'text-gray-400'}`}>{tConfig('photoPositionsLabel')}</p>
-            <div className="flex gap-1.5">
+          <div className={`${rowCls} ${dividerCls}`}>
+            <span className={labelCls}>{tConfig('photoPositionsLabel')}</span>
+            <div className="flex gap-1">
               {PHOTO_POSITIONS.map(pos => (
                 <button key={pos} type="button" onClick={() => togglePosition(pos)}
-                  className="text-xs px-3.5 py-1.5 rounded-full border font-medium transition-colors"
+                  className="text-xs px-2.5 py-0.5 rounded-full border font-medium transition-colors"
                   style={config.photo_positions.includes(pos)
                     ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
                     : inactivePill}>
@@ -290,17 +289,15 @@ export default function CheckinConfig({ clientId }: Props) {
         )}
       </div>
 
-      {/* Notes */}
-      <div className={cardCls}>
-        <div>
-          <p className={sectionLabelCls}>{tConfig('clientInstructions')}</p>
-          <p className="text-[11px] text-gray-400">{t2('instructionsHint')}</p>
-        </div>
+      {/* Card 2: Upute za klijenta */}
+      <div className={`${cardCls} space-y-1.5`}>
+        <span className={labelCls}>{tConfig('clientInstructions')}</span>
         <textarea
           value={config.notes}
           onChange={(e) => setConfig({ ...config, notes: e.target.value })}
           placeholder={tConfig('clientInstructionsPlaceholder')}
-          className={`w-full border rounded-xl px-3 py-2.5 text-sm min-h-24 resize-none focus:outline-none transition-colors ${
+          rows={2}
+          className={`w-full border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none transition-colors ${
             isDark
               ? 'bg-white/[0.05] border-white/12 text-gray-100 placeholder:text-gray-500 focus:border-white/25'
               : 'border-gray-200 focus:border-gray-300'
@@ -308,22 +305,21 @@ export default function CheckinConfig({ clientId }: Props) {
         />
       </div>
 
-      {/* Parameter overrides */}
-      <div className={`${cardCls} !space-y-0`}>
-        <div className="pb-3">
-          <p className={sectionLabelCls}>{tConfig('paramOverrides')}</p>
-          <p className="text-[11px] text-gray-400">{tConfig('paramOverridesHint')}</p>
+      {/* Card 3: Parametri */}
+      <div className={`${cardCls} space-y-2`}>
+        <div>
+          <p className={labelCls}>{tConfig('paramOverrides')}</p>
+          <p className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{tConfig('paramOverridesHint')}</p>
         </div>
 
-        {/* Global params with toggle */}
         {globalParams.length === 0 ? (
-          <p className={`text-xs py-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{tConfig('paramNoParams')}</p>
+          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{tConfig('paramNoParams')}</p>
         ) : (
-          <div className="space-y-1.5 pb-3">
+          <div className="space-y-1">
             {globalParams.map(p => {
               const excluded = config.excluded_parameter_ids.includes(p.id)
               return (
-                <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border transition-colors ${
+                <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 border transition-colors ${
                   excluded
                     ? isDark ? 'border-white/8 bg-white/[0.02] opacity-50' : 'border-gray-100 bg-gray-50 opacity-60'
                     : isDark ? 'border-white/12 bg-white/[0.04]' : 'border-gray-200 bg-white'
@@ -339,40 +335,32 @@ export default function CheckinConfig({ clientId }: Props) {
                       {p.frequency === 'daily' ? t2('groupDaily') : t2('groupWeekly')}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleExcluded(p.id)}
+                  <button type="button" onClick={() => toggleExcluded(p.id)}
                     className={`shrink-0 w-10 h-6 rounded-full border-2 transition-all relative ${
-                      !excluded
-                        ? 'border-transparent'
-                        : isDark ? 'border-white/20 bg-white/8' : 'border-gray-200 bg-gray-100'
+                      !excluded ? 'border-transparent' : isDark ? 'border-white/20 bg-white/8' : 'border-gray-200 bg-gray-100'
                     }`}
                     style={!excluded ? { backgroundColor: 'var(--app-accent)' } : {}}
-                    aria-label={excluded ? 'Enable' : 'Disable'}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
-                      !excluded ? 'left-[calc(100%-18px)]' : 'left-0.5'
-                    }`} />
+                    aria-label={excluded ? 'Enable' : 'Disable'}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${!excluded ? 'left-[calc(100%-18px)]' : 'left-0.5'}`} />
                   </button>
                 </div>
               )
             })}
             {allExcluded && (
-              <p className={`text-[11px] pt-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+              <p className={`text-[11px] pt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
                 ⚠ Svi globalni parametri su isključeni za ovog klijenta.
               </p>
             )}
           </div>
         )}
 
-        {/* Client-specific extra params */}
         {clientParams.length > 0 && (
-          <div className={`pt-3 border-t space-y-1.5 ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+          <div className={`pt-2 border-t space-y-1 ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
             <p className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               {tConfig('paramClientBadge')}
             </p>
             {clientParams.map(p => (
-              <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border ${
+              <div key={p.id} className={`flex items-center justify-between gap-3 rounded-lg px-2.5 py-1.5 border ${
                 isDark ? 'border-white/10 bg-white/[0.03]' : 'border-teal-100 bg-teal-50/30'
               }`}>
                 <div className="flex items-center gap-2 min-w-0">
@@ -386,14 +374,8 @@ export default function CheckinConfig({ clientId }: Props) {
                     {p.frequency === 'daily' ? t2('groupDaily') : t2('groupWeekly')}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  disabled={deletingParamId === p.id}
-                  onClick={() => handleDeleteClientParam(p.id)}
-                  className={`shrink-0 p-1 rounded transition-colors ${
-                    isDark ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:text-red-600 hover:bg-red-50'
-                  }`}
-                >
+                <button type="button" disabled={deletingParamId === p.id} onClick={() => handleDeleteClientParam(p.id)}
+                  className={`shrink-0 p-1 rounded transition-colors ${isDark ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/10' : 'text-red-400 hover:text-red-600 hover:bg-red-50'}`}>
                   {deletingParamId === p.id ? '...' : <Trash2 size={13} />}
                 </button>
               </div>
@@ -401,46 +383,29 @@ export default function CheckinConfig({ clientId }: Props) {
           </div>
         )}
 
-        {/* Add client-specific param */}
-        <div className={`pt-3 border-t ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
+        <div className={`pt-2 border-t ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
           {!showAddParam ? (
-            <button
-              type="button"
-              onClick={() => setShowAddParam(true)}
-              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                isDark ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'
-              }`}
-            >
-              <Plus size={13} />
-              {tConfig('paramAddClientParam')}
+            <button type="button" onClick={() => setShowAddParam(true)}
+              className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${isDark ? 'text-teal-400 hover:text-teal-300' : 'text-teal-600 hover:text-teal-700'}`}>
+              <Plus size={13} />{tConfig('paramAddClientParam')}
             </button>
           ) : (
             <div className="space-y-2">
               <div className="flex gap-2">
-                <input
-                  value={newParam.name}
-                  onChange={e => setNewParam(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Naziv parametra"
-                  className={`flex-1 ${inputCls}`}
-                  onKeyDown={e => e.key === 'Enter' && handleAddClientParam()}
-                />
-                <button
-                  type="button"
-                  onClick={() => { setShowAddParam(false); setNewParam(BLANK_PARAM) }}
-                  className={`p-2 rounded-lg border transition-colors ${
-                    isDark ? 'border-white/12 hover:bg-white/8 text-gray-400' : 'border-gray-200 hover:bg-gray-50 text-gray-500'
-                  }`}
-                >
+                <input value={newParam.name} onChange={e => setNewParam(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Naziv parametra" className={`flex-1 ${inputCls}`}
+                  onKeyDown={e => e.key === 'Enter' && handleAddClientParam()} />
+                <button type="button" onClick={() => { setShowAddParam(false); setNewParam(BLANK_PARAM) }}
+                  className={`p-2 rounded-lg border transition-colors ${isDark ? 'border-white/12 hover:bg-white/8 text-gray-400' : 'border-gray-200 hover:bg-gray-50 text-gray-500'}`}>
                   <X size={14} />
                 </button>
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-1.5 flex-wrap">
                 {TYPES.map(tp => {
                   const active = newParam.type === tp.value
                   return (
-                    <button key={tp.value} type="button"
-                      onClick={() => setNewParam(prev => ({ ...prev, type: tp.value }))}
-                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-semibold transition-colors ${
+                    <button key={tp.value} type="button" onClick={() => setNewParam(prev => ({ ...prev, type: tp.value }))}
+                      className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full border font-semibold transition-colors ${
                         active
                           ? typeColors[tp.value as keyof typeof typeColors] + ' ring-2 ring-offset-1 ring-current/30'
                           : typeColors[tp.value as keyof typeof typeColors] + ' opacity-40 hover:opacity-70'
@@ -450,9 +415,8 @@ export default function CheckinConfig({ clientId }: Props) {
                   )
                 })}
                 {(['daily','weekly'] as const).map(fr => (
-                  <button key={fr} type="button"
-                    onClick={() => setNewParam(prev => ({ ...prev, frequency: fr }))}
-                    className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors"
+                  <button key={fr} type="button" onClick={() => setNewParam(prev => ({ ...prev, frequency: fr }))}
+                    className="text-xs px-2.5 py-0.5 rounded-full border font-medium transition-colors"
                     style={newParam.frequency === fr
                       ? { backgroundColor: 'var(--app-accent)', color: 'white', borderColor: 'var(--app-accent)' }
                       : inactivePill}>
@@ -461,28 +425,17 @@ export default function CheckinConfig({ clientId }: Props) {
                 ))}
               </div>
               {newParam.type === 'number' && (
-                <input
-                  value={newParam.unit}
-                  onChange={e => setNewParam(prev => ({ ...prev, unit: e.target.value }))}
-                  placeholder="Jedinica (npr. kg, %)"
-                  className={`w-full ${inputCls}`}
-                />
+                <input value={newParam.unit} onChange={e => setNewParam(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="Jedinica (npr. kg, %)" className={`w-full ${inputCls}`} />
               )}
               {newParam.type === 'select' && (
-                <input
-                  value={newParam.options}
-                  onChange={e => setNewParam(prev => ({ ...prev, options: e.target.value }))}
-                  placeholder="Opcije odvojene zarezom (npr. Loše, Dobro, Odlično)"
-                  className={`w-full ${inputCls}`}
-                />
+                <input value={newParam.options} onChange={e => setNewParam(prev => ({ ...prev, options: e.target.value }))}
+                  placeholder="Opcije odvojene zarezom (npr. Loše, Dobro, Odlično)" className={`w-full ${inputCls}`} />
               )}
-              <button
-                type="button"
-                onClick={handleAddClientParam}
+              <button type="button" onClick={handleAddClientParam}
                 disabled={!newParam.name.trim() || addingParam || (newParam.type === 'select' && !newParam.options.trim())}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
-                style={{ backgroundColor: 'var(--app-accent)' }}
-              >
+                className="w-full py-1.5 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50"
+                style={{ backgroundColor: 'var(--app-accent)' }}>
                 {addingParam ? tCommon('saving') : 'Dodaj'}
               </button>
             </div>
@@ -492,7 +445,7 @@ export default function CheckinConfig({ clientId }: Props) {
 
       {/* Save */}
       <button type="button" onClick={handleSave} disabled={saving}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all text-white disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold transition-all text-white disabled:opacity-60 disabled:cursor-not-allowed"
         style={{ backgroundColor: saved ? '#059669' : 'var(--app-accent)' }}>
         {saved && <Check size={15} />}
         {saving ? tCommon('saving') : saved ? tConfig('savedSuccess') : tConfig('save')}

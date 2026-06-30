@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, GripVertical, Pencil, Settings2, X, Check, Hash, Type, ToggleLeft, List } from 'lucide-react'
+import { Plus, Trash2, GripVertical, X, Check, Hash, Type, ToggleLeft, List } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
@@ -71,68 +71,49 @@ function InlineForm({
     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
 
   return (
-    <div className={`mt-2 pt-3 space-y-3 border-t ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
+    <div className={`mt-2 pt-2.5 space-y-2 border-t ${isDark ? 'border-white/10' : 'border-gray-100'}`}
+      onClick={e => e.stopPropagation()}>
 
-      {/* Row 1: Name */}
-      <div>
-        <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('name')}</p>
-        <Input ref={nameRef} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })}
-          placeholder={t('namePlaceholder')} className="h-8 text-sm"
-          onKeyDown={e => { if (e.key === 'Enter' && form.name) onSave(); if (e.key === 'Escape') onCancel() }}
-        />
-      </div>
+      {/* Name */}
+      <Input ref={nameRef} value={form.name} onChange={e => onChange({ ...form, name: e.target.value })}
+        placeholder={t('namePlaceholder')} className="h-7 text-xs"
+        onKeyDown={e => { if (e.key === 'Enter' && form.name) onSave(); if (e.key === 'Escape') onCancel() }}
+      />
 
-      {/* Row 2: Type chips */}
-      <div>
-        <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('typeLabel')}</p>
-        <div className="flex gap-1.5 flex-wrap">
-          {types.map(ty => (
-            <button key={ty.value} type="button" onClick={() => onChange({ ...form, type: ty.value })}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-colors font-medium ${
-                form.type === ty.value ? '' : inactivePill
-              }`}
-              style={form.type === ty.value
-                ? { backgroundColor: `${accentHex}18`, color: accentHex, borderColor: `${accentHex}40` }
-                : undefined}>
-              {ty.icon}
-              {ty.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Row 3: Unit (if number) or Options (if select) */}
-      {form.type === 'number' && (
-        <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('unit')}</p>
+      {/* Type chips + Unit/Options inline */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {types.map(ty => (
+          <button key={ty.value} type="button" onClick={() => onChange({ ...form, type: ty.value })}
+            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border transition-colors font-medium ${
+              form.type === ty.value ? '' : inactivePill
+            }`}
+            style={form.type === ty.value
+              ? { backgroundColor: `${accentHex}18`, color: accentHex, borderColor: `${accentHex}40` }
+              : undefined}>
+            {ty.icon}{ty.label}
+          </button>
+        ))}
+        {form.type === 'number' && (
           <Input value={form.unit} onChange={e => onChange({ ...form, unit: e.target.value })}
-            placeholder={t('unitPlaceholder')} className="h-8 text-sm max-w-[180px]" />
-        </div>
-      )}
-      {form.type === 'select' && (
-        <div>
-          <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('optionsLabel')}</p>
+            placeholder={t('unitPlaceholder')} className="h-6 text-xs w-20 ml-1" />
+        )}
+        {form.type === 'select' && (
           <Input value={form.options} onChange={e => onChange({ ...form, options: e.target.value })}
-            placeholder={t('optionsPlaceholder')} className="h-8 text-sm" />
-        </div>
-      )}
+            placeholder={t('optionsPlaceholder')} className="h-6 text-xs flex-1 min-w-[120px] ml-1" />
+        )}
+      </div>
 
-      {/* Row 4: Required checkbox */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-        <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+      {/* Frequency + Required + Actions on same row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
           <input type="checkbox" className="accent-indigo-600 w-3.5 h-3.5"
             checked={form.required} onChange={e => onChange({ ...form, required: e.target.checked })} />
-          <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>{t('requiredLabel')}</span>
+          <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{t('requiredLabel')}</span>
         </label>
-      </div>
-
-      {/* Row 5: Frequency */}
-      <div>
-        <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('frequencyLabel')}</p>
         <div className="flex gap-1">
           {[{ value: 'daily', label: t('daily') }, { value: 'weekly', label: t('weekly') }].map(f => (
             <button key={f.value} type="button" onClick={() => onChange({ ...form, frequency: f.value as any })}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors font-medium ${
+              className={`text-[11px] px-2.5 py-0.5 rounded-full border transition-colors font-medium ${
                 form.frequency === f.value ? '' : inactivePill
               }`}
               style={form.frequency === f.value
@@ -142,21 +123,19 @@ function InlineForm({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Row 6: Actions */}
-      <div className="flex gap-1.5 pt-0.5">
-        <button type="button" onClick={onSave} disabled={!form.name}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-white disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-opacity"
-          style={{ backgroundColor: accentHex }}>
-          <Check size={12} /> {isNew ? t('addButton') : t('save')}
-        </button>
-        <button type="button" onClick={onCancel}
-          className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
-            isDark ? 'border-white/15 text-gray-300 hover:bg-white/8' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}>
-          {t('cancel')}
-        </button>
+        <div className="flex gap-1.5 ml-auto">
+          <button type="button" onClick={onSave} disabled={!form.name}
+            className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md text-white disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-opacity"
+            style={{ backgroundColor: accentHex }}>
+            <Check size={11} /> {isNew ? t('addButton') : t('save')}
+          </button>
+          <button type="button" onClick={onCancel}
+            className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+              isDark ? 'border-white/15 text-gray-300 hover:bg-white/8' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}>
+            {t('cancel')}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -164,12 +143,11 @@ function InlineForm({
 
 // ─── Single parameter card ────────────────────────────────────────────────────
 function ParamCard({
-  param, isEditing, onDoubleClick, onEdit, onDelete, onSave, onCancel, editForm, onFormChange, types, t,
+  param, isEditing, onToggleEdit, onDelete, onSave, onCancel, editForm, onFormChange, types, t,
 }: {
   param: Parameter
   isEditing: boolean
-  onDoubleClick: () => void
-  onEdit: () => void
+  onToggleEdit: () => void
   onDelete: () => void
   onSave: () => void
   onCancel: () => void
@@ -189,12 +167,13 @@ function ParamCard({
 
   return (
     <div
-      className={`border rounded-xl px-3 py-2.5 transition-all ${isDark ? 'bg-white/[0.03] border-white/10' : 'bg-white border-gray-100'}`}
+      className={`border rounded-xl px-3 py-2 transition-all cursor-pointer ${isDark ? 'bg-white/[0.03] border-white/10 hover:border-white/20' : 'bg-white border-gray-100 hover:border-gray-200'}`}
       style={isEditing ? { borderColor: `${accentHex}60`, boxShadow: `0 0 0 1px ${accentHex}30` } : undefined}
-      onDoubleClick={onDoubleClick}
+      onClick={onToggleEdit}
     >
       <div className="flex items-center gap-2">
-        <GripVertical size={13} className={`shrink-0 cursor-grab ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+        <GripVertical size={13} className={`shrink-0 cursor-grab ${isDark ? 'text-white/20' : 'text-gray-300'}`}
+          onClick={e => e.stopPropagation()} />
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <p className={`font-medium text-sm truncate ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>{param.name}</p>
           <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border shrink-0 ${(typeBadge as any)[param.type] || (isDark ? 'bg-white/8 text-gray-400 border-white/15' : 'bg-gray-50 text-gray-500 border-gray-200')}`}>
@@ -206,18 +185,10 @@ function ParamCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button type="button" title={t('editTooltip')} onClick={onEdit}
-            className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${isDark ? 'text-white/30 hover:text-white/70 hover:bg-white/8' : 'text-gray-400 hover:bg-gray-50'}`}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = accentHex }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '' }}>
-            <Pencil size={12} />
-          </button>
-          <button type="button" onClick={onDelete}
-            className={`h-7 w-7 flex items-center justify-center rounded-md transition-colors ${isDark ? 'text-white/30 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}>
-            <Trash2 size={12} />
-          </button>
-        </div>
+        <button type="button" onClick={e => { e.stopPropagation(); onDelete() }}
+          className={`h-6 w-6 flex items-center justify-center rounded-md transition-colors shrink-0 ${isDark ? 'text-white/20 hover:text-red-400 hover:bg-red-500/10' : 'text-gray-300 hover:text-red-500 hover:bg-red-50'}`}>
+          <Trash2 size={11} />
+        </button>
       </div>
 
       {isEditing && (
@@ -323,7 +294,7 @@ export default function ParametersTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          {t('paramCount', { count: parameters.length })} · {t('dblClickHint')}
+          {t('paramCount', { count: parameters.length })} · {t('clickHint')}
         </p>
         <Button onClick={() => { setShowAddForm(v => !v); setEditingId(null) }} size="sm"
           className="h-7 text-xs flex items-center gap-1 px-2.5"
@@ -373,8 +344,7 @@ export default function ParametersTab() {
               <div className="grid grid-cols-1 gap-1.5">
                 {daily.map(param => (
                   <ParamCard key={param.id} param={param} isEditing={editingId === param.id}
-                    onDoubleClick={() => editingId === param.id ? cancelEdit() : startEdit(param)}
-                    onEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onToggleEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
                     onDelete={() => setConfirmDelete(param.id)}
                     onSave={() => saveEdit(param)} onCancel={cancelEdit}
                     editForm={editForms[param.id] || paramToForm(param)}
@@ -395,8 +365,7 @@ export default function ParametersTab() {
               <div className="grid grid-cols-1 gap-1.5">
                 {weekly.map(param => (
                   <ParamCard key={param.id} param={param} isEditing={editingId === param.id}
-                    onDoubleClick={() => editingId === param.id ? cancelEdit() : startEdit(param)}
-                    onEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
+                    onToggleEdit={() => editingId === param.id ? cancelEdit() : startEdit(param)}
                     onDelete={() => setConfirmDelete(param.id)}
                     onSave={() => saveEdit(param)} onCancel={cancelEdit}
                     editForm={editForms[param.id] || paramToForm(param)}

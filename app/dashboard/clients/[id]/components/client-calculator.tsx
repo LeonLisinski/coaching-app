@@ -274,10 +274,16 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
       <button
         type="button"
         onClick={() => { setOpen(true); fetchActivePlan() }}
-        className="p-1 text-gray-400 hover:text-gray-600"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors"
+        style={{
+          borderColor: 'var(--app-accent)',
+          color: 'var(--app-accent)',
+          background: 'color-mix(in srgb, var(--app-accent) 8%, transparent)',
+        }}
         title={t('title')}
       >
-        <Calculator size={14} />
+        <Calculator size={13} />
+        {t('title')}
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -390,7 +396,6 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                       )
                     })}
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center pt-1">{t('scenarioHint')}</p>
                   <div className="h-px bg-gray-200" />
                   <p className="text-xs text-gray-400 text-center">{t('tdeeFormula')}</p>
                 </div>
@@ -400,8 +405,18 @@ export default function ClientCalculator({ clientId, client, onSaved }: Props) {
                 </div>
               )}
 
-              <Button size="sm" className="w-full" onClick={saveTdee} disabled={!canCalc}>
-                {saved === 'tdee' ? <><Check size={14} className="mr-1" /> {t('savedLabel')}</> : t('saveActivity')}
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={!canCalc}
+                onClick={() => {
+                  if (canCalc && !selectedScenario) {
+                    pickScenario({ label: t('scenarios.maintain' as any), kcal: tdee!, goal: 'maintain' })
+                  }
+                  setTab('macros')
+                }}
+              >
+                {t('tabs.macros')} →
               </Button>
             </div>
           )}
