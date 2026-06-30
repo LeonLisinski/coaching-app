@@ -80,6 +80,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const wasAlreadyFocusedSearchRef = useRef<Record<number, boolean>>({})
   const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
+  const newDayIds = useRef(new Set<string>())
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -131,6 +132,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
   useEffect(() => {
     if (open) {
+      newDayIds.current = new Set()
       setName(plan.name)
       setDescription(plan.description || '')
       setDays((plan.days || []).map((d: any, i: number) => ({
@@ -162,6 +164,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
   const addDay = () => {
     const newId = crypto.randomUUID()
+    newDayIds.current.add(newId)
     setDays(prev => {
       const newIdx = prev.length
       setExpandedDays(ed => ({ ...ed, [newIdx]: true }))
@@ -498,28 +501,30 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                     {isDayExpanded(index) && (
                       <div className="px-2.5 pb-2.5 pt-2 space-y-2">
 
-                        {/* Row 1: name input + segmented mode control */}
+                        {/* Row 1: name input + segmented mode control (only for newly added days) */}
                         <div className="flex items-center gap-1.5">
                           <Input value={day.name} onChange={e => updateDayField(index, 'name', e.target.value)}
                             placeholder="Push, Pull, Legs..." className="flex-1 h-7 text-xs" />
-                          <div className="flex rounded-md border border-gray-300 overflow-hidden shrink-0 text-xs">
-                            {(['template', 'custom'] as const).map((mode, mi) => (
-                              <button key={mode} type="button"
-                                onClick={() => updateDayField(index, 'mode', mode)}
-                                title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
-                                className={`flex items-center gap-1 px-2 py-1 h-7 transition-colors ${mi > 0 ? 'border-l border-gray-300' : ''} ${
-                                  day.mode === mode
-                                    ? 'bg-blue-600 text-white font-semibold'
-                                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                                }`}>
-                                {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
-                                <span>{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
-                              </button>
-                            ))}
-                          </div>
+                          {newDayIds.current.has(day._id) && (
+                            <div className="flex rounded-md border border-gray-300 overflow-hidden shrink-0 text-xs">
+                              {(['template', 'custom'] as const).map((mode, mi) => (
+                                <button key={mode} type="button"
+                                  onClick={() => updateDayField(index, 'mode', mode)}
+                                  title={mode === 'template' ? t('form.template') : t('form.createWorkout')}
+                                  className={`flex items-center gap-1 px-2 py-1 h-7 transition-colors ${mi > 0 ? 'border-l border-gray-300' : ''} ${
+                                    day.mode === mode
+                                      ? 'bg-blue-600 text-white font-semibold'
+                                      : 'bg-white text-gray-500 hover:bg-gray-50'
+                                  }`}>
+                                  {mode === 'template' ? <BookOpen size={11} /> : <Pencil size={11} />}
+                                  <span>{mode === 'template' ? t('form.template') : t('form.createWorkout')}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
-                        {day.mode === 'template' && (
+                        {newDayIds.current.has(day._id) && day.mode === 'template' && (
                           <SelectDropdown
                             value={day.template_id || ''}
                             onChange={v => {
@@ -625,11 +630,11 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                         <button
                           type="button"
                           onClick={() => addBlockToDay(index)}
-                          className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-violet-200 text-violet-600 hover:bg-violet-50 font-medium transition-colors shrink-0 h-9"
+                          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-violet-200 text-violet-600 hover:bg-violet-50 font-medium transition-colors shrink-0 h-9"
                           title={tTemplate('addBlock')}
                         >
                           <Layers size={12} />
-                          SS
+                          Superset
                         </button>
                         </div>
 

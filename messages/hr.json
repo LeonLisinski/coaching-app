@@ -1175,7 +1175,7 @@
           "loadingExercises": "Učitavanje...",
           "noResults": "Nema rezultata{search}",
           "noResultsFor": " za \"{search}\"",
-          "searchExercisePlaceholder": "Pretraži i dodaj vježbu... (↑↓ Enter)",
+          "searchExercisePlaceholder": "Pretraži i dodaj vježbu...",
           "addSubtitle": "Dodaj dane i vježbe po danu",
           "clientEditNotice": "Promjene vrijede samo za ovog klijenta. Originalni plan ostaje nepromijenjen.",
           "copyDayTooltip": "Kopiraj dan",

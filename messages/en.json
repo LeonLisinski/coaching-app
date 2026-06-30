@@ -1175,7 +1175,7 @@
           "loadingExercises": "Loading...",
           "noResults": "No results{search}",
           "noResultsFor": " for \"{search}\"",
-          "searchExercisePlaceholder": "Search and add exercise... (↑↓ Enter)",
+          "searchExercisePlaceholder": "Search and add exercise...",
           "addSubtitle": "Add days and exercises per day",
           "clientEditNotice": "Changes apply only to this client. The original plan remains unchanged.",
           "copyDayTooltip": "Copy day",
