@@ -19,8 +19,9 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil, Layers } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DragOverlay, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
@@ -83,6 +84,8 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const wasAlreadyFocusedSearchRef = useRef<Record<number, boolean>>({})
   const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
+  const [activeDragDayId, setActiveDragDayId] = useState<string | null>(null)
+  const [activeDragExercise, setActiveDragExercise] = useState<{ dayIndex: number; id: string } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -425,7 +428,9 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                   </Button>
                 </div>
 
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderDays}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]}
+                  onDragStart={e => setActiveDragDayId(e.active.id as string)}
+                  onDragEnd={e => { setActiveDragDayId(null); reorderDays(e) }}>
                   <SortableContext items={days.map(d => d._id)} strategy={verticalListSortingStrategy}>
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
@@ -584,7 +589,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         <button
                           type="button"
                           onClick={() => addBlockToDay(index)}
-                          className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border font-medium transition-colors shrink-0 h-9 ${
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors shrink-0 h-9 ${
                             isDark
                               ? 'border-violet-800/50 text-violet-400 hover:bg-violet-900/30'
                               : 'border-violet-200 text-violet-600 hover:bg-violet-50'
@@ -592,13 +597,15 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                           title={tTemplate('addBlock')}
                         >
                           <Layers size={12} />
-                          SS
+                          Superset
                         </button>
                         </div>
 
                         {/* Exercises with DnD */}
                         <DndContext sensors={sensors} collisionDetection={closestCenter}
-                          onDragEnd={ev => reorderExercises(index, ev)}>
+                          modifiers={[restrictToVerticalAxis]}
+                          onDragStart={e => setActiveDragExercise({ dayIndex: index, id: e.active.id as string })}
+                          onDragEnd={ev => { setActiveDragExercise(null); reorderExercises(index, ev) }}>
                           <SortableContext items={day.exercises.map(e => getItemDndId(e as any))} strategy={verticalListSortingStrategy}>
                             <div className="space-y-2">
                               {day.exercises.map((item, exIndex) => {
@@ -655,6 +662,19 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                   </SortableDayWrapper>
                 ))}
                   </SortableContext>
+                  <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
+                    {activeDragDayId && (() => {
+                      const day = days.find(d => d._id === activeDragDayId)
+                      if (!day) return null
+                      return (
+                        <div className={`border-2 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 ${isDark ? 'border-indigo-500 bg-[oklch(0.22_0.018_264)] text-indigo-300' : 'border-indigo-400 bg-white text-indigo-700'}`}>
+                          <GripVertical size={14} className="text-indigo-400" />
+                          {t('form.dayLabel')} {day.day_number}
+                          {day.name !== `${t('form.dayLabel')} ${day.day_number}` && <span className="font-normal text-xs opacity-60">· {day.name}</span>}
+                        </div>
+                      )
+                    })()}
+                  </DragOverlay>
                 </DndContext>
 
                 {days.length === 0 && (

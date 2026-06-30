@@ -1116,7 +1116,7 @@
         "dragHint": "Povuci za promjenu redoslijeda",
         "removeExerciseTitle": "Ukloni vježbu",
         "removeExerciseConfirm": "Sigurno želiš ukloniti ovu vježbu iz treninga?",
-        "searchAddPlaceholder": "Pretraži i dodaj vježbu... (↑↓ Enter)",
+        "searchAddPlaceholder": "Pretraži i dodaj vježbu...",
         "repsLabel": "Ponavljanja",
         "restSecsLabel": "Odmor (sek)",
         "notePlaceholder": "Napomena...",

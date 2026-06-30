@@ -18,7 +18,7 @@ import {
   DndContext, DragOverlay, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { snapCenterToCursor } from '@dnd-kit/modifiers'
+import { snapCenterToCursor, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   SortableContext, arrayMove, verticalListSortingStrategy,
   sortableKeyboardCoordinates, useSortable,
@@ -650,7 +650,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                       <GripVertical size={11} /> {t('dragHint')}
                     </span>
                   </div>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                     <SortableContext items={selected.map(getItemDndId)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-2">
                         {selected.map((item, index) => {
@@ -694,7 +694,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                       </div>
                     </SortableContext>
                     <div ref={exercisesEndRef} />
-                    <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+                    <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
                       {activeDragId && (() => {
                         const item = selected.find(i => getItemDndId(i) === activeDragId)
                         if (!item) return null

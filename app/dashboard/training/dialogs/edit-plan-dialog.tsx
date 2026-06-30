@@ -19,8 +19,9 @@ import {
 } from '../lib/template-blocks'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DragOverlay, type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SortableExerciseCard, { type PlanExercise } from '../components/sortable-exercise-card'
@@ -81,6 +82,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
   const newDayIds = useRef(new Set<string>())
+  const [activeDragDayId, setActiveDragDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -453,7 +455,9 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                   <p className="text-xs text-gray-400 text-center py-2">{t('form.emptyDays')}</p>
                 )}
 
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderDays}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]}
+                  onDragStart={e => setActiveDragDayId(e.active.id as string)}
+                  onDragEnd={e => { setActiveDragDayId(null); reorderDays(e) }}>
                   <SortableContext items={days.map(d => d._id)} strategy={verticalListSortingStrategy}>
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
@@ -640,6 +644,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
 
                         {/* Exercises with DnD */}
                         <DndContext sensors={sensors} collisionDetection={closestCenter}
+                          modifiers={[restrictToVerticalAxis]}
                           onDragEnd={ev => reorderExercises(index, ev)}>
                           <SortableContext items={day.exercises.map(e => getItemDndId(e as any))} strategy={verticalListSortingStrategy}>
                             <div className="space-y-2">
@@ -696,6 +701,19 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                   </SortableDayWrapper>
                 ))}
                   </SortableContext>
+                  <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
+                    {activeDragDayId && (() => {
+                      const day = days.find(d => d._id === activeDragDayId)
+                      if (!day) return null
+                      return (
+                        <div className="border-2 border-indigo-400 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 bg-white text-indigo-700">
+                          <GripVertical size={14} className="text-indigo-400" />
+                          {t('form.dayLabel')} {day.day_number}
+                          {day.name !== `${t('form.dayLabel')} ${day.day_number}` && <span className="font-normal text-xs opacity-60">· {day.name}</span>}
+                        </div>
+                      )
+                    })()}
+                  </DragOverlay>
                 </DndContext>
 
                 <div ref={daysEndRef} />

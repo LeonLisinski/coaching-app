@@ -1116,7 +1116,7 @@
         "dragHint": "Drag to reorder",
         "removeExerciseTitle": "Remove exercise",
         "removeExerciseConfirm": "Are you sure you want to remove this exercise from the training?",
-        "searchAddPlaceholder": "Search and add exercise... (↑↓ Enter)",
+        "searchAddPlaceholder": "Search and add exercise...",
         "repsLabel": "Reps",
         "restSecsLabel": "Rest (sec)",
         "notePlaceholder": "Note...",
