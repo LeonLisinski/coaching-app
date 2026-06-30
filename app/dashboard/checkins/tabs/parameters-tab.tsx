@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Trash2, GripVertical, X, Check, Hash, Type, ToggleLeft, List } from 'lucide-react'
+import { Plus, Trash2, GripVertical, X, Check, Hash, Type, ToggleLeft, List, Settings2 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
 
