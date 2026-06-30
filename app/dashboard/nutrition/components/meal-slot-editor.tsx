@@ -136,7 +136,7 @@ export default function MealSlotEditor({ meal, index, recipes, foods, nutritionF
   const [search, setSearch] = useState('')
 
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const [expanded, setExpanded]           = useState(true)
+  const [expanded, setExpanded]           = useState(false)
   const [searchFocused, setSearchFocused] = useState(false)
   const [dropdownIndex, setDropdownIndex] = useState(-1)
   const [flashIngId, setFlashIngId]       = useState<string | null>(null)
