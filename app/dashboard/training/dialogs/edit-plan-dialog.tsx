@@ -19,7 +19,7 @@ import {
 } from '../lib/template-blocks'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  DragOverlay, type DragEndEvent, type DragStartEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
@@ -82,7 +82,6 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
   const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
   const newDayIds = useRef(new Set<string>())
-  const [activeDragDayId, setActiveDragDayId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -456,8 +455,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                 )}
 
                 <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]}
-                  onDragStart={e => setActiveDragDayId(e.active.id as string)}
-                  onDragEnd={e => { setActiveDragDayId(null); reorderDays(e) }}>
+                  onDragEnd={reorderDays}>
                   <SortableContext items={days.map(d => d._id)} strategy={verticalListSortingStrategy}>
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
@@ -701,19 +699,6 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
                   </SortableDayWrapper>
                 ))}
                   </SortableContext>
-                  <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
-                    {activeDragDayId && (() => {
-                      const day = days.find(d => d._id === activeDragDayId)
-                      if (!day) return null
-                      return (
-                        <div className="border-2 border-indigo-400 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 bg-white text-indigo-700">
-                          <GripVertical size={14} className="text-indigo-400" />
-                          {t('form.dayLabel')} {day.day_number}
-                          {day.name !== `${t('form.dayLabel')} ${day.day_number}` && <span className="font-normal text-xs opacity-60">· {day.name}</span>}
-                        </div>
-                      )
-                    })()}
-                  </DragOverlay>
                 </DndContext>
 
                 <div ref={daysEndRef} />

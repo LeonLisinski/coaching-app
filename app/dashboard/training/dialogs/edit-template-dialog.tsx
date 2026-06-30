@@ -694,7 +694,7 @@ export default function EditTemplateDialog({ template, open, onClose, onSuccess,
                       </div>
                     </SortableContext>
                     <div ref={exercisesEndRef} />
-                    <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
+                    <DragOverlay dropAnimation={null} modifiers={[restrictToVerticalAxis]}>
                       {activeDragId && (() => {
                         const item = selected.find(i => getItemDndId(i) === activeDragId)
                         if (!item) return null

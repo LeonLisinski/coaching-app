@@ -19,7 +19,7 @@ import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { Plus, X, ChevronDown, ChevronUp, Copy, GripVertical, CalendarDays, BookOpen, Pencil, Layers } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  DragOverlay, type DragEndEvent, type DragStartEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
@@ -84,8 +84,6 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
   const wasAlreadyFocusedSearchRef = useRef<Record<number, boolean>>({})
   const [dropdownRects, setDropdownRects] = useState<Record<number, DOMRect>>({})
   const [flashDayId, setFlashDayId] = useState<string | null>(null)
-  const [activeDragDayId, setActiveDragDayId] = useState<string | null>(null)
-  const [activeDragExercise, setActiveDragExercise] = useState<{ dayIndex: number; id: string } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -429,8 +427,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                 </div>
 
                 <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]}
-                  onDragStart={e => setActiveDragDayId(e.active.id as string)}
-                  onDragEnd={e => { setActiveDragDayId(null); reorderDays(e) }}>
+                  onDragEnd={reorderDays}>
                   <SortableContext items={days.map(d => d._id)} strategy={verticalListSortingStrategy}>
                 {days.map((day, index) => (
                   <SortableDayWrapper key={day._id} id={day._id} isNew={flashDayId === day._id}>
@@ -604,8 +601,7 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                         {/* Exercises with DnD */}
                         <DndContext sensors={sensors} collisionDetection={closestCenter}
                           modifiers={[restrictToVerticalAxis]}
-                          onDragStart={e => setActiveDragExercise({ dayIndex: index, id: e.active.id as string })}
-                          onDragEnd={ev => { setActiveDragExercise(null); reorderExercises(index, ev) }}>
+                          onDragEnd={ev => reorderExercises(index, ev)}>
                           <SortableContext items={day.exercises.map(e => getItemDndId(e as any))} strategy={verticalListSortingStrategy}>
                             <div className="space-y-2">
                               {day.exercises.map((item, exIndex) => {
@@ -662,19 +658,6 @@ export default function AddPlanDialog({ open, onClose, onSuccess, onSuccessWithI
                   </SortableDayWrapper>
                 ))}
                   </SortableContext>
-                  <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }} modifiers={[restrictToVerticalAxis]}>
-                    {activeDragDayId && (() => {
-                      const day = days.find(d => d._id === activeDragDayId)
-                      if (!day) return null
-                      return (
-                        <div className={`border-2 rounded-xl px-3 py-2 shadow-xl text-sm font-semibold flex items-center gap-2 ${isDark ? 'border-indigo-500 bg-[oklch(0.22_0.018_264)] text-indigo-300' : 'border-indigo-400 bg-white text-indigo-700'}`}>
-                          <GripVertical size={14} className="text-indigo-400" />
-                          {t('form.dayLabel')} {day.day_number}
-                          {day.name !== `${t('form.dayLabel')} ${day.day_number}` && <span className="font-normal text-xs opacity-60">· {day.name}</span>}
-                        </div>
-                      )
-                    })()}
-                  </DragOverlay>
                 </DndContext>
 
                 {days.length === 0 && (
