@@ -127,7 +127,7 @@ export default function EditPlanDialog({ plan, open, onClose, onSuccess, clientA
       window.removeEventListener('resize', update)
     }
   }, [searchFocused])
-  const isDayExpanded = (i: number) => expandedDays[i] ?? true
+  const isDayExpanded = (i: number) => expandedDays[i] ?? false
   const toggleDay = (i: number) => setExpandedDays(prev => ({ ...prev, [i]: !isDayExpanded(i) }))
 
   useEffect(() => {
