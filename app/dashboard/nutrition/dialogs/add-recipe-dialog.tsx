@@ -7,10 +7,62 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { X, BookOpen, Plus } from 'lucide-react'
+import { X, BookOpen, Plus, GripVertical } from 'lucide-react'
 import { useTrainerSettings, NUTRITION_FIELD_OPTIONS } from '@/hooks/use-trainer-settings'
 import AddFoodDialog from './add-food-dialog'
 import { useAppTheme } from '@/app/contexts/app-theme'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+function isInteractiveElR(el: HTMLElement | null) {
+  while (el) {
+    if ((el as HTMLElement).dataset?.dragHandle) return false
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(el.tagName)) return true
+    el = el.parentElement
+  }
+  return false
+}
+class SmartPointerSensorR extends PointerSensor {
+  static activators = [{ eventName: 'onPointerDown' as const, handler: ({ nativeEvent }: React.PointerEvent) => !isInteractiveElR(nativeEvent.target as HTMLElement) }]
+}
+
+function SortableIngredientAdd({ ing, isDark, onGramsChange, onRemove, flashIngId }: {
+  ing: Ingredient; isDark: boolean; flashIngId: string | null;
+  onGramsChange: (food_id: string, grams: number) => void;
+  onRemove: (food_id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ing.food_id })
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className={`flex items-center gap-2 border rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''} ${isDark ? 'bg-white/[0.04] border-white/10' : 'border-orange-100 bg-orange-50/30'}`}>
+      <button type="button" data-drag-handle="true" {...listeners} {...attributes}
+        className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none transition-colors" tabIndex={-1}>
+        <GripVertical size={14} />
+      </button>
+      <span className={`text-sm flex-1 font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{ing.name}</span>
+      <div className="flex items-center gap-2">
+        <Input type="text" inputMode="numeric" value={ing.grams || ''}
+          onFocus={e => e.target.select()}
+          onChange={e => {
+            const v = parseFloat(e.target.value.replace(',', '.'))
+            if (!isNaN(v) && v >= 0) onGramsChange(ing.food_id, v)
+            else if (e.target.value === '') onGramsChange(ing.food_id, 0)
+          }}
+          className="w-20 h-7 text-sm border-orange-200 focus:border-orange-400" />
+        <span className="text-xs text-gray-500">g</span>
+      </div>
+      <div className="text-xs text-orange-600 font-medium w-24 text-right">{Math.round(ing.calories)} kcal</div>
+      <button type="button" onClick={() => onRemove(ing.food_id)}>
+        <X size={14} className="text-gray-400 hover:text-red-500" />
+      </button>
+    </div>
+  )
+}
 
 type Props = { open: boolean; onClose: () => void; onSuccess: () => void }
 
@@ -52,6 +104,20 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
   const wasAlreadyFocusedRef = useRef(false)
 
   const activeNutritionFields = NUTRITION_FIELD_OPTIONS.filter(f => settings.nutritionFields.includes(f.key))
+
+  const sensors = useSensors(
+    useSensor(SmartPointerSensorR, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const reorderIngredients = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+    setIngredients(prev => {
+      const oldIdx = prev.findIndex(i => i.food_id === active.id)
+      const newIdx = prev.findIndex(i => i.food_id === over.id)
+      return arrayMove(prev, oldIdx, newIdx)
+    })
+  }
 
   useEffect(() => {
     if (open) { fetchFoods(); setName(''); setDescription(''); setIngredients([]) }
@@ -264,26 +330,14 @@ export default function AddRecipeDialog({ open, onClose, onSuccess }: Props) {
           {ingredients.length > 0 && (
             <div className="space-y-2">
               <Label>{t('ingredients')} ({ingredients.length})</Label>
-              {ingredients.map(ing => (
-                <div key={ing.food_id} className={`flex items-center gap-3 border rounded-lg p-2 ${flashIngId === ing.food_id ? 'item-added' : ''} ${isDark ? 'bg-white/[0.04] border-white/10' : 'border-orange-100 bg-orange-50/30'}`}>
-                  <span className={`text-sm flex-1 font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{ing.name}</span>
-                  <div className="flex items-center gap-2">
-                  <Input type="text" inputMode="numeric" value={ing.grams || ''}
-                    onFocus={e => e.target.select()}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value.replace(',', '.'))
-                      if (!isNaN(v) && v >= 0) updateGrams(ing.food_id, v)
-                      else if (e.target.value === '') updateGrams(ing.food_id, 0)
-                    }}
-                    className="w-20 h-7 text-sm border-orange-200 focus:border-orange-400" />
-                    <span className="text-xs text-gray-500">g</span>
-                  </div>
-                  <div className="text-xs text-orange-600 font-medium w-24 text-right">{Math.round(ing.calories)} kcal</div>
-                  <button type="button" onClick={() => removeIngredient(ing.food_id)}>
-                    <X size={14} className="text-gray-400 hover:text-red-500" />
-                  </button>
-                </div>
-              ))}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={reorderIngredients}>
+                <SortableContext items={ingredients.map(i => i.food_id)} strategy={verticalListSortingStrategy}>
+                  {ingredients.map(ing => (
+                    <SortableIngredientAdd key={ing.food_id} ing={ing} isDark={isDark} flashIngId={flashIngId}
+                      onGramsChange={updateGrams} onRemove={removeIngredient} />
+                  ))}
+                </SortableContext>
+              </DndContext>
 
               <div className={`rounded-lg p-3 space-y-1 ${isDark ? 'bg-white/[0.04] border border-white/10' : 'bg-orange-50 border border-orange-100'}`}>
                 <div className="flex gap-4 text-sm">

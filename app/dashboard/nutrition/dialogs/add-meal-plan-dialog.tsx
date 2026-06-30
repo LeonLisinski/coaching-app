@@ -16,6 +16,7 @@ import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, arrayMove, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -334,7 +335,7 @@ export default function AddMealPlanDialog({ open, onClose, onSuccess, isTemplate
 
             {/* Meals list */}
             <div className="px-6 py-3 space-y-3">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={reorderMeals}>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={reorderMeals}>
                 <SortableContext items={meals.map(m => m._id)} strategy={verticalListSortingStrategy}>
                   {meals.map((meal, index) => (
                     <SortableMealSlot
